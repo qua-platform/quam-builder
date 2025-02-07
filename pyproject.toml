@@ -1,0 +1,18 @@
+[project]
+name = "quam-libs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Theo Laudat", email = "theo.laudat@quantum-machines.co" }]
+requires-python = ">=3.9,<=3.12"
+dependencies = ["qualang-tools>=0.19.0", "qualibrate>=0.1.6", "quam>=0.3.8"]
+
+    [project.scripts]
+    quam-libs = "quam_libs:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["xarray>=2024.7.0"]
