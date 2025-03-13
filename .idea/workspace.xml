@@ -4,47 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="updates pyproject">
+    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="delete wrong test">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/cross_resonance.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/flux_line.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/mixer.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/readout_resonator.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/tunable_coupler.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/xy_drive.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/components/zz_drive.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qpu/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qpu/base_quam.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qpu/fixed_frequency_qpu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qpu/flux_tunable_qpu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit/base_transmon.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit/fixed_frequency_transmon.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit/flux_tunable_transmon.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit_pair/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit_pair/fixed_frequency_transmons.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit_pair/flux_tunable_transmons.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/build_quam_wiring.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/channel_ports.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/create_analog_ports.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/create_digital_ports.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/create_wiring.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/get_digital_outputs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/paths.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/add_transmon_drive_component.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/add_transmon_flux_component.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/add_transmon_pair_component.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/add_transmon_resonator_component.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/build_quam.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/pulses.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/superconducting/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/superconducting/__init__.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -169,7 +132,23 @@
       <option name="project" value="LOCAL" />
       <updated>1741878405832</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="updates pyproject and structure">
+      <option name="closed" value="true" />
+      <created>1741878614230</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1741878614230</updated>
+    </task>
+    <task id="LOCAL-00008" summary="delete wrong test">
+      <option name="closed" value="true" />
+      <created>1741881328101</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1741881328101</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -187,6 +166,8 @@
     <MESSAGE value="Update from SCquam" />
     <MESSAGE value="updates from SC_quam" />
     <MESSAGE value="updates pyproject" />
-    <option name="LAST_COMMIT_MESSAGE" value="updates pyproject" />
+    <MESSAGE value="updates pyproject and structure" />
+    <MESSAGE value="delete wrong test" />
+    <option name="LAST_COMMIT_MESSAGE" value="delete wrong test" />
   </component>
 </project>

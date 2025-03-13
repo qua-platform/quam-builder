@@ -8,6 +8,7 @@ from .components import (
     tunable_coupler,
     cross_resonance,
     zz_drive,
+    xy_drive
 )
 
 __all__ = [
