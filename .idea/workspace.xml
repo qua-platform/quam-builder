@@ -4,14 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="Update from SCquam">
+    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="fix some todos + black">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qpu/base_quam.py" beforeDir="false" afterPath="$PROJECT_DIR$/architecture/superconducting/qpu/base_quam.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit/fixed_frequency_transmon.py" beforeDir="false" afterPath="$PROJECT_DIR$/architecture/superconducting/qubit/fixed_frequency_transmon.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/architecture/superconducting/qubit_pair/fixed_frequency_transmons.py" beforeDir="false" afterPath="$PROJECT_DIR$/architecture/superconducting/qubit_pair/fixed_frequency_transmons.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/qop_connectivity/create_analog_ports.py" beforeDir="false" afterPath="$PROJECT_DIR$/builder/qop_connectivity/create_analog_ports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/add_transmon_pair_component.py" beforeDir="false" afterPath="$PROJECT_DIR$/builder/superconducting/add_transmon_pair_component.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/builder/superconducting/pulses.py" beforeDir="false" afterPath="$PROJECT_DIR$/builder/superconducting/pulses.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,35 +15,35 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "TheoLaudatQM"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;TheoLaudatQM&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/qua-platform/quam-libs.git",
-    "accountId": "c006b974-14cb-4882-b1d9-539ede5584a1"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/qua-platform/quam-libs.git&quot;,
+    &quot;accountId&quot;: &quot;c006b974-14cb-4882-b1d9-539ede5584a1&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="2u7f6VGCNe4EdRn9Go4djglEuZ1" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python tests.Python tests for test_components_flux_line.test_class_attribute.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "C:/Users/TheoQM/anaconda3/envs/octave"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python tests.Python tests for test_components_flux_line.test_class_attribute.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/TheoQM/anaconda3/envs/octave&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="Python tests for test_components_flux_line.test_class_attribute" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
       <module name="quam-builder" />

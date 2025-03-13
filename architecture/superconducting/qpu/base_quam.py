@@ -109,7 +109,7 @@ class BaseQuAM(QuamRoot):
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
-        self.qmm = QuantumMachinesManager(**settings)  # TODO: how to fix this warning?
+        self.qmm = QuantumMachinesManager(**settings)
         return self.qmm
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
@@ -124,18 +124,13 @@ class BaseQuAM(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
     def data_handler(self) -> DataHandler:
         """Return the existing data handler or open a new one to conveniently handle data saving."""
         if self._data_handler is None:
-            # TODO: how to fix this warning?
-            self._data_handler = DataHandler(
-                root_data_folder=self.network["data_folder"]
-            )
+            self._data_handler = DataHandler(root_data_folder=self.network["data_folder"])
             DataHandler.node_data = {"quam": "./state.json"}
         return self._data_handler
 
@@ -179,5 +174,6 @@ class BaseQuAM(QuamRoot):
         Q_st = [declare_stream() for _ in range(len(self.qubits))]
         return I, I_st, Q, Q_st, n, n_st
 
-    def initialize_qpu(self):
+    def initialize_qpu(self, **kwargs):
+        target = kwargs.get("target", None)
         pass
