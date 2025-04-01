@@ -26,10 +26,17 @@ from qm.qua import (
     StreamType,
     if_,
     update_frequency,
-    QuaVariableType,
     Math,
     Cast,
 )
+
+
+try:
+    from qm.qua.type_hints import QuaVariable
+
+    QuaVariableBool = QuaVariable[bool]
+except ImportError:
+    from qm.qua._dsl import QuaVariableType as QuaVariableBool
 
 
 __all__ = ["BaseTransmon"]
@@ -374,7 +381,7 @@ class BaseTransmon(QuamComponent):
             self.align()
             assign(attempts, attempts + 1)
 
-    def readout_state_gef(self, state: QuaVariableType, pulse_name: str = "readout"):
+    def readout_state_gef(self, state: QuaVariableBool, pulse_name: str = "readout"):
         """
         Perform a GEF state readout using the specified pulse and update the state variable.
 
@@ -384,7 +391,7 @@ class BaseTransmon(QuamComponent):
         to the index of the closest GEF state.
 
         Args:
-            state (QuaVariableType): The variable to store the readout state (0 for 'g', 1 for 'e', 2 for 'f').
+            state (QuaVariableBool): The variable to store the readout state (0 for 'g', 1 for 'e', 2 for 'f').
             pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout".
 
         Returns:
