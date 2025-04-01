@@ -99,6 +99,7 @@ class BaseTransmon(QuamComponent):
     GEF_frequency_shift: int = None
     chi: float = None
     grid_location: str = None
+    gate_fidelities: Dict[str, Any] = field(default_factory=dict)
     extras: Dict[str, Any] = field(default_factory=dict)
 
     @property
