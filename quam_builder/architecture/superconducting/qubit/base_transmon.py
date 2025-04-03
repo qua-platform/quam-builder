@@ -232,7 +232,7 @@ class BaseTransmon(QuamComponent):
         assign(state, Cast.to_int(I > threshold))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
 
-    def reset_qubit(
+    def reset(
         self,
         reset_type: Literal["thermal", "active", "active_gef"] = "thermal",
         simulate: bool = False,
