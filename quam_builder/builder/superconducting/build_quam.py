@@ -93,7 +93,8 @@ def add_transmons(machine: Union[AnyQuAM]):
             number_of_qubits = len(wiring_by_element.items())
             qubit_number = 0
             for qubit_id, wiring_by_line_type in wiring_by_element.items():
-                transmon = machine.qubit_type(id=qubit_id)
+                qubit_class = machine.qubit_type
+                transmon = qubit_class(id=qubit_id)
                 machine.qubits[qubit_id] = transmon
                 machine.qubits[qubit_id].grid_location = _set_default_grid_location(qubit_number, number_of_qubits)
                 qubit_number += 1
