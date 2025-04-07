@@ -9,4 +9,4 @@ __all__ = [
     *flux_tunable_qpu.__all__,
 ]
 
-AnyQuAM = Union[BaseQuam, FixedFrequencyQuam, FluxTunableQuam]
+AnyQuam = Union[BaseQuam, FixedFrequencyQuam, FluxTunableQuam]

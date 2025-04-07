@@ -17,7 +17,7 @@ __all__ = ["XYDriveIQ", "XYDriveMW"]
 @quam_dataclass
 class XYDriveBase:
     """
-    QuAM component for a XY drive line.
+    QUAM component for a XY drive line.
 
     Methods:
         calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm): Calculate the voltage scaling factor required to scale fixed power to target power.

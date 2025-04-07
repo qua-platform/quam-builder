@@ -13,7 +13,7 @@ def create_external_mixer_reference(
     channel: AnyInstrumentChannel, element_id: QubitReference, line_type: WiringLineType
 ) -> (str, str):
     """
-    Generates a key/JSON reference pair from which a QuAM port can be created for a single Octave channel.
+    Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
 
     Parameters:
     channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
@@ -41,7 +41,7 @@ def create_external_mixer_reference(
 
 def create_octave_port(channel: AnyInstrumentChannel) -> (str, str):
     """
-    Generates a key/JSON reference pair from which a QuAM port can be created for a single Octave channel.
+    Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
 
     Parameters:
     channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
@@ -69,7 +69,7 @@ def create_octave_port(channel: AnyInstrumentChannel) -> (str, str):
 
 def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
     """
-    Generates a key/JSON reference pair from which a QuAM port can be created for a mw-fem channel.
+    Generates a key/JSON reference pair from which a QUAM port can be created for a mw-fem channel.
 
     Parameters:
     channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
@@ -90,7 +90,7 @@ def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
 
 def create_lf_opx_plus_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> (str, str):
     """
-    Generates a key/JSON reference pair from which a QuAM port can be created for a single non-octave channel.
+    Generates a key/JSON reference pair from which a QUAM port can be created for a single non-octave channel.
 
     Parameters:
     channel (AnyInstrumentChannel): The instrument channel for which the reference is created.

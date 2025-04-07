@@ -8,7 +8,7 @@ __all__ = ["FluxLine"]
 
 @quam_dataclass
 class FluxLine(SingleChannel):
-    """QuAM component for a flux line.
+    """QUAM component for a flux line.
 
     Attributes:
         independent_offset (float): the flux bias corresponding to the resonator maximum frequency when the active qubits are not interacting (min offset) in V.

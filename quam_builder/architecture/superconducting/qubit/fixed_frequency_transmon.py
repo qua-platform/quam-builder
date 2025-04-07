@@ -11,7 +11,7 @@ __all__ = ["FixedFrequencyTransmon"]
 @quam_dataclass
 class FixedFrequencyTransmon(BaseTransmon):
     """
-    Example QuAM component for a transmon qubit.
+    Example QUAM component for a transmon qubit.
 
     Args:
 

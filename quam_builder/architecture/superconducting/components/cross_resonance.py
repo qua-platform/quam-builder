@@ -7,7 +7,7 @@ __all__ = ["CrossResonanceIQ", "CrossResonanceMW"]
 @quam_dataclass
 class CrossResonanceBase:
     """
-    Example QuAM component for a cross resonance gate.
+    Example QUAM component for a cross resonance gate.
 
     Attributes:
         target_qubit_LO_frequency (float): the coupler flux bias for which the interaction is off.

@@ -8,7 +8,7 @@ __all__ = ["TunableCoupler"]
 @quam_dataclass
 class TunableCoupler(SingleChannel):
     """
-    Example QuAM component for a tunable coupler.
+    Example QUAM component for a tunable coupler.
 
     Attributes:
         decouple_offset (float): the coupler flux bias for which the interaction is off.

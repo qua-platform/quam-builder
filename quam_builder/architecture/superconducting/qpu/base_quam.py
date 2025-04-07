@@ -25,7 +25,7 @@ __all__ = ["BaseQuam"]
 
 @quam_dataclass
 class BaseQuam(QuamRoot):
-    """Example QuAM root component."""
+    """Example QUAM root component."""
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
     mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
@@ -57,12 +57,12 @@ class BaseQuam(QuamRoot):
             return None
 
     @classmethod
-    def load(cls, *args, **kwargs) -> "QuAM":
+    def load(cls, *args, **kwargs) -> "Quam":
         if not args:
             quam_state_path = cls.get_quam_state_path()
             if quam_state_path is None:
                 raise ValueError(
-                    "No path argument provided to load the QuAM state. "
+                    "No path argument provided to load the QUAM state. "
                     "Please set the quam_state_path in the QUAlibrate config. "
                     "See the README for instructions."
                 )
@@ -82,7 +82,7 @@ class BaseQuam(QuamRoot):
             path = self.get_quam_state_path()
             if path is None:
                 raise ValueError(
-                    "No path argument provided to save the QuAM state. "
+                    "No path argument provided to save the QUAM state. "
                     "Please provide a path or set the 'QUAM_STATE_PATH' environment variable. "
                     "See the README for instructions."
                 )

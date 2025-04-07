@@ -11,7 +11,7 @@ __all__ = ["FluxTunableTransmon"]
 @quam_dataclass
 class FluxTunableTransmon(FixedFrequencyTransmon):
     """
-    Example QuAM component for a flux tunable transmon qubit.
+    Example QUAM component for a flux tunable transmon qubit.
 
     Args:
         z (FluxLine): The z drive component.

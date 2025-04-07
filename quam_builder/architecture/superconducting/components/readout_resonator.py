@@ -17,7 +17,7 @@ __all__ = ["ReadoutResonatorIQ", "ReadoutResonatorMW"]
 @quam_dataclass
 class ReadoutResonatorBase:
     """
-    QuAM component for a readout resonator.
+    QUAM component for a readout resonator.
 
     Attributes:
         depletion_time (int): The resonator depletion time in ns. Default is 16ns.

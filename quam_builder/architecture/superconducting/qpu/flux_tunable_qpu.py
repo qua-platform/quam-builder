@@ -13,7 +13,7 @@ __all__ = ["Quam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 @quam_dataclass
 class Quam(BaseQuam):
-    """Example QuAM root component."""
+    """Example QUAM root component."""
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
     qubit_pair_type: ClassVar[Type[FluxTunableTransmonPair]] = FluxTunableTransmonPair

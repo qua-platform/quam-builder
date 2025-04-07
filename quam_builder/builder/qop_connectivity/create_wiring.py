@@ -18,13 +18,13 @@ from quam_builder.builder.qop_connectivity.paths import *
 
 def create_wiring(connectivity: Connectivity) -> dict:
     """
-    Generates a dictionary containing QuAM-compatible JSON references which can be used to generate QuAM `port` objects.
+    Generates a dictionary containing QUAM-compatible JSON references which can be used to generate QUAM `port` objects.
 
     Parameters:
     connectivity (Connectivity): The connectivity configuration.
 
     Returns:
-    dict: A dictionary containing QuAM-compatible JSON references.
+    dict: A dictionary containing QUAM-compatible JSON references.
 
     Raises:
     ValueError: If an unknown line type is encountered.
@@ -60,7 +60,7 @@ def qubit_wiring(
     line_type: WiringLineType,
 ) -> dict:
     """
-    Generates a dictionary containing QuAM-compatible JSON references for a list of channels from a single qubit and the same line type.
+    Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit and the same line type.
 
     Parameters:
     channels (List[AnyInstrumentChannel]): The list of instrument channels.
@@ -68,7 +68,7 @@ def qubit_wiring(
     line_type (WiringLineType): The type of wiring line.
 
     Returns:
-    dict: A dictionary containing QuAM-compatible JSON references.
+    dict: A dictionary containing QUAM-compatible JSON references.
     """
     qubit_line_wiring = {}
     for channel in channels:
@@ -84,14 +84,14 @@ def qubit_wiring(
 
 def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPairReference) -> dict:
     """
-    Generates a dictionary containing QuAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
+    Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
 
     Parameters:
     channels (List[AnyInstrumentChannel]): The list of instrument channels.
     element_id (QubitPairReference): The ID of the qubit pair element.
 
     Returns:
-    dict: A dictionary containing QuAM-compatible JSON references.
+    dict: A dictionary containing QUAM-compatible JSON references.
     """
     qubit_pair_line_wiring = {
         "control_qubit": f"{QUBITS_BASE_JSON_PATH}/q{element_id.control_index}",

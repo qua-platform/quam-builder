@@ -45,7 +45,7 @@ __all__ = ["BaseTransmon"]
 @quam_dataclass
 class BaseTransmon(QuamComponent):
     """
-    Example QuAM component for a transmon qubit.
+    Example QUAM component for a transmon qubit.
 
     Attributes:
         id (Union[int, str]): The id of the Transmon, used to generate the name.
