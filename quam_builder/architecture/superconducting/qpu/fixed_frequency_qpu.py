@@ -3,16 +3,16 @@ from quam_builder.architecture.superconducting.qubit import FixedFrequencyTransm
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
 )
-from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuAM
+from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 from dataclasses import field
 from typing import Dict, ClassVar, Type
 
-__all__ = ["QuAM", "FixedFrequencyTransmon", "FixedFrequencyTransmonPair"]
+__all__ = ["Quam", "FixedFrequencyTransmon", "FixedFrequencyTransmonPair"]
 
 
 @quam_dataclass
-class QuAM(BaseQuAM):
+class Quam(BaseQuam):
     """Example QuAM root component."""
 
     qubit_type: ClassVar[Type[FixedFrequencyTransmon]] = FixedFrequencyTransmon
@@ -22,5 +22,5 @@ class QuAM(BaseQuAM):
     qubit_pairs: Dict[str, FixedFrequencyTransmonPair] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, *args, **kwargs) -> "QuAM":
+    def load(cls, *args, **kwargs) -> "Quam":
         return super().load(*args, **kwargs)

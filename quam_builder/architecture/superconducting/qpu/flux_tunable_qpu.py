@@ -2,17 +2,17 @@ import warnings
 from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
-from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuAM
+from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 
 from dataclasses import field
 from typing import Dict, Union, ClassVar, Type
 
-__all__ = ["QuAM", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+__all__ = ["Quam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 
 @quam_dataclass
-class QuAM(BaseQuAM):
+class Quam(BaseQuam):
     """Example QuAM root component."""
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
@@ -22,7 +22,7 @@ class QuAM(BaseQuAM):
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, *args, **kwargs) -> "QuAM":
+    def load(cls, *args, **kwargs) -> "Quam":
         return super().load(*args, **kwargs)
 
     def apply_all_couplers_to_min(self) -> None:
