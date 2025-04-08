@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union, Optional, Literal
+from typing import Dict, Any, Union, Optional, Literal, Tuple
 from dataclasses import field
 from logging import getLogger
 
@@ -14,8 +14,8 @@ from quam_builder.architecture.superconducting.components.xy_drive import (
     XYDriveMW,
 )
 
-from qualang_tools.octave_tools import octave_calibration_tool
 from qm import QuantumMachine, logger
+from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm.qua import (
     save,
     declare,
@@ -160,7 +160,7 @@ class BaseTransmon(QuamComponent):
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = True,
-    ) -> None:
+    ) ->  Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (xy and resonator) linked to this transmon for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -168,33 +168,32 @@ class BaseTransmon(QuamComponent):
             QM (QuantumMachine): the running quantum machine.
             calibrate_drive (bool): flag to calibrate xy line.
             calibrate_resonator (bool): flag to calibrate the resonator line.
+        
+        Return: 
+            The Octave calibration results as (resonator, xy_drive)
         """
         if calibrate_resonator and self.resonator is not None:
             if hasattr(self.resonator, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.resonator.name}")
-                octave_calibration_tool(
-                    QM,
-                    self.resonator.name,
-                    lo_frequencies=self.resonator.frequency_converter_up.LO_frequency,
-                    intermediate_frequencies=self.resonator.intermediate_frequency,
-                )
+                resonator_calibration_output = QM.calibrate_element(self.resonator.name, {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)})
             else:
                 raise RuntimeError(
                     f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
                 )
+        else:
+            resonator_calibration_output = None
+            
         if calibrate_drive and self.xy is not None:
             if hasattr(self.xy, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.xy.name}")
-                octave_calibration_tool(
-                    QM,
-                    self.xy.name,
-                    lo_frequencies=self.xy.frequency_converter_up.LO_frequency,
-                    intermediate_frequencies=self.xy.intermediate_frequency,
-                )
+                xy_drive_calibration_output = QM.calibrate_element(self.xy.name, {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)})
             else:
                 raise RuntimeError(
                     f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
                 )
+        else:
+            xy_drive_calibration_output = None
+        return resonator_calibration_output, xy_drive_calibration_output
 
     def set_gate_shape(self, gate_shape: str) -> None:
         """Set the shape fo the single qubit gates defined as ["x180", "x90" "-x90", "y180", "y90", "-y90"]"""
