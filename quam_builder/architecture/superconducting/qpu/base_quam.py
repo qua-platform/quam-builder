@@ -57,7 +57,7 @@ class BaseQuam(QuamRoot):
             return None
 
     @classmethod
-    def load(cls, *args, **kwargs) -> "Quam":
+    def load(cls, *args, **kwargs) -> "BaseQuam":
         if not args:
             quam_state_path = cls.get_quam_state_path()
             if quam_state_path is None:

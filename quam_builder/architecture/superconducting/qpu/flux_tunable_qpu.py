@@ -8,11 +8,11 @@ from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 from dataclasses import field
 from typing import Dict, Union, ClassVar, Type
 
-__all__ = ["Quam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+__all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 
 @quam_dataclass
-class Quam(BaseQuam):
+class FluxTunableQuam(BaseQuam):
     """Example QUAM root component."""
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
@@ -22,7 +22,7 @@ class Quam(BaseQuam):
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, *args, **kwargs) -> "Quam":
+    def load(cls, *args, **kwargs) -> "FluxTunableQuam":
         return super().load(*args, **kwargs)
 
     def apply_all_couplers_to_min(self) -> None:

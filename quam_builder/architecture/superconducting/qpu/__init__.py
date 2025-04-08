@@ -1,6 +1,6 @@
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
-from quam_builder.architecture.superconducting.qpu.fixed_frequency_qpu import Quam as FixedFrequencyQuam
-from quam_builder.architecture.superconducting.qpu.flux_tunable_qpu import Quam as FluxTunableQuam
+from quam_builder.architecture.superconducting.qpu.fixed_frequency_qpu import FixedFrequencyQuam
+from quam_builder.architecture.superconducting.qpu.flux_tunable_qpu import FluxTunableQuam
 from typing import Union
 
 __all__ = [
