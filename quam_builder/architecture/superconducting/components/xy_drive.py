@@ -40,7 +40,7 @@ class XYDriveBase:
 
 @quam_dataclass
 class XYDriveIQ(IQChannel, XYDriveBase):
-    intermediate_frequency: float = "#./inferred_intermediate_frequency"
+    intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     @property
     def upconverter_frequency(self):
