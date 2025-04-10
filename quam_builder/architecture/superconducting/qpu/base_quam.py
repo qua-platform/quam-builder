@@ -105,7 +105,6 @@ class BaseQuam(QuamRoot):
         settings = dict(
             host=self.network["host"],
             cluster_name=self.network["cluster_name"],
-            octave=self.get_octave_config(),
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
