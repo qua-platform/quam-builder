@@ -3,8 +3,8 @@ from dataclasses import field
 from logging import getLogger
 
 from quam.core import quam_dataclass
-from quam.components.channels import IQChannel, MWChannel, Pulse
-from quam import QuamComponent
+from quam.components.channels import Pulse
+from quam.components.quantum_components import Qubit
 from quam_builder.architecture.superconducting.components.readout_resonator import (
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
@@ -43,7 +43,7 @@ __all__ = ["BaseTransmon"]
 
 
 @quam_dataclass
-class BaseTransmon(QuamComponent):
+class BaseTransmon(Qubit):
     """
     Example QUAM component for a transmon qubit.
 
@@ -160,7 +160,7 @@ class BaseTransmon(QuamComponent):
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = True,
-    ) ->  Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
+    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (xy and resonator) linked to this transmon for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -168,25 +168,30 @@ class BaseTransmon(QuamComponent):
             QM (QuantumMachine): the running quantum machine.
             calibrate_drive (bool): flag to calibrate xy line.
             calibrate_resonator (bool): flag to calibrate the resonator line.
-        
-        Return: 
+
+        Return:
             The Octave calibration results as (resonator, xy_drive)
         """
         if calibrate_resonator and self.resonator is not None:
             if hasattr(self.resonator, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.resonator.name}")
-                resonator_calibration_output = QM.calibrate_element(self.resonator.name, {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)})
+                resonator_calibration_output = QM.calibrate_element(
+                    self.resonator.name,
+                    {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)},
+                )
             else:
                 raise RuntimeError(
                     f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
                 )
         else:
             resonator_calibration_output = None
-            
+
         if calibrate_drive and self.xy is not None:
             if hasattr(self.xy, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.xy.name}")
-                xy_drive_calibration_output = QM.calibrate_element(self.xy.name, {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)})
+                xy_drive_calibration_output = QM.calibrate_element(
+                    self.xy.name, {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)}
+                )
             else:
                 raise RuntimeError(
                     f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
