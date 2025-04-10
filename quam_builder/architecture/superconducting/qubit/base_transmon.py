@@ -63,6 +63,7 @@ class BaseTransmon(Qubit):
         GEF_frequency_shift (int): The frequency shift for the GEF states. Default is 10.
         chi (float): The dispersive shift in Hz. Default is 0.0.
         grid_location (str): Qubit location in the plot grid as "(column, row)".
+        gate_fidelity (Dict[str, Any]): Collection of gate fidelities for the qubit.
         extras (Dict[str, Any]): Additional attributes for the transmon.
 
     Methods:
