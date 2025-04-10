@@ -9,15 +9,13 @@ dependencies = [
     "qualang-tools>=0.19.0",
     "qualibrate>=0.2.0",
     "qualibration-libs@git+https://github.com/qua-platform/qualibration-libs.git",
-    "quam>=0.3.10",
+    "quam>=0.4.0",
+    "xarray>=2024.7.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[dependency-groups]
-dev = ["xarray>=2024.7.0"]
 
 [tool.hatch.build.targets.sdist.sources]
 "src/quam_builder" = "quam_builder"
