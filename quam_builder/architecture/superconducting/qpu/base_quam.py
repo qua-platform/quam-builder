@@ -5,6 +5,7 @@ from quam.components import FrequencyConverter
 from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
+from quam.serialisation import JSONSerialiser
 from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
 from qm import QuantumMachinesManager, QuantumMachine
@@ -44,50 +45,12 @@ class BaseQuam(QuamRoot):
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
 
     @classmethod
-    def get_quam_state_path(cls) -> Optional[Path]:
-        qualibrate_config_path = get_qualibrate_config_path()
+    def get_serialiser(cls) -> JSONSerialiser:
+        """Get the serialiser for the QuamRoot class, which is the JSONSerialiser.
 
-        if qualibrate_config_path.exists():
-            config = tomllib.loads(qualibrate_config_path.read_text())
-            quam_state_path = config.get("quam", {}).get("state_path", None)
-            if quam_state_path is not None:
-                quam_state_path = Path(quam_state_path)
-            return quam_state_path
-        else:
-            return None
-
-    @classmethod
-    def load(cls, *args, **kwargs) -> "BaseQuam":
-        if not args:
-            quam_state_path = cls.get_quam_state_path()
-            if quam_state_path is None:
-                raise ValueError(
-                    "No path argument provided to load the QUAM state. "
-                    "Please set the quam_state_path in the QUAlibrate config. "
-                    "See the README for instructions."
-                )
-
-            args = (quam_state_path,)
-
-        return super().load(*args, **kwargs)
-
-    def save(
-        self,
-        path: Union[Path, str] = None,
-        content_mapping: Dict[Union[Path, str], Sequence[str]] = None,
-        include_defaults: bool = False,
-        ignore: Sequence[str] = None,
-    ):
-        if path is None:
-            path = self.get_quam_state_path()
-            if path is None:
-                raise ValueError(
-                    "No path argument provided to save the QUAM state. "
-                    "Please provide a path or set the 'QUAM_STATE_PATH' environment variable. "
-                    "See the README for instructions."
-                )
-
-        super().save(path, content_mapping, include_defaults, ignore)
+        This method can be overridden by subclasses to provide a custom serialiser.
+        """
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_octave_config(self) -> QmOctaveConfig:
         """Return the Octave configuration."""
@@ -131,7 +94,7 @@ class BaseQuam(QuamRoot):
         if self._data_handler is None:
             # TODO: how to fix this warning?
             self._data_handler = DataHandler(root_data_folder=self.network["data_folder"])
-            DataHandler.node_data = {"quam": "./state.json"}
+            DataHandler.node_data = {"quam": "./quam_state"}
         return self._data_handler
 
     @property
