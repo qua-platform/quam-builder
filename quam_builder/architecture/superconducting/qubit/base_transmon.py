@@ -226,7 +226,7 @@ class BaseTransmon(QuamComponent):
         I = declare(fixed)
         Q = declare(fixed)
         if threshold is None:
-            threshold = self.resonator.operations[pulse_name].ge_threshold
+            threshold = self.resonator.operations[pulse_name].threshold
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         assign(state, Cast.to_int(I > threshold))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
