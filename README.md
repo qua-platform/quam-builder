@@ -36,6 +36,8 @@ This module defines the hierarchical structure and data types for various QUAM c
   - `Mixer`: Defines mixer calibration parameters (correction matrix).
 - **Qubit Pairs (`qubit_pair`):** Defines structures for pairs of interacting qubits, including parameters for two-qubit gates or couplings (`FixedFrequencyTransmonsPair`, `FluxTunableTransmonsPair`).
 
+Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md) and in the docstrings of the components.
+
 ### 2. QUAM Construction (`quam_builder.builder.superconducting`)
 
 This module provides functions to build the main QUAM structure:
