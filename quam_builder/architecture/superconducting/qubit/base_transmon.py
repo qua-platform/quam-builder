@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union, Optional, Literal, Tuple
+from typing import Callable, Dict, Any, Union, Optional, Literal, Tuple
 from dataclasses import field
 from logging import getLogger
 
@@ -241,7 +241,7 @@ class BaseTransmon(Qubit):
         self,
         reset_type: Literal["thermal", "active", "active_gef"] = "thermal",
         simulate: bool = False,
-        logger=None,
+        log_callable: Optional[Callable] = None,
         **kwargs,
     ):
         """
@@ -271,9 +271,9 @@ class BaseTransmon(Qubit):
             elif reset_type == "active_gef":
                 self.reset_qubit_active_gef(**kwargs)
         else:
-            if logger is None:
-                logger = getLogger(__name__)
-            logger.warning("For simulating the QUA program, the qubit reset has been skipped.")
+            if log_callable is None:
+                log_callable = getLogger(__name__).warning
+            log_callable("For simulating the QUA program, the qubit reset has been skipped.")
 
     def reset_qubit_thermal(self):
         """
