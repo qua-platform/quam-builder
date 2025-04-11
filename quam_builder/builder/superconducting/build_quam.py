@@ -23,7 +23,6 @@ from quam_builder.builder.superconducting.add_transmon_resonator_component impor
 )
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
-from quam_builder.builder.qop_connectivity.build_quam_wiring import save_machine
 
 
 def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuam:

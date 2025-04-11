@@ -26,7 +26,7 @@ def build_quam_wiring(
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
     machine.wiring = create_wiring(connectivity)
-    save_machine(machine)
+    machine.save()
 
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
@@ -60,17 +60,3 @@ def add_name_and_ip(machine: AnyQuam, host_ip: str, cluster_name: str, port: Uni
     port (Union[int, None]): The port number.
     """
     machine.network = {"host": host_ip, "port": port, "cluster_name": cluster_name}
-
-
-def save_machine(machine: AnyQuam):
-    """
-    Saves the machine configuration to a .json file.
-
-    Parameters:
-    machine (AnyQuam): The QUAM machine to be saved.
-    """
-    machine.save(
-        content_mapping={
-            "wiring.json": ["network", "wiring"],
-        },
-    )
