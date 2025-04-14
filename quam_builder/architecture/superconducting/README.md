@@ -8,37 +8,37 @@ The architecture is organized into the following categories:
 
 Defines the top-level structure of the Quantum Processing Unit (QPU).
 
-- **`BaseQuam`**: An abstract base class defining the common structure for any QUAM representation, including dictionaries for qubits, qubit pairs, and wiring information.
-- **`FixedFrequencyQPU`**: A concrete implementation inheriting from `BaseQuam`, specifically designed for QPUs composed primarily of fixed-frequency transmons. It holds collections of `FixedFrequencyTransmon` and `FixedFrequencyTransmonsPair` objects.
-- **`FluxTunableQPU`**: A concrete implementation inheriting from `BaseQuam`, designed for QPUs with flux-tunable transmons. It holds collections of `FluxTunableTransmon` and `FluxTunableTransmonsPair` objects.
+-   **`BaseQuam`**: An abstract base class inheriting from `QuamRoot`. Defines common structure including dictionaries for `octaves`, `mixers`, `qubits`, `qubit_pairs`, `wiring`, `network`, and lists for active elements. Manages connections (`connect`) and Octave configurations (`get_octave_config`).
+-   **`FixedFrequencyQuam`**: Inherits from `BaseQuam`. Specifies `qubit_type` as `FixedFrequencyTransmon` and `qubit_pair_type` as `FixedFrequencyTransmonPair`. Holds collections of these specific types.
+-   **`FluxTunableQuam`**: Inherits from `BaseQuam`. Specifies `qubit_type` as `FluxTunableTransmon` and `qubit_pair_type` as `FluxTunableTransmonPair`. Holds collections of these types and includes methods for managing flux states (`apply_all_flux_to_joint_idle`, `apply_all_flux_to_min`, etc.).
 
 ## 2. Qubit (`architecture/superconducting/qubit/`)
 
 Defines the properties and operations associated with individual qubits.
 
-- **`BaseTransmon`**: An abstract base class for transmon qubits. It includes common attributes like EC, EJ, g, levels, and associated components like readout resonators (`rr`) and XY drive lines (`xy`).
-- **`FixedFrequencyTransmon`**: Inherits from `BaseTransmon`. Represents a transmon qubit with a fixed frequency. It typically includes `ReadoutResonator` and `XYDrive` components.
-- **`FluxTunableTransmon`**: Inherits from `BaseTransmon`. Represents a transmon qubit whose frequency can be tuned via a flux line. In addition to readout and XY drive, it includes a `FluxLine` component and potentially parameters for ZZ interactions (`zz`).
+-   **`BaseTransmon`**: An abstract base class inheriting from `Qubit`. Includes common attributes like `id`, `xy` drive, `resonator`, transition frequencies (`f_01`, `f_12`), `anharmonicity`, coherence times (`T1`, `T2ramsey`, `T2echo`), `thermalization_time_factor`, and methods for calibration (`calibrate_octave`), gate shape setting (`set_gate_shape`), readout (`readout_state`, `readout_state_gef`), and reset (`reset`, `reset_qubit_thermal`, `reset_qubit_active`, `reset_qubit_active_gef`).
+-   **`FixedFrequencyTransmon`**: Inherits from `BaseTransmon`. Represents a transmon qubit with a fixed frequency. May include an optional `xy_detuned` channel. Defines `align` and `wait` methods for its channels (`xy`, `resonator`).
+-   **`FluxTunableTransmon`**: Inherits from `FixedFrequencyTransmon`. Represents a transmon qubit whose frequency can be tuned via a flux line. Adds a `z` component (`FluxLine`) and flux-related parameters (`freq_vs_flux_01_quad_term`, `phi0_voltage`, etc.). Overrides `align` and `wait` to include the `z` channel.
 
 ## 3. Components (`architecture/superconducting/components/`)
 
-Defines the auxiliary hardware components and control elements associated with qubits or their interactions.
+Defines the auxiliary hardware components and control elements associated with qubits or their interactions. These often inherit from base `quam.components.channels` like `IQChannel`, `MWChannel`, `SingleChannel`, `InOutIQChannel`, `InOutMWChannel`, which provide core functionality for handling pulses, frequencies, and I/O.
 
-- **`ReadoutResonator`**: Defines parameters for the readout resonator coupled to a qubit, including its frequency (`readout_frequency`), quality factor (`Q`), drive parameters (`readout_amplitude`, `readout_length`), time of flight (`time_of_flight`), and integration weights (`integration_weights`).
-- **`XYDrive`**: Represents the microwave drive line for single-qubit gates (X, Y rotations). Includes parameters like intermediate frequency (`f01_if`), maximum amplitude (`pi_amp`), pulse shapes (`pi_pulse`, `ramsey_pulse`), and mixer calibration (`mixer`).
-- **`FluxLine`**: Defines the parameters for the flux bias line used to tune qubit frequency. Includes maximum voltage (`max_voltage`), voltage points for specific frequencies (`voltage_points`), pulse shapes (`flux_pulse`), and distortion corrections (`distortions`).
-- **`TunableCoupler`**: Models a tunable coupling element between qubits. Includes parameters like coupling strength (`coupling`), operating frequency (`frequency`), and control pulse parameters (`turn_on_pulse`, `turn_off_pulse`).
-- **`CrossResonance`**: Defines parameters specific to cross-resonance (CR) based two-qubit gates. Includes attributes like drive frequency (`cr_if`), pulse shapes (`cr_pulse`), and amplitudes (`cr_amp`). Often associated with a specific `XYDrive` line acting on a target qubit.
-- **`ZZDrive`**: Represents drives used for dynamical decoupling or ZZ interaction cancellation. Includes parameters like frequency (`zz_if`), amplitude (`zz_amp`), and pulse shape (`zz_pulse`).
-- **`Mixer`**: Defines mixer calibration parameters, typically including the correction matrix (`correction_matrix`) to compensate for IQ imbalance and skewness.
+-   **`ReadoutResonatorIQ` / `ReadoutResonatorMW`**: Inherit from `InOutIQChannel`/`InOutMWChannel` and `ReadoutResonatorBase`. Model the readout resonator. `ReadoutResonatorBase` includes attributes like `depletion_time`, `frequency_bare`, GEF parameters (`f_01`, `f_12`, `gef_centers`, `GEF_frequency_shift`), and methods for power calculation/setting. Pulses (like readout pulse) are defined within the `operations` dictionary inherited from channel classes.
+-   **`XYDriveIQ` / `XYDriveMW`**: Inherit from `IQChannel`/`MWChannel` and `XYDriveBase`. Represent the microwave drive line for single-qubit gates. Handle intermediate/LO frequencies and operations (pulses like `x180`, `y90`, etc.) are defined in the inherited `operations` dictionary. Include methods for power calculation/setting.
+-   **`FluxLine`**: Inherits from `SingleChannel`. Defines parameters for the flux bias line, including various offset points (`independent_offset`, `joint_offset`, `min_offset`, `arbitrary_offset`), the current `flux_point`, and `settle_time`. DC offset is set via `set_dc_offset`. Flux pulses are defined in the `operations` dictionary.
+-   **`TunableCoupler`**: Inherits from `SingleChannel`. Models a tunable coupling element. Includes offset points (`decouple_offset`, `interaction_offset`, `arbitrary_offset`), `flux_point`, and `settle_time`. Control pulses are defined in the `operations` dictionary.
+-   **`CrossResonanceIQ` / `CrossResonanceMW`**: Inherit from `IQChannel`/`MWChannel` and `CrossResonanceBase`. Define parameters for cross-resonance interactions. `CrossResonanceBase` includes `target_qubit_LO_frequency`, `target_qubit_IF_frequency`, and `bell_state_fidelity`. Drive pulses are defined in the `operations` dictionary.
+-   **`ZZDriveIQ` / `ZZDriveMW`**: Inherit from `IQChannel`/`MWChannel` and `ZZDriveBase`. Represent drives for ZZ interactions. `ZZDriveBase` includes `target_qubit_LO_frequency`, `target_qubit_IF_frequency`, and `detuning`. Drive pulses are defined in the `operations` dictionary.
+-   **`StandaloneMixer`**: Inherits from `quam.components.Mixer`. Represents an external mixer component, typically used within a `FrequencyConverter` which is stored in `BaseQuam.mixers`. Mixer calibration parameters are handled by the base `Mixer` class.
 
 ## 4. Qubit Pair (`architecture/superconducting/qubit_pair/`)
 
-Defines structures representing pairs of interacting qubits, holding parameters relevant to their joint operations (e.g., two-qubit gates).
+Defines structures representing pairs of interacting qubits.
 
-- **`FixedFrequencyTransmonsPair`**: Represents a pair of interacting fixed-frequency transmons. May contain parameters related to static ZZ coupling or specific two-qubit gate implementations suitable for fixed-frequency systems. Often includes components like `CrossResonance` or `ZZDrive`.
-- **`FluxTunableTransmonsPair`**: Represents a pair of interacting flux-tunable transmons. Includes parameters for two-qubit gates that often involve flux pulsing, such as iSWAP or CZ gates. May contain components like `FluxLine` (for the interaction pulse), `TunableCoupler`, or specific gate pulse definitions.
+-   **`FixedFrequencyTransmonPair`**: Inherits from `QuantumComponent`. Represents a pair of interacting `FixedFrequencyTransmon`s. Contains references to `qubit_control` and `qubit_target`, optional `cross_resonance` (`CrossResonanceIQ` or `MW`), optional `zz_drive` (`ZZDriveIQ` or `MW`), `confusion` matrix, and `extras`. Defines `align` and `wait` methods.
+-   **`FluxTunableTransmonPair`**: Inherits from `QuantumComponent`. Represents a pair of interacting `FluxTunableTransmon`s. Contains references to `qubit_control` and `qubit_target`, an optional `coupler` (`TunableCoupler`), `mutual_flux_bias`, and `extras`. Defines `align`, `wait`, and `to_mutual_idle` methods.
 
 ---
 
-These architecture classes provide a structured way to represent the physical system and its control parameters within the QUAM framework.
+These architecture classes provide a structured way to represent the physical system and its control parameters within the QUAM framework, reflecting the actual implementation in the Python code.
