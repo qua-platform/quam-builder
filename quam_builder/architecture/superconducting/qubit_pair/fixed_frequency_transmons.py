@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, Union
 from dataclasses import field
 from qm.qua import align, wait
 
-from quam.core import QuamComponent, quam_dataclass
+from quam.core import QuantumComponent, quam_dataclass
 from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
     FixedFrequencyTransmon,
 )
@@ -20,7 +20,7 @@ __all__ = ["FixedFrequencyTransmonPair"]
 
 
 @quam_dataclass
-class FixedFrequencyTransmonPair(QuamComponent):
+class FixedFrequencyTransmonPair(QuantumComponent):
     id: Union[int, str]
     qubit_control: FixedFrequencyTransmon = None
     qubit_target: FixedFrequencyTransmon = None

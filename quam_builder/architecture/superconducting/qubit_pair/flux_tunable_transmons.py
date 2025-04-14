@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, Union, List
 from dataclasses import field
 from qm.qua import align, wait
 
-from quam.core import QuamComponent, quam_dataclass
+from quam.core import QuantumComponent, quam_dataclass
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
@@ -15,7 +15,7 @@ __all__ = ["FluxTunableTransmonPair"]
 
 
 @quam_dataclass
-class FluxTunableTransmonPair(QuamComponent):
+class FluxTunableTransmonPair(QuantumComponent):
     id: Union[int, str]
     qubit_control: FluxTunableTransmon = None
     qubit_target: FluxTunableTransmon = None
