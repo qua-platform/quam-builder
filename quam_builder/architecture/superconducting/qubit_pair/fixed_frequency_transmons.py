@@ -2,7 +2,8 @@ from typing import Dict, Any, Optional, Union
 from dataclasses import field
 from qm.qua import align, wait
 
-from quam.core import QuantumComponent, quam_dataclass
+from quam.core import quam_dataclass
+from quam.components.quantum_components import QuantumComponent
 from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
     FixedFrequencyTransmon,
 )
