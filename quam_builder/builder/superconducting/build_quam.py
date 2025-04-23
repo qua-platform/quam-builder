@@ -42,7 +42,7 @@ def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
     add_transmons(machine)
     add_pulses(machine)
 
-    save_machine(machine)
+    machine.save()
 
     return machine
 
@@ -161,7 +161,8 @@ def add_octaves(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]
     AnyQuam: The QuAM with the added octaves.
     """
     if calibration_db_path is None:
-        calibration_db_path = machine.get_quam_state_path().parent
+        serialiser = machine.get_serialiser()
+        calibration_db_path = serialiser._get_state_path().parent
 
     if isinstance(calibration_db_path, str):
         calibration_db_path = Path(calibration_db_path)
