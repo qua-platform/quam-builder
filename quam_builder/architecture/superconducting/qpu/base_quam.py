@@ -1,25 +1,22 @@
-from pathlib import Path
+from dataclasses import field
+from typing import List, Dict, ClassVar, Optional, Union
+
+from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
-from qualibrate_config.resolvers import get_qualibrate_config_path
+from qm.qua._dsl import _ResultSource
+from qm.qua._expressions import QuaVariable
+from qm.qua import declare_stream, declare, fixed
+
 from quam.components import FrequencyConverter
 from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.serialisation import JSONSerialiser
+
 from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
-from qm import QuantumMachinesManager, QuantumMachine
-from qualang_tools.results.data_handler import DataHandler
-from qm.qua._dsl import _ResultSource
-from qm.qua._expressions import QuaVariable
-from qm.qua import declare_stream, declare, fixed
-from dataclasses import field
-from typing import List, Dict, ClassVar, Optional, Sequence, Union
 
-try:
-    import tomllib  # Python 3.11+
-except ModuleNotFoundError:
-    import tomli as tomllib
+from qualang_tools.results.data_handler import DataHandler
 
 __all__ = ["BaseQuam"]
 
@@ -90,15 +87,6 @@ class BaseQuam(QuamRoot):
                 print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
-    def data_handler(self) -> DataHandler:
-        """Return the existing data handler or open a new one to conveniently handle data saving."""
-        if self._data_handler is None:
-            # TODO: how to fix this warning?
-            self._data_handler = DataHandler(root_data_folder=self.network["data_folder"])
-            DataHandler.node_data = {"quam": "./quam_state"}
-        return self._data_handler
-
-    @property
     def active_qubits(self) -> List[AnyTransmon]:
         """Return the list of active qubits."""
         return [self.qubits[q] for q in self.active_qubit_names]
@@ -118,7 +106,7 @@ class BaseQuam(QuamRoot):
         """Return the longest thermalization time amongst the active qubits."""
         return max(q.thermalization_time for q in self.active_qubits)
 
-    def qua_declaration(
+    def declare_qua_variables(
         self,
     ) -> tuple[
         list[QuaVariable],
@@ -128,7 +116,7 @@ class BaseQuam(QuamRoot):
         QuaVariable,
         _ResultSource,
     ]:
-        """Macro to declare the necessary QUA variables"""
+        """Macro to declare the necessary QUA variables for all qubits"""
 
         n = declare(int)
         n_st = declare_stream()

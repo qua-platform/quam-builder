@@ -1,6 +1,7 @@
-from quam.components import SingleChannel
-from quam.core import quam_dataclass
 from typing import Literal
+
+from quam.core import quam_dataclass
+from quam.components import SingleChannel
 
 
 __all__ = ["FluxLine"]
@@ -11,12 +12,16 @@ class FluxLine(SingleChannel):
     """QUAM component for a flux line.
 
     Attributes:
-        independent_offset (float): the flux bias corresponding to the resonator maximum frequency when the active qubits are not interacting (min offset) in V.
-        joint_offset (float): the flux bias corresponding to the resonator maximum frequency when the active qubits are interacting (joint offset) in V.
+        independent_offset (float): the flux bias corresponding to the resonator maximum frequency when the active
+            qubits are not interacting (min offset) in V.
+        joint_offset (float): the flux bias corresponding to the resonator maximum frequency when the active qubits are
+            interacting (joint offset) in V.
         min_offset (float): the flux bias corresponding to the resonator minimum frequency in V.
         arbitrary_offset (float): arbitrary flux bias in V.
-        flux_point (str): name of the flux point to set the qubit at. Can be among ["joint", "independent", "min", "arbitrary", "zero"]. Default is "independent".
-        settle_time (float): the flux line settle time in ns. The value will be cast to an integer multiple of 4ns automatically.
+        flux_point (str): name of the flux point to set the qubit at. Can be among ["joint", "independent", "min",
+            "arbitrary", "zero"]. Default is "independent".
+        settle_time (float): the flux line settle time in ns. The value will be cast to an integer multiple of 4ns
+            automatically.
     """
 
     independent_offset: float = 0.0

@@ -1,12 +1,13 @@
 import warnings
+from dataclasses import field
+from typing import Dict, Union, ClassVar, Type
+
 from quam.core import quam_dataclass
+
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
-
-from dataclasses import field
-from typing import Dict, Union, ClassVar, Type
 
 __all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 

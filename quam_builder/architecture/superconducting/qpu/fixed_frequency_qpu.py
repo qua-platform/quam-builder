@@ -1,12 +1,12 @@
-from quam.core import quam_dataclass
-from quam_builder.architecture.superconducting.qubit import FixedFrequencyTransmon
-from quam_builder.architecture.superconducting.qubit_pair import (
-    FixedFrequencyTransmonPair,
-)
-from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
-
 from dataclasses import field
 from typing import Dict, ClassVar, Type
+
+from quam.core import quam_dataclass
+
+from quam_builder.architecture.superconducting.qubit import FixedFrequencyTransmon
+from quam_builder.architecture.superconducting.qubit_pair import FixedFrequencyTransmonPair
+from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
+
 
 __all__ = ["FixedFrequencyQuam", "FixedFrequencyTransmon", "FixedFrequencyTransmonPair"]
 

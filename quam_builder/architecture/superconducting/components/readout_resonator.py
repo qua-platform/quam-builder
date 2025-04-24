@@ -2,6 +2,7 @@ from typing import Optional
 
 from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel
+
 from qualibration_libs.power_tools import (
     calculate_voltage_scaling_factor,
     set_output_power_mw_channel,
@@ -28,9 +29,6 @@ class ReadoutResonatorBase:
         gef_centers (list): The centers of the GEF states.
         gef_confusion_matrix (list): The confusion matrix for the GEF states.
         GEF_frequency_shift (float): The frequency shift for the GEF states.
-
-    Methods:
-        calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm): Calculate the voltage scaling factor required to scale fixed power to target power.
     """
 
     depletion_time: int = 16
@@ -79,8 +77,8 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
         Returns:
             float: The output power in dBm.
 
-        The function calculates the output power based on the amplitude of the specified operation and the gain of the frequency up-converter.
-        It converts the amplitude to dBm using the specified impedance.
+        The function calculates the output power based on the amplitude of the specified operation and the gain of the
+        frequency up-converter. It converts the amplitude to dBm using the specified impedance.
         """
         return get_output_power_iq_channel(self, operation, Z)
 
