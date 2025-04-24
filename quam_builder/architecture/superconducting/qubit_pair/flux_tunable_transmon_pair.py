@@ -3,10 +3,7 @@ from dataclasses import field
 from qm.qua import align, wait
 
 from quam.core import quam_dataclass
-from quam.components.quantum_components import QuantumComponent
-from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
-    FluxTunableTransmon,
-)
+from quam.components.quantum_components import QubitPair
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
 )
@@ -16,7 +13,7 @@ __all__ = ["FluxTunableTransmonPair"]
 
 
 @quam_dataclass
-class FluxTunableTransmonPair(QuantumComponent):
+class FluxTunableTransmonPair(QubitPair):
     id: Union[int, str]
     coupler: Optional[TunableCoupler] = None
     mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
