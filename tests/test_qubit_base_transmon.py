@@ -74,10 +74,10 @@ def test_thermalization_time():
     assert transmon.thermalization_time == 600
 
 
-def test_set_pulse_shape():
+def test_set_gate_shape():
     transmon = BaseTransmon(id=1)
     with pytest.raises(AttributeError):
-        transmon.set_pulse_shape("not_registered_shape")
+        transmon.set_gate_shape("not_registered_shape")
     transmon.xy = IQChannel(
         opx_output_I="{wiring_path}/opx_output_I",
         opx_output_Q="{wiring_path}/opx_output_Q",
@@ -86,4 +86,4 @@ def test_set_pulse_shape():
     )
     for gate in ["x180", "x90", "-x90", "y180", "y90", "-y90"]:
         transmon.xy.operations[f"{gate}_registered_shape"] = "registered_shape"
-    transmon.set_pulse_shape("registered_shape")
+    transmon.set_gate_shape("registered_shape")

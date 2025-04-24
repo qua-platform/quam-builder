@@ -109,7 +109,7 @@ def add_DragGaussian_pulses(
             subtracted="#../x180_DragGaussian/subtracted",
             axis_angle=-np.pi / 2,
         )
-        transmon.set_pulse_shape("DragGaussian")
+        transmon.set_gate_shape("DragGaussian")
 
 
 def add_DragCosine_pulses(
@@ -195,7 +195,7 @@ def add_DragCosine_pulses(
             digital_marker="#../x180_DragCosine/digital_marker",
             axis_angle=-np.pi / 2,
         )
-        transmon.set_pulse_shape("DragCosine")
+        transmon.set_gate_shape("DragCosine")
 
 
 def add_Square_pulses(
@@ -255,7 +255,7 @@ def add_Square_pulses(
             digital_marker="#../x180_Square/digital_marker",
             axis_angle=-np.pi / 2,
         )
-        transmon.set_pulse_shape("Square")
+        transmon.set_gate_shape("Square")
 
 
 def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]):
