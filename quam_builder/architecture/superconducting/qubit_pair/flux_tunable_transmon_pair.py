@@ -18,26 +18,14 @@ __all__ = ["FluxTunableTransmonPair"]
 @quam_dataclass
 class FluxTunableTransmonPair(QuantumComponent):
     id: Union[int, str]
-    qubit_control: FluxTunableTransmon = None
-    qubit_target: FluxTunableTransmon = None
     coupler: Optional[TunableCoupler] = None
     mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
     extras: Dict[str, Any] = field(default_factory=dict)
 
-    @property
-    def name(self):
-        """The name of the transmon pair"""
-        return self.id if isinstance(self.id, str) else f"q{self.qubit_control.id}-{self.qubit_target.id}"
-
     def align(self):
-        channels = [
-            self.qubit_control.xy.name,
-            self.qubit_control.z.name,
-            self.qubit_control.resonator.name,
-            self.qubit_target.xy.name,
-            self.qubit_target.z.name,
-            self.qubit_target.resonator.name,
-        ]
+        channels = []
+        for qubit in [self.qubit_control, self.qubit_target]:
+            channels += [ch.name for ch in qubit.channels.values()]
 
         if self.coupler:
             channels += [self.coupler.name]
@@ -54,14 +42,9 @@ class FluxTunableTransmonPair(QuantumComponent):
         align(*channels)
 
     def wait(self, duration):
-        channels = [
-            self.qubit_control.xy.name,
-            self.qubit_control.z.name,
-            self.qubit_control.resonator.name,
-            self.qubit_target.xy.name,
-            self.qubit_target.z.name,
-            self.qubit_target.resonator.name,
-        ]
+        channels = []
+        for qubit in [self.qubit_control, self.qubit_target]:
+            channels += [ch.name for ch in qubit.channels.values()]
 
         if self.coupler:
             channels += [self.coupler.name]

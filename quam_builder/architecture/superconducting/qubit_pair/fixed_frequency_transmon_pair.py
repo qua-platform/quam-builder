@@ -24,8 +24,6 @@ __all__ = ["FixedFrequencyTransmonPair"]
 @quam_dataclass
 class FixedFrequencyTransmonPair(QuantumComponent):
     id: Union[int, str]
-    qubit_control: FixedFrequencyTransmon = None
-    qubit_target: FixedFrequencyTransmon = None
 
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
@@ -33,25 +31,3 @@ class FixedFrequencyTransmonPair(QuantumComponent):
     confusion: list = None
 
     extras: Dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def name(self):
-        """The name of the transmon pair"""
-        return self.id if isinstance(self.id, str) else f"q{self.qubit_control.id}-{self.qubit_target.id}"
-
-    def align(self):
-        align(
-            self.qubit_control.xy.name,
-            self.qubit_control.resonator.name,
-            self.qubit_target.xy.name,
-            self.qubit_target.resonator.name,
-        )
-
-    def wait(self, duration):
-        wait(
-            duration,
-            self.qubit_control.xy.name,
-            self.qubit_control.resonator.name,
-            self.qubit_target.xy.name,
-            self.qubit_target.resonator.name,
-        )

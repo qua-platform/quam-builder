@@ -7,7 +7,7 @@ from quam_builder.architecture.superconducting.components.zz_drive import (
     ZZDriveIQ,
     ZZDriveMW,
 )
-from quam_builder.architecture.superconducting.qubit_pair.flux_tunable_transmons import (
+from quam_builder.architecture.superconducting.qubit_pair.flux_tunable_transmon_pair import (
     TunableCoupler,
 )
 from quam_builder.architecture.superconducting.qubit_pair import (
