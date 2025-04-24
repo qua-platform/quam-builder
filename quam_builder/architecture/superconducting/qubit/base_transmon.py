@@ -9,10 +9,7 @@ from quam_builder.architecture.superconducting.components.readout_resonator impo
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
 )
-from quam_builder.architecture.superconducting.components.xy_drive import (
-    XYDriveIQ,
-    XYDriveMW,
-)
+from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 from qm import QuantumMachine, logger
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
@@ -104,26 +101,6 @@ class BaseTransmon(Qubit):
     extras: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def name(self):
-        """The name of the transmon"""
-        return self.id if isinstance(self.id, str) else f"q{self.id}"
-
-    def __matmul__(self, other):
-        if not isinstance(other, BaseTransmon):
-            raise ValueError(
-                "Cannot create a qubit pair (q1 @ q2) with a non-qubit object, " f"where q1={self} and q2={other}"
-            )
-
-        if self is other:
-            raise ValueError("Cannot create a qubit pair with same qubit (q1 @ q1), where q1={self}")
-
-        for qubit_pair in self._root.qubit_pairs.values():
-            if qubit_pair.qubit_control is self and qubit_pair.qubit_target is other:
-                return qubit_pair
-        else:
-            raise ValueError("Qubit pair not found: qubit_control={self.name}, " "qubit_target={other.name}")
-
-    @property
     def inferred_f_12(self) -> float:
         """The 0-2 (e-f) transition frequency in Hz, derived from f_01 and anharmonicity"""
         name = getattr(self, "name", self.__class__.__name__)
@@ -182,7 +159,8 @@ class BaseTransmon(Qubit):
                 )
             else:
                 raise RuntimeError(
-                    f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
+                    f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely "
+                    "not connected to an Octave."
                 )
         else:
             resonator_calibration_output = None
@@ -195,7 +173,8 @@ class BaseTransmon(Qubit):
                 )
             else:
                 raise RuntimeError(
-                    f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
+                    f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not "
+                    "connected to an Octave."
                 )
         else:
             xy_drive_calibration_output = None
@@ -211,7 +190,7 @@ class BaseTransmon(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(self, state, pulse_name: str = "readout", threshold: float = None):
+    def readout_state(self, state, pulse_name: str = "readout", threshold: Optional[float] = None):
         """
         Perform a readout of the qubit state using the specified pulse.
 
