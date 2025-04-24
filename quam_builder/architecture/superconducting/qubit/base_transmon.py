@@ -70,7 +70,7 @@ class BaseTransmon(Qubit):
         sigma: Returns the sigma value for a given pulse.
         thermalization_time: Returns the transmon thermalization time in ns.
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
-        set_gate_shape: Sets the shape of the single qubit gates.
+        set_pulse_shape: Sets the shape of the single qubit gates.
         readout_state: Performs a readout of the qubit state using the specified pulse.
         reset_qubit: Reset the qubit to the ground state ('g') with the specified method.
         reset_qubit_thermal: Reset the qubit to the ground state ('g') using thermalization.
@@ -180,7 +180,7 @@ class BaseTransmon(Qubit):
             xy_drive_calibration_output = None
         return resonator_calibration_output, xy_drive_calibration_output
 
-    def set_gate_shape(self, gate_shape: str) -> None:
+    def set_pulse_shape(self, gate_shape: str) -> None:
         """Set the shape fo the single qubit gates defined as ["x180", "x90" "-x90", "y180", "y90", "-y90"]"""
         for gate in ["x180", "x90", "-x90", "y180", "y90", "-y90"]:
             if f"{gate}_{gate_shape}" in self.xy.operations:
