@@ -1,8 +1,6 @@
 from quam.core import quam_dataclass
-from quam.components.channels import IQChannel, MWChannel
 from quam_builder.architecture.superconducting.qubit.base_transmon import BaseTransmon
 from qm.qua import align, wait
-from typing import Union
 
 __all__ = ["FixedFrequencyTransmon"]
 
@@ -16,8 +14,6 @@ class FixedFrequencyTransmon(BaseTransmon):
     Args:
 
     """
-
-    xy_detuned: Union[MWChannel, IQChannel] = None  # TODO: should probably belong into qubit pairs since it is for ZZ
 
     @property
     def name(self):

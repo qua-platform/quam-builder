@@ -4,6 +4,7 @@ from qm.qua import align, wait
 
 from quam.core import quam_dataclass
 from quam.components.quantum_components import QuantumComponent
+from quam.components.channels import IQChannel, MWChannel
 from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
     FixedFrequencyTransmon,
 )
@@ -28,6 +29,7 @@ class FixedFrequencyTransmonPair(QuantumComponent):
 
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
+    xy_detuned: Union[MWChannel, IQChannel] = None
     confusion: list = None
 
     extras: Dict[str, Any] = field(default_factory=dict)
