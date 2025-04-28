@@ -4,10 +4,8 @@ from qm.qua import align, wait
 
 from quam.core import quam_dataclass
 from quam.components.quantum_components import QubitPair
-from quam_builder.architecture.superconducting.components.tunable_coupler import (
-    TunableCoupler,
-)
-
+from quam_builder.architecture.superconducting.components.tunable_coupler import TunableCoupler
+from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import FluxTunableTransmon
 
 __all__ = ["FluxTunableTransmonPair"]
 
@@ -15,6 +13,9 @@ __all__ = ["FluxTunableTransmonPair"]
 @quam_dataclass
 class FluxTunableTransmonPair(QubitPair):
     id: Union[int, str]
+    qubit_control: FluxTunableTransmon = None
+    qubit_target: FluxTunableTransmon = None
+
     coupler: Optional[TunableCoupler] = None
     mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
     extras: Dict[str, Any] = field(default_factory=dict)
