@@ -22,7 +22,9 @@ class XYDriveBase:
     """
 
     @staticmethod
-    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
+    def calculate_voltage_scaling_factor(
+        fixed_power_dBm: float, target_power_dBm: float
+    ):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -90,7 +92,9 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
+        return set_output_power_iq_channel(
+            self, power_in_dbm, gain, max_amplitude, Z, operation
+        )
 
 
 @quam_dataclass
@@ -136,4 +140,6 @@ class XYDriveMW(MWChannel, XYDriveBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)
+        return set_output_power_mw_channel(
+            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
+        )
