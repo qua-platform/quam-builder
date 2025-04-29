@@ -41,18 +41,18 @@ class BaseTransmon(Qubit):
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         xy (Union[MWChannel, IQChannel]): The xy drive component.
         resonator (Union[ReadoutResonatorIQ, ReadoutResonatorMW]): The readout resonator component.
-        f_01 (float): The 0-1 transition frequency in Hz.
-        f_12 (float): The 1-2 transition frequency in Hz.
-        anharmonicity (int): The transmon anharmonicity in Hz. Default is 150e6.
-        T1 (float): The transmon T1 in seconds. Default is 10e-6.
+        f_01 (float): The 0-1 transition frequency in Hz. Default is None.
+        f_12 (float): The 1-2 transition frequency in Hz. Default is None.
+        anharmonicity (int): The transmon anharmonicity in Hz. Default is None.
+        T1 (float): The transmon T1 in seconds. Default is None.
         T2ramsey (float): The transmon T2* in seconds.
         T2echo (float): The transmon T2 in seconds.
         thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
         sigma_time_factor (int): Sigma time factor for pulse shaping. Default is 5.
-        GEF_frequency_shift (int): The frequency shift for the GEF states. Default is 10.
-        chi (float): The dispersive shift in Hz. Default is 0.0.
-        grid_location (str): Qubit location in the plot grid as "(column, row)".
-        gate_fidelity (Dict[str, Any]): Collection of gate fidelities for the qubit.
+        GEF_frequency_shift (int): The frequency shift for the GEF states. Default is None.
+        chi (float): The dispersive shift in Hz. Default is None.
+        grid_location (str): Qubit location in the plot grid as "column, row".
+        gate_fidelity (Dict[str, Any]): Collection of single qubit gate fidelity.
         extras (Dict[str, Any]): Additional attributes for the transmon.
 
     Methods:
@@ -220,7 +220,7 @@ class BaseTransmon(Qubit):
         Args:
             reset_type (Literal["thermal", "active", "active_gef"]): The type of reset to perform. Default is "thermal".
             simulate (bool): If True, the qubit reset is skipped for simulation purposes. Default is False.
-            logger (optional): Logger instance to log warnings. If None, a default logger is used.
+            log_callable (optional): Logger instance to log warnings. If None, a default logger is used.
             **kwargs: Additional keyword arguments passed to the active reset methods.
 
         Returns:
@@ -395,7 +395,7 @@ class BaseTransmon(Qubit):
         """Wait for a given duration on all channels of the qubit.
 
         Args:
-            duration (int): The duration to wait for.
+            duration (int): The duration to wait for in unit of clock cycles (4ns).
         """
         channel_names = [channel.name for channel in self.channels.values()]
         wait(duration, *channel_names)
