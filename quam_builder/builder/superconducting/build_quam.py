@@ -25,16 +25,17 @@ from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 
-def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuam:
-    """
-    Builds the QuAM by adding various components and saving the machine configuration.
+def build_quam(
+    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuam:
+    """Builds the QuAM by adding various components and saving the machine configuration.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to be built.
-    calibration_db_path (Optional[Union[Path, str]]): The path to the Octave calibration database.
+    Args:
+        machine (AnyQuam): The QuAM to be built.
+        calibration_db_path (Optional[Union[Path, str]]): The path to the Octave calibration database.
 
     Returns:
-    AnyQuam: The built QuAM.
+        AnyQuam: The built QuAM.
     """
     add_octaves(machine, calibration_db_path=calibration_db_path)
     add_external_mixers(machine)
@@ -48,30 +49,30 @@ def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
 
 
 def add_ports(machine: AnyQuam):
-    """
-    Creates and stores all input/output ports according to what has been allocated to each element in the machine's wiring.
+    """Creates and stores all input/output ports according to what has been allocated to each element in the machine's wiring.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to which the ports will be added.
+    Args:
+        machine (AnyQuam): The QuAM to which the ports will be added.
     """
     for wiring_by_element in machine.wiring.values():
         for wiring_by_line_type in wiring_by_element.values():
             for ports in wiring_by_line_type.values():
                 for port in ports:
                     if "ports" in ports.get_unreferenced_value(port):
-                        machine.ports.reference_to_port(ports.get_unreferenced_value(port), create=True)
+                        machine.ports.reference_to_port(
+                            ports.get_unreferenced_value(port), create=True
+                        )
 
 
-def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int):
-    """
-    Sets the default grid location for a qubit based on its number and the total number of qubits.
+def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -> str:
+    """Sets the default grid location for a qubit based on its number and the total number of qubits.
 
-    Parameters:
-    qubit_number (int): The number of the qubit.
-    total_number_of_qubits (int): The total number of qubits.
+    Args:
+        qubit_number (int): The number of the qubit.
+        total_number_of_qubits (int): The total number of qubits.
 
     Returns:
-    str: The grid location in the format "x,y".
+        str: The grid location in the format "x,y".
     """
     number_of_rows = int(ceil(sqrt(total_number_of_qubits)))
     y = qubit_number % number_of_rows
@@ -80,11 +81,10 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int):
 
 
 def add_transmons(machine: AnyQuam):
-    """
-    Adds transmon qubits and qubit pairs to the machine based on the wiring configuration.
+    """Adds transmon qubits and qubit pairs to the machine based on the wiring configuration.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to which the transmons will be added.
+    Args:
+        machine (AnyQuam): The QuAM to which the transmons will be added.
     """
     for element_type, wiring_by_element in machine.wiring.items():
         if element_type == "qubits":
@@ -95,7 +95,9 @@ def add_transmons(machine: AnyQuam):
                 qubit_class = machine.qubit_type
                 transmon = qubit_class(id=qubit_id)
                 machine.qubits[qubit_id] = transmon
-                machine.qubits[qubit_id].grid_location = _set_default_grid_location(qubit_number, number_of_qubits)
+                machine.qubits[qubit_id].grid_location = _set_default_grid_location(
+                    qubit_number, number_of_qubits
+                )
                 qubit_number += 1
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
@@ -122,11 +124,17 @@ def add_transmons(machine: AnyQuam):
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{qubit_pair_id}/{line_type}"
                     if line_type == WiringLineType.COUPLER.value:
-                        add_transmon_pair_tunable_coupler_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_tunable_coupler_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     elif line_type == WiringLineType.CROSS_RESONANCE.value:
-                        add_transmon_pair_cross_resonance_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_cross_resonance_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     elif line_type == WiringLineType.ZZ_DRIVE.value:
-                        add_transmon_pair_zz_drive_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_zz_drive_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
@@ -134,11 +142,10 @@ def add_transmons(machine: AnyQuam):
 
 
 def add_pulses(machine: AnyQuam):
-    """
-    Adds default pulses to the transmon qubits and qubit pairs in the machine.
+    """Adds default pulses to the transmon qubits and qubit pairs in the machine.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to which the pulses will be added.
+    Args:
+        machine (AnyQuam): The QuAM to which the pulses will be added.
     """
     if hasattr(machine, "qubits"):
         for transmon in machine.qubits.values():
@@ -149,20 +156,21 @@ def add_pulses(machine: AnyQuam):
             add_default_transmon_pair_pulses(qubit_pair)
 
 
-def add_octaves(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None):
-    """
-    Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
+def add_octaves(
+    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuam:
+    """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to which the octaves will be added.
-    calibration_db_path (Optional[Union[Path, str]]): The path to the calibration database.
+    Args:
+        machine (AnyQuam): The QuAM to which the octaves will be added.
+        calibration_db_path (Optional[Union[Path, str]]): The path to the calibration database.
 
     Returns:
-    AnyQuam: The QuAM with the added octaves.
+        AnyQuam: The QuAM with the added octaves.
     """
     if calibration_db_path is None:
-        serialiser = machine.get_serialiser()
-        calibration_db_path = serialiser._get_state_path().parent
+        serializer = machine.get_serialiser()
+        calibration_db_path = serializer._get_state_path().parent
 
     if isinstance(calibration_db_path, str):
         calibration_db_path = Path(calibration_db_path)
@@ -172,7 +180,9 @@ def add_octaves(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
+                        octave_name = references.get_unreferenced_value(
+                            reference
+                        ).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -183,22 +193,23 @@ def add_octaves(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]
     return machine
 
 
-def add_external_mixers(machine: AnyQuam):
-    """
-    Adds external mixers to the machine based on the wiring configuration.
+def add_external_mixers(machine: AnyQuam) -> AnyQuam:
+    """Adds external mixers to the machine based on the wiring configuration.
 
-    Parameters:
-    machine (AnyQuam): The QuAM to which the external mixers will be added.
+    Args:
+        machine (AnyQuam): The QuAM to which the external mixers will be added.
 
     Returns:
-    AnyQuam: The QuAM with the added external mixers.
+        AnyQuam: The QuAM with the added external mixers.
     """
     for wiring_by_element in machine.wiring.values():
         for qubit, wiring_by_line_type in wiring_by_element.items():
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
+                        mixer_name = references.get_unreferenced_value(reference).split(
+                            "/"
+                        )[2]
                         transmon_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",
