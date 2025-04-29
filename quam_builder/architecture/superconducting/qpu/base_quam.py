@@ -69,7 +69,7 @@ class BaseQuam(QuamRoot):
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
-        self.qmm = QuantumMachinesManager(**settings)  # TODO: how to fix this warning?
+        self.qmm = QuantumMachinesManager(**settings)
         return self.qmm
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:

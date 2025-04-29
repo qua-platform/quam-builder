@@ -120,10 +120,6 @@ class BaseTransmon(Qubit):
             raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number")
         return self.f_12 - self.f_01
 
-    def sigma(self, operation: Pulse):
-        # todo: check if really needed
-        return operation.length / self.sigma_time_factor
-
     @property
     def thermalization_time(self):
         """The transmon thermalization time in ns."""
