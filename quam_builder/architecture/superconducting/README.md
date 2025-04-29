@@ -8,9 +8,9 @@ The architecture is organized into the following categories:
 
 Defines the top-level structure of the Quantum Processing Unit (QPU).
 
-- **`BaseQuam`**: An abstract base class defining the common structure for any QUAM representation, including dictionaries for qubits, qubit pairs, and wiring information. # TODO: shouldn't we rename it BaseQPU for consistency?
-- **`FixedFrequencyQPU`**: A concrete implementation inheriting from `BaseQuam`, specifically designed for QPUs composed primarily of fixed-frequency transmons. It holds collections of `FixedFrequencyTransmon` and `FixedFrequencyTransmonsPair` objects.
-- **`FluxTunableQPU`**: A concrete implementation inheriting from `BaseQuam`, designed for QPUs with flux-tunable transmons. It holds collections of `FluxTunableTransmon` and `FluxTunableTransmonsPair` objects.
+- **`BaseQuam`**: An abstract base class defining the common structure for any QUAM representation, including dictionaries for qubits, qubit pairs, and wiring information.
+- **`FixedFrequencyQPU`**: A concrete implementation inheriting from `BaseQuam`, specifically designed for QPUs composed primarily of fixed-frequency transmons. It holds collections of `FixedFrequencyTransmon` and `FixedFrequencyTransmonPair` objects.
+- **`FluxTunableQPU`**: A concrete implementation inheriting from `BaseQuam`, designed for QPUs with flux-tunable transmons. It holds collections of `FluxTunableTransmon` and `FluxTunableTransmonPair` objects.
 
 ## 2. Qubit (`architecture/superconducting/qubit/`)
 
@@ -36,8 +36,8 @@ Defines the auxiliary hardware components and control elements associated with q
 
 Defines structures representing pairs of interacting qubits, holding parameters relevant to their joint operations (e.g., two-qubit gates).
 
-- **`FixedFrequencyTransmonsPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `ZZ_drive` or `cross_resonance`.
-- **`FluxTunableTransmonsPair`**: Represents a pair of interacting flux-tunable transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `coupler` or `mutual_flux_bias` for instance.
+- **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `ZZ_drive` or `cross_resonance`.
+- **`FluxTunableTransmonPair`**: Represents a pair of interacting flux-tunable transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `coupler` or `mutual_flux_bias` for instance.
 
 ---
 
