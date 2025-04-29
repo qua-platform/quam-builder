@@ -3,7 +3,6 @@ from dataclasses import field
 from logging import getLogger
 
 from quam.core import quam_dataclass
-from quam.components.channels import Pulse
 from quam.components.quantum_components import Qubit
 from quam_builder.architecture.superconducting.components.readout_resonator import (
     ReadoutResonatorIQ,
@@ -12,6 +11,7 @@ from quam_builder.architecture.superconducting.components.readout_resonator impo
 from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 from qm import QuantumMachine, logger
+from qm.qua.type_hints import QuaVariable
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm.qua import (
     save,
@@ -28,12 +28,7 @@ from qm.qua import (
 )
 
 
-try:
-    from qm.qua.type_hints import QuaVariable
 
-    QuaVariableBool = QuaVariable[bool]
-except ImportError:
-    from qm.qua._dsl import QuaVariableType as QuaVariableBool
 
 
 __all__ = ["BaseTransmon"]
@@ -362,7 +357,7 @@ class BaseTransmon(Qubit):
             self.align()
             assign(attempts, attempts + 1)
 
-    def readout_state_gef(self, state: QuaVariableBool, pulse_name: str = "readout"):
+    def readout_state_gef(self, state: QuaVariable, pulse_name: str = "readout"):
         """
         Perform a GEF state readout using the specified pulse and update the state variable.
 
@@ -382,7 +377,7 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         diff = declare(fixed, size=3)
 
-        self.resonator.update_frequency(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift)
+        self.resonator.update_frequency(int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift))
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)
 
