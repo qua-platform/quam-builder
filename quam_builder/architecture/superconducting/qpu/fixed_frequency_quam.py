@@ -15,7 +15,17 @@ __all__ = ["FixedFrequencyQuam", "FixedFrequencyTransmon", "FixedFrequencyTransm
 
 @quam_dataclass
 class FixedFrequencyQuam(BaseQuam):
-    """Example QUAM root component."""
+    """Example of a QUAM composed of fixed frequency transmons.
+
+    Attributes:
+        qubit_type (ClassVar[Type[FixedFrequencyTransmon]]): The type of the qubits in the QUAM for type hinting.
+        qubit_pair_type (ClassVar[Type[FixedFrequencyTransmonPair]]): The type of the qubit pairs in the QUAM for type hinting.
+        qubits (Dict[str, FixedFrequencyTransmon]): A dictionary of qubits composing the QUAM.
+        qubit_pairs (Dict[str, FixedFrequencyTransmonPair]): A dictionary of qubit pairs composing the QUAM.
+
+    Methods:
+        load: Loads the QUAM from the state.json file.
+    """
 
     qubit_type: ClassVar[Type[FixedFrequencyTransmon]] = FixedFrequencyTransmon
     qubit_pair_type: ClassVar[Type[FixedFrequencyTransmonPair]] = (

@@ -3,8 +3,7 @@ from typing import List, Dict, ClassVar, Optional, Union
 
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
-from qm.qua._dsl import _ResultSource
-from qm.qua._expressions import QuaVariable
+from qm.qua.type_hints import QuaVariable, StreamType
 from qm.qua import declare_stream, declare, fixed
 
 from quam.components import FrequencyConverter
@@ -23,7 +22,33 @@ __all__ = ["BaseQuam"]
 
 @quam_dataclass
 class BaseQuam(QuamRoot):
-    """Example QUAM root component."""
+    """Example QUAM root component.
+
+    Attributes:
+        octaves (Dict[str, Octave]): A dictionary of Octave components.
+        mixers (Dict[str, FrequencyConverter]): A dictionary of frequency converters.
+        qubits (Dict[str, AnyTransmon]): A dictionary of transmon qubits.
+        qubit_pairs (Dict[str, AnyTransmonPair]): A dictionary of transmon qubit pairs.
+        wiring (dict): The wiring configuration.
+        network (dict): The network configuration.
+        active_qubit_names (List[str]): A list of active qubit names.
+        active_qubit_pair_names (List[str]): A list of active qubit pair names.
+        ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
+        _data_handler (ClassVar[DataHandler]): The data handler.
+        qmm (ClassVar[Optional[QuantumMachinesManager]]): The Quantum Machines Manager.
+
+    Methods:
+        get_serialiser: Get the serialiser for the QuamRoot class, which is the JSONSerialiser.
+        get_octave_config: Return the Octave configuration.
+        connect: Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
+        calibrate_octave_ports: Calibrate the Octave ports for all the active qubits.
+        active_qubits: Return the list of active qubits.
+        active_qubit_pairs: Return the list of active qubit pairs.
+        depletion_time: Return the longest depletion time amongst the active qubits.
+        thermalization_time: Return the longest thermalization time amongst the active qubits.
+        declare_qua_variables: Macro to declare the necessary QUA variables for all qubits.
+        initialize_qpu: Initialize the QPU with the specified settings.
+    """
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
     mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
@@ -38,7 +63,7 @@ class BaseQuam(QuamRoot):
 
     ports: Union[FEMPortsContainer, OPXPlusPortsContainer] = None
 
-    _data_handler: ClassVar[DataHandler] = None
+    _data_handler: ClassVar[DataHandler] = None  # TODO: Serwan, is it used anywhere?
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
 
     @classmethod
@@ -62,7 +87,8 @@ class BaseQuam(QuamRoot):
     def connect(self) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
-        Returns: the opened Quantum Machine Manager.
+        Returns:
+            QuantumMachinesManager: The opened Quantum Machine Manager.
         """
         settings = dict(
             host=self.network["host"],
@@ -78,7 +104,7 @@ class BaseQuam(QuamRoot):
         """Calibrate the Octave ports for all the active qubits.
 
         Args:
-            QM (QuantumMachine): the running quantum machine.
+            QM (QuantumMachine): The running quantum machine.
         """
         from qm.octave.octave_mixer_calibration import NoCalibrationElements
 
@@ -97,7 +123,7 @@ class BaseQuam(QuamRoot):
 
     @property
     def active_qubit_pairs(self) -> List[AnyTransmonPair]:
-        """Return the list of active qubits."""
+        """Return the list of active qubit pairs."""
         return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
 
     @property
@@ -114,14 +140,17 @@ class BaseQuam(QuamRoot):
         self,
     ) -> tuple[
         list[QuaVariable],
-        list[_ResultSource],
+        list[StreamType],
         list[QuaVariable],
-        list[_ResultSource],
+        list[StreamType],
         QuaVariable,
-        _ResultSource,
+        StreamType,
     ]:
-        """Macro to declare the necessary QUA variables for all qubits"""
+        """Macro to declare the necessary QUA variables for all qubits.
 
+        Returns:
+            tuple: A tuple containing lists of QUA variables and streams.
+        """
         n = declare(int)
         n_st = declare_stream()
         I = [declare(fixed) for _ in range(len(self.qubits))]
@@ -131,4 +160,5 @@ class BaseQuam(QuamRoot):
         return I, I_st, Q, Q_st, n, n_st
 
     def initialize_qpu(self, **kwargs):
+        """Initialize the QPU with the specified settings."""
         pass
