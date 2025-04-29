@@ -8,7 +8,10 @@ from quam_builder.architecture.superconducting.components.readout_resonator impo
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
 )
-from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
+from quam_builder.architecture.superconducting.components.xy_drive import (
+    XYDriveIQ,
+    XYDriveMW,
+)
 
 from qm import QuantumMachine, logger
 from qm.qua.type_hints import QuaVariable
@@ -97,9 +100,13 @@ class BaseTransmon(Qubit):
         """The 0-2 (e-f) transition frequency in Hz, derived from f_01 and anharmonicity"""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.anharmonicity, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number"
+            )
         return self.f_01 + self.anharmonicity
 
     @property
@@ -107,9 +114,13 @@ class BaseTransmon(Qubit):
         """The transmon anharmonicity in Hz, derived from f_01 and f_12."""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.f_12, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number"
+            )
         return self.f_12 - self.f_01
 
     @property
@@ -126,7 +137,9 @@ class BaseTransmon(Qubit):
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = True,
-    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
+    ) -> Tuple[
+        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
+    ]:
         """Calibrate the Octave channels (xy and resonator) linked to this transmon for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -143,7 +156,11 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.resonator.name}")
                 resonator_calibration_output = QM.calibrate_element(
                     self.resonator.name,
-                    {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)},
+                    {
+                        self.resonator.frequency_converter_up.LO_frequency: (
+                            self.resonator.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
@@ -157,7 +174,12 @@ class BaseTransmon(Qubit):
             if hasattr(self.xy, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.xy.name}")
                 xy_drive_calibration_output = QM.calibrate_element(
-                    self.xy.name, {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)}
+                    self.xy.name,
+                    {
+                        self.xy.frequency_converter_up.LO_frequency: (
+                            self.xy.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
@@ -178,7 +200,9 @@ class BaseTransmon(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(self, state, pulse_name: str = "readout", threshold: Optional[float] = None):
+    def readout_state(
+        self, state, pulse_name: str = "readout", threshold: Optional[float] = None
+    ):
         """
         Perform a readout of the qubit state using the specified pulse.
 
@@ -240,7 +264,9 @@ class BaseTransmon(Qubit):
         else:
             if log_callable is None:
                 log_callable = getLogger(__name__).warning
-            log_callable("For simulating the QUA program, the qubit reset has been skipped.")
+            log_callable(
+                "For simulating the QUA program, the qubit reset has been skipped."
+            )
 
     def reset_qubit_thermal(self):
         """
@@ -337,7 +363,9 @@ class BaseTransmon(Qubit):
             wait(self.rr.res_deplete_time // 4, self.xy.name)
             self.align()
             with if_(res_ar == 0):
-                assign(success, success + 1)  # we need to measure 'g' two times in a row to increase our confidence
+                assign(
+                    success, success + 1
+                )  # we need to measure 'g' two times in a row to increase our confidence
             with if_(res_ar == 1):
                 update_frequency(self.xy.name, int(self.xy.intermediate_frequency))
                 self.xy.play(pi_01_pulse_name)
@@ -374,7 +402,12 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         diff = declare(fixed, size=3)
 
-        self.resonator.update_frequency(int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift))
+        self.resonator.update_frequency(
+            int(
+                self.resonator.intermediate_frequency
+                + self.resonator.GEF_frequency_shift
+            )
+        )
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)
 
@@ -386,7 +419,8 @@ class BaseTransmon(Qubit):
         for p in range(3):
             assign(
                 diff[p],
-                (I - gef_centers[p][0]) * (I - gef_centers[p][0]) + (Q - gef_centers[p][1]) * (Q - gef_centers[p][1]),
+                (I - gef_centers[p][0]) * (I - gef_centers[p][0])
+                + (Q - gef_centers[p][1]) * (Q - gef_centers[p][1]),
             )
         assign(state, Math.argmin(diff))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
