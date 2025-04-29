@@ -3,7 +3,6 @@ from dataclasses import field
 from logging import getLogger
 
 from quam.core import quam_dataclass
-from quam.components.channels import Pulse
 from quam.components.quantum_components import Qubit
 from quam_builder.architecture.superconducting.components.readout_resonator import (
     ReadoutResonatorIQ,
@@ -15,6 +14,7 @@ from quam_builder.architecture.superconducting.components.xy_drive import (
 )
 
 from qm import QuantumMachine, logger
+from qm.qua.type_hints import QuaVariable
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm.qua import (
     save,
@@ -31,14 +31,6 @@ from qm.qua import (
 )
 
 
-try:
-    from qm.qua.type_hints import QuaVariable
-
-    QuaVariableBool = QuaVariable[bool]
-except ImportError:
-    from qm.qua._dsl import QuaVariableType as QuaVariableBool
-
-
 __all__ = ["BaseTransmon"]
 
 
@@ -52,18 +44,18 @@ class BaseTransmon(Qubit):
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         xy (Union[MWChannel, IQChannel]): The xy drive component.
         resonator (Union[ReadoutResonatorIQ, ReadoutResonatorMW]): The readout resonator component.
-        f_01 (float): The 0-1 transition frequency in Hz.
-        f_12 (float): The 1-2 transition frequency in Hz.
-        anharmonicity (int): The transmon anharmonicity in Hz. Default is 150e6.
-        T1 (float): The transmon T1 in seconds. Default is 10e-6.
+        f_01 (float): The 0-1 transition frequency in Hz. Default is None.
+        f_12 (float): The 1-2 transition frequency in Hz. Default is None.
+        anharmonicity (int): The transmon anharmonicity in Hz. Default is None.
+        T1 (float): The transmon T1 in seconds. Default is None.
         T2ramsey (float): The transmon T2* in seconds.
         T2echo (float): The transmon T2 in seconds.
         thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
         sigma_time_factor (int): Sigma time factor for pulse shaping. Default is 5.
-        GEF_frequency_shift (int): The frequency shift for the GEF states. Default is 10.
-        chi (float): The dispersive shift in Hz. Default is 0.0.
-        grid_location (str): Qubit location in the plot grid as "(column, row)".
-        gate_fidelity (Dict[str, Any]): Collection of gate fidelities for the qubit.
+        GEF_frequency_shift (int): The frequency shift for the GEF states. Default is None.
+        chi (float): The dispersive shift in Hz. Default is None.
+        grid_location (str): Qubit location in the plot grid as "column, row".
+        gate_fidelity (Dict[str, Any]): Collection of single qubit gate fidelity.
         extras (Dict[str, Any]): Additional attributes for the transmon.
 
     Methods:
@@ -104,33 +96,17 @@ class BaseTransmon(Qubit):
     extras: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def name(self):
-        """The name of the transmon"""
-        return self.id if isinstance(self.id, str) else f"q{self.id}"
-
-    def __matmul__(self, other):
-        if not isinstance(other, BaseTransmon):
-            raise ValueError(
-                "Cannot create a qubit pair (q1 @ q2) with a non-qubit object, " f"where q1={self} and q2={other}"
-            )
-
-        if self is other:
-            raise ValueError("Cannot create a qubit pair with same qubit (q1 @ q1), where q1={self}")
-
-        for qubit_pair in self._root.qubit_pairs.values():
-            if qubit_pair.qubit_control is self and qubit_pair.qubit_target is other:
-                return qubit_pair
-        else:
-            raise ValueError("Qubit pair not found: qubit_control={self.name}, " "qubit_target={other.name}")
-
-    @property
     def inferred_f_12(self) -> float:
         """The 0-2 (e-f) transition frequency in Hz, derived from f_01 and anharmonicity"""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.anharmonicity, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number"
+            )
         return self.f_01 + self.anharmonicity
 
     @property
@@ -138,14 +114,14 @@ class BaseTransmon(Qubit):
         """The transmon anharmonicity in Hz, derived from f_01 and f_12."""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.f_12, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number"
+            )
         return self.f_12 - self.f_01
-
-    def sigma(self, operation: Pulse):
-        # todo: check if really needed
-        return operation.length / self.sigma_time_factor
 
     @property
     def thermalization_time(self):
@@ -161,7 +137,9 @@ class BaseTransmon(Qubit):
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = True,
-    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
+    ) -> Tuple[
+        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
+    ]:
         """Calibrate the Octave channels (xy and resonator) linked to this transmon for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -178,11 +156,16 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.resonator.name}")
                 resonator_calibration_output = QM.calibrate_element(
                     self.resonator.name,
-                    {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)},
+                    {
+                        self.resonator.frequency_converter_up.LO_frequency: (
+                            self.resonator.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
-                    f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
+                    f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely "
+                    "not connected to an Octave."
                 )
         else:
             resonator_calibration_output = None
@@ -191,11 +174,17 @@ class BaseTransmon(Qubit):
             if hasattr(self.xy, "frequency_converter_up"):
                 logger.info(f"Calibrating {self.xy.name}")
                 xy_drive_calibration_output = QM.calibrate_element(
-                    self.xy.name, {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)}
+                    self.xy.name,
+                    {
+                        self.xy.frequency_converter_up.LO_frequency: (
+                            self.xy.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
-                    f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not connected to an Octave."
+                    f"{self.xy.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not "
+                    "connected to an Octave."
                 )
         else:
             xy_drive_calibration_output = None
@@ -211,7 +200,9 @@ class BaseTransmon(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(self, state, pulse_name: str = "readout", threshold: float = None):
+    def readout_state(
+        self, state, pulse_name: str = "readout", threshold: Optional[float] = None
+    ):
         """
         Perform a readout of the qubit state using the specified pulse.
 
@@ -253,7 +244,7 @@ class BaseTransmon(Qubit):
         Args:
             reset_type (Literal["thermal", "active", "active_gef"]): The type of reset to perform. Default is "thermal".
             simulate (bool): If True, the qubit reset is skipped for simulation purposes. Default is False.
-            logger (optional): Logger instance to log warnings. If None, a default logger is used.
+            log_callable (optional): Logger instance to log warnings. If None, a default logger is used.
             **kwargs: Additional keyword arguments passed to the active reset methods.
 
         Returns:
@@ -273,7 +264,9 @@ class BaseTransmon(Qubit):
         else:
             if log_callable is None:
                 log_callable = getLogger(__name__).warning
-            log_callable("For simulating the QUA program, the qubit reset has been skipped.")
+            log_callable(
+                "For simulating the QUA program, the qubit reset has been skipped."
+            )
 
     def reset_qubit_thermal(self):
         """
@@ -370,7 +363,9 @@ class BaseTransmon(Qubit):
             wait(self.rr.res_deplete_time // 4, self.xy.name)
             self.align()
             with if_(res_ar == 0):
-                assign(success, success + 1)  # we need to measure 'g' two times in a row to increase our confidence
+                assign(
+                    success, success + 1
+                )  # we need to measure 'g' two times in a row to increase our confidence
             with if_(res_ar == 1):
                 update_frequency(self.xy.name, int(self.xy.intermediate_frequency))
                 self.xy.play(pi_01_pulse_name)
@@ -387,7 +382,7 @@ class BaseTransmon(Qubit):
             self.align()
             assign(attempts, attempts + 1)
 
-    def readout_state_gef(self, state: QuaVariableBool, pulse_name: str = "readout"):
+    def readout_state_gef(self, state: QuaVariable, pulse_name: str = "readout"):
         """
         Perform a GEF state readout using the specified pulse and update the state variable.
 
@@ -407,7 +402,12 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         diff = declare(fixed, size=3)
 
-        self.resonator.update_frequency(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift)
+        self.resonator.update_frequency(
+            int(
+                self.resonator.intermediate_frequency
+                + self.resonator.GEF_frequency_shift
+            )
+        )
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)
 
@@ -419,7 +419,17 @@ class BaseTransmon(Qubit):
         for p in range(3):
             assign(
                 diff[p],
-                (I - gef_centers[p][0]) * (I - gef_centers[p][0]) + (Q - gef_centers[p][1]) * (Q - gef_centers[p][1]),
+                (I - gef_centers[p][0]) * (I - gef_centers[p][0])
+                + (Q - gef_centers[p][1]) * (Q - gef_centers[p][1]),
             )
         assign(state, Math.argmin(diff))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
+
+    def wait(self, duration: int):
+        """Wait for a given duration on all channels of the qubit.
+
+        Args:
+            duration (int): The duration to wait for in unit of clock cycles (4ns).
+        """
+        channel_names = [channel.name for channel in self.channels.values()]
+        wait(duration, *channel_names)

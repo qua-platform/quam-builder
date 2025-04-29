@@ -1,6 +1,7 @@
-from quam.components import SingleChannel
-from quam.core import quam_dataclass
 from typing import Literal
+
+from quam.core import quam_dataclass
+from quam.components import SingleChannel
 
 __all__ = ["TunableCoupler"]
 
@@ -14,8 +15,10 @@ class TunableCoupler(SingleChannel):
         decouple_offset (float): the coupler flux bias for which the interaction is off.
         interaction_offset (float): the coupler flux bias for which the interaction is ON.
         arbitrary_offset (float): an arbitrary coupler flux bias.
-        flux_point (str): name of the flux point to set the coupler at. Can be among ["off", "on", "arbitrary", "zero"]. Default is "off".
-        settle_time (float): the flux line settle time in ns. The value will be cast to an integer multiple of 4ns automatically.
+        flux_point (str): name of the flux point to set the coupler at. Can be among ["off", "on", "arbitrary", "zero"].
+            Default is "off".
+        settle_time (float): the flux line settle time in ns. The value will be cast to an integer multiple of 4ns
+            automatically.
     """
 
     decouple_offset: float = 0.0

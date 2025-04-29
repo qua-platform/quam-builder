@@ -2,6 +2,7 @@ from typing import Optional
 
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
+
 from qualibration_libs.power_tools import (
     calculate_voltage_scaling_factor,
     set_output_power_mw_channel,
@@ -18,13 +19,12 @@ __all__ = ["XYDriveIQ", "XYDriveMW"]
 class XYDriveBase:
     """
     QUAM component for a XY drive line.
-
-    Methods:
-        calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm): Calculate the voltage scaling factor required to scale fixed power to target power.
     """
 
     @staticmethod
-    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
+    def calculate_voltage_scaling_factor(
+        fixed_power_dBm: float, target_power_dBm: float
+    ):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -40,6 +40,10 @@ class XYDriveBase:
 
 @quam_dataclass
 class XYDriveIQ(IQChannel, XYDriveBase):
+    """
+    QUAM component for a XY drive line through an IQ channel.
+    """
+
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     @property
@@ -58,8 +62,8 @@ class XYDriveIQ(IQChannel, XYDriveBase):
         Returns:
             float: The output power in dBm.
 
-        The function calculates the output power based on the amplitude of the specified operation and the gain of the frequency up-converter.
-        It converts the amplitude to dBm using the specified impedance.
+        The function calculates the output power based on the amplitude of the specified operation and the gain of the
+        frequency up-converter. It converts the amplitude to dBm using the specified impedance.
         """
         return get_output_power_iq_channel(self, operation, Z)
 
@@ -88,7 +92,9 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
+        return set_output_power_iq_channel(
+            self, power_in_dbm, gain, max_amplitude, Z, operation
+        )
 
 
 @quam_dataclass
@@ -111,7 +117,8 @@ class XYDriveMW(MWChannel, XYDriveBase):
         Returns:
             float: The output power in dBm.
 
-        The function calculates the output power based on the full-scale power in dBm and the amplitude of the specified operation.
+        The function calculates the output power based on the full-scale power in dBm and the amplitude of the
+        specified operation.
         """
         return get_output_power_mw_channel(self, operation, Z)
 
@@ -119,8 +126,8 @@ class XYDriveMW(MWChannel, XYDriveBase):
         self,
         power_in_dbm: float,
         full_scale_power_dbm: Optional[int] = None,
-        max_amplitude: Optional[float] = 1,
-        operation: Optional[str] = "readout",
+        max_amplitude: float = 1,
+        operation: str = "readout",
     ):
         """
         Sets the power level in dBm for a specified operation, increasing the full-scale power
@@ -133,4 +140,6 @@ class XYDriveMW(MWChannel, XYDriveBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)
+        return set_output_power_mw_channel(
+            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
+        )

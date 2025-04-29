@@ -15,7 +15,7 @@ The `quam-builder` simplifies the process of generating complex QUAM configurati
 `quam-builder` is part of a larger ecosystem for quantum control:
 
 - **[QUAM (Quantum Abstract Machine)](https://qua-platform.github.io/quam/)**: The core specification and software for defining quantum machine components and states, which `quam-builder` helps generate.
-- **[QUAlibrate](https://qua-platform.github.io/qualibrate/)**: Qubit calibration software that utilizes the QUAM standard. # TODO: can't we use Qualibrate without QUAM? What about the naming convention, isn't Qualibrate better aligned?
+- **[QUAlibrate](https://qua-platform.github.io/qualibrate/)**: Qubit calibration software that utilizes the QUAM standard.
   - **[Qualibration-graph](https://github.com/qua-platform/qua-libs)**: Calibration libraries that leverage `quam-builder` to create the necessary QUAM state representation.
 
 ## Core Functionality
@@ -49,8 +49,7 @@ This module focuses on generating the `wiring` part of the QUAM configuration, c
 - **Helpers (`paths`, `channel_ports`, `get_digital_outputs`):** Utility functions for path finding in connectivity graphs and managing port information.
 
 ## Usage Examples
-# TODO: Modify the name of the qua-libs repo and the link
-Examples for typical wiring configurations can be found in the [qua-platform/qua-libs](https://github.com/qua-platform/qua-libs) GitHub repository in the folder `Quantum-Control-Applications-Quam/Superconducting/quam_config/wiring_examples`.
+Examples for typical wiring configurations can be found in the [qua-platform/qua-libs](https://github.com/qua-platform/qua-libs) GitHub repository in the folder `qualibration_graphs/superconducting/quam_config/wiring_examples`.
 
 The `wiring_examples` directory provides practical scripts demonstrating how to use `build_quam` and `build_quam_wiring` for different hardware configurations:
 

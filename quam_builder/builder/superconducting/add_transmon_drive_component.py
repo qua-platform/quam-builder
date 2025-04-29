@@ -25,16 +25,15 @@ def add_transmon_drive_component(
     wiring_path: str,
     ports: Dict[str, str],
 ):
-    """
-    Adds a drive component to a transmon qubit based on the provided wiring path and ports.
+    """Adds a drive component to a transmon qubit based on the provided wiring path and ports.
 
-    Parameters:
-    transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the drive component will be added.
-    wiring_path (str): The path to the wiring configuration.
-    ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
+    Args:
+        transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the drive component will be added.
+        wiring_path (str): The path to the wiring configuration.
+        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 
     Raises:
-    ValueError: If the port keys do not match any implemented mapping.
+        ValueError: If the port keys do not match any implemented mapping.
     """
     digital_outputs = get_digital_outputs(wiring_path, ports)
 
@@ -61,4 +60,6 @@ def add_transmon_drive_component(
         )
 
     else:
-        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")
+        raise ValueError(
+            f"Unimplemented mapping of port keys to channel for ports: {ports}"
+        )

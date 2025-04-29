@@ -16,17 +16,18 @@ from quam_builder.architecture.superconducting.qubit import AnyTransmon
 u = unit(coerce_to_integer=True)
 
 
-def add_transmon_resonator_component(transmon: AnyTransmon, wiring_path: str, ports: Dict[str, str]):
-    """
-    Adds a resonator component to a transmon qubit based on the provided wiring path and ports.
+def add_transmon_resonator_component(
+    transmon: AnyTransmon, wiring_path: str, ports: Dict[str, str]
+):
+    """Adds a resonator component to a transmon qubit based on the provided wiring path and ports.
 
-    Parameters:
-    transmon (AnyTransmon): The transmon qubit to which the resonator component will be added.
-    wiring_path (str): The path to the wiring configuration.
-    ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
+    Args:
+        transmon (AnyTransmon): The transmon qubit to which the resonator component will be added.
+        wiring_path (str): The path to the wiring configuration.
+        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 
     Raises:
-    ValueError: If the port keys do not match any implemented mapping.
+        ValueError: If the port keys do not match any implemented mapping.
     """
     digital_outputs = get_digital_outputs(wiring_path, ports)
 
@@ -55,7 +56,9 @@ def add_transmon_resonator_component(transmon: AnyTransmon, wiring_path: str, po
 
         RF_input_resonator = transmon.resonator.frequency_converter_down
         RF_input_resonator.channel = transmon.resonator.get_reference()
-        RF_input_resonator.LO_frequency = f"{RF_output_resonator.get_reference()}/LO_frequency"
+        RF_input_resonator.LO_frequency = (
+            f"{RF_output_resonator.get_reference()}/LO_frequency"
+        )
 
     elif all(key in ports for key in mw_in_out_channel_ports):
         transmon.resonator = ReadoutResonatorMW(
@@ -66,7 +69,11 @@ def add_transmon_resonator_component(transmon: AnyTransmon, wiring_path: str, po
             RF_frequency=None,
             time_of_flight=time_of_flight,
         )
-        transmon.resonator.opx_input.downconverter_frequency = f"{transmon.resonator.opx_output.get_reference()}/upconverter_frequency"
+        transmon.resonator.opx_input.downconverter_frequency = (
+            f"{transmon.resonator.opx_output.get_reference()}/upconverter_frequency"
+        )
 
     else:
-        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")
+        raise ValueError(
+            f"Unimplemented mapping of port keys to channel for ports: {ports}"
+        )

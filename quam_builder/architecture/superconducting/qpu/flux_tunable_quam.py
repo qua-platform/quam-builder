@@ -1,19 +1,36 @@
 import warnings
+from dataclasses import field
+from typing import Dict, Union, ClassVar, Type
+
 from quam.core import quam_dataclass
+
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
-
-from dataclasses import field
-from typing import Dict, Union, ClassVar, Type
 
 __all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 
 @quam_dataclass
 class FluxTunableQuam(BaseQuam):
-    """Example QUAM root component."""
+    """Example of a QUAM composed of flux tunable transmons.
+
+    Attributes:
+        qubit_type (ClassVar[Type[FixedFrequencyTransmon]]): The type of the qubits in the QUAM for type hinting.
+        qubit_pair_type (ClassVar[Type[FixedFrequencyTransmonPair]]): The type of the qubit pairs in the QUAM for type hinting.
+        qubits (Dict[str, FixedFrequencyTransmon]): A dictionary of qubits composing the QUAM.
+        qubit_pairs (Dict[str, FixedFrequencyTransmonPair]): A dictionary of qubit pairs composing the QUAM.
+
+    Methods:
+        load: Loads the QUAM from the state.json file.
+        apply_all_couplers_to_min: Apply the offsets that bring all the active qubit pairs to a decoupled point.
+        apply_all_flux_to_joint_idle: Apply the offsets that bring all the active qubits to the joint sweet spot.
+        apply_all_flux_to_min: Apply the offsets that bring all the active qubits to the minimum frequency point.
+        apply_all_flux_to_zero: Apply the offsets that bring all the active qubits to the zero bias point.
+        set_all_fluxes: Set the fluxes to the specified point for the target qubit or qubit pair.
+        initialize_qpu: Initialize the QPU with the specified flux point and target.
+    """
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
     qubit_pair_type: ClassVar[Type[FluxTunableTransmonPair]] = FluxTunableTransmonPair
@@ -37,13 +54,17 @@ class FluxTunableQuam(BaseQuam):
             if q.z is not None:
                 q.z.to_joint_idle()
             else:
-                warnings.warn(f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle")
+                warnings.warn(
+                    f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle"
+                )
         for q in self.qubits:
             if self.qubits[q] not in self.active_qubits:
                 if self.qubits[q].z is not None:
                     self.qubits[q].z.to_min()
                 else:
-                    warnings.warn(f"Didn't find z-element on qubit {q}, didn't set to min")
+                    warnings.warn(
+                        f"Didn't find z-element on qubit {q}, didn't set to min"
+                    )
         self.apply_all_couplers_to_min()
 
     def apply_all_flux_to_min(self) -> None:
@@ -65,7 +86,12 @@ class FluxTunableQuam(BaseQuam):
         flux_point: str,
         target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
     ):
-        # todo: check this with Tom & Dean
+        """Set the fluxes to the specified point for the target qubit or qubit pair.
+
+        Args:
+            flux_point (str): The flux point to set ('independent', 'pairwise', 'joint', 'min').
+            target (Union[FluxTunableTransmon, FluxTunableTransmonPair]): The target qubit or qubit pair.
+        """
         if flux_point == "independent":
             assert isinstance(
                 target, FluxTunableTransmon
@@ -98,6 +124,12 @@ class FluxTunableQuam(BaseQuam):
         return target_bias
 
     def initialize_qpu(self, **kwargs):
-        flux_point = kwargs.get("flux_point", "min")
+        """Initialize the QPU with the specified flux point and target.
+
+        Args:
+            flux_point (str): The flux point to set. Default is 'joint'.
+            target: The qubit under study.
+        """
+        flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
