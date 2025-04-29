@@ -14,14 +14,12 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
     Args:
         z (FluxLine): The z drive component.
         resonator (ReadoutResonator): The readout resonator component.
-        freq_vs_flux_01_quad_term (float):
-        arbitrary_intermediate_frequency (float):
-        phi0_current (float):
-        phi0_voltage (float):
+        freq_vs_flux_01_quad_term (float): Quadratic term of the qubit frequency versus flux parabola.
+        phi0_current (float): The qubit flux quantum in Ampere.
+        phi0_voltage (float): The qubit flux quantum in Volt.
     """
 
     z: FluxLine = None
     freq_vs_flux_01_quad_term: float = 0.0
-    arbitrary_intermediate_frequency: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
