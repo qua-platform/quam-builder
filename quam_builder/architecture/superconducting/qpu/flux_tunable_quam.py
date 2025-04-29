@@ -66,7 +66,6 @@ class FluxTunableQuam(BaseQuam):
         flux_point: str,
         target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
     ):
-        # todo: check this with Tom & Dean
         if flux_point == "independent":
             assert isinstance(
                 target, FluxTunableTransmon
