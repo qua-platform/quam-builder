@@ -28,9 +28,6 @@ from qm.qua import (
 )
 
 
-
-
-
 __all__ = ["BaseTransmon"]
 
 
@@ -393,3 +390,12 @@ class BaseTransmon(Qubit):
             )
         assign(state, Math.argmin(diff))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
+
+    def wait(self, duration: int):
+        """Wait for a given duration on all channels of the qubit.
+
+        Args:
+            duration (int): The duration to wait for.
+        """
+        channel_names = [channel.name for channel in self.channels.values()]
+        wait(duration, *channel_names)
