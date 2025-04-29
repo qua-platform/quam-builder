@@ -12,15 +12,14 @@ def build_quam_wiring(
     quam_instance: AnyQuam,
     port: Optional[int] = None,
 ):
-    """
-    Builds the QUAM wiring configuration and saves the machine setup.
+    """Builds the QUAM wiring configuration and saves the machine setup.
 
-    Parameters:
-    connectivity (Connectivity): The connectivity configuration.
-    host_ip (str): The IP address of the Quantum Orchestration Platform.
-    cluster_name (str): The name of the cluster as displayed in the admin panel.
-    quam_instance (AnyQuam): The QUAM instance to be configured.
-    port (Optional[int], optional): The port number. Defaults to None.
+    Args:
+        connectivity (Connectivity): The connectivity configuration.
+        host_ip (str): The IP address of the Quantum Orchestration Platform.
+        cluster_name (str): The name of the cluster as displayed in the admin panel.
+        quam_instance (AnyQuam): The QUAM instance to be configured.
+        port (Optional[int]): The port number. Defaults to None.
     """
     machine = quam_instance
     add_ports_container(connectivity, machine)
@@ -30,15 +29,14 @@ def build_quam_wiring(
 
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
-    """
-    Detects whether the `connectivity` is using OPX+ or OPX1000 and returns the corresponding base object.
+    """Detects whether the `connectivity` is using OPX+ or OPX1000 and returns the corresponding base object.
 
-    Parameters:
-    connectivity (Connectivity): The connectivity configuration.
-    machine (AnyQuam): The QUAM machine to which the ports container will be added.
+    Args:
+        connectivity (Connectivity): The connectivity configuration.
+        machine (AnyQuam): The QUAM machine to which the ports container will be added.
 
     Raises:
-    TypeError: If the instrument type is unknown.
+        TypeError: If the instrument type is unknown.
     """
     for element in connectivity.elements.values():
         for channels in element.channels.values():
@@ -49,14 +47,15 @@ def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
                     machine.ports = OPXPlusPortsContainer()
 
 
-def add_name_and_ip(machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]):
-    """
-    Stores the minimal information to connect to a QuantumMachinesManager.
+def add_name_and_ip(
+    machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]
+):
+    """Stores the minimal information to connect to a QuantumMachinesManager.
 
-    Parameters:
-    machine (AnyQuam): The QUAM machine to which the network information will be added.
-    host_ip (str): The IP address of the host.
-    cluster_name (str): The name of the cluster.
-    port (Union[int, None]): The port number.
+    Args:
+        machine (AnyQuam): The QUAM machine to which the network information will be added.
+        host_ip (str): The IP address of the host.
+        cluster_name (str): The name of the cluster.
+        port (Union[int, None]): The port number.
     """
     machine.network = {"host": host_ip, "port": port, "cluster_name": cluster_name}

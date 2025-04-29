@@ -17,17 +17,16 @@ from quam_builder.builder.qop_connectivity.paths import *
 
 
 def create_wiring(connectivity: Connectivity) -> dict:
-    """
-    Generates a dictionary containing QUAM-compatible JSON references which can be used to generate QUAM `port` objects.
+    """Generates a dictionary containing QUAM-compatible JSON references which can be used to generate QUAM `port` objects.
 
-    Parameters:
-    connectivity (Connectivity): The connectivity configuration.
+    Args:
+        connectivity (Connectivity): The connectivity configuration.
 
     Returns:
-    dict: A dictionary containing QUAM-compatible JSON references.
+        dict: A dictionary containing QUAM-compatible JSON references.
 
     Raises:
-    ValueError: If an unknown line type is encountered.
+        ValueError: If an unknown line type is encountered.
     """
     wiring = {}
     for element_id, element in connectivity.elements.items():
@@ -38,7 +37,9 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.FLUX,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
-                    set_nested_value_with_path(wiring, f"qubits/{element_id}/{line_type.value}/{k}", v)
+                    set_nested_value_with_path(
+                        wiring, f"qubits/{element_id}/{line_type.value}/{k}", v
+                    )
 
             elif line_type in [
                 WiringLineType.COUPLER,
@@ -46,7 +47,9 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.ZZ_DRIVE,
             ]:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
-                    set_nested_value_with_path(wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v)
+                    set_nested_value_with_path(
+                        wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
+                    )
 
             else:
                 raise ValueError(f"Unknown line type {line_type}")
@@ -59,21 +62,22 @@ def qubit_wiring(
     element_id: QubitReference,
     line_type: WiringLineType,
 ) -> dict:
-    """
-    Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit and the same line type.
+    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit and the same line type.
 
-    Parameters:
-    channels (List[AnyInstrumentChannel]): The list of instrument channels.
-    element_id (QubitReference): The ID of the qubit element.
-    line_type (WiringLineType): The type of wiring line.
+    Args:
+        channels (List[AnyInstrumentChannel]): The list of instrument channels.
+        element_id (QubitReference): The ID of the qubit element.
+        line_type (WiringLineType): The type of wiring line.
 
     Returns:
-    dict: A dictionary containing QUAM-compatible JSON references.
+        dict: A dictionary containing QUAM-compatible JSON references.
     """
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
-            key, reference = create_external_mixer_reference(channel, element_id, line_type)
+            key, reference = create_external_mixer_reference(
+                channel, element_id, line_type
+            )
             qubit_line_wiring[key] = reference
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
@@ -82,16 +86,17 @@ def qubit_wiring(
     return qubit_line_wiring
 
 
-def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPairReference) -> dict:
-    """
-    Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
+def qubit_pair_wiring(
+    channels: List[AnyInstrumentChannel], element_id: QubitPairReference
+) -> dict:
+    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
 
-    Parameters:
-    channels (List[AnyInstrumentChannel]): The list of instrument channels.
-    element_id (QubitPairReference): The ID of the qubit pair element.
+    Args:
+        channels (List[AnyInstrumentChannel]): The list of instrument channels.
+        element_id (QubitPairReference): The ID of the qubit pair element.
 
     Returns:
-    dict: A dictionary containing QUAM-compatible JSON references.
+        dict: A dictionary containing QUAM-compatible JSON references.
     """
     qubit_pair_line_wiring = {
         "control_qubit": f"{QUBITS_BASE_JSON_PATH}/q{element_id.control_index}",
@@ -105,19 +110,20 @@ def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPai
     return qubit_pair_line_wiring
 
 
-def get_channel_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> tuple:
-    """
-    Determines the key and JSON reference for a given channel.
+def get_channel_port(
+    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
+) -> tuple:
+    """Determines the key and JSON reference for a given channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
-    channels (List[AnyInstrumentChannel]): A list of all instrument channels.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+        channels (List[AnyInstrumentChannel]): A list of all instrument channels.
 
     Returns:
-    tuple: A tuple containing the key and the JSON reference.
+        tuple: A tuple containing the key and the JSON reference.
 
     Raises:
-    ValueError: If the instrument type is unknown.
+        ValueError: If the instrument type is unknown.
     """
     if channel.signal_type == "digital":
         key, reference = create_digital_output_port(channel)
@@ -135,13 +141,12 @@ def get_channel_port(channel: AnyInstrumentChannel, channels: List[AnyInstrument
 
 
 def set_nested_value_with_path(d: Dict, path: str, value: Any):
-    """
-    Sets a value in a nested dictionary using a '/' separated path.
+    """Sets a value in a nested dictionary using a '/' separated path.
 
-    Parameters:
-    d (Dict): The dictionary in which the value will be set.
-    path (str): The '/' separated path to the value.
-    value (Any): The value to set.
+    Args:
+        d (Dict): The dictionary in which the value will be set.
+        path (str): The '/' separated path to the value.
+        value (Any): The value to set.
     """
     keys = path.split("/")  # Split the path into keys
     reduce(lambda d, key: d.setdefault(key, {}), keys[:-1], d)[keys[-1]] = value

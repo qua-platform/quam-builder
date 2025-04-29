@@ -3,17 +3,16 @@ from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChan
 
 
 def create_digital_output_port(channel: AnyInstrumentChannel) -> (str, str):
-    """
-    Generates a key/JSON reference pair from which a QUAM port can be created for a digital output channel.
+    """Generates a key/JSON reference pair from which a QUAM port can be created for a digital output channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
 
     Returns:
-    (str, str): A tuple containing the key and the JSON reference.
+        (str, str): A tuple containing the key and the JSON reference.
 
     Raises:
-    NotImplementedError: If the digital channel on the instrument is unhandled.
+        NotImplementedError: If the digital channel on the instrument is unhandled.
     """
     key = f"digital_{channel.io_type}"
 
@@ -25,7 +24,9 @@ def create_digital_output_port(channel: AnyInstrumentChannel) -> (str, str):
         reference += f"/con{channel.con}"
         reference += f"/{channel.slot}"
     else:
-        raise NotImplementedError(f"Unhandled digital channel on instrument {channel.instrument_id}")
+        raise NotImplementedError(
+            f"Unhandled digital channel on instrument {channel.instrument_id}"
+        )
     reference += f"/{channel.port}"
 
     return key, reference

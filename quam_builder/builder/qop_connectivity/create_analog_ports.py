@@ -12,19 +12,18 @@ from quam_builder.builder.qop_connectivity.paths import (
 def create_external_mixer_reference(
     channel: AnyInstrumentChannel, element_id: QubitReference, line_type: WiringLineType
 ) -> (str, str):
-    """
-    Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
+    """Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
-    element_id (QubitReference): The ID of the qubit element.
-    line_type (WiringLineType): The type of wiring line.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+        element_id (QubitReference): The ID of the qubit element.
+        line_type (WiringLineType): The type of wiring line.
 
     Returns:
-    (str, str): A tuple containing the key and the JSON reference.
+        (str, str): A tuple containing the key and the JSON reference.
 
     Raises:
-    ValueError: If the IO type of the channel is unknown.
+        ValueError: If the IO type of the channel is unknown.
     """
     if channel.io_type == "output":
         key = "frequency_converter_up"
@@ -40,17 +39,16 @@ def create_external_mixer_reference(
 
 
 def create_octave_port(channel: AnyInstrumentChannel) -> (str, str):
-    """
-    Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
+    """Generates a key/JSON reference pair from which a QUAM port can be created for a single Octave channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
 
     Returns:
-    (str, str): A tuple containing the key and the JSON reference.
+        (str, str): A tuple containing the key and the JSON reference.
 
     Raises:
-    ValueError: If the IO type of the channel is unknown.
+        ValueError: If the IO type of the channel is unknown.
     """
     if channel.io_type == "output":
         key = "frequency_converter_up"
@@ -68,14 +66,13 @@ def create_octave_port(channel: AnyInstrumentChannel) -> (str, str):
 
 
 def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
-    """
-    Generates a key/JSON reference pair from which a QUAM port can be created for a mw-fem channel.
+    """Generates a key/JSON reference pair from which a QUAM port can be created for a mw-fem channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
 
     Returns:
-    (str, str): A tuple containing the key and the JSON reference.
+        (str, str): A tuple containing the key and the JSON reference.
     """
     reference = PORTS_BASE_JSON_PATH
     reference += f"/mw_{channel.io_type}s"
@@ -88,19 +85,20 @@ def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
     return key, reference
 
 
-def create_lf_opx_plus_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> (str, str):
-    """
-    Generates a key/JSON reference pair from which a QUAM port can be created for a single non-octave channel.
+def create_lf_opx_plus_port(
+    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
+) -> (str, str):
+    """Generates a key/JSON reference pair from which a QUAM port can be created for a single non-octave channel.
 
-    Parameters:
-    channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
-    channels (List[AnyInstrumentChannel]): A list of all instrument channels.
+    Args:
+        channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+        channels (List[AnyInstrumentChannel]): A list of all instrument channels.
 
     Returns:
-    (str, str): A tuple containing the key and the JSON reference.
+        (str, str): A tuple containing the key and the JSON reference.
 
     Raises:
-    NotImplementedError: If the number of channels with the same type is not 1 or 2.
+        NotImplementedError: If the number of channels with the same type is not 1 or 2.
     """
     reference = PORTS_BASE_JSON_PATH
     reference += f"/analog_{channel.io_type}s"
@@ -116,25 +114,31 @@ def create_lf_opx_plus_port(channel: AnyInstrumentChannel, channels: List[AnyIns
     if len(channels_with_same_type) == 1:
         key = f"opx_{channel.io_type}"
     elif len(channels_with_same_type) == 2:
-        if channel.port == min([channel_with_same_type.port for channel_with_same_type in channels_with_same_type]):
+        if channel.port == min(
+            [
+                channel_with_same_type.port
+                for channel_with_same_type in channels_with_same_type
+            ]
+        ):
             key = f"opx_{channel.io_type}_I"
         else:
             key = f"opx_{channel.io_type}_Q"
     else:
-        raise NotImplementedError(f"Can't handle when channel number is not 1 or 2, got {len(channels_with_same_type)}")
+        raise NotImplementedError(
+            f"Can't handle when channel number is not 1 or 2, got {len(channels_with_same_type)}"
+        )
 
     return key, reference
 
 
 def get_objects_with_same_type(obj, lst):
-    """
-    Returns all objects in the list that have the same type as the given object.
+    """Returns all objects in the list that have the same type as the given object.
 
-    Parameters:
-    obj: The object to compare types with.
-    lst: The list of objects to search through.
+    Args:
+        obj: The object to compare types with.
+        lst: The list of objects to search through.
 
     Returns:
-    List: A list of objects with the same type as the given object.
+        List: A list of objects with the same type as the given object.
     """
     return [item for item in lst if isinstance(item, type(obj))]
