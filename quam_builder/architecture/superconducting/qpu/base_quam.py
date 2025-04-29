@@ -47,7 +47,9 @@ class BaseQuam(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
+        return JSONSerialiser(
+            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
+        )
 
     def get_octave_config(self) -> QmOctaveConfig:
         """Return the Octave configuration."""
@@ -84,7 +86,9 @@ class BaseQuam(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(f"No calibration elements found for {name}. Skipping calibration.")
+                print(
+                    f"No calibration elements found for {name}. Skipping calibration."
+                )
 
     @property
     def active_qubits(self) -> List[AnyTransmon]:
