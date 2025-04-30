@@ -4,10 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="delete wrong test">
+    <list default="true" id="9310cf4b-0991-4a02-afbb-56616f3d3d8f" name="Changes" comment="delete _data_handler">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/superconducting/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/superconducting/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/superconducting/components/readout_resonator.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/superconducting/components/readout_resonator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/superconducting/components/xy_drive.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/superconducting/components/xy_drive.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/quam_builder/architecture/superconducting/qubit/base_transmon.py" beforeDir="false" afterPath="$PROJECT_DIR$/quam_builder/architecture/superconducting/qubit/base_transmon.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,6 +17,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -37,16 +44,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests for test_components_flux_line.test_class_attribute.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/TheoQM/anaconda3/envs/octave&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests for test_components_flux_line.test_class_attribute.executor": "Run",
+    "Python.flux_tunable_transmon.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "qualibration__libs__update",
+    "last_opened_file_path": "C:/Users/TheoQM/anaconda3/envs/octave"
   }
-}</component>
-  <component name="RunManager">
+}]]></component>
+  <component name="RunManager" selected="Python tests.Python tests for test_components_flux_line.test_class_attribute">
+    <configuration name="flux_tunable_transmon" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="quam-builder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/quam_builder/architecture/superconducting/qubit" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/quam_builder/architecture/superconducting/qubit/flux_tunable_transmon.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="Python tests for test_components_flux_line.test_class_attribute" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
       <module name="quam-builder" />
       <option name="ENV_FILES" value="" />
@@ -64,6 +94,10 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.Python tests for test_components_flux_line.test_class_attribute" />
+        <item itemvalue="Python.flux_tunable_transmon" />
+        <item itemvalue="Python tests.Python tests for test_components_flux_line.test_class_attribute" />
+        <item itemvalue="Python.flux_tunable_transmon" />
         <item itemvalue="Python tests.Python tests for test_components_flux_line.test_class_attribute" />
       </list>
     </recent_temporary>
@@ -148,7 +182,207 @@
       <option name="project" value="LOCAL" />
       <updated>1741881328101</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="update __init__">
+      <option name="closed" value="true" />
+      <created>1741881416441</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1741881416441</updated>
+    </task>
+    <task id="LOCAL-00010" summary="update initialize_qpu">
+      <option name="closed" value="true" />
+      <created>1743678498785</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1743678498785</updated>
+    </task>
+    <task id="LOCAL-00011" summary="refactor qubit.reset_qubit to qubit.reset">
+      <option name="closed" value="true" />
+      <created>1743680751534</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1743680751534</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Rename Quam -&gt; FixedFrequencyQuam and FluxTunableQuam">
+      <option name="closed" value="true" />
+      <created>1744098153773</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1744098153773</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Rename gate_fidelity and ge_threshold in base Transmon">
+      <option name="closed" value="true" />
+      <created>1744099858588</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1744099858588</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Simplify octave_calibrate and return the results for plotting">
+      <option name="closed" value="true" />
+      <created>1744101483418</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1744101483418</updated>
+    </task>
+    <task id="LOCAL-00015" summary="cast the IF as an integer for make qm-qua type hinting happy">
+      <option name="closed" value="true" />
+      <created>1744205284094</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1744205284094</updated>
+    </task>
+    <task id="LOCAL-00016" summary="revert ge_threshold to threshold since it is handled at the quam/pulse level">
+      <option name="closed" value="true" />
+      <created>1744271536595</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1744271536595</updated>
+    </task>
+    <task id="LOCAL-00017" summary="readme fixes">
+      <option name="closed" value="true" />
+      <created>1744889763335</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1744889763335</updated>
+    </task>
+    <task id="LOCAL-00018" summary="move xy_detuned from fixed_freq_transmon to fixed_freq_transmon_pair">
+      <option name="closed" value="true" />
+      <created>1745849982248</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1745849982248</updated>
+    </task>
+    <task id="LOCAL-00019" summary="update flux points">
+      <option name="closed" value="true" />
+      <created>1745913273843</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1745913273843</updated>
+    </task>
+    <task id="LOCAL-00020" summary="black on components">
+      <option name="closed" value="true" />
+      <created>1745913288804</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1745913288804</updated>
+    </task>
+    <task id="LOCAL-00021" summary="remove todos">
+      <option name="closed" value="true" />
+      <created>1745913311765</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1745913311765</updated>
+    </task>
+    <task id="LOCAL-00022" summary="fix readme links">
+      <option name="closed" value="true" />
+      <created>1745913345224</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1745913345224</updated>
+    </task>
+    <task id="LOCAL-00023" summary="remove todos">
+      <option name="closed" value="true" />
+      <created>1745913396039</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1745913396040</updated>
+    </task>
+    <task id="LOCAL-00024" summary="formatting qop_connectivity">
+      <option name="closed" value="true" />
+      <created>1745917769219</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1745917769219</updated>
+    </task>
+    <task id="LOCAL-00025" summary="formatting builder/superconducting">
+      <option name="closed" value="true" />
+      <created>1745918389150</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1745918389150</updated>
+    </task>
+    <task id="LOCAL-00026" summary="fix baseTransmon">
+      <option name="closed" value="true" />
+      <created>1745919031619</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1745919031619</updated>
+    </task>
+    <task id="LOCAL-00027" summary="FLuxTunableTransmons docstring">
+      <option name="closed" value="true" />
+      <created>1745930058091</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1745930058091</updated>
+    </task>
+    <task id="LOCAL-00028" summary="BaseTransmon docstring">
+      <option name="closed" value="true" />
+      <created>1745930510956</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1745930510956</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Review qubit, qubit pair and components">
+      <option name="closed" value="true" />
+      <created>1745931149229</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1745931149229</updated>
+    </task>
+    <task id="LOCAL-00030" summary="qpu components formatting">
+      <option name="closed" value="true" />
+      <created>1745931214885</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1745931214885</updated>
+    </task>
+    <task id="LOCAL-00031" summary="FIx docstring for QPU">
+      <option name="closed" value="true" />
+      <created>1745942155218</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1745942155218</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Fix transmon pairs">
+      <option name="closed" value="true" />
+      <created>1746003173397</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1746003173397</updated>
+    </task>
+    <task id="LOCAL-00033" summary="delete _data_handler">
+      <option name="closed" value="true" />
+      <created>1746014274241</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1746014274241</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -163,11 +397,31 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Update from SCquam" />
-    <MESSAGE value="updates from SC_quam" />
-    <MESSAGE value="updates pyproject" />
-    <MESSAGE value="updates pyproject and structure" />
     <MESSAGE value="delete wrong test" />
-    <option name="LAST_COMMIT_MESSAGE" value="delete wrong test" />
+    <MESSAGE value="update __init__" />
+    <MESSAGE value="update initialize_qpu" />
+    <MESSAGE value="refactor qubit.reset_qubit to qubit.reset" />
+    <MESSAGE value="Rename Quam -&gt; FixedFrequencyQuam and FluxTunableQuam" />
+    <MESSAGE value="Rename gate_fidelity and ge_threshold in base Transmon" />
+    <MESSAGE value="Simplify octave_calibrate and return the results for plotting" />
+    <MESSAGE value="cast the IF as an integer for make qm-qua type hinting happy" />
+    <MESSAGE value="revert ge_threshold to threshold since it is handled at the quam/pulse level" />
+    <MESSAGE value="readme fixes" />
+    <MESSAGE value="move xy_detuned from fixed_freq_transmon to fixed_freq_transmon_pair" />
+    <MESSAGE value="update flux points" />
+    <MESSAGE value="black on components" />
+    <MESSAGE value="fix readme links" />
+    <MESSAGE value="remove todos" />
+    <MESSAGE value="formatting qop_connectivity" />
+    <MESSAGE value="formatting builder/superconducting" />
+    <MESSAGE value="fix baseTransmon" />
+    <MESSAGE value="FLuxTunableTransmons docstring" />
+    <MESSAGE value="BaseTransmon docstring" />
+    <MESSAGE value="Review qubit, qubit pair and components" />
+    <MESSAGE value="qpu components formatting" />
+    <MESSAGE value="FIx docstring for QPU" />
+    <MESSAGE value="Fix transmon pairs" />
+    <MESSAGE value="delete _data_handler" />
+    <option name="LAST_COMMIT_MESSAGE" value="delete _data_handler" />
   </component>
 </project>

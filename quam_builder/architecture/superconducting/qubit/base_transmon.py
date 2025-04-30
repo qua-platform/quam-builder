@@ -131,7 +131,6 @@ class BaseTransmon(Qubit):
         else:
             return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
 
-    # todo: do we really want this one here?
     def calibrate_octave(
         self,
         QM: QuantumMachine,
