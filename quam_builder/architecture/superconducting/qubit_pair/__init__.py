@@ -7,8 +7,8 @@ from quam_builder.architecture.superconducting.qubit_pair.fixed_frequency_transm
 )
 
 __all__ = [
-    *fixed_frequency_transmons.__all__,
-    *flux_tunable_transmons.__all__,
+    *fixed_frequency_transmon_pair.__all__,
+    *flux_tunable_transmon_pair.__all__,
 ]
 
 AnyTransmonPair = Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
