@@ -54,9 +54,9 @@ class FluxTunableTransmonPair(QubitPair):
         if self.coupler:
             channels += [self.coupler.name]
 
-        if "Cz" in self.gates:
-            if hasattr(self.gates["Cz"], "compensations"):
-                for compensation in self.gates["Cz"].compensations:
+        if "CZ" in self.gates:
+            if hasattr(self.gates["CZ"], "compensations"):
+                for compensation in self.gates["CZ"].compensations:
                     channels += [
                         compensation["qubit"].xy.name,
                         compensation["qubit"].z.name,
@@ -78,9 +78,9 @@ class FluxTunableTransmonPair(QubitPair):
         if self.coupler:
             channels += [self.coupler.name]
 
-        if "Cz" in self.gates:
-            if hasattr(self.gates["Cz"], "compensations"):
-                for compensation in self.gates["Cz"].compensations:
+        if "CZ" in self.gates:
+            if hasattr(self.gates["CZ"], "compensations"):
+                for compensation in self.gates["CZ"].compensations:
                     channels += [
                         compensation["qubit"].xy.name,
                         compensation["qubit"].z.name,
