@@ -60,5 +60,3 @@ The `wiring_examples` directory provides practical scripts demonstrating how to 
 - **`wiring_mwfem_cross_resonance.py`:** Example specifically setting up wiring for cross-resonance drives using MW-FEMs.
 
 These examples serve as templates for configuring various experimental setups.
-
-## TODO: need a section explaining how to add a new component for advanced users

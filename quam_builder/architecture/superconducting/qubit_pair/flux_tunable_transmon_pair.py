@@ -54,14 +54,10 @@ class FluxTunableTransmonPair(QubitPair):
         if self.coupler:
             channels += [self.coupler.name]
 
-        if "Cz" in self.gates:
-            if hasattr(self.gates["Cz"], "compensations"):
-                for compensation in self.gates["Cz"].compensations:
-                    channels += [
-                        compensation["qubit"].xy.name,
-                        compensation["qubit"].z.name,
-                        compensation["qubit"].resonator.name,
-                    ]
+        # TODO We should not have a hardcoded macro dependency here
+        if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
+            for compensation in self.macros["CZ"].compensations:
+                channels += [ch.name for ch in compensation["qubit"].channels.values()]
 
         align(*channels)
 
@@ -78,14 +74,10 @@ class FluxTunableTransmonPair(QubitPair):
         if self.coupler:
             channels += [self.coupler.name]
 
-        if "Cz" in self.gates:
-            if hasattr(self.gates["Cz"], "compensations"):
-                for compensation in self.gates["Cz"].compensations:
-                    channels += [
-                        compensation["qubit"].xy.name,
-                        compensation["qubit"].z.name,
-                        compensation["qubit"].resonator.name,
-                    ]
+        # TODO We should not have a hardcoded macro dependency here
+        if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
+            for compensation in self.macros["CZ"].compensations:
+                channels += [ch.name for ch in compensation["qubit"].channels.values()]
 
         wait(duration, *channels)
 
