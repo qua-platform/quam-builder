@@ -63,7 +63,6 @@ class BaseQuam(QuamRoot):
 
     ports: Union[FEMPortsContainer, OPXPlusPortsContainer] = None
 
-    _data_handler: ClassVar[DataHandler] = None  # TODO: Serwan, is it used anywhere?
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
 
     @classmethod
