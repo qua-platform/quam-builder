@@ -4,8 +4,12 @@ import numpy as np
 from qm.qua.type_hints import QuaVariable, Scalar
 from qm.qua import declare, assign, Cast
 
-from quam_builder.architecture.quantum_dots.virtual_gates.exceptions import StateError
-from quam_builder.architecture.quantum_dots.virtual_gates.utils import is_qua_type
+from quam_builder.architecture.quantum_dots.exceptions import StateError
+from quam_builder.architecture.quantum_dots.utils import is_qua_type
+
+__all__ = [
+    "SequenceStateTracker",
+]
 
 # --- Constants ---
 INTEGRATED_VOLTAGE_SCALING_FACTOR = 1024  # For fixed-point precision (V*ns*1024)
@@ -63,6 +67,7 @@ class SequenceStateTracker:
 
         Args:
             element_name: The unique string name for the gate element to be tracked.
+                Used for debugging purposes.
 
         Raises:
             ValueError: If `element_name` is empty or not a string.

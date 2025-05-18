@@ -28,15 +28,15 @@ from typing import Union, List, Dict, Optional, Tuple, Any
 from warnings import warn
 
 # --- Import from local modules ---
-from ..virtual_gates.sequence_state_tracker import SequenceStateTracker
-from ..virtual_gates.exceptions import (
+from ..voltage_gate_sequence.sequence_state_tracker import SequenceStateTracker
+from ..exceptions import (
     VoltageSequenceError,
     ConfigurationError,
     VoltagePointError,
     TimingError,
     StateError,
 )
-from ..virtual_gates.utils import is_qua_type, validate_duration
+from ..utils import is_qua_type, validate_duration
 
 
 # --- Constants ---

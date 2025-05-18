@@ -2,14 +2,12 @@ from typing import Dict, Optional, Any, Union, List, Tuple
 
 import numpy as np
 from qm.qua import (
-    program,
     declare,
     assign,
     play,
     fixed,
     Cast,
     amp,
-    wait,
     ramp,
     ramp_to_zero,
     Math,
@@ -19,21 +17,28 @@ from qm.qua import (
 from qm.qua.type_hints import (
     QuaVariable,
     Scalar,
-    QuaExpression,
+    QuaScalarExpression,
 )  # Assuming these are appropriate
 
 from quam.core import quam_dataclass
-from quam.components import Channel, QuantumComponent, QuamMacro  # type: ignore
-from quam.components.channels import SingleChannel  # type: ignore
+from quam.components import QuantumComponent
+from quam.core.macro import QuamMacro
+from quam.components.channels import SingleChannel
 
 # Assuming these are in sibling files or a package structure
 from .sequence_state_tracker import SequenceStateTracker
-from .exceptions import (
+from ..exceptions import (
     VoltagePointError,
     TimingError,
     StateError,  # Not directly raised here but used by tracker
 )
-from .utils import is_qua_type, validate_duration
+from ..utils import is_qua_type, validate_duration
+
+__all__ = [
+    "VoltageTuningPoint",
+    "GateSet",
+    "VoltageSequence",
+]
 
 # --- Constants ---
 MIN_PULSE_DURATION_NS = 16
@@ -67,6 +72,10 @@ class VoltageTuningPoint(QuamMacro):
     voltages: Dict[str, float]  # Maps channel name to its target voltage
     duration: int  # Default duration in ns
 
+    def apply(self, *args, **kwargs):
+        # TODO: Implement apply method
+        pass
+
 
 @quam_dataclass
 class GateSet(QuantumComponent):
@@ -76,6 +85,10 @@ class GateSet(QuantumComponent):
     """
 
     channels: Dict[str, SingleChannel]
+
+    @property
+    def name(self) -> str:
+        return self.id
 
     def add_point(self, name: str, voltages: Dict[str, float], duration: int):
         """
@@ -393,7 +406,7 @@ class VoltageSequence:
         tracker: SequenceStateTracker,
         max_voltage: float,
         channel_id_str: str,
-    ) -> Tuple[QuaExpression, QuaExpression]:
+    ) -> Tuple[QuaScalarExpression, QuaScalarExpression]:
         """
         Generates QUA code to calculate compensation pulse amplitude and duration.
         Returns (qua_amplitude_expression, qua_duration_ns_expression).

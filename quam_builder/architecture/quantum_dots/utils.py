@@ -1,13 +1,18 @@
-from qm.qua import QuaExpression, QuaVariable
+from typing import Optional
+from qm.qua.type_hints import QuaVariable, QuaScalarExpression, Scalar
 from .exceptions import TimingError
 
 
 from typing import Any
 
+DurationType = Scalar[int]
+CLOCK_CYCLE_NS = 4
+MIN_PULSE_DURATION_NS = 16
+
 
 def is_qua_type(var: Any) -> bool:
     """Checks if a variable is a QUA expression or variable."""
-    return isinstance(var, (QuaExpression, QuaVariable))
+    return isinstance(var, (QuaScalarExpression, QuaVariable))
 
 
 def validate_duration(duration: Optional[DurationType], param_name: str):

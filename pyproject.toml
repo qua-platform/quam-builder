@@ -10,6 +10,7 @@ dependencies = [
     "qualibrate>=0.2.1",
     "qualibration-libs@git+https://github.com/qua-platform/qualibration-libs.git",
     "quam>=0.4.0",
+    "qm-qua>=1.2.2",
     "xarray>=2024.7.0",
 ]
 
@@ -23,5 +24,15 @@ build-backend = "hatchling.build"
 [tool.hatch.metadata]
 allow-direct-references = true
 
-# [tool.uv.sources]
-# qualibration-libs = { git = "https://github.com/qua-platform/qualibration-libs.git" }
+[dependency-groups]
+dev = [
+    "ipykernel>=7.0.0a1",
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.5",
+]
+
+[tool.uv.pip]
+prerelease = "allow"
+
+[tool.uv]
+prerelease = "allow"
