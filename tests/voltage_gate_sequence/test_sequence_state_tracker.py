@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock, call
 
-from quam_builder.architecture.quantum_dots.voltage_gate_sequence.sequence_state_tracker import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.sequence_state_tracker import (
     SequenceStateTracker,
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
     is_qua_type,

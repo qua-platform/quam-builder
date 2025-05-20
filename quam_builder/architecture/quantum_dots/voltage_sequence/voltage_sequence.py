@@ -22,7 +22,7 @@ from qm.qua.type_hints import (
 
 from quam.components.channels import SingleChannel
 
-from quam_builder.architecture.quantum_dots.voltage_gate_sequence.gate_set import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import (
     GateSet,
     VoltageTuningPoint,
 )

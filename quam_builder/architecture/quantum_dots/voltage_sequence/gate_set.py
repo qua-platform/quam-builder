@@ -7,7 +7,7 @@ from quam.core.macro import QuamMacro
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from quam_builder.architecture.quantum_dots.voltage_gate_sequence.voltage_gate_sequence import (
+    from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
         VoltageSequence,
     )
 
@@ -69,7 +69,7 @@ class GateSet(QuantumComponent):
         """
         Creates a new VoltageSequence instance associated with this GateSet.
         """
-        from quam_builder.architecture.quantum_dots.voltage_gate_sequence import (
+        from quam_builder.architecture.quantum_dots.voltage_sequence import (
             VoltageSequence,
         )
 

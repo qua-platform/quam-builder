@@ -1,4 +1,4 @@
-from ..voltage_gate_sequence.sequence_state_tracker import *
+from ..voltage_sequence.sequence_state_tracker import *
 
 
 

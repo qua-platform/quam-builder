@@ -38,7 +38,7 @@ from ..exceptions import (
 from ..utils import is_qua_type, validate_duration
 
 if TYPE_CHECKING:
-    from ..voltage_gate_sequence.sequence_state_tracker import SequenceStateTracker
+    from ..voltage_sequence.sequence_state_tracker import SequenceStateTracker
 
 
 # --- Constants ---

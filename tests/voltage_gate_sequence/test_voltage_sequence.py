@@ -11,7 +11,7 @@ except ImportError:
     pytest.skip("qua-qsim not installed", allow_module_level=True)
 
 
-def test_single_pulse_voltage_gate_sequence(machine):
+def test_single_pulse_voltage_sequence(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
@@ -41,7 +41,7 @@ def test_single_pulse_voltage_gate_sequence(machine):
     assert compare_ast_nodes(program_ast, expected_ast)
 
 
-def test_duplicate_pulse_voltage_gate_sequence(machine):
+def test_duplicate_pulse_voltage_sequence(machine):
     """Test that a successive pulse adheres to being sticky (zero amplitude)"""
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     with qua.program() as prog:
@@ -83,7 +83,7 @@ def test_duplicate_pulse_voltage_gate_sequence(machine):
     assert compare_ast_nodes(program_ast, expected_ast)
 
 
-def test_additional_pulse_voltage_gate_sequence(machine):
+def test_additional_pulse_voltage_sequence(machine):
     """Test that a successive pulse adheres to being sticky (zero amplitude)"""
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     with qua.program() as prog:

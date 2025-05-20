@@ -2,7 +2,7 @@ import pytest
 
 from quam.core import QuamRoot, quam_dataclass
 from quam.components import SingleChannel
-from quam_builder.architecture.quantum_dots.voltage_gate_sequence.gate_set import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import (
     GateSet,
 )
 
