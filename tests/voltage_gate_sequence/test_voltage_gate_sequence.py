@@ -1,11 +1,12 @@
-from qm import qua, generate_qua_script
+from qm import qua
 import pytest
 
 try:
+    import quaqsim
     from quaqsim.program_dict_to_program_compiler.program_tree_builder import (
         ProgramTreeBuilder,
     )
-    from quaqsim import program_ast as ast
+    from utils import compare_ast_nodes  # type: ignore
 except ImportError:
     pytest.skip("qua-qsim not installed", allow_module_level=True)
 
@@ -18,18 +19,26 @@ def test_single_pulse_voltage_gate_sequence(machine):
         seq.go_to_point("p1")
 
     program_ast = ProgramTreeBuilder().build(prog)
-    assert len(program_ast.body) == 2
 
-    elems = ["ch1", "ch2"]
-    amps = [0.4, 0.8]
+    expected_ast = quaqsim.program_ast.program.Program(
+        body=[
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch1",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch2",
+                operation="250mV_square",
+            ),
+        ],
+        vars=[],
+    )
 
-    for k, play in enumerate(program_ast.body):
-        assert isinstance(play, ast.play.Play)
-        assert play.element == elems[k]
-        assert play.operation == "250mV_square"
-        assert int(play.duration.value) == 25
-
-        assert float(play.amp.value) == amps[k]
+    assert compare_ast_nodes(program_ast, expected_ast)
 
 
 def test_duplicate_pulse_voltage_gate_sequence(machine):
@@ -42,18 +51,36 @@ def test_duplicate_pulse_voltage_gate_sequence(machine):
         seq.go_to_point("p1")
 
     program_ast = ProgramTreeBuilder().build(prog)
-    assert len(program_ast.body) == 4
-
-    elems = ["ch1", "ch2"] * 2
-    amps = [0.4, 0.8, 0, 0]
-
-    for k, play in enumerate(program_ast.body):
-        assert isinstance(play, ast.play.Play)
-        assert play.element == elems[k]
-        assert play.operation == "250mV_square"
-        assert int(play.duration.value) == 25
-
-        assert float(play.amp.value) == amps[k]
+    expected_ast = quaqsim.program_ast.program.Program(
+        body=[
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch1",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch2",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch1",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch2",
+                operation="250mV_square",
+            ),
+        ],
+        vars=[],
+    )
+    assert compare_ast_nodes(program_ast, expected_ast)
 
 
 def test_additional_pulse_voltage_gate_sequence(machine):
@@ -66,15 +93,33 @@ def test_additional_pulse_voltage_gate_sequence(machine):
         seq.go_to_point("p1")
 
     program_ast = ProgramTreeBuilder().build(prog)
-    assert len(program_ast.body) == 4
-
-    elems = ["ch1", "ch2"] * 2
-    amps = [0.4, 0.8, 0, 0]
-
-    for k, play in enumerate(program_ast.body):
-        assert isinstance(play, ast.play.Play)
-        assert play.element == elems[k]
-        assert play.operation == "250mV_square"
-        assert int(play.duration.value) == 25
-
-        assert float(play.amp.value) == amps[k]
+    expected_ast = quaqsim.program_ast.program.Program(
+        body=[
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch1",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch2",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch1",
+                operation="250mV_square",
+            ),
+            quaqsim.program_ast.play.Play(
+                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
+                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
+                element="ch2",
+                operation="250mV_square",
+            ),
+        ],
+        vars=[],
+    )
+    assert compare_ast_nodes(program_ast, expected_ast)
