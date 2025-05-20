@@ -24,11 +24,10 @@ from qm.qua import (
 from qm.qua.type_hints import QuaVariable, Scalar, QuaExpression
 
 
-from typing import Union, List, Dict, Optional, Tuple, Any
+from typing import Union, List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 from warnings import warn
 
 # --- Import from local modules ---
-from ..voltage_gate_sequence.sequence_state_tracker import SequenceStateTracker
 from ..exceptions import (
     VoltageSequenceError,
     ConfigurationError,
@@ -37,6 +36,9 @@ from ..exceptions import (
     StateError,
 )
 from ..utils import is_qua_type, validate_duration
+
+if TYPE_CHECKING:
+    from ..voltage_gate_sequence.sequence_state_tracker import SequenceStateTracker
 
 
 # --- Constants ---

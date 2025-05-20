@@ -18,25 +18,23 @@ from qm.qua.type_hints import (
     QuaVariable,
     Scalar,
     QuaScalarExpression,
-)  # Assuming these are appropriate
+)
 
-from quam.core import quam_dataclass
-from quam.components import QuantumComponent
-from quam.core.macro import QuamMacro
 from quam.components.channels import SingleChannel
 
-# Assuming these are in sibling files or a package structure
+from quam_builder.architecture.quantum_dots.voltage_gate_sequence.gate_set import (
+    GateSet,
+    VoltageTuningPoint,
+)
+
 from .sequence_state_tracker import SequenceStateTracker
 from ..exceptions import (
     VoltagePointError,
-    TimingError,
-    StateError,  # Not directly raised here but used by tracker
 )
 from ..utils import is_qua_type, validate_duration
 
 __all__ = [
     "VoltageTuningPoint",
-    "GateSet",
     "VoltageSequence",
 ]
 
@@ -50,10 +48,8 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 # QUA_COMPENSATION_GAP_NS = 96 # Not used if Channel methods handle timing
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
-# User must define an operation for each channel named: {channel.id}{BASE_OP_NAME_SUFFIX}
-# This operation should use a pulse of MIN_PULSE_DURATION_NS
-# with a waveform having a sample value of DEFAULT_BASE_WF_SAMPLE.
-BASE_OP_NAME_SUFFIX = "_vgs_base_op"
+DEFAULT_PULSE_NAME = "250mV_square"
+
 DEFAULT_BASE_WF_SAMPLE = 0.25  # Assumed sample of the user-defined base waveform
 
 
@@ -62,73 +58,16 @@ VoltageLevelType = Scalar[float]
 DurationType = Scalar[int]
 
 
-@quam_dataclass
-class VoltageTuningPoint(QuamMacro):
-    """
-    Defines a specific set of DC voltage levels for a group of channels,
-    along with a default duration to hold these voltages.
-    """
-
-    voltages: Dict[str, float]  # Maps channel name to its target voltage
-    duration: int  # Default duration in ns
-
-    def apply(self, *args, **kwargs):
-        # TODO: Implement apply method
-        pass
-
-
-@quam_dataclass
-class GateSet(QuantumComponent):
-    """
-    Represents a set of gate channels used for voltage sequencing.
-    Allows defining named voltage tuning points (macros) for this set.
-    """
-
-    channels: Dict[str, SingleChannel]
-
-    @property
-    def name(self) -> str:
-        return self.id
-
-    def add_point(self, name: str, voltages: Dict[str, float], duration: int):
-        """
-        Adds a named voltage tuning point (macro) to this GateSet.
-
-        Args:
-            name: The name for this tuning point.
-            voltages: A dictionary mapping channel names (keys in self.channels)
-                to their target DC voltage (float) for this point.
-            duration: The default duration (ns) to hold these voltages.
-        """
-        for ch_name in voltages.keys():
-            if ch_name not in self.channels:
-                raise ValueError(
-                    f"Channel '{ch_name}' specified in voltages for point '{name}' "
-                    f"is not part of this GateSet."
-                )
-        # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
-        if not hasattr(self, "macros") or self.macros is None:
-            self.macros: Dict[str, QuamMacro] = {}
-
-        self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
-
-    def new_sequence(self) -> "VoltageSequence":
-        """
-        Creates a new VoltageSequence instance associated with this GateSet.
-        """
-        return VoltageSequence(self)
-
-
 class VoltageSequence:
     """
     Manages the generation of a QUA sequence for setting and adjusting DC voltages
     on a set of gate channels defined within a GateSet.
 
     The user is responsible for ensuring that each QUAM Channel object in the
-    GateSet has an operation defined in the QUA configuration named
-    `{channel.id}{BASE_OP_NAME_SUFFIX}` (e.g., "P1_vgs_base_op"). This operation
-    should correspond to a pulse of MIN_PULSE_DURATION_NS (16ns) with a
-    waveform whose constant sample value is DEFAULT_BASE_WF_SAMPLE (0.25V).
+    GateSet has an operation defined in the QUA configuration named DEFAULT_PULSE_NAME,
+    which is '250mV_square' by default. This operation should correspond to a pulse
+    of MIN_PULSE_DURATION_NS (16ns) with a waveform whose constant sample value is
+    DEFAULT_BASE_WF_SAMPLE (0.25V).
     This class does not modify the QUA configuration.
     """
 
@@ -162,7 +101,6 @@ class VoltageSequence:
         duration_ns: DurationType,
     ):
         """Plays a scaled step on a single channel."""
-        assumed_base_op_name = channel.id + BASE_OP_NAME_SUFFIX
         py_duration_ns = 0
         if not is_qua_type(duration_ns):
             py_duration_ns = int(float(str(duration_ns)))
@@ -177,22 +115,25 @@ class VoltageSequence:
             # If duration is QUA, it must be in clock cycles for play override
             # Assuming QUA duration_ns is already in ns, convert to cycles
             channel.play(
-                assumed_base_op_name,
+                DEFAULT_PULSE_NAME,
                 amplitude_scale=scaled_amp,
                 duration=duration_cycles,
+                validate=False,  # Do not validate as pulse may not exist yet
             )
         else:  # Fixed Python duration
             if py_duration_ns == MIN_PULSE_DURATION_NS:
                 channel.play(
-                    assumed_base_op_name,
+                    DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp,
                     duration=duration_cycles,
+                    validate=False,  # Do not validate as pulse may not exist yet
                 )
             elif py_duration_ns > 0:
                 channel.play(
-                    assumed_base_op_name,
+                    DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp,
                     duration=py_duration_ns >> 2,
+                    validate=False,  # Do not validate as pulse may not exist yet
                 )
 
     def _play_ramp_on_channel(
@@ -213,13 +154,13 @@ class VoltageSequence:
             else py_ramp_duration_ns >> 2
         )
 
-        if ramp_duration_cycles > 0:  # type: ignore
+        if ramp_duration_cycles > 0:
             if is_qua_type(delta_v) or is_qua_type(ramp_duration_ns):
-                ramp_rate = self._get_temp_qua_var(f"{channel.id}_ramp_rate")
-                assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration_ns))  # type: ignore
+                ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
+                assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration_ns))
                 channel.play(
-                    ramp(ramp_rate),  # type: ignore
-                    duration=ramp_duration_cycles,  # type: ignore
+                    ramp(ramp_rate),
+                    duration=ramp_duration_cycles,
                 )
             else:
                 py_delta_v = float(str(delta_v))
@@ -227,7 +168,7 @@ class VoltageSequence:
                     ramp_rate_val = py_delta_v / py_ramp_duration_ns
                     channel.play(
                         ramp(ramp_rate_val),
-                        duration=ramp_duration_cycles,  # type: ignore
+                        duration=ramp_duration_cycles,
                     )
 
         py_hold_duration_ns = 0
@@ -235,11 +176,11 @@ class VoltageSequence:
             py_hold_duration_ns = int(float(str(hold_duration_ns)))
 
         if is_qua_type(hold_duration_ns):
-            wait_cycles = hold_duration_ns >> 2  # type: ignore
+            wait_cycles = hold_duration_ns >> 2
             if is_qua_type(ramp_duration_ns):  # Adjust for QUA ramp calculation time
-                wait_cycles -= RAMP_QUA_DELAY_CYCLES  # type: ignore
-            with if_(wait_cycles > 0):  # type: ignore
-                channel.wait(wait_cycles)  # type: ignore
+                wait_cycles -= RAMP_QUA_DELAY_CYCLES
+            with if_(wait_cycles > 0):
+                channel.wait(wait_cycles)
         else:
             if py_hold_duration_ns > 0:
                 channel.wait(py_hold_duration_ns >> 2)
@@ -271,27 +212,27 @@ class VoltageSequence:
 
             delta_v: VoltageLevelType
             if is_qua_type(target_voltage) or is_qua_type(current_v):
-                delta_v = target_voltage - current_v  # type: ignore
+                delta_v = target_voltage - current_v
             else:
                 delta_v = float(str(target_voltage)) - float(str(current_v))
 
             tracker.update_integrated_voltage(
                 target_voltage,
                 duration_ns,
-                ramp_duration_ns,  # type: ignore
+                ramp_duration_ns,
             )
 
             if ramp_duration_ns is None or (
                 not is_qua_type(ramp_duration_ns)
                 and int(float(str(ramp_duration_ns))) == 0
             ):
-                self._play_step_on_channel(channel_obj, delta_v, duration_ns)  # type: ignore
+                self._play_step_on_channel(channel_obj, delta_v, duration_ns)
             else:
                 self._play_ramp_on_channel(
                     channel_obj,
                     delta_v,
                     ramp_duration_ns,
-                    duration_ns,  # type: ignore
+                    duration_ns,
                 )
             tracker.current_level = target_voltage
 
@@ -339,7 +280,7 @@ class VoltageSequence:
             raise VoltagePointError(
                 f"Macro '{name}' is not a valid VoltageTuningPoint or not found."
             )
-        tuning_point: VoltageTuningPoint = tuning_point_macro  # type: ignore
+        tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
         self._common_level_change(
             tuning_point.voltages, effective_duration, ramp_duration_ns=None
@@ -365,12 +306,12 @@ class VoltageSequence:
             raise VoltagePointError(
                 f"Macro '{name}' is not a valid VoltageTuningPoint or not found."
             )
-        tuning_point: VoltageTuningPoint = tuning_point_macro  # type: ignore
+        tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
         self._common_level_change(
             tuning_point.voltages,
             effective_duration,
-            ramp_duration_ns=ramp_duration,  # type: ignore
+            ramp_duration_ns=ramp_duration,
         )
 
     def _calculate_python_compensation_params(
@@ -411,7 +352,7 @@ class VoltageSequence:
         Generates QUA code to calculate compensation pulse amplitude and duration.
         Returns (qua_amplitude_expression, qua_duration_ns_expression).
         """
-        integrated_v = tracker.integrated_voltage  # type: ignore
+        integrated_v = tracker.integrated_voltage
         # current_v = tracker.current_level # Not directly needed for amp/dur calc here
 
         eval_int_v = self._get_temp_qua_var(f"{channel_id_str}_eval_int_v", int)
@@ -425,12 +366,12 @@ class VoltageSequence:
             q_comp_dur_i,
             Cast.mul_int_by_fixed(
                 Math.abs(eval_int_v),
-                COMPENSATION_SCALING_FACTOR / max_voltage,  # type: ignore
+                COMPENSATION_SCALING_FACTOR / max_voltage,
             ),
         )
         with if_(q_comp_dur_i < MIN_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_i, MIN_COMPENSATION_DURATION_NS)
-        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)  # type: ignore
+        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)
         with if_(q_comp_dur_4ns < DEFAULT_QUA_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_4ns, DEFAULT_QUA_COMPENSATION_DURATION_NS)
 
@@ -441,12 +382,12 @@ class VoltageSequence:
                 inv_dur = Math.div(1.0, q_comp_dur_4ns)
                 assign(
                     q_comp_amp,
-                    -Cast.mul_int_by_fixed(eval_int_v, COMPENSATION_SCALING_FACTOR)  # type: ignore
+                    -Cast.mul_int_by_fixed(eval_int_v, COMPENSATION_SCALING_FACTOR)
                     * inv_dur,
                 )
             with else_():
                 assign(q_comp_amp, 0.0)
-        return q_comp_amp, q_comp_dur_4ns  # type: ignore
+        return q_comp_amp, q_comp_dur_4ns
 
     def apply_compensation_pulse(self, max_voltage: float = 0.49):
         """
@@ -461,7 +402,6 @@ class VoltageSequence:
         for ch_name, channel_obj in self.gate_set.channels.items():
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
-            assumed_base_op_name = channel_obj.id + BASE_OP_NAME_SUFFIX
 
             comp_amp_val: VoltageLevelType
             comp_dur_val: DurationType  # ns
@@ -478,27 +418,29 @@ class VoltageSequence:
 
                 delta_v = py_comp_amp - float(str(current_v))
                 scaled_amp = delta_v * (1.0 / DEFAULT_BASE_WF_SAMPLE)
-                play(
-                    assumed_base_op_name * amp(scaled_amp),
-                    channel_obj.id,
+                channel_obj.play(
+                    DEFAULT_PULSE_NAME,
+                    amplitude_scale=scaled_amp,
                     duration=py_comp_dur >> 2,
+                    validate=False,  # Do not validate as pulse may not exist yet
                 )
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
             else:
                 q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
-                    tracker, max_voltage, channel_obj.id
+                    tracker, max_voltage, channel_obj.name
                 )
-                delta_v_q = q_comp_amp - current_v  # type: ignore
+                delta_v_q = q_comp_amp - current_v
                 scaled_amp_q = delta_v_q * (1.0 / DEFAULT_BASE_WF_SAMPLE)
-                with if_(q_comp_dur_4ns > 0):  # type: ignore
-                    play(
-                        assumed_base_op_name * amp(scaled_amp_q),  # type: ignore
-                        channel_obj.id,
-                        duration=q_comp_dur_4ns >> 2,  # type: ignore
+                with if_(q_comp_dur_4ns > 0):
+                    channel_obj.play(
+                        DEFAULT_PULSE_NAME,
+                        amplitude_scale=scaled_amp_q,
+                        duration=q_comp_dur_4ns >> 2,
+                        validate=False,  # Do not validate as pulse may not exist yet
                     )
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
 
-            tracker.current_level = comp_amp_val  # type: ignore
+            tracker.current_level = comp_amp_val
 
     def _perform_ramp_to_zero_with_duration(
         self,
@@ -511,36 +453,36 @@ class VoltageSequence:
         validate_duration(ramp_duration_ns, "ramp_duration_ns")
 
         if is_qua_type(current_v):
-            ramp_rate = self._get_temp_qua_var(f"{channel_obj.id}_r2z_rate")
+            ramp_rate = self._get_temp_qua_var(f"{channel_obj.name}_r2z_rate")
             with if_(ramp_duration_ns > 0):
-                assign(ramp_rate, -current_v * Math.div(1.0, ramp_duration_ns))  # type: ignore
-                play(
-                    ramp(ramp_rate),  # type: ignore
-                    channel_obj.id,
+                assign(ramp_rate, -current_v * Math.div(1.0, ramp_duration_ns))
+                channel_obj.play(
+                    ramp(ramp_rate),
                     duration=ramp_duration_ns >> 2,
                 )
             with else_():  # Duration is 0, effectively a step
-                play(
-                    channel_obj.id
-                    + BASE_OP_NAME_SUFFIX
-                    * amp(-current_v * (1.0 / DEFAULT_BASE_WF_SAMPLE)),  # type: ignore
-                    channel_obj.id,
+                channel_obj.play(
+                    DEFAULT_PULSE_NAME,
+                    amplitude_scale=-current_v * (1.0 / DEFAULT_BASE_WF_SAMPLE),
+                    duration=ramp_duration_ns >> 2,
+                    validate=False,  # Do not validate as pulse may not exist yet
                 )
         else:
             py_curr_v = float(str(current_v))
             if ramp_duration_ns > 0 and py_curr_v != 0.0:
                 rate_val = -py_curr_v / ramp_duration_ns
-                play(
+                channel_obj.play(
                     ramp(rate_val),
-                    channel_obj.id,
                     duration=ramp_duration_ns >> 2,
                 )
             elif py_curr_v != 0.0:  # Duration is 0, step
                 delta_v_to_zero = -py_curr_v
                 scaled_amp_to_zero = delta_v_to_zero * (1.0 / DEFAULT_BASE_WF_SAMPLE)
-                play(
-                    channel_obj.id + BASE_OP_NAME_SUFFIX * amp(scaled_amp_to_zero),
-                    channel_obj.id,
+                channel_obj.play(
+                    DEFAULT_PULSE_NAME,
+                    amplitude_scale=scaled_amp_to_zero,
+                    duration=ramp_duration_ns >> 2,
+                    validate=False,  # Do not validate as pulse may not exist yet
                 )
 
     def ramp_to_zero(self, ramp_duration_ns: Optional[int] = None):
@@ -556,7 +498,7 @@ class VoltageSequence:
             tracker = self.state_trackers[ch_name]
 
             if ramp_duration_ns is None:
-                ramp_to_zero(channel_obj.id)
+                ramp_to_zero(channel_obj.name)
             else:
                 self._perform_ramp_to_zero_with_duration(
                     channel_obj, tracker, ramp_duration_ns
@@ -575,26 +517,6 @@ class VoltageSequence:
         Args:
             config: The QUA configuration dictionary (for inspection).
         """
-        print(
-            "VoltageSequence.apply_to_config: User is responsible for ensuring that "
-            "for each channel '{channel_id}', an operation "
-            "'{channel_id}{BASE_OP_NAME_SUFFIX}' is defined in the QUA config. "
-            "This operation should use a pulse of MIN_PULSE_DURATION_NS (16ns) "
-            "with a waveform sample of DEFAULT_BASE_WF_SAMPLE (0.25V)."
-        )
-        # Example check (does not modify config):
-        for channel_id in self.gate_set.channels.keys():
-            expected_op_name = channel_id + BASE_OP_NAME_SUFFIX
-            # This check is illustrative; actual config structure may vary.
-            # It assumes 'config' is the top-level QUA config dict.
-            if (
-                not config.get("elements", {})
-                .get(channel_id, {})
-                .get("operations", {})
-                .get(expected_op_name)
-            ):
-                print(
-                    f"  Guidance: Operation '{expected_op_name}' for channel '{channel_id}' "
-                    "appears to be missing or misconfigured."
-                )
-        pass
+        # TODO Add 250mV pulses to config
+        # for channel in self.gate_set.channels.values():
+        #     pulse_name = channel.name + PULSE_SUFFIX
