@@ -4,6 +4,11 @@ from typing import Any
 # These imports are for type hinting and potentially for isinstance checks if needed.
 from quaqsim.program_ast.node import Node
 from quaqsim.program_ast.expressions.expression import Expression
+from quaqsim.program_ast.expressions.definition import Definition
+
+
+class SKIP_AST_ENTRY:
+    pass
 
 
 def compare_ast_nodes(node1: Any, node2: Any) -> bool:
@@ -20,6 +25,8 @@ def compare_ast_nodes(node1: Any, node2: Any) -> bool:
     Returns:
         True if the elements are structurally identical, False otherwise.
     """
+    if node1 is SKIP_AST_ENTRY or node2 is SKIP_AST_ENTRY:
+        return True
     if type(node1) is not type(node2):
         return False
 
@@ -54,6 +61,23 @@ def compare_ast_nodes(node1: Any, node2: Any) -> bool:
             sorted_keys = sorted(dict1.keys())
             for key in sorted_keys:
                 if not compare_ast_nodes(dict1[key], dict2[key]):
+                    return False
+            return True
+        elif isinstance(node1, Definition):
+            if node1.name != node2.name:
+                return False
+            if node1.type != node2.type:
+                return False
+            if not len(node1.value) == len(node2.value):
+                return False
+            for item1, item2 in zip(node1.value, node2.value):
+                if not isinstance(item1, dict):
+                    item1 = item1.__dict__
+                if not isinstance(item2, dict):
+                    item2 = item2.__dict__
+                if item1["value"] != item2["value"]:
+                    return False
+                if item1["type"] != item2["type"]:
                     return False
             return True
         else:
@@ -100,7 +124,7 @@ def _format_value_as_code(value: Any, indent_level: int) -> str:
         return f"[\n{elements_str}\n{indent_str}]"
 
     # Check if it's an AST node
-    if isinstance(value, (Node, Expression)):
+    if isinstance(value, (Node, Expression, Definition)):
         module_full_name = type(value).__module__
         class_name = type(value).__name__
         class_path = f"{module_full_name}.{class_name}"

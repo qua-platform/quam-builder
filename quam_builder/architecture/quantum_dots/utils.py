@@ -44,10 +44,8 @@ def validate_duration(duration: Optional[DurationType], param_name: str):
                 f"{CLOCK_CYCLE_NS}ns."
             )
         if 0 < duration_int < MIN_PULSE_DURATION_NS:
-            warn(
+            raise TimingError(
                 f"\nDuration ({duration_int}ns) for {param_name} is less than the "
                 f"minimum recommended ({MIN_PULSE_DURATION_NS}ns). This might "
-                f"lead to timing issues or gaps. Use with care.",
-                UserWarning,
-                stacklevel=4,  # Point deeper into user code
+                f"lead to timing issues or gaps. Use with care."
             )

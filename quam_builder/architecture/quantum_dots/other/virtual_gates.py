@@ -212,7 +212,7 @@ class QuaCommandGenerator:
         # Ensure unique names for temporary variables
         internal_name = f"_vgs_tmp_{name_suffix}"
         if internal_name not in self._temp_qua_vars:
-            self._temp_qua_vars[internal_name] = declare(var_type, name=internal_name)
+            self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
 
     def play_step(

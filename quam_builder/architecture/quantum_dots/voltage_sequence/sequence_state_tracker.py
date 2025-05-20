@@ -174,8 +174,7 @@ class SequenceStateTracker:
                 )
 
             # Use element name in variable declaration for clarity in generated QUA
-            var_name = f"{self._element_name}_integrated_v"
-            int_v_var = declare(int, value=current_py_val, name=var_name)
+            int_v_var = declare(int, value=current_py_val)
             self._integrated_voltage_qua_var = int_v_var
             self._integrated_voltage_internal = (
                 int_v_var  # Update tracking to use the QUA var

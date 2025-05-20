@@ -201,6 +201,12 @@ class VoltageSequence:
                     "Ensure hold `duration_ns` is sufficient."
                 )
 
+        target_levels_dict = target_levels_dict.copy()
+        # Add any channels in the GateSet that are not in the target_levels_dict
+        for ch_name in self.gate_set.channels:
+            if ch_name not in target_levels_dict:
+                target_levels_dict[ch_name] = 0.0
+
         for ch_name, target_voltage in target_levels_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
