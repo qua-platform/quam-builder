@@ -48,18 +48,21 @@ class GateSet(QuantumComponent):
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
     ) -> Dict[str, VoltageLevelType]:
         """
-        Adds any channels in the GateSet that are not in the voltages dict
-        to the voltages dict with a default voltage of 0.0.
+        Adds any channels in the GateSet that are not in the target_levels_dict
+        to the target_levels_dict with a default voltage of 0.0.
         """
         resolved_voltages = {}
 
+        if not allow_extra_entries:
+            for ch_name in voltages:
+                if ch_name not in self.channels:
+                    raise ValueError(
+                        f"Channel '{ch_name}' passed to GateSet.resolve_voltages for "
+                        f"GateSet '{self.name}' is not part of the GateSet.channels."
+                    )
+
         # Add any channels in the GateSet that are not in the voltages dict
         for ch_name in self.channels:
-            if ch_name not in voltages and not allow_extra_entries:
-                raise ValueError(
-                    f"Channel '{ch_name}' passed to GateSet.resolve_voltages "
-                    f"for GateSet '{self.name}' is not part of the GateSet.channels.."
-                )
             resolved_voltages[ch_name] = voltages.get(ch_name, 0.0)
 
         return resolved_voltages

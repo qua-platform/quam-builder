@@ -9,6 +9,9 @@ from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer i
 )
 
 
+__all__ = ["VirtualGateSet"]
+
+
 @quam_dataclass
 class VirtualGateSet(GateSet):
     """

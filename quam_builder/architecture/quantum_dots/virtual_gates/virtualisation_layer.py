@@ -5,6 +5,9 @@ from quam.core import QuamComponent, quam_dataclass
 from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
 
 
+__all__ = ["VirtualisationLayer"]
+
+
 @quam_dataclass
 class VirtualisationLayer(QuamComponent):
     """
@@ -20,12 +23,8 @@ class VirtualisationLayer(QuamComponent):
     """
 
     source_gates: List[str]
-    """Names of the virtual gates defined in this layer."""
     target_gates: List[str]
-    """Names of the physical or underlying virtual gates this layer maps to."""
     matrix: List[List[float]]
-    """The virtualisation matrix [source_gates x target_gates]
-    defining the transformation."""
 
     def calculate_inverse_matrix(self) -> np.ndarray:
         """Calculates the inverse of the virtualisation matrix."""
@@ -56,14 +55,13 @@ class VirtualisationLayer(QuamComponent):
         resolved_voltages = voltages.copy()
         inverse_matrix = self.calculate_inverse_matrix()
 
-        for source_gate, inv_matrix_row in zip(self.source_gates, inverse_matrix):
-            if source_gate not in resolved_voltages:
-                continue
+        source_voltages = [
+            resolved_voltages.pop(source_gate, 0.0) for source_gate in self.source_gates
+        ]
 
-            source_voltage = resolved_voltages.pop(source_gate)
-
-            for target_gate, inv_matrix_value in zip(self.target_gates, inv_matrix_row):
-                resolved_voltages[target_gate] += inv_matrix_value * source_voltage
+        for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix):
+            resolved_voltages.setdefault(target_gate, 0.0)
+            resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
 
         return resolved_voltages
 
