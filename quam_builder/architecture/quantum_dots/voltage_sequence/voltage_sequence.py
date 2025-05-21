@@ -49,8 +49,7 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
 DEFAULT_PULSE_NAME = "250mV_square"
-
-DEFAULT_BASE_WF_SAMPLE = 0.25  # Assumed sample of the user-defined base waveform
+DEFAULT_WF_AMPLITUDE = 0.25
 
 
 # --- Type Aliases ---
@@ -108,7 +107,10 @@ class VoltageSequence:
         if py_duration_ns == 0 and not is_qua_type(duration_ns):
             return
 
-        scaled_amp = delta_v * (1.0 / DEFAULT_BASE_WF_SAMPLE)
+        if is_qua_type(delta_v):
+            scaled_amp = delta_v * (1.0 / DEFAULT_WF_AMPLITUDE)
+        else:
+            scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
         duration_cycles = duration_ns >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration_ns):
@@ -423,7 +425,10 @@ class VoltageSequence:
                     continue
 
                 delta_v = py_comp_amp - float(str(current_v))
-                scaled_amp = delta_v * (1.0 / DEFAULT_BASE_WF_SAMPLE)
+                if is_qua_type(delta_v):
+                    scaled_amp = delta_v * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10)
+                else:
+                    scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp,
@@ -436,7 +441,7 @@ class VoltageSequence:
                     tracker, max_voltage, channel_obj.name
                 )
                 delta_v_q = q_comp_amp - current_v
-                scaled_amp_q = delta_v_q * (1.0 / DEFAULT_BASE_WF_SAMPLE)
+                scaled_amp_q = delta_v_q * (1.0 / DEFAULT_WF_AMPLITUDE)
                 with if_(q_comp_dur_4ns > 0):
                     channel_obj.play(
                         DEFAULT_PULSE_NAME,
@@ -469,7 +474,8 @@ class VoltageSequence:
             with else_():  # Duration is 0, effectively a step
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
-                    amplitude_scale=-current_v * (1.0 / DEFAULT_BASE_WF_SAMPLE),
+                    amplitude_scale=-current_v
+                    * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
                     duration=ramp_duration_ns >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
@@ -480,10 +486,16 @@ class VoltageSequence:
                 channel_obj.play(
                     ramp(rate_val),
                     duration=ramp_duration_ns >> 2,
+                    validate=False,
                 )
             elif py_curr_v != 0.0:  # Duration is 0, step
                 delta_v_to_zero = -py_curr_v
-                scaled_amp_to_zero = delta_v_to_zero * (1.0 / DEFAULT_BASE_WF_SAMPLE)
+                if is_qua_type(delta_v_to_zero):
+                    scaled_amp_to_zero = delta_v_to_zero * (1.0 / DEFAULT_WF_AMPLITUDE)
+                else:
+                    scaled_amp_to_zero = np.round(
+                        delta_v_to_zero * (1.0 / DEFAULT_WF_AMPLITUDE), 10
+                    )
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp_to_zero,

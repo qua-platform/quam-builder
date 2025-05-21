@@ -3,27 +3,30 @@ import pytest
 from quam_builder.architecture.quantum_dots.exceptions import TimingError
 
 try:
-    import quaqsim
+    import quaqsim  # type: ignore
     from quaqsim.program_dict_to_program_compiler.program_tree_builder import (
         ProgramTreeBuilder,
     )
-    from utils import compare_ast_nodes, SKIP_AST_ENTRY  # type: ignore
-    from qm.grpc.qua import QuaProgramType
+    from utils import compare_ast_nodes, print_ast_as_code, SKIP_AST_ENTRY  # type: ignore
 except ImportError:
     pytest.skip("qua-qsim not installed", allow_module_level=True)
 
 
-# Use to extract the AST as a string
+# # Extract the AST as a string
 # from utils import ast_to_code_string
 # import pyperclip
 # code = ast_to_code_string(ast)
 # pyperclip.copy(f"expected_ast = {code}")
 # print(code)
 
+# # Extract the QUA program as a string
+# from qm import generate_qua_script
+# print(generate_qua_script(prog, config=None))
+
 
 def test_invalid_timing_multiple_4(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=41)
-    with qua.program() as prog:
+    with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
         with pytest.raises(TimingError):
             seq.go_to_point("p1")
@@ -31,7 +34,7 @@ def test_invalid_timing_multiple_4(machine):
 
 def test_invalid_timing_min_duration(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=12)
-    with qua.program() as prog:
+    with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
         with pytest.raises(TimingError):
             seq.go_to_point("p1")
@@ -45,23 +48,11 @@ def test_go_to_single_point(machine):
         seq.go_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.8), "ch2", duration=25)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+
     assert compare_ast_nodes(ast, expected_ast)
 
 
@@ -75,37 +66,12 @@ def test_go_to_multiple_points(machine):
         seq.go_to_point("p2")
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(
-                    value="0.7999999999999999"
-                ),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="50"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="50"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.8), "ch2", duration=25)
+        qua.play("250mV_square" * qua.amp(0.8), "ch1", duration=50)
+        qua.play("250mV_square" * qua.amp(0.8), "ch2", duration=50)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
 
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -121,35 +87,12 @@ def test_go_to_point_with_custom_duration(machine):
         seq.go_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="15"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="15"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=15)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=15)
+        qua.play("250mV_square" * qua.amp(0.0), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=25)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
 
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -161,23 +104,10 @@ def test_step_to_level_single_channel(machine):
         seq.step_to_level(levels={"ch1": 0.25}, duration=120)
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="1.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="30"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="30"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(1.0), "ch1", duration=30)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=30)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
 
@@ -188,23 +118,10 @@ def test_step_to_level_multiple_channels(machine):
         seq.step_to_level(levels={"ch1": 0.15, "ch2": -0.1}, duration=160)
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.6"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="40"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="-0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="40"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.6), "ch1", duration=40)
+        qua.play("250mV_square" * qua.amp(-0.4), "ch2", duration=40)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
 
@@ -220,35 +137,12 @@ def test_step_to_level_then_go_to_point(machine):
 
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="20"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="20"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[],
-    )
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=25)
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=20)
+        qua.play("250mV_square" * qua.amp(0.8), "ch2", duration=20)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
 
@@ -261,61 +155,21 @@ def test_sequence_with_qua_variable_duration_step_to_level(machine):
         seq.step_to_level(levels={"ch1": 0.2}, duration=qua_duration)
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.assign.Assign(
-                target="v1",
-                value=quaqsim.program_ast.expressions.literal.Literal(value="200"),
-            ),
-            SKIP_AST_ENTRY,  # assign(v2, (v2+Cast.mul_int_by_fixed((v1<<10),0.2)))
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.8"),
-                duration=quaqsim.program_ast.expressions.operation.Operation(
-                    left=quaqsim.program_ast.expressions.reference.Reference(name="v1"),
-                    operation="SHR",
-                    right=quaqsim.program_ast.expressions.literal.Literal(value="2"),
-                ),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            SKIP_AST_ENTRY,  # assign(v3, (v3+Cast.mul_int_by_fixed((v1<<10),0.0)))
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.0"),
-                duration=quaqsim.program_ast.expressions.operation.Operation(
-                    left=quaqsim.program_ast.expressions.reference.Reference(name="v1"),
-                    operation="SHR",
-                    right=quaqsim.program_ast.expressions.literal.Literal(value="2"),
-                ),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[
-            quaqsim.program_ast.expressions.definition.Definition(
-                name="v1", type="INT", value=[]
-            ),
-            quaqsim.program_ast.expressions.definition.Definition(
-                name="v2",
-                type="INT",
-                value=[
-                    dict(
-                        value="0",
-                        type=QuaProgramType.INT,
-                    )
-                ],
-            ),
-            quaqsim.program_ast.expressions.definition.Definition(
-                name="v3",
-                type="INT",
-                value=[
-                    dict(
-                        value="0",
-                        type=QuaProgramType.INT,
-                    )
-                ],
-            ),
-        ],
-    )
+    with qua.program() as expected_program:
+        expected_qua_duration = qua.declare(int)
+        qua.assign(expected_qua_duration, 200)
+        qua.play(
+            "250mV_square" * qua.amp(0.8), "ch1", duration=expected_qua_duration >> 2
+        )
+        qua.play(
+            "250mV_square" * qua.amp(0.0), "ch2", duration=expected_qua_duration >> 2
+        )
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+
+    expected_ast.body.insert(1, SKIP_AST_ENTRY)
+    expected_ast.body.insert(3, SKIP_AST_ENTRY)
+    expected_ast.vars.insert(1, SKIP_AST_ENTRY)
+    expected_ast.vars.insert(2, SKIP_AST_ENTRY)
     assert compare_ast_nodes(ast, expected_ast)
 
 
@@ -328,70 +182,73 @@ def test_sequence_with_qua_variable_voltage_step_to_level(machine):
         seq.step_to_level(levels={"ch1": qua_voltage, "ch2": 0.1}, duration=100)
     ast = ProgramTreeBuilder().build(prog)
 
-    expected_ast = quaqsim.program_ast.program.Program(
-        body=[
-            quaqsim.program_ast.assign.Assign(
-                target="v1",
-                value=quaqsim.program_ast.expressions.literal.Literal(value="0.15"),
-            ),
-            SKIP_AST_ENTRY,
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.operation.Operation(
-                    left=quaqsim.program_ast.expressions.operation.Operation(
-                        left=quaqsim.program_ast.expressions.reference.Reference(
-                            name="v1"
-                        ),
-                        operation="SUB",
-                        right=quaqsim.program_ast.expressions.literal.Literal(
-                            value="0.0"
-                        ),
-                    ),
-                    operation="MULT",
-                    right=quaqsim.program_ast.expressions.literal.Literal(value="4.0"),
-                ),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch1",
-                operation="250mV_square",
-            ),
-            quaqsim.program_ast.play.Play(
-                amp=quaqsim.program_ast.expressions.literal.Literal(value="0.4"),
-                duration=quaqsim.program_ast.expressions.literal.Literal(value="25"),
-                element="ch2",
-                operation="250mV_square",
-            ),
-        ],
-        vars=[
-            quaqsim.program_ast.expressions.definition.Definition(
-                name="v1", type="REAL", value=[]
-            ),
-            quaqsim.program_ast.expressions.definition.Definition(
-                name="v2",
-                type="INT",
-                value=[dict(value="0", type=QuaProgramType.INT, loc="stripped")],
-            ),
-        ],
-    )
+    with qua.program() as expected_program:
+        expected_qua_voltage = qua.declare(qua.fixed)
+        qua.assign(expected_qua_voltage, 0.15)
+        qua.play(
+            "250mV_square" * qua.amp((expected_qua_voltage - 0.0) * 4.0),
+            "ch1",
+            duration=25,
+        )
+        qua.play("250mV_square" * qua.amp(0.4), "ch2", duration=25)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    expected_ast.body.insert(1, SKIP_AST_ENTRY)
+    expected_ast.vars.insert(1, SKIP_AST_ENTRY)
     assert compare_ast_nodes(ast, expected_ast)
 
 
-# def test_ramp_to_zero_immediate(machine):
-#     """Tests ramp_to_zero with no duration (immediate QUA ramp_to_zero)."""
-#     with qua.program() as prog:
-#         seq = machine.gate_set.new_sequence()
-#         seq.step_to_level(levels={"ch1": 0.2, "ch2": -0.15}, duration=100)
-#         seq.ramp_to_zero()  # Uses QUA's ramp_to_zero(element_name)
-#     # ast = ProgramTreeBuilder().build(prog)
-#     # Expected AST: step_to_level plays, then ramp_to_zero for ch1, ramp_to_zero for ch2.
+def test_ramp_to_zero_immediate(machine):
+    """Tests ramp_to_zero with no duration (immediate QUA ramp_to_zero)."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence()
+        seq.step_to_level(levels={"ch1": 0.2, "ch2": -0.15}, duration=100)
+        seq.ramp_to_zero()  # Uses QUA's ramp_to_zero(element_name)
+    ast = ProgramTreeBuilder().build(prog)
+
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(0.8), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(-0.6), "ch2", duration=25)
+        qua.ramp_to_zero("ch1")
+        qua.ramp_to_zero("ch2")
+
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
 
-# def test_ramp_to_zero_with_duration(machine):
-#     """Tests ramp_to_zero with a specified ramp duration."""
-#     with qua.program() as prog:
-#         seq = machine.gate_set.new_sequence()
-#         seq.step_to_level(levels={"ch1": 0.25}, duration=100)
-#         seq.ramp_to_zero(ramp_duration_ns=200)
-#     # ast = ProgramTreeBuilder().build(prog)
-#     # Expected AST: step_to_level plays, then plays for ramping ch1 to zero over 200ns.
+def test_ramp_to_zero_with_duration(machine):
+    """Tests ramp_to_zero with a specified ramp duration."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence()
+        seq.step_to_level(levels={"ch1": 0.25}, duration=100)
+        seq.ramp_to_zero(ramp_duration_ns=200)
+    ast = ProgramTreeBuilder().build(prog)
+
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(1.0), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=25)
+        qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
+
+
+def test_ramp_to_zero_with_duration_multiple_channels(machine):
+    """Tests ramp_to_zero with a specified ramp duration."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence()
+        seq.step_to_level(levels={"ch1": 0.25}, duration=100)
+        seq.step_to_level(levels={"ch1": 0.25, "ch2": 0.25}, duration=100)
+        seq.ramp_to_zero(ramp_duration_ns=200)
+    ast = ProgramTreeBuilder().build(prog)
+
+    with qua.program() as expected_program:
+        qua.play("250mV_square" * qua.amp(1.0), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.0), "ch2", duration=25)
+        qua.play("250mV_square" * qua.amp(0.0), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(1.0), "ch2", duration=25)
+        qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
+        qua.play(qua.ramp(-0.25 / 200), "ch2", duration=50)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
 
 # def test_apply_compensation_pulse_from_zero_integrated_voltage(machine):
@@ -411,7 +268,7 @@ def test_sequence_with_qua_variable_voltage_step_to_level(machine):
 # def test_apply_compensation_pulse_with_positive_integrated_voltage(machine):
 #     with qua.program() as prog:
 #         seq = machine.gate_set.new_sequence()
-#         seq.step_to_level(levels={"ch1": 0.1}, duration=1000) # Builds up positive integrated_v
+#         seq.step_to_level(levels={"ch1": 0.1}, duration=1000) # Positive integrated_v
 #         seq.apply_compensation_pulse(max_voltage=0.4)
 #     # ast = ProgramTreeBuilder().build(prog)
 #     # Expected AST: step_to_level, then a negative pulse on ch1 for compensation.
