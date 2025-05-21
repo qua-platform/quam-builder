@@ -5,7 +5,11 @@ from .exceptions import TimingError
 
 from typing import Any
 
+
+# --- Type Aliases ---
+VoltageLevelType = Scalar[float]
 DurationType = Scalar[int]
+
 CLOCK_CYCLE_NS = 4
 MIN_PULSE_DURATION_NS = 16
 

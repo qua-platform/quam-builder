@@ -16,7 +16,6 @@ from qm.qua import (
 )
 from qm.qua.type_hints import (
     QuaVariable,
-    Scalar,
     QuaScalarExpression,
 )
 
@@ -31,7 +30,7 @@ from .sequence_state_tracker import SequenceStateTracker
 from ..exceptions import (
     VoltagePointError,
 )
-from ..utils import is_qua_type, validate_duration
+from ..utils import is_qua_type, validate_duration, VoltageLevelType, DurationType
 
 __all__ = [
     "VoltageTuningPoint",
@@ -50,11 +49,6 @@ RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
 DEFAULT_PULSE_NAME = "250mV_square"
 DEFAULT_WF_AMPLITUDE = 0.25
-
-
-# --- Type Aliases ---
-VoltageLevelType = Scalar[float]
-DurationType = Scalar[int]
 
 
 class VoltageSequence:
@@ -203,13 +197,9 @@ class VoltageSequence:
                     "Ensure hold `duration_ns` is sufficient."
                 )
 
-        target_levels_dict = target_levels_dict.copy()
-        # Add any channels in the GateSet that are not in the target_levels_dict
-        for ch_name in self.gate_set.channels:
-            if ch_name not in target_levels_dict:
-                target_levels_dict[ch_name] = 0.0
+        full_target_levels_dict = self.gate_set.resolve_voltages(target_levels_dict)
 
-        for ch_name, target_voltage in target_levels_dict.items():
+        for ch_name, target_voltage in full_target_levels_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
                 continue

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
+from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
@@ -42,6 +43,26 @@ class GateSet(QuantumComponent):
     @property
     def name(self) -> str:
         return self.id
+
+    def resolve_voltages(
+        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> Dict[str, VoltageLevelType]:
+        """
+        Adds any channels in the GateSet that are not in the voltages dict
+        to the voltages dict with a default voltage of 0.0.
+        """
+        resolved_voltages = {}
+
+        # Add any channels in the GateSet that are not in the voltages dict
+        for ch_name in self.channels:
+            if ch_name not in voltages and not allow_extra_entries:
+                raise ValueError(
+                    f"Channel '{ch_name}' passed to GateSet.resolve_voltages "
+                    f"for GateSet '{self.name}' is not part of the GateSet.channels.."
+                )
+            resolved_voltages[ch_name] = voltages.get(ch_name, 0.0)
+
+        return resolved_voltages
 
     def add_point(self, name: str, voltages: Dict[str, float], duration: int):
         """

@@ -195,8 +195,7 @@ class GateSet(QuantumComponent):
     Allows defining named voltage tuning points (macros) for this set.
     """
 
-    # channels: Dict[str, Channel] # Using Channel as a placeholder
-    channels: Dict[str, SingleChannel]  # Clarified by user
+    channels: Dict[str, SingleChannel]
 
     def __post_init__(self):
         # Ensure macros dictionary exists, as it's accessed by add_point

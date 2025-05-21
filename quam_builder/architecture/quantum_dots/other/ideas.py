@@ -19,7 +19,7 @@ from quam_builder.architecture.quantum_dots.other.virtual_gates import VirtualGa
 # TODO Add check that channel.sticky is the same for all channels
 virtual_gate_set = VirtualGateSet(
     # P1, P2, P3 are physical channels (elements)
-    physical_gates={"P1": P1, "P2": P2, "P3": P3}
+    channels={"P1": P1, "P2": P2, "P3": P3}
 )
 
 # %% Define virtual gate layer or layers
@@ -31,23 +31,28 @@ virtual_gate_set = VirtualGateSet(
 #   Another way to think about it is that there is an additional virtual gate with the same name as the physical gate,
 #   whose matrix elements are zero except for the physical gate
 virtual_gate_set.add_layer(
-  # Define virtual gate names
-  source_gates=["vP1", "vP2"],
-  # Define target (physical) gates, can also be a subset
-  target_gates=["P1", "P2"],
-  matrix=[[1, -0.1], [-0.2, 1]]
+    # Define virtual gate names
+    source_gates=["vP1", "vP2"],
+    # Define target (physical) gates, can also be a subset
+    target_gates=["P1", "P2"],
+    matrix=[[1, -0.1], [-0.2, 1]],
 )
+# Note that each time you add a layer, it adds a VirtualisationLayer QUAM component to the virtual_gate_set.layers attribute
 
 # %% Define tuning points
-from quam_builder.architecture.quantum_dots.other.virtual_gates import VirtualTuningPoint
+from quam_builder.architecture.quantum_dots.other.virtual_gates import (
+    VirtualTuningPoint,
+)
 # VirtualTuningPoint inherits from quam.core.macro.quam_macro.QuamMacro
 
 # Define tuning points
 # Can contain combinations of physical and virtual gate voltages
 # In this case, the virtual gate voltages will add a voltage on top of the specified physical gate voltages
-virtual_gate_set.macros["readout"] = VirtualTuningPoint(duration=2000, vP1=0.05, vP2=0.1, P1=0.02)
+virtual_gate_set.macros["readout"] = VirtualTuningPoint(
+    duration=2000, vP1=0.05, vP2=0.1, P1=0.02
+)
 # Optional alternative syntax:
-# virtual_gate_set.add_point("readout", duration=2000, vP1=0.05, vP2=0.1, P1=0.02)
+# virtual_gate_set.add_point("readout", duration=2000, voltages=dict(vP1=0.05, vP2=0.1, P1=0.02))
 
 # %% Create QUA program
 with qua.program() as prog:
@@ -62,7 +67,7 @@ with qua.program() as prog:
         # Ramp to coordinate and play pulse, total duration is length + ramp_duration
         seq.go_to_point("readout", ramp_duration=2000)
         seq.wait(1000)
-        # Bring all voltages to zero        
+        # Bring all voltages to zero
         seq.ramp_to_zero(ramp_duration=100)
 
         seq.apply_compensation_pulse(max_amplitude=0.3)
