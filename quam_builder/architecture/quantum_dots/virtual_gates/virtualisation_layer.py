@@ -28,7 +28,17 @@ class VirtualisationLayer(QuamComponent):
 
     def calculate_inverse_matrix(self) -> np.ndarray:
         """Calculates the inverse of the virtualisation matrix."""
-        return np.linalg.inv(self.matrix)
+        try:
+            inv_matrix = np.linalg.inv(self.matrix)
+            if not inv_matrix.shape == (len(self.source_gates), len(self.target_gates)):
+                raise ValueError(
+                    "Inverse matrix has incorrect dimensions. "
+                    f"Expected {len(self.source_gates)}x{len(self.target_gates)}, "
+                    f"got {inv_matrix.shape}."
+                )
+            return inv_matrix
+        except Exception as e:
+            raise ValueError(f"Error calculating inverse matrix: {e}")
 
     def resolve_voltages(
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
@@ -53,6 +63,7 @@ class VirtualisationLayer(QuamComponent):
             )
 
         resolved_voltages = voltages.copy()
+
         inverse_matrix = self.calculate_inverse_matrix()
 
         source_voltages = [
