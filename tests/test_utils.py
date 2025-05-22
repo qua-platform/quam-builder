@@ -304,4 +304,4 @@ def print_ast_as_code(root_node: Node) -> None:
     Args:
         root_node: The root AST node to print.
     """
-    print(ast_to_code_string(root_node))
+    print(ast_to_code_string(root_node).replace("\\n", "\n"))

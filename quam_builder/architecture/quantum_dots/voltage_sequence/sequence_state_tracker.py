@@ -58,7 +58,7 @@ class SequenceStateTracker:
     variables are used.
     """
 
-    def __init__(self, element_name: str):
+    def __init__(self, element_name: str, track_integrated_voltage: bool = True):
         """
         Initializes the SequenceStateTracker for a given element name.
 
@@ -78,6 +78,8 @@ class SequenceStateTracker:
         self._element_name: str = element_name
         # Initialize state variables directly for the single element
         self._current_level_internal: Scalar[float] = 0.0
+        # Whether to track integrated voltage
+        self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
         self._integrated_voltage_internal: Scalar[int] = 0
         # Keep track of the declared QUA variable for integrated voltage, if any

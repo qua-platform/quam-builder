@@ -67,6 +67,10 @@ class GateSet(QuantumComponent):
 
         return resolved_voltages
 
+    @property
+    def valid_channel_names(self) -> list[str]:
+        return list(self.channels.keys())
+
     def add_point(self, name: str, voltages: Dict[str, float], duration: int):
         """
         Adds a named voltage tuning point (macro) to this GateSet.
@@ -77,24 +81,30 @@ class GateSet(QuantumComponent):
                 to their target DC voltage (float) for this point.
             duration: The default duration (ns) to hold these voltages.
         """
-        for ch_name in voltages.keys():
-            if ch_name not in self.channels:
-                raise ValueError(
-                    f"Channel '{ch_name}' specified in voltages for point '{name}' "
-                    f"is not part of this GateSet."
-                )
+        invalid_channel_names = set(voltages) - set(self.valid_channel_names)
+        if invalid_channel_names:
+            raise ValueError(
+                f"Channel(s) '{invalid_channel_names}' specified in voltages for point "
+                f"'{name}' are not part of this GateSet."
+            )
+
         # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
         if not hasattr(self, "macros") or self.macros is None:
             self.macros: Dict[str, QuamMacro] = {}
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
-    def new_sequence(self) -> "VoltageSequence":
+    def new_sequence(self, track_integrated_voltage: bool = True) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
+
+        Args:
+            track_integrated_voltage: Whether to track integrated voltage.
+                If False, the sequence will not track integrated voltage, and
+                apply_compensation_pulse will not be available.
         """
         from quam_builder.architecture.quantum_dots.voltage_sequence import (
             VoltageSequence,
         )
 
-        return VoltageSequence(self)
+        return VoltageSequence(self, track_integrated_voltage)

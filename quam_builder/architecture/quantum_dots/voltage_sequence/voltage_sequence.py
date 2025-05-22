@@ -64,7 +64,7 @@ class VoltageSequence:
     This class does not modify the QUA configuration.
     """
 
-    def __init__(self, gate_set: GateSet):
+    def __init__(self, gate_set: GateSet, track_integrated_voltage: bool = True):
         """
         Initializes the VoltageSequence.
 
@@ -77,6 +77,7 @@ class VoltageSequence:
             for ch_name in self.gate_set.channels.keys()
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
+        self._track_integrated_voltage: bool = track_integrated_voltage
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -214,11 +215,12 @@ class VoltageSequence:
             else:
                 delta_v = float(str(target_voltage)) - float(str(current_v))
 
-            tracker.update_integrated_voltage(
-                target_voltage,
-                duration_ns,
-                ramp_duration_ns,
-            )
+            if self._track_integrated_voltage:
+                tracker.update_integrated_voltage(
+                    target_voltage,
+                    duration_ns,
+                    ramp_duration_ns,
+                )
 
             if ramp_duration_ns is None or (
                 not is_qua_type(ramp_duration_ns)
@@ -394,6 +396,10 @@ class VoltageSequence:
         Args:
             max_voltage: The maximum absolute amplitude for the compensation pulse.
         """
+        if not self._track_integrated_voltage:
+            raise ValueError(
+                "apply_compensation_pulse is not supported when integrated voltage is not tracked."
+            )
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
 
@@ -513,7 +519,9 @@ class VoltageSequence:
                 )
 
             tracker.current_level = 0.0
-            tracker.reset_integrated_voltage()
+
+            if self._track_integrated_voltage:
+                tracker.reset_integrated_voltage()
 
     def apply_to_config(self, config: dict):
         """

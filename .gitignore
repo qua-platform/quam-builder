@@ -178,3 +178,5 @@ tmp_file.py
 .venv*
 uv.lock
 *.code-workspace
+
+quam_builder/architecture/quantum_dots/other

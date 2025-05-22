@@ -23,6 +23,16 @@ class VirtualGateSet(GateSet):
 
     layers: List[VirtualisationLayer] = field(default_factory=list)
 
+    @property
+    def valid_channel_names(self) -> list[str]:
+        """
+        Returns a list of valid channel names for the VirtualGateSet.
+        """
+        # Collect all virtual gate names from all layers
+        virtual_channels = set(ch for layer in self.layers for ch in layer.source_gates)
+        # Combine physical and virtual gate names
+        return list(self.channels) + list(virtual_channels)
+
     def _validate_new_layer(
         self,
         source_gates: List[str],
@@ -150,14 +160,8 @@ class VirtualGateSet(GateSet):
         # If not allowing extra entries, check that all keys in voltages are either
         # physical channels or virtual channels defined in any layer.
         if not allow_extra_entries:
-            # Collect all virtual gate names from all layers
-            virtual_channels = set(
-                ch for layer in self.layers for ch in layer.source_gates
-            )
-            # Combine physical and virtual gate names
-            all_channels = set(list(self.channels) + list(virtual_channels))
             # Find any keys in voltages that are not recognized
-            extra_channels = set(voltages) - all_channels
+            extra_channels = set(voltages) - set(self.valid_channel_names)
             if extra_channels:
                 raise ValueError(
                     f"Channels {extra_channels} in voltages that are not part of the "

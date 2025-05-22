@@ -7,10 +7,10 @@ try:
     from quaqsim.program_dict_to_program_compiler.program_tree_builder import (
         ProgramTreeBuilder,
     )
-    from utils import compare_ast_nodes, print_ast_as_code, SKIP_AST_ENTRY  # type: ignore
 except ImportError:
     pytest.skip("qua-qsim not installed", allow_module_level=True)
 
+from test_utils import compare_ast_nodes, print_ast_as_code  # type: ignore
 
 # # Extract the AST as a string
 # from utils import ast_to_code_string
@@ -149,7 +149,7 @@ def test_step_to_level_then_go_to_point(machine):
 def test_sequence_with_qua_variable_duration_step_to_level(machine):
     """Tests using a QUA variable for duration in step_to_level."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
         qua_duration = qua.declare(int)
         qua.assign(qua_duration, 200)  # ns
         seq.step_to_level(levels={"ch1": 0.2}, duration=qua_duration)
@@ -166,17 +166,13 @@ def test_sequence_with_qua_variable_duration_step_to_level(machine):
         )
     expected_ast = ProgramTreeBuilder().build(expected_program)
 
-    expected_ast.body.insert(1, SKIP_AST_ENTRY)
-    expected_ast.body.insert(3, SKIP_AST_ENTRY)
-    expected_ast.vars.insert(1, SKIP_AST_ENTRY)
-    expected_ast.vars.insert(2, SKIP_AST_ENTRY)
     assert compare_ast_nodes(ast, expected_ast)
 
 
 def test_sequence_with_qua_variable_voltage_step_to_level(machine):
     """Tests using a QUA variable for voltage in step_to_level."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
         qua_voltage = qua.declare(qua.fixed)
         qua.assign(qua_voltage, 0.15)
         seq.step_to_level(levels={"ch1": qua_voltage, "ch2": 0.1}, duration=100)
@@ -192,8 +188,6 @@ def test_sequence_with_qua_variable_voltage_step_to_level(machine):
         )
         qua.play("250mV_square" * qua.amp(0.4), "ch2", duration=25)
     expected_ast = ProgramTreeBuilder().build(expected_program)
-    expected_ast.body.insert(1, SKIP_AST_ENTRY)
-    expected_ast.vars.insert(1, SKIP_AST_ENTRY)
     assert compare_ast_nodes(ast, expected_ast)
 
 
