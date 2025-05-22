@@ -1,10 +1,13 @@
 import pytest
 import numpy as np
+from quam.components.channels import SingleChannel
+
 from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
     VirtualGateSet,
 )
-
-from quam.components.channels import SingleChannel
+from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer import (
+    VirtualisationLayer,
+)
 
 
 @pytest.fixture
@@ -36,6 +39,7 @@ def test_add_layer_success_first_layer(virtual_gate_set_fixture):
     vgs = virtual_gate_set_fixture
     layer = vgs.add_layer(source_gates=["virt1"], target_gates=["P1"], matrix=[[1.0]])
     assert len(vgs.layers) == 1
+    assert isinstance(vgs.layers[0], VirtualisationLayer)
     assert vgs.layers[0] == layer
     assert layer.source_gates == ["virt1"]
     assert layer.target_gates == ["P1"]
@@ -225,7 +229,7 @@ def test_resolve_voltages_mixed_physical_virtual_input(virtual_gate_set_fixture)
 
     # Input provides v_g1 (virtual), P2 (physical directly), and P3 (physical directly).
     # P1 is target of v_g1.
-    initial_voltages = {"v_g1": 2.0, "P2": 0.7, "P3": -0.2, "P1": 0.0}
+    initial_voltages = {"v_g1": 2.0, "P2": 0.7, "P3": -0.2, "P1": 0.01}
     # Note: v_g2 is not provided, so its layer won't act.
 
     resolved = vgs.resolve_voltages(initial_voltages)
@@ -235,6 +239,6 @@ def test_resolve_voltages_mixed_physical_virtual_input(virtual_gate_set_fixture)
     # P2 directly from input: 0.7
     # P3 directly from input: -0.2
     assert len(resolved) == 3
-    assert np.isclose(resolved["P1"], 1.0)
+    assert np.isclose(resolved["P1"], 1.01)
     assert np.isclose(resolved["P2"], 0.7)
     assert np.isclose(resolved["P3"], -0.2)
