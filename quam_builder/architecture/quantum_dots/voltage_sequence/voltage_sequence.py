@@ -85,7 +85,7 @@ class VoltageSequence:
         # For now, simple suffix based on usage.
         internal_name = f"_vseq_tmp_{name_suffix}"
         if internal_name not in self._temp_qua_vars:
-            self._temp_qua_vars[internal_name] = declare(var_type, name=internal_name)
+            self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
 
     def _play_step_on_channel(
@@ -158,6 +158,7 @@ class VoltageSequence:
                 channel.play(
                     ramp(ramp_rate),
                     duration=ramp_duration_cycles,
+                    validate=False,
                 )
             else:
                 py_delta_v = float(str(delta_v))
@@ -166,6 +167,7 @@ class VoltageSequence:
                     channel.play(
                         ramp(ramp_rate_val),
                         duration=ramp_duration_cycles,
+                        validate=False,
                     )
 
         py_hold_duration_ns = 0

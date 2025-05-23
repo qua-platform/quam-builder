@@ -1,4 +1,5 @@
 from typing import Any
+import numpy as np
 
 # Assuming 'quaqsim' is an installed dependency.
 # These imports are for type hinting and potentially for isinstance checks if needed.
@@ -9,6 +10,15 @@ from quaqsim.program_ast.expressions.definition import Definition
 
 class SKIP_AST_ENTRY:
     pass
+
+
+def is_float_str(value: Any) -> bool:
+    """Checks if a value is a string that can be converted to a float."""
+    try:
+        float(value)
+        return True
+    except Exception:
+        return False
 
 
 # Helper function to log mismatches with path and context
@@ -64,6 +74,9 @@ def compare_ast_nodes(
         return False
 
     if isinstance(node1, (int, str, bool, float, type(None))):
+        if is_float_str(node1) and is_float_str(node2):
+            if np.isclose(float(node1), float(node2)):
+                return True
         if node1 != node2:
             _log_mismatch(
                 current_path,

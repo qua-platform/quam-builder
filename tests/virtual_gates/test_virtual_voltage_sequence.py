@@ -165,72 +165,170 @@ def test_vgs_ramp_to_zero_after_virtual_step(virtual_gate_set: VirtualGateSet):
     assert compare_ast_nodes(ast, expected_ast)
 
 
-# def test_vgs_compensation_after_virtual_step(virtual_gate_set: VirtualGateSet):
-#     """Tests apply_compensation_pulse after a virtual gate step.
+def test_ramp_to_level_simple(machine):
+    """Tests a simple ramp_to_level operation."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq.ramp_to_level(
+            levels={"ch1": 0.2, "ch2": -0.1},
+            duration=120,
+            ramp_duration=40,  # ns
+        )
+    ast = ProgramTreeBuilder().build(prog)
 
-#     This primarily checks that integrated voltage on physical channels is
-#     updated and that compensation pulses are applied to physical channels.
-#     """
-#     vgs = virtual_gate_set
-#     add_default_virtual_layer(vgs)
+    with qua.program() as expected_program:
+        # ch1: 0.0 -> 0.2 (delta=0.2), ramp=40 (10 cycles), hold=120 (30 cycles)
+        # ch2: 0.0 -> -0.1 (delta=-0.1), ramp=40 (10 cycles), hold=120 (30 cycles)
+        qua.play(qua.ramp(0.2 / 40.0), "ch1", duration=10)
+        qua.wait(30, "ch1")
+        qua.play(qua.ramp(-0.1 / 40.0), "ch2", duration=10)
+        qua.wait(30, "ch2")
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
-#     with qua.program() as prog:
-#         seq = vgs.new_sequence()
-#         seq.step_to_level(levels={"v_g1": 0.25, "v_g2": 0.25}, duration=1000)  # ns
-#         seq.apply_compensation_pulse(max_voltage=0.45)
 
-#     # Physical state after step:
-#     # v_g1_target = 0.25, v_g2_target = 0.25
-#     # ch1_target = 0.5*0.25 - 0.5*0.25 = 0.0 V
-#     # ch2_target = 0.0*0.25 + 1.0*0.25 = 0.25 V
-#     # amp_ch1_step = 0.0 / 0.25 = 0.0
-#     # amp_ch2_step = 0.25 / 0.25 = 1.0
-#     # duration_cycles_step = 1000 ns / 4 = 250
+def test_ramp_to_point_simple(machine):
+    """Tests a simple ramp_to_point operation."""
+    machine.gate_set.add_point(
+        "p_ramp", voltages={"ch1": 0.15, "ch2": 0.05}, duration=200
+    )
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq.ramp_to_point("p_ramp", ramp_duration=80)
+    ast = ProgramTreeBuilder().build(prog)
 
-#     # Integrated voltage:
-#     # ch1: target_voltage=0.0. Contribution to int_V_ch1 is 0.
-#     # ch2: target_voltage=0.25. Contribution to int_V_ch2 is positive.
-#     # So, ch1 should have no compensation, ch2 should have negative compensation.
+    with qua.program() as expected_program:
+        # ch1: 0.0 -> 0.15 (delta=0.15), ramp=80 (20 cycles), hold=200 (50 cycles)
+        # ch2: 0.0 -> 0.05 (delta=0.05), ramp=80 (20 cycles), hold=200 (50 cycles)
+        qua.play(qua.ramp(0.15 / 80.0), "ch1", duration=20)
+        qua.wait(50, "ch1")
+        qua.play(qua.ramp(0.05 / 80.0), "ch2", duration=20)
+        qua.wait(50, "ch2")
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
-#     ast_nodes = ProgramTreeBuilder().build(prog).body
-#     play_ops = [node for node in ast_nodes if node.node_type == "PlayStatement"]
 
-#     assert len(play_ops) >= 1
+def test_step_then_ramp(machine):
+    """Tests a step operation followed by a ramp operation."""
+    machine.gate_set.add_point(
+        "p_step", voltages={"ch1": 0.1, "ch2": 0.1}, duration=100
+    )
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq.go_to_point("p_step")  # Current level: ch1=0.1, ch2=0.1
+        seq.ramp_to_level(
+            levels={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80
+        )
+    ast = ProgramTreeBuilder().build(prog)
 
-#     ch2_step_found = False
-#     ch2_compensation_found = False
+    with qua.program() as expected_program:
+        # Go to point p_step (0.1, 0.1), duration 100ns (25 cycles)
+        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=25)
+        qua.play("250mV_square" * qua.amp(0.4), "ch2", duration=25)
+        # Ramp to level (0.3, -0.1), ramp=80ns (20 cycles), hold=160ns (40 cycles)
+        # ch1: 0.1 -> 0.3 (delta=0.2)
+        # ch2: 0.1 -> -0.1 (delta=-0.2)
+        qua.play(qua.ramp(0.2 / 80.0), "ch1", duration=20)
+        qua.wait(40, "ch1")
+        qua.play(qua.ramp(-0.2 / 80.0), "ch2", duration=20)
+        qua.wait(40, "ch2")
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
-#     for op in play_ops:
-#         op_target_element = op.qua_object_name
-#         op_duration_cycles = op.duration.value
 
-#         if op_target_element == "ch2":
-#             if op_duration_cycles == 250 and f"* amp({1.0})" in op.pulse.name:
-#                 ch2_step_found = True
-#             # Check for a compensation pulse on ch2.
-#             # Its duration will be >= MIN_COMPENSATION_DURATION_NS (16ns or 4 cycles)
-#             # Its amplitude will be negative.
-#             elif op_duration_cycles >= (16 // 4) and f"* amp(-" in op.pulse.name:
-#                 ch2_compensation_found = True
+def test_ramp_then_step(machine):
+    """Tests a ramp operation followed by a step operation."""
+    machine.gate_set.add_point(
+        "p_final", voltages={"ch1": 0.05, "ch2": -0.05}, duration=500
+    )
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq.ramp_to_level(
+            levels={"ch1": 0.2, "ch2": 0.2}, duration=100, ramp_duration=40
+        )  # Current level: ch1=0.2, ch2=0.2
+        seq.go_to_point("p_final")
+    ast = ProgramTreeBuilder().build(prog)
 
-#     assert ch2_step_found, "Step pulse for ch2 not found or incorrect."
-#     assert ch2_compensation_found, "Compensation pulse for ch2 not found or incorrect."
+    with qua.program() as expected_program:
+        # Ramp to level (0.2, 0.2), ramp=40ns (10 cycles), hold=100ns (25 cycles)
+        qua.play(qua.ramp(0.2 / 40.0), "ch1", duration=10)
+        qua.wait(25, "ch1")
+        qua.play(qua.ramp(0.2 / 40.0), "ch2", duration=10)
+        qua.wait(25, "ch2")
+        # Go to point (0.05, -0.05), duration 500ns (125 cycles)
+        # ch1: 0.2 -> 0.05 (delta=-0.15) -> amp = -0.15 / 0.25 = -0.6
+        # ch2: 0.2 -> -0.05 (delta=-0.25) -> amp = -0.25 / 0.25 = -1.0
+        qua.play("250mV_square" * qua.amp(-0.6), "ch1", duration=125)
+        qua.play("250mV_square" * qua.amp(-1.0), "ch2", duration=125)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
 
-#     ch1_non_zero_play_found = False
-#     for op in play_ops:
-#         op_target_element = op.qua_object_name
-#         if op_target_element == "ch1":
-#             is_zero_amp = False
-#             try:  # Check for explicit amp(0.0) or amp(0)
-#                 amp_value_str = op.pulse.name.split("amp(")[1].split(")")[0]
-#                 if float(amp_value_str) == 0.0:
-#                     is_zero_amp = True
-#             except (IndexError, ValueError):
-#                 pass
-#             if not is_zero_amp:  # If not explicitly zero, consider it non-zero play
-#                 ch1_non_zero_play_found = True
-#                 break
 
-#     assert not ch1_non_zero_play_found, (
-#         "ch1 seems to have an unexpected non-zero pulse."
-#     )
+def test_ramp_to_level_with_qua_voltage(machine):
+    """Tests ramp_to_level using a QUA variable for the voltage level."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        qua_level = qua.declare(qua.fixed)
+        qua.assign(qua_level, 0.15)
+        seq.ramp_to_level(
+            levels={"ch1": qua_level, "ch2": 0.1}, duration=100, ramp_duration=40
+        )
+    ast = ProgramTreeBuilder().build(prog)
+
+    with qua.program() as expected_program:
+        _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)
+        _vseq_tmp_ch2_ramp_rate = qua.declare(qua.fixed)
+        expected_qua_level = qua.declare(qua.fixed)
+        qua.assign(expected_qua_level, 0.15)
+        # ch1: 0.0 -> qua_level (0.15), ramp=40(10), hold=100(25)
+        # ch2: 0.0 -> 0.1 (delta=0.1), ramp=40(10), hold=100(25)
+        qua.assign(
+            _vseq_tmp_ch1_ramp_rate, expected_qua_level * qua.Math.div(1.0, 40.0)
+        )
+        qua.play(qua.ramp(_vseq_tmp_ch1_ramp_rate), "ch1", duration=10)
+        qua.wait(25, "ch1")
+        qua.assign(_vseq_tmp_ch2_ramp_rate, 0.1 * qua.Math.div(1.0, 40.0))
+        qua.play(qua.ramp(_vseq_tmp_ch2_ramp_rate), "ch2", duration=10)
+        qua.wait(25, "ch2")
+
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
+
+
+def test_ramp_to_level_with_qua_ramp_duration(machine):
+    """Tests ramp_to_level using a QUA variable for the ramp duration."""
+    with qua.program() as prog:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        qua_ramp_dur = qua.declare(int)
+        qua.assign(qua_ramp_dur, 80)  # ns
+        seq.ramp_to_level(levels={"ch1": 0.2}, duration=160, ramp_duration=qua_ramp_dur)
+    ast = ProgramTreeBuilder().build(prog)
+
+    with qua.program() as expected_program:
+        _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)
+        _vseq_tmp_ch2_ramp_rate = qua.declare(qua.fixed)
+        expected_qua_ramp_dur = qua.declare(int)
+        qua.assign(expected_qua_ramp_dur, 80)
+        # ch1: 0.0 -> 0.2 (delta=0.2), ramp=80(20), hold=160(40) -> 40 - 9 = 31
+        # ch2: 0.0 -> 0.0 (delta=0.0), ramp=80(20), hold=160(40) -> 40 - 9 = 31
+        qua.assign(
+            _vseq_tmp_ch1_ramp_rate, 0.2 * qua.Math.div(1.0, expected_qua_ramp_dur)
+        )
+        qua.play(
+            qua.ramp(_vseq_tmp_ch1_ramp_rate),
+            "ch1",
+            duration=expected_qua_ramp_dur >> 2,
+        )
+        qua.wait(31, "ch1")  # 40 - 9 = 31 (Hold duration adjustment for QUA ramp)
+        qua.assign(
+            _vseq_tmp_ch2_ramp_rate, 0.0 * qua.Math.div(1.0, expected_qua_ramp_dur)
+        )
+        qua.play(
+            qua.ramp(_vseq_tmp_ch2_ramp_rate),
+            "ch2",
+            duration=expected_qua_ramp_dur >> 2,
+        )
+        qua.wait(31, "ch2")  # 40 - 9 = 31
+
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
