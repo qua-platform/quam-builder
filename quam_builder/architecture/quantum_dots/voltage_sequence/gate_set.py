@@ -94,7 +94,7 @@ class GateSet(QuantumComponent):
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
-    def new_sequence(self, track_integrated_voltage: bool = True) -> "VoltageSequence":
+    def new_sequence(self, track_integrated_voltage: bool = False) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
 
