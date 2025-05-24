@@ -276,19 +276,18 @@ def test_ramp_to_level_with_qua_voltage(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)
-        _vseq_tmp_ch2_ramp_rate = qua.declare(qua.fixed)
-        expected_qua_level = qua.declare(qua.fixed)
+        expected_qua_level = qua.declare(qua.fixed)  # v1
+        _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)  # v2
         qua.assign(expected_qua_level, 0.15)
         # ch1: 0.0 -> qua_level (0.15), ramp=40(10), hold=100(25)
         # ch2: 0.0 -> 0.1 (delta=0.1), ramp=40(10), hold=100(25)
         qua.assign(
-            _vseq_tmp_ch1_ramp_rate, expected_qua_level * qua.Math.div(1.0, 40.0)
+            _vseq_tmp_ch1_ramp_rate,
+            (expected_qua_level - 0.0) * qua.Math.div(1.0, 40.0),
         )
         qua.play(qua.ramp(_vseq_tmp_ch1_ramp_rate), "ch1", duration=10)
         qua.wait(25, "ch1")
-        qua.assign(_vseq_tmp_ch2_ramp_rate, 0.1 * qua.Math.div(1.0, 40.0))
-        qua.play(qua.ramp(_vseq_tmp_ch2_ramp_rate), "ch2", duration=10)
+        qua.play(qua.ramp(0.25 / 100), "ch2", duration=10)
         qua.wait(25, "ch2")
 
     expected_ast = ProgramTreeBuilder().build(expected_program)
