@@ -304,9 +304,9 @@ def test_ramp_to_level_with_qua_ramp_duration(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
+        expected_qua_ramp_dur = qua.declare(int)
         _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)
         _vseq_tmp_ch2_ramp_rate = qua.declare(qua.fixed)
-        expected_qua_ramp_dur = qua.declare(int)
         qua.assign(expected_qua_ramp_dur, 80)
         # ch1: 0.0 -> 0.2 (delta=0.2), ramp=80(20), hold=160(40) -> 40 - 9 = 31
         # ch2: 0.0 -> 0.0 (delta=0.0), ramp=80(20), hold=160(40) -> 40 - 9 = 31

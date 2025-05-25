@@ -151,24 +151,23 @@ class VoltageSequence:
             else py_ramp_duration_ns >> 2
         )
 
-        if ramp_duration_cycles > 0:
-            if is_qua_type(delta_v) or is_qua_type(ramp_duration_ns):
-                ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
-                assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration_ns))
+        if is_qua_type(delta_v) or is_qua_type(ramp_duration_ns):
+            ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
+            assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration_ns))
+            channel.play(
+                ramp(ramp_rate),
+                duration=ramp_duration_cycles,
+                validate=False,
+            )
+        else:
+            py_delta_v = float(str(delta_v))
+            if py_ramp_duration_ns > 0:
+                ramp_rate_val = py_delta_v / py_ramp_duration_ns
                 channel.play(
-                    ramp(ramp_rate),
+                    ramp(ramp_rate_val),
                     duration=ramp_duration_cycles,
                     validate=False,
                 )
-            else:
-                py_delta_v = float(str(delta_v))
-                if py_ramp_duration_ns > 0:
-                    ramp_rate_val = py_delta_v / py_ramp_duration_ns
-                    channel.play(
-                        ramp(ramp_rate_val),
-                        duration=ramp_duration_cycles,
-                        validate=False,
-                    )
 
         py_hold_duration_ns = 0
         if not is_qua_type(hold_duration_ns):
