@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - tools - Added `power_tools.py` from qualibration-libs to remove the dependency. 
 ### Fixed
 - Remove qualibrate and xarray from the requirements.
+- Fixed bug which created a self-reference when using external mixers.
 
 ## [0.1.1] - 2025-07-14
 ### Added
