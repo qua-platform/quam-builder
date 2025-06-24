@@ -148,6 +148,10 @@ class BaseQuam(QuamRoot):
     ]:
         """Macro to declare the necessary QUA variables for all qubits.
 
+        Args:
+            num_IQ_pairs (Optional[int]): Number of IQ pairs (I and Q variables) to declare.
+                If None, it defaults to the number of qubits in `self.qubits`.
+
         Returns:
             tuple: A tuple containing lists of QUA variables and streams.
         """
