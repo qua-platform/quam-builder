@@ -137,6 +137,7 @@ class BaseQuam(QuamRoot):
 
     def declare_qua_variables(
         self,
+        num_IQ_pairs: Optional[int] = None,
     ) -> tuple[
         list[QuaVariable],
         list[StreamType],
@@ -150,12 +151,15 @@ class BaseQuam(QuamRoot):
         Returns:
             tuple: A tuple containing lists of QUA variables and streams.
         """
+        if num_IQ_pairs is None:
+            num_IQ_pairs = len(self.qubits)
+
         n = declare(int)
         n_st = declare_stream()
-        I = [declare(fixed) for _ in range(len(self.qubits))]
-        Q = [declare(fixed) for _ in range(len(self.qubits))]
-        I_st = [declare_stream() for _ in range(len(self.qubits))]
-        Q_st = [declare_stream() for _ in range(len(self.qubits))]
+        I = [declare(fixed) for _ in range(num_IQ_pairs)]
+        Q = [declare(fixed) for _ in range(num_IQ_pairs)]
+        I_st = [declare_stream() for _ in range(num_IQ_pairs)]
+        Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
         return I, I_st, Q, Q_st, n, n_st
 
     def initialize_qpu(self, **kwargs):
