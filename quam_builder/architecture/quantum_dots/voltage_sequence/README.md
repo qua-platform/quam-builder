@@ -4,13 +4,15 @@
 
 This guide describes a Python framework for generating QUA sequences to control DC gate voltages, which is particularly useful for spin qubit experiments.
 The core components, `GateSet` and `VoltageSequence`, enable precise physical voltage control, essential for quantum dot operations and forming a basis for `VirtualGateSet`.
+This framework is specifically designed to work with channels that have **sticky mode enabled**, which is common in quantum dot experiments because any gaps in the pulse sequence maintain a steady voltage level.
+
 Users must ensure their QUAM configuration defines necessary base QUA operations for each channel.
 
 ## 2. Overview
 
 - `GateSet`: A `QuantumComponent` grouping physical `SingleChannel` objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
 
-- `VoltageSequence`: uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines.
+- `VoltageSequence`: uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
 
 **Workflow:**
 
@@ -83,38 +85,56 @@ The sequence must be defined within a QUA program
 
 ```
 with qua.program() as prog:
-voltage_seq = my_gate_set.new_sequence()
+    voltage_seq = my_gate_set.new_sequence()
 
 ```
 
 **Core Methods (used in `qua.program()` context):**
 
-- `step_to_level(levels: Dict, duration)`: Steps specified channels to voltages, holds.
+- `step_to_level(levels: Dict[str, float], duration: int)`  
+  Steps all specified channels directly to the given voltage levels and holds them for the specified duration (in nanoseconds). This creates immediate voltage changes without ramping. Both `levels` values and `duration` can be QUA variables for dynamic control.
 
-  ```
-  voltage_seq.step_to_level(levels={"P1": 0.3, "P2": 0.1}, duration=100)
-
-  ```
-
-- `go_to_point(name: str, duration: Optional[int] = None)`: Steps to a predefined `VoltageTuningPoint`.
-
-  ```
-  voltage_seq.go_to_point("idle")
-
+  ```python
+  voltage_seq.step_to_level(levels={"P1": 0.3, "P2": 0.1}, duration=1000)
   ```
 
-- `ramp_to_level(levels: Dict, duration, ramp_duration)`: Ramps to voltages, holds.
+- `ramp_to_level(levels: Dict[str, float], duration: int, ramp_duration: int)`  
+  Ramps all specified channels to the given voltage levels over the specified ramp duration, then holds them for the duration (both in nanoseconds). This provides smooth voltage transitions useful for avoiding voltage spikes that could affect sensitive quantum systems. All parameters can be QUA variables.
 
-  ```
+  ```python
   voltage_seq.ramp_to_level(levels={"P1": 0.0}, duration=500, ramp_duration=40)
-
   ```
 
-- `ramp_to_point(name: str, ramp_duration, duration: Optional = None)`: Ramps to a predefined `VoltageTuningPoint`, holds.
+- `go_to_point(name: str, duration: Optional[int] = None)`  
+  Steps all channels to the voltages defined in a predefined `VoltageTuningPoint` macro. If no duration is provided, uses the default duration from the tuning point definition. This enables quick transitions to well-defined system states. The `duration` parameter can be a QUA variable.
 
-- `ramp_to_zero(ramp_duration_ns: Optional[int] = None)`: Ramps all channels to zero.
+  ```python
+  voltage_seq.go_to_point("idle")
+  voltage_seq.go_to_point("readout", duration=2000)  # Override default duration
+  ```
 
-- `apply_compensation_pulse(max_voltage: float = 0.49)`: Applies DC compensation (if tracking enabled).
+- `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`  
+  Ramps all channels to the voltages defined in a predefined `VoltageTuningPoint` over the specified ramp duration, then holds them. Combines the smooth transitions of ramping with the convenience of predefined voltage states. Both `ramp_duration` and `duration` can be QUA variables.
+
+  ```python
+  voltage_seq.ramp_to_point("idle", ramp_duration=50, duration=1000)
+  ```
+
+- `ramp_to_zero(ramp_duration_ns: Optional[int] = None)`  
+  Ramps the voltage on all channels in the GateSet to zero and resets the integrated voltage tracking for each channel. If no duration is specified, uses QUA's built-in `ramp_to_zero` command for immediate ramping. Essential for safely returning to a neutral state. The `ramp_duration_ns` parameter can be a QUA variable.
+
+  ```python
+  voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
+  voltage_seq.ramp_to_zero(ramp_duration_ns=100)  # Controlled ramp over 100ns
+  ```
+
+- `apply_compensation_pulse(max_voltage: float = 0.49)`  
+  Applies a compensation pulse to each channel to counteract integrated voltage drift when tracking is enabled. The compensation amplitude is calculated based on the accumulated integrated voltage, with the pulse duration optimized to stay within the specified maximum voltage limit. Only available when `track_integrated_voltage=True`.
+
+  ```python
+  voltage_seq.apply_compensation_pulse()  # Use default 0.49V limit
+  voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom voltage limit
+  ```
 
 ## 5. User Responsibility for QUA Configuration
 
@@ -128,17 +148,7 @@ from quam.components import pulses
 ch.operations["250mV_square"] = pulses.SquarePulse(amplitude=0.25, duration=16)
 ```
 
-## 6. Relevance to Spin Qubits
-
-Precise DC voltage control is vital for:
-
-- Quantum dot formation and tuning.
-
-- Qubit state manipulation (initialization, rotation, readout).
-
-- Maintaining charge stability (DC compensation helps).
-
-## 7. Foundation for Virtual Gates
+## 6. Foundation for Virtual Gates
 
 `GateSet` and `VoltageSequence` provide the physical voltage control layer necessary for `VirtualGateSet`.
 A `VirtualGateSet` translates virtual gate operations into physical gate voltage changes, which are then applied using the `VoltageSequence` mechanisms.

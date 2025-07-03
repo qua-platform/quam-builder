@@ -6,7 +6,7 @@ This document introduces the **VirtualGateSet** and **VirtualisationLayer** comp
 
 Virtual gates simplify complex tuning procedures in experiments, especially for spin qubits, by allowing control over abstract parameters that map to multiple physical gate voltages.
 
-`VirtualGateSet` builds upon `GateSet`, inheriting its ability to manage physical channels and tuning points, while adding the capability to define and apply virtualisation matrices.
+**`VirtualGateSet` builds upon `GateSet` and inherits all of its features**, including physical channel management, `VoltageTuningPoint` definitions, and all voltage control methods. This means you can use virtual gates while still having access to all the voltage control capabilities of the underlying `GateSet`.
 
 ## 2. Core Components
 
@@ -76,30 +76,149 @@ A `VirtualisationLayer` defines a single step in the virtual-to-physical gate vo
    ```python
    vs = v_gate_set.new_sequence()
    ```
-4. **Control Virtual (and Physical) Gates in QUA:** Use `VoltageSequence` methods (e.g., `step_to_level`, `go_to_point`) with virtual gate names, physical gate names, or a mix. The `VirtualGateSet` and `VoltageSequence` will automatically calculate the final physical voltages, summing contributions from all specified levels.
+4. **Control Virtual (and Physical) Gates in QUA:** Use `VoltageSequence` methods with virtual gate names, physical gate names, or a mix. The `VirtualGateSet` and `VoltageSequence` will automatically calculate the final physical voltages, summing contributions from all specified levels.
 
-### 5.1 Example with `VoltageSequence` and Additive Control
+### 5.2 Available VoltageSequence Methods
+
+Since `VirtualGateSet` inherits all features from `GateSet`, you have access to all the same voltage control methods. Here are the key methods you can use:
+
+#### Direct Voltage Control
+
+- `step_to_level(levels: Dict[str, float], duration: int)`  
+  Steps channels directly to specified voltage levels. Both `levels` values and `duration` can be QUA variables.
+
+- `ramp_to_level(levels: Dict[str, float], duration: int, ramp_duration: int)`  
+  Ramps channels to specified voltage levels over the ramp duration, then holds. All parameters can be QUA variables.
+
+#### Predefined Tuning Points
+
+- `go_to_point(name: str, duration: Optional[int] = None)`  
+  Steps to a predefined `VoltageTuningPoint`. The `duration` parameter can be a QUA variable.
+
+- `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`  
+  Ramps to a predefined `VoltageTuningPoint`. Both `ramp_duration` and `duration` can be QUA variables.
+
+#### System Control
+
+- `ramp_to_zero(ramp_duration_ns: Optional[int] = None)`  
+  Ramps all channels to zero and resets integrated voltage tracking. The `ramp_duration_ns` parameter can be a QUA variable.
+
+- `apply_compensation_pulse(max_voltage: float = 0.49)`  
+  Applies compensation pulses to counteract integrated voltage drift (when tracking enabled).
+
+### 5.3 Combining Physical and Virtual Gates
+
+You can seamlessly combine physical and virtual gates in the same operation. The system automatically resolves all contributions and applies them additively to the physical channels.
+
+### 5.4 Complete Example: Multi-Layer Virtual Gates with Physical Control
 
 ```python
-with qua.program() as my_virt_prog:
+from quam.components import SingleChannel
+from quam_builder.architecture.quantum_dots.virtual_gates import VirtualGateSet
+
+# Physical channels for a double quantum dot
+physical_channels = {"P1": channel_P1, "P2": channel_P2, "P3": channel_P3}
+v_gate_set = VirtualGateSet(id="double_dot_gates", channels=physical_channels)
+
+# Add coarse tuning layer (virtual gates for overall dot positions)
+v_gate_set.add_layer(
+    source_gates=["v_Coarse1", "v_Coarse2"],
+    target_gates=["P1", "P2"],
+    matrix=[[1.0, 0.5], [0.5, 1.0]]  # Coupled control
+)
+
+# Add fine tuning layer (virtual gates for precise adjustments)
+v_gate_set.add_layer(
+    source_gates=["v_FineTune1", "v_FineTune2"],
+    target_gates=["v_Coarse1", "v_Coarse2"],
+    matrix=[[0.1, 0.0], [0.0, 0.1]]  # Small adjustments
+)
+
+# Add a predefined tuning point for readout
+v_gate_set.add_point(name="readout", voltages={"v_Coarse1": 0.2, "v_Coarse2": 0.1}, duration=1000)
+
+# Create voltage sequence
+with qua.program() as complex_control:
+    voltage_seq = v_gate_set.new_sequence()
+
+    # Step to a virtual gate configuration
     voltage_seq.step_to_level(
-        levels={
-            "v_FineTune": 0.1,  # High-level virtual gate change
-            "P2": 0.05          # Direct physical gate adjustment
-        },
-        duration=100  # ns
+        levels={"v_FineTune1": 0.05, "v_FineTune2": -0.02},
+        duration=500
     )
 
-# Resolution steps:
-# 1. v_FineTune (0.1 V) -> v_Coarse1:
-#    Inverse of [[0.5]] is [[2.0]], so contribution = 2.0 * 0.1 = 0.2 V.
-# 2. v_Coarse1 and v_Coarse2 layer with inverse [[0.5, -0.5], [0.0, 1.0]]:
-#    P1 += 0.5 * 0.2 = 0.1 V; P2 += 0.0 * 0.2 = 0.
-# 3. Add direct P2 = 0.05 V.
-# Final: P1 = 0.1 V; P2 = 0.05 V.
+    # Ramp to a predefined point
+    voltage_seq.ramp_to_point("readout", ramp_duration=100, duration=2000)
+
+    # Combine virtual and physical control
+    voltage_seq.step_to_level(
+        levels={
+            "v_FineTune1": 0.1,    # Virtual gate adjustment
+            "P3": 0.3              # Direct physical gate control
+        },
+        duration=1000
+    )
+
+    # Fine ramp with virtual gates
+    voltage_seq.ramp_to_level(
+        levels={"v_FineTune2": 0.0},
+        duration=500,
+        ramp_duration=50
+    )
+
+    # Return to zero
+    voltage_seq.ramp_to_zero(ramp_duration_ns=200)
+
+# The system automatically resolves all virtual gate contributions:
+# - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
+# - v_FineTune2 (0.0V) -> v_Coarse2: 0.0V contribution
+# - v_Coarse1 (0.1V) + readout (0.2V) -> P1: 0.3V total
+# - v_Coarse2 (0.0V) + readout (0.1V) -> P2: 0.1V total
+# - P3: 0.3V direct control
 ```
 
-## 6. Relevance to Spin Qubits
+## 6. Underlying Architecture and Voltage Resolution
+
+### 6.1 How Virtual Gate Resolution Works
+
+When you apply a voltage operation on virtual gates, the system automatically converts this to voltages applied to the underlying physical gates using matrix transformations. Here's how it works:
+
+1. **Matrix-Based Transformation**: Each `VirtualisationLayer` defines a transformation matrix that maps virtual gate voltages to target gate voltages (either physical gates or lower-level virtual gates).
+
+2. **Multi-Layer Resolution**: For multi-layer virtualisation, the system processes layers from the outermost (highest-level virtual gates) to the innermost (physical gates), applying the inverse of each transformation matrix.
+
+3. **Additive Contributions**: All contributions from virtual gates at different layers are summed together at the physical gate level, allowing for complex control schemes.
+
+### 6.2 Core Allocation and Performance
+
+**One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualisation layers. This has important implications:
+
+- **Scalable Performance**: Adding virtual gates or virtualisation layers doesn't increase the computational load on the QUA system
+- **Real-Time Operation**: All matrix calculations are performed at compile time, not during execution
+- **Predictable Resource Usage**: The number of cores required is determined solely by the number of physical channels
+
+For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualisation layers, you still only need 3 cores - one for each physical gate.
+
+### 6.3 Matrix Calculation Example
+
+Consider a simple two-layer system:
+
+```python
+# Layer 1: Virtual gates to physical gates
+matrix_1 = [[1.0, 0.5], [0.5, 1.0]]  # v_Coarse1, v_Coarse2 -> P1, P2
+
+# Layer 2: Higher-level virtual gates to Layer 1 virtual gates
+matrix_2 = [[0.1, 0.0], [0.0, 0.1]]  # v_FineTune1, v_FineTune2 -> v_Coarse1, v_Coarse2
+```
+
+When you set `v_FineTune1 = 0.1V`, the system:
+
+1. Applies inverse of matrix_2: `v_Coarse1 = 0.1V / 0.1 = 1.0V`
+2. Applies inverse of matrix_1: `P1 = 1.0V * 1.0 + 0V * 0.5 = 1.0V`, `P2 = 1.0V * 0.5 + 0V * 1.0 = 0.5V`
+
+This transformation happens at compile time, so the QUA program only sees the final physical gate voltages.
+
+## 7. Relevance to Spin Qubits
 
 Virtual gates are extremely powerful for operating spin qubits:
 
