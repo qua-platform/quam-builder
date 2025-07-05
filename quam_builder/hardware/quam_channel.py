@@ -230,75 +230,35 @@ class QdacOpxChannel(SingleChannel):
         return d
 
     
+@quam_dataclass
+class QdacOpxReadout(InOutSingleChannel):
+    qdac: object
+    qdac_channel: int
+    qdac_unit: str = 'V'
+    dc_channel: QdacChannel = field(init = False)
+    qdac_max_slew_rate: float = 1.0
+    couplings: dict[str, float] = field(default_factory = dict, repr = False)
 
-class QdacOpxReadout:
-    def __init__(self, opx_channel: InOutSingleChannel):
-        self._opx = opx_channel
+    def __post_init__(self):
+        super().__post_init__()
+        self.dc_channel = QdacChannel(
+            id = f"{self.id}_dc", 
+            qdac = self.qdac,
+            channel = self.qdac_channel,
+            unit = self.qdac_unit, 
+            max_slew_rate=self.qdac_max_slew_rate,
+        )
 
-    @property
-    def id(self) -> str:
-        return self._opx.id
+    def set_dc_V(self, dc_V: float):
+        """Set a voltage on the wrapped param (channel.dc_constant_V)"""
+        self.dc_channel.set_dc_V(dc_V)
     
-    @property
-    def name(self) -> str:
-        return self._opx.name
-
-    def __getattr__(self, name):
-        """
-        Anything you don’t explicitly define on QdacOpxReadout
-        gets forwarded to the underlying OPX InOutSingleChannel.
-        """
-        return getattr(self._opx, name)
-
-    def __dir__(self):
-        # make introspection (e.g. tab‐completion) include OPX’s attributes too
-        return sorted(set(super().__dir__()) | set(dir(self._opx)))
-
-
-
-
-
-# class QdacOpxChannel:
-#     def __init__(self, id,  opx_channel: SingleChannel, qdac:object, qdac_channel:int, unit:str = 'V', max_slew_rate:float = 1.0, coupling: Dict[str, float] = None):
-#         self._opx = opx_channel
-#         self.gate_id = id
-#         self._dc = QdacChannel(
-#             id = f"{self.id}_dc", 
-#             qdac = qdac,
-#             channel = qdac_channel,
-#             unit = unit, 
-#             max_slew_rate=max_slew_rate,
-#         )
-
-#         self.couplings: Dict[str, float] = coupling.copy() if coupling else {}
-
-
-#     @property
-#     def id(self) -> str:
-#         return self._opx.id
+    def get_dc_V(self) -> float:
+        """Get the DC voltage on the wrapped param (channel.dc_constant_V)"""
+        return self.dc_channel.get_dc_V()
     
-#     @property
-#     def name(self) -> str:
-#         return self._opx.name
-    
-#     def set_dc_V(self, dc_V: float):
-#         """Set a voltage on the wrapped param (channel.dc_constant_V)"""
-#         self._dc.set_dc_V(dc_V)
-    
-#     def get_dc_V(self) -> float:
-#         """Get the DC voltage on the wrapped param (channel.dc_constant_V)"""
-#         return self._dc.get_dc_V()
-    
-
-#     def __getattr__(self, name):
-#         """
-#         Anything you don’t explicitly define on QdacOpxChannel
-#         gets forwarded to the underlying OPX SingleChannel.
-#         """
-#         return getattr(self._opx, name)
-
-#     def __dir__(self):
-#         # make introspection (e.g. tab‐completion) include OPX’s attributes too
-#         return sorted(set(super().__dir__()) | set(dir(self._opx)))
-
+    def to_dict(self, follow_references = False, include_defaults = False):
+        d = super().to_dict(follow_references, include_defaults)
+        d.pop('couplings', None)
+        return d
 
