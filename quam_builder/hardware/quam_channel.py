@@ -181,7 +181,7 @@ class QdacChannel(QuamBase):
 
 class CoupledSingleChannel(SingleChannel):
     """
-    Quick subclass to add a couplings input, that is not going to be saved in your QUAM
+    Quick subclass to add a couplings input, that is not going to be saved in your QUAM state
     """
     def __init__(self, *args, couplings: dict[str, float], **kwargs):
         super().__init__(*args, **kwargs)
@@ -192,7 +192,18 @@ class CoupledSingleChannel(SingleChannel):
         d.pop('couplings', None)
         return d
     
+class CoupledInOutSingleChannel(InOutSingleChannel):
+    """
+    Quick subclass to add a couplings input to the normal InOutSingleChannel. Couplings not saved in the QUAM state
+    """
+    def __init__(self, *args, couplings: dict[str, float], **kwargs):
+        super().__init__(*args, **kwargs)
+        self.couplings = couplings or {}
 
+    def to_dict(self, follow_references = False, include_defaults = False):
+        d = super().to_dict(follow_references, include_defaults)
+        d.pop('couplings', None)
+        return d
 
 
 
