@@ -161,6 +161,11 @@ class QdacChannel(QuamBase):
         """Get the DC voltage on the wrapped param (channel.dc_constant_V)"""
         return self.dc_param.get_latest()
     
+    def to_dict(self, follow_references = False, include_defaults = False):
+        d = super().to_dict(follow_references, include_defaults)
+        d.pop('qdac', None)
+        return d
+    
     # def set_dc_zero(self):
     #     self.dc_param.set(0)
 
@@ -238,6 +243,8 @@ class QdacOpxChannel(SingleChannel):
     def to_dict(self, follow_references = False, include_defaults = False):
         d = super().to_dict(follow_references, include_defaults)
         d.pop('couplings', None)
+        d.pop('qdac', None)
+        d['dc_channel'] = self.dc_channel.get_dc_V()
         return d
 
     
@@ -271,5 +278,8 @@ class QdacOpxReadout(InOutSingleChannel):
     def to_dict(self, follow_references = False, include_defaults = False):
         d = super().to_dict(follow_references, include_defaults)
         d.pop('couplings', None)
+        d.pop('qdac', None)
+        #Don't store the qdac information, just what dc voltage was supplied for this 
+        d['dc_channel'] = self.dc_channel.get_dc_V()
         return d
 

@@ -4,7 +4,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 from quam_builder.hardware.quam_channel import QdacOpxChannel
 
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING, Optional
 from dataclasses import field
 
 if TYPE_CHECKING:
@@ -14,8 +14,10 @@ if TYPE_CHECKING:
     )
 
 from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
+from quam.components import BasicQuam, Channel, Octave
+__all__ = ["GateSet", "VoltageTuningPoint", "GateSetQuam"]
 
-__all__ = ["GateSet", "VoltageTuningPoint"]
+
 
 
 @quam_dataclass
@@ -117,6 +119,14 @@ class GateSet(QuantumComponent):
         )
 
         return VoltageSequence(self, track_integrated_voltage)
+
+
+@quam_dataclass
+class GateSetQuam(BasicQuam):
+    channels: Dict[str, Channel] = field(default_factory=dict)
+    octaves: Dict[str, Octave] = field(default_factory=dict)
+
+    gate_set: Optional[GateSet] = None
 
 @quam_dataclass
 class QdacGateSet(GateSet):

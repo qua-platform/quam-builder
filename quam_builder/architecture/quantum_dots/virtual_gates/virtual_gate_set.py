@@ -254,7 +254,7 @@ class VirtualQdacGateSet(QdacGateSet, VirtualGateSet):
                 j = self._gate_index[neighbour]
                 M[i,j] = coupling
                 M[j,i] = coupling
-        self.cross_capacitance_matrix = M
+        self.cross_capacitance_matrix = M.tolist()
 
         if self.layers: 
             for layer in self.layers: 
