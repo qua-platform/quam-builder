@@ -280,7 +280,7 @@ class VirtualQdacGateSet(QdacGateSet, VirtualGateSet):
 
         nonzero_indices = np.nonzero(delta_full)[0]
 
-        sub_cc_matrix = self.cross_capacitance_matrix[np.ix_(nonzero_indices, nonzero_indices)]
+        sub_cc_matrix = np.array(self.cross_capacitance_matrix)[np.ix_(nonzero_indices, nonzero_indices)]
         inv_cc_matrix = np.linalg.inv(sub_cc_matrix)
 
         M = np.eye(N)
