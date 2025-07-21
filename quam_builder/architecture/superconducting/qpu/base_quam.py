@@ -83,6 +83,14 @@ class BaseQuam(QuamRoot):
                 octave_config = octave.get_octave_config()
         return octave_config
 
+    def get_octave_calibration_db_path(self) -> str:
+        """Return the path to the Octave calibration database."""
+        octave_calibration_db_path = None
+        for octave in self.octaves.values():
+            if octave_calibration_db_path is None:
+                octave_calibration_db_path = octave.calibration_db_path
+        return octave_calibration_db_path
+
     def connect(self) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
@@ -92,7 +100,8 @@ class BaseQuam(QuamRoot):
         settings = dict(
             host=self.network["host"],
             cluster_name=self.network["cluster_name"],
-            octave=self.get_octave_config(),
+            # octave=self.get_octave_config(),
+            octave_calibration_db_path=self.get_octave_calibration_db_path()
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
