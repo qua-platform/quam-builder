@@ -101,7 +101,7 @@ class BaseQuam(QuamRoot):
             host=self.network["host"],
             cluster_name=self.network["cluster_name"],
             # octave=self.get_octave_config(),
-            octave_calibration_db_path=self.get_octave_calibration_db_path()
+            octave_calibration_db_path=self.get_octave_calibration_db_path(),
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
