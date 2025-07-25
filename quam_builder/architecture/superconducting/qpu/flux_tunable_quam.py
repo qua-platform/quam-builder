@@ -5,11 +5,11 @@ from typing import Dict, Union, ClassVar, Type
 from quam.core import quam_dataclass
 
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
-from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
+from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 
-__all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+__all__ = ["FluxTunableQuam", "FluxTunableCrossDriveQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 
 @quam_dataclass
@@ -133,3 +133,20 @@ class FluxTunableQuam(BaseQuam):
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
+
+
+class FluxTunableCrossDriveQuam(FluxTunableQuam):
+    """Example of a QUAM composed of flux tunable cr transmons.
+
+    Attributes:
+        qubit_pair_type (ClassVar[Type[FixedFrequencyTransmonPair]]): The type of the qubit pairs in the QUAM for type hinting.
+        qubit_pairs (Dict[str, FixedFrequencyTransmonPair]): A dictionary of qubit pairs composing the QUAM.
+
+    """
+    qubit_pair_type: ClassVar[Type[FluxTunableCrossDriveTransmonPair]] = FluxTunableCrossDriveTransmonPair
+    qubit_pairs: Dict[str, FluxTunableCrossDriveTransmonPair] = field(default_factory=dict)
+
+    @classmethod
+    def load(cls, *args, **kwargs) -> "FluxTunableCrossDriveQuam":
+        return super().load(*args, **kwargs)
+    
