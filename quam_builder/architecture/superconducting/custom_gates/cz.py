@@ -58,7 +58,8 @@ class CZGate(QubitPairMacro):
     def apply(
         self,
         *,
-        amplitude_scale=None,
+        amplitude_scale_control=None,
+        amplitude_scale_coupler=None,
         phase_shift_control=None,
         phase_shift_target=None,
         **kwargs,
@@ -66,11 +67,13 @@ class CZGate(QubitPairMacro):
         self.qubit_pair.qubit_control.z.play(
             self.flux_pulse_control_label,
             validate=False,
-            amplitude_scale=amplitude_scale,
+            amplitude_scale=amplitude_scale_control,
         )
 
         if self.coupler_flux_pulse is not None:
-            self.qubit_pair.coupler.play(self.coupler_flux_pulse_label, validate=False)
+            self.qubit_pair.coupler.play(
+                self.coupler_flux_pulse_label, validate=False, amplitude_scale=amplitude_scale_coupler
+            )
 
         self.qubit_pair.align()
         if phase_shift_control is not None:
