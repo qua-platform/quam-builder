@@ -7,6 +7,14 @@ from quam.components.channels import MWChannel
 
 from qualang_tools.units import unit
 
+__all__ = [
+    "set_output_power_mw_channel",
+    "get_output_power_mw_channel",
+    "set_output_power_iq_channel",
+    "get_output_power_iq_channel",
+    "calculate_voltage_scaling_factor",
+]
+
 
 def set_output_power_mw_channel(
     channel: MWChannel,
