@@ -3,7 +3,7 @@ from typing import Optional
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
 
-from qualibration_libs.hardware.power_tools import (
+from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
     set_output_power_mw_channel,
     get_output_power_mw_channel,
