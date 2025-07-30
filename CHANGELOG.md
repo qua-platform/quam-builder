@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 ### Added
-- tools - `power_tools.py` from qualibration-libs to remove the dependency. 
+- tools - Added `power_tools.py` from qualibration-libs to remove the dependency. 
 ### Fixed
 - Remove qualibrate and xarray from the requirements.
 
