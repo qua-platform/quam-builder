@@ -59,6 +59,7 @@ class BaseQuam(QuamRoot):
     network: dict = field(default_factory=dict)
 
     active_qubit_names: List[str] = field(default_factory=list)
+    active_coupler_names: List[str] = field(default_factory=list)
     active_qubit_pair_names: List[str] = field(default_factory=list)
 
     ports: Union[FEMPortsContainer, OPXPlusPortsContainer] = None
