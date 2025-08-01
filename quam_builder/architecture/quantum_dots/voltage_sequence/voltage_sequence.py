@@ -47,9 +47,6 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 # QUA_COMPENSATION_GAP_NS = 96 # Not used if Channel methods handle timing
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
-DEFAULT_PULSE_NAME = "250mV_square"
-DEFAULT_WF_AMPLITUDE = 0.25
-
 
 class VoltageSequence:
     """
@@ -57,7 +54,7 @@ class VoltageSequence:
     on a set of gate channels defined within a GateSet.
 
     The user is responsible for ensuring that each QUAM Channel object in the
-    GateSet has an operation defined in the QUA configuration named DEFAULT_PULSE_NAME,
+    GateSet has an operation defined in the QUA configuration named "half_max_square",
     which is '250mV_square' by default. This operation should correspond to a pulse
     of MIN_PULSE_DURATION_NS (16ns) with a waveform whose constant sample value is
     DEFAULT_BASE_WF_SAMPLE (0.25V).
@@ -95,6 +92,9 @@ class VoltageSequence:
         duration_ns: DurationType,
     ):
         """Plays a scaled step on a single channel."""
+        DEFAULT_WF_AMPLITUDE = channel.operations["half_max_square"].amplitude
+        DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
+        MIN_PULSE_DURATION_NS = channel.operations["half_max_square"].length
         py_duration_ns = 0
         if not is_qua_type(duration_ns):
             py_duration_ns = int(float(str(duration_ns)))
@@ -103,7 +103,7 @@ class VoltageSequence:
             return
 
         if is_qua_type(delta_v):
-            scaled_amp = delta_v * (1.0 / DEFAULT_WF_AMPLITUDE)
+            scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
             scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
         duration_cycles = duration_ns >> 2  # Convert ns to clock cycles
@@ -112,7 +112,7 @@ class VoltageSequence:
             # If duration is QUA, it must be in clock cycles for play override
             # Assuming QUA duration_ns is already in ns, convert to cycles
             channel.play(
-                DEFAULT_PULSE_NAME,
+                "half_max_square",
                 amplitude_scale=scaled_amp,
                 duration=duration_cycles,
                 validate=False,  # Do not validate as pulse may not exist yet
@@ -120,14 +120,14 @@ class VoltageSequence:
         else:  # Fixed Python duration
             if py_duration_ns == MIN_PULSE_DURATION_NS:
                 channel.play(
-                    DEFAULT_PULSE_NAME,
+                    "half_max_square",
                     amplitude_scale=scaled_amp,
                     duration=duration_cycles,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
             elif py_duration_ns > 0:
                 channel.play(
-                    DEFAULT_PULSE_NAME,
+                    "half_max_square",
                     amplitude_scale=scaled_amp,
                     duration=py_duration_ns >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
@@ -405,6 +405,9 @@ class VoltageSequence:
             raise ValueError("max_voltage must be positive.")
 
         for ch_name, channel_obj in self.gate_set.channels.items():
+            DEFAULT_WF_AMPLITUDE = channel_obj.operations["half_max_square"].amplitude
+            DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
+
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
@@ -423,11 +426,11 @@ class VoltageSequence:
 
                 delta_v = py_comp_amp - float(str(current_v))
                 if is_qua_type(delta_v):
-                    scaled_amp = delta_v * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10)
+                    scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
                 else:
                     scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
                 channel_obj.play(
-                    DEFAULT_PULSE_NAME,
+                    "half_max_square",
                     amplitude_scale=scaled_amp,
                     duration=py_comp_dur >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
@@ -438,10 +441,10 @@ class VoltageSequence:
                     tracker, max_voltage, channel_obj.name
                 )
                 delta_v_q = q_comp_amp - current_v
-                scaled_amp_q = delta_v_q * (1.0 / DEFAULT_WF_AMPLITUDE)
+                scaled_amp_q = delta_v_q << DEFAULT_AMPLITUDE_BITSHIFT
                 with if_(q_comp_dur_4ns > 0):
                     channel_obj.play(
-                        DEFAULT_PULSE_NAME,
+                        "half_max_square",
                         amplitude_scale=scaled_amp_q,
                         duration=q_comp_dur_4ns >> 2,
                         validate=False,  # Do not validate as pulse may not exist yet
@@ -457,6 +460,7 @@ class VoltageSequence:
         ramp_duration_ns: int,
     ):
         """Helper for ramp_to_zero when a specific duration is provided."""
+        DEFAULT_WF_AMPLITUDE = channel_obj.operations["half_max_square"].amplitude
         current_v = tracker.current_level
         validate_duration(ramp_duration_ns, "ramp_duration_ns")
 
@@ -470,7 +474,7 @@ class VoltageSequence:
                 )
             with else_():  # Duration is 0, effectively a step
                 channel_obj.play(
-                    DEFAULT_PULSE_NAME,
+                    "half_max_square",
                     amplitude_scale=-current_v
                     * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
                     duration=ramp_duration_ns >> 2,
@@ -494,7 +498,7 @@ class VoltageSequence:
                         delta_v_to_zero * (1.0 / DEFAULT_WF_AMPLITUDE), 10
                     )
                 channel_obj.play(
-                    DEFAULT_PULSE_NAME,
+                    "half_max_square",
                     amplitude_scale=scaled_amp_to_zero,
                     duration=ramp_duration_ns >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
