@@ -134,7 +134,15 @@ class FluxTunableQuam(BaseQuam):
             target.to_interaction_idle()
             target_bias = target.interaction_offset
 
-        target.z.settle()
+        if isinstance(target, FluxTunableTransmon):
+            target.z.settle()
+        elif isinstance(target, FluxTunableTransmonPair):
+            target.coupler.settle()
+        elif isinstance(target, TunableCoupler):
+            target.settle()
+        else:
+            raise NotImplementedError()
+
         target.align()
         return target_bias
 
