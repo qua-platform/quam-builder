@@ -12,6 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Remove qualibrate and xarray from the requirements.
 - Fixed bug which created a self-reference when using external mixers.
 
+## [0.1.2] - 2025-07-25
+### Added
+- QuamMacros for Cross Resonance and CZ.
+- Architecture components for Flux Tunable Cross Drive TransmonPair.
+- Fix for `upconverter_frequency` property under `XYDriveMW`.  
+
 ## [0.1.1] - 2025-07-14
 ### Added
 - Optional `num_IQ_pairs` argument to `declare_qua_variables`.  

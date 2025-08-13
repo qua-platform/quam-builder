@@ -13,18 +13,19 @@ from quam_builder.architecture.superconducting.qubit_pair.flux_tunable_transmon_
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
+    FluxTunableCrossDriveTransmonPair,
 )
 
 
 def add_transmon_pair_tunable_coupler_component(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair],
     wiring_path: str,
     ports: Dict[str, str],
 ):
     """Adds a tunable coupler component to a transmon qubit pair based on the provided wiring path and ports.
 
     Args:
-        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the tunable coupler component will be added.
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair]): The transmon qubit pair to which the tunable coupler component will be added.
         wiring_path (str): The path to the wiring configuration.
         ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 
@@ -48,14 +49,14 @@ def add_transmon_pair_tunable_coupler_component(
 
 
 def add_transmon_pair_cross_resonance_component(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair],
     wiring_path: str,
     ports: Dict[str, str],
 ):
     """Adds a cross resonance component to a transmon qubit pair based on the provided wiring path and ports.
 
     Args:
-        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the cross resonance component will be added.
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair]): The transmon qubit pair to which the cross resonance component will be added.
         wiring_path (str): The path to the wiring configuration.
         ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 
@@ -91,14 +92,14 @@ def add_transmon_pair_cross_resonance_component(
 
 
 def add_transmon_pair_zz_drive_component(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair],
     wiring_path: str,
     ports: Dict[str, str],
 ):
     """Adds a ZZ drive component to a transmon qubit pair based on the provided wiring path and ports.
 
     Args:
-        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the ZZ drive component will be added.
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair]): The transmon qubit pair to which the ZZ drive component will be added.
         wiring_path (str): The path to the wiring configuration.
         ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 

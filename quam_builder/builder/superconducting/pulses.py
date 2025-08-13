@@ -7,6 +7,7 @@ from quam_builder.architecture.superconducting.qubit import (
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
+    FluxTunableCrossDriveTransmonPair,
 )
 import numpy as np
 from typing import Union
@@ -292,7 +293,7 @@ def add_default_transmon_pulses(
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair]
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
@@ -300,7 +301,7 @@ def add_default_transmon_pair_pulses(
         * transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(amplitude=0.1, length=100)
 
     Args:
-        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the pulses will be added.
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair]): The transmon qubit pair to which the pulses will be added.
     """
     if hasattr(transmon_pair, "coupler"):
         if transmon_pair.coupler is not None:

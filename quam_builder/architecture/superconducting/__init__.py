@@ -10,9 +10,12 @@ from .components import (
     zz_drive,
     xy_drive,
 )
+from .custom_gates.cross_resonance import CRGate
+
 
 __all__ = [
     *qpu.__all__,
     *qubit.__all__,
     *qubit_pair.__all__,
+    *custom_gates.__all__,
 ]
