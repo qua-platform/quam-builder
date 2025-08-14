@@ -10,6 +10,7 @@ from quam_builder.architecture.superconducting.components.tunable_coupler import
 )
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
+    FluxTunableZZDriveTransmon,
 )
 from quam_builder.architecture.superconducting.components.cross_resonance import (
     CrossResonanceIQ,
@@ -97,60 +98,16 @@ class FluxTunableTransmonPair(QubitPair):
         self.qubit_target.z.set_dc_offset(self.mutual_flux_bias[1])
 
 
-
 @quam_dataclass
-class FluxTunableCrossDriveTransmonPair(QubitPair):
+class FluxTunableCrossDriveTransmonPair(FluxTunableTransmonPair):
     """A mixed qubit pair with both fixed-frequency and flux-tunable features."""
 
-    id: Union[int, str]
-
     # From FluxTunableTransmonPair
-    qubit_control: FluxTunableTransmon = None
-    qubit_target: FluxTunableTransmon = None
-    coupler: Optional[TunableCoupler] = None
+    qubit_control: FluxTunableZZDriveTransmon = None
+    qubit_target: FluxTunableZZDriveTransmon = None
     detuning: Optional[float] = None
-    mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
 
     # From FixedFrequencyTransmonPair
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
-    xy_detuned: Union[MWChannel, IQChannel] = None
 
-    # Shared fields
-    confusion: Optional[List[List[float]]] = None
-    extras: Dict[str, Any] = field(default_factory=dict)
-
-    def align(self):
-        """Align channels from both subsystems and any additional components."""
-        channels = []
-
-        for qubit in [self.qubit_control, self.qubit_target]:
-            if qubit:
-                channels += [ch.name for ch in qubit.channels.values()]
-
-        for qubit in [self.fixed_qubit_control, self.fixed_qubit_target]:
-            if qubit:
-                channels += [ch.name for ch in qubit.channels.values()]
-
-        for component in [self.coupler, self.cross_resonance, self.zz_drive, self.xy_detuned]:
-            if component:
-                channels.append(component.name)
-
-        # Include CZ compensation channels if present
-        if hasattr(self, "macros") and "CZ" in self.macros:
-            for compensation in getattr(self.macros["CZ"], "compensations", []):
-                channels += [ch.name for ch in compensation["qubit"].channels.values()]
-
-        align(*channels)
-
-    def wait(self, duration):
-        """Wait across all relevant channels."""
-        # Same channel logic as align()
-        self.align()  # align does the same collection, so reuse it
-        wait(duration, *self._last_aligned_channels)
-
-    def to_mutual_idle(self):
-        """Set mutual idle bias if using the flux qubits."""
-        if self.qubit_control and self.qubit_target:
-            self.qubit_control.z.set_dc_offset(self.mutual_flux_bias[0])
-            self.qubit_target.z.set_dc_offset(self.mutual_flux_bias[1])

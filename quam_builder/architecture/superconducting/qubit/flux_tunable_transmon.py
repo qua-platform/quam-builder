@@ -1,11 +1,13 @@
+from typing import Union
 from quam.core import quam_dataclass
 
+from quam.components.channels import IQChannel, MWChannel
 from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
     FixedFrequencyTransmon,
 )
 from quam_builder.architecture.superconducting.components.flux_line import FluxLine
 
-__all__ = ["FluxTunableTransmon"]
+__all__ = ["FluxTunableTransmon", "FluxTunableZZDriveTransmon"]
 
 
 @quam_dataclass
@@ -25,3 +27,10 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
     freq_vs_flux_01_quad_term: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
+
+
+@quam_dataclass
+class FluxTunableZZDriveTransmon(FluxTunableTransmon):
+    """Quam Component for flux-tunable features and added Stark ZZ drive."""
+    
+    xy_detuned: Union[MWChannel, IQChannel] = None

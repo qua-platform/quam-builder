@@ -4,12 +4,13 @@ from typing import Dict, Union, ClassVar, Type
 
 from quam.core import quam_dataclass
 
-from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
+from quam_builder.architecture.superconducting.qubit import AnyFluxTunableTransmon
+from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon, FluxTunableZZDriveTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair, FluxTunableCrossDriveTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 
-__all__ = ["FluxTunableQuam", "FluxTunableCrossDriveQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+__all__ = ["FluxTunableQuam", "FluxTunableCrossDriveQuam"]
 
 
 @quam_dataclass
@@ -143,10 +144,55 @@ class FluxTunableCrossDriveQuam(FluxTunableQuam):
         qubit_pairs (Dict[str, FixedFrequencyTransmonPair]): A dictionary of qubit pairs composing the QUAM.
 
     """
+    qubit_type: ClassVar[Type[FluxTunableZZDriveTransmon]] = FluxTunableZZDriveTransmon
     qubit_pair_type: ClassVar[Type[FluxTunableCrossDriveTransmonPair]] = FluxTunableCrossDriveTransmonPair
+
+    qubits: Dict[str, FluxTunableZZDriveTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FluxTunableCrossDriveTransmonPair] = field(default_factory=dict)
+
 
     @classmethod
     def load(cls, *args, **kwargs) -> "FluxTunableCrossDriveQuam":
         return super().load(*args, **kwargs)
     
+    def set_all_fluxes(
+        self,
+        flux_point: str,
+        target: Union[FluxTunableZZDriveTransmon, FluxTunableCrossDriveTransmonPair],
+    ):
+        """Set the fluxes to the specified point for the target qubit or qubit pair.
+
+        Args:
+            flux_point (str): The flux point to set ('independent', 'pairwise', 'joint', 'min').
+            target (Union[FluxTunableZZDriveTransmon, FluxTunableCrossDriveTransmonPair]): The target qubit or qubit pair.
+        """
+        if flux_point == "independent":
+            assert isinstance(
+                target, FluxTunableZZDriveTransmon
+            ), "Independent flux point is only supported for individual transmons"
+        elif flux_point == "pairwise":
+            assert isinstance(
+                target, FluxTunableCrossDriveTransmonPair
+            ), "Pairwise flux point is only supported for transmon pairs"
+
+        target_bias = None
+        if flux_point == "joint":
+            self.apply_all_flux_to_joint_idle()
+            if isinstance(target, FluxTunableCrossDriveTransmonPair):
+                target_bias = target.mutual_flux_bias
+            else:
+                target_bias = target.z.joint_offset
+        else:
+            self.apply_all_flux_to_min()
+
+        if flux_point == "independent":
+            target.z.to_independent_idle()
+            target_bias = target.z.independent_offset
+
+        elif flux_point == "pairwise":
+            target.to_mutual_idle()
+            target_bias = target.mutual_flux_bias
+
+        target.z.settle()
+        target.align()
+        return target_bias
