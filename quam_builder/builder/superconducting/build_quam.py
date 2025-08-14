@@ -21,6 +21,9 @@ from quam_builder.builder.superconducting.add_transmon_pair_component import (
 from quam_builder.builder.superconducting.add_transmon_resonator_component import (
     add_transmon_resonator_component,
 )
+from quam_builder.builder.superconducting.add_twpa_pump_component import (
+    add_twpa_pump_component
+)
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
@@ -41,6 +44,7 @@ def build_quam(
     add_external_mixers(machine)
     add_ports(machine)
     add_transmons(machine)
+    add_twpas(machine)
     add_pulses(machine)
 
     machine.save()
@@ -78,7 +82,6 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -
     y = qubit_number % number_of_rows
     x = qubit_number // number_of_rows
     return f"{x},{y}"
-
 
 def add_transmons(machine: AnyQuam):
     """Adds transmon qubits and qubit pairs to the machine based on the wiring configuration.
@@ -139,6 +142,34 @@ def add_transmons(machine: AnyQuam):
                         raise ValueError(f"Unknown line type: {line_type}")
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
                     machine.active_qubit_pair_names.append(transmon_pair.name)
+                    
+def add_twpas(machine: AnyQuam):
+    """Adds TWPAs to the machine based on the wiring configuration.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the transmons will be added.
+    """
+    for element_type, wiring_by_element in machine.wiring.items():
+        if element_type == "twpas":
+            machine.active_twpa_names = []
+            number_of_twpas = len(wiring_by_element.items())
+            twpa_number = 0
+            for twpa_id, wiring_by_line_type in wiring_by_element.items():
+                twpa_class = machine.twpa_type
+                twpa = twpa_class(id=twpa_id)
+                machine.twpas[twpa_id] = twpa
+                machine.twpas[twpa_id].grid_location = _set_default_grid_location(
+                    twpa_number, number_of_twpas
+                )
+                twpa_number += 1
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{twpa_id}/{line_type}"
+                    if line_type == WiringLineType.PUMP.value:
+                        add_twpa_pump_component(twpa, wiring_path, ports)
+                    else:
+                        raise ValueError(f"Unknown line type: {line_type}")
+                machine.active_twpa_names.append(twpa.name)
+
 
 
 def add_pulses(machine: AnyQuam):
