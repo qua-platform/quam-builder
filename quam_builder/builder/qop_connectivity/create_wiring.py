@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from functools import reduce
 from qualang_tools.wirer import Connectivity
-from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference
+from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference, TWPAReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 from quam_builder.builder.qop_connectivity.create_analog_ports import (
@@ -50,6 +50,14 @@ def create_wiring(connectivity: Connectivity) -> dict:
                     set_nested_value_with_path(
                         wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
                     )
+            
+            elif line_type in [
+                WiringLineType.PUMP
+            ]:
+                for k, v in twpa_wiring(channels, element_id, line_type).items():
+                    set_nested_value_with_path(
+                        wiring, f"twpas/{element_id}/{line_type.value}/{k}", v
+                    )
 
             else:
                 raise ValueError(f"Unknown line type {line_type}")
@@ -85,6 +93,33 @@ def qubit_wiring(
 
     return qubit_line_wiring
 
+def twpa_wiring(
+    channels: List[AnyInstrumentChannel],
+    element_id: TWPAReference,
+    line_type: WiringLineType,
+) -> dict:
+    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit and the same line type.
+
+    Args:
+        channels (List[AnyInstrumentChannel]): The list of instrument channels.
+        element_id (QubitReference): The ID of the qubit element.
+        line_type (WiringLineType): The type of wiring line.
+
+    Returns:
+        dict: A dictionary containing QUAM-compatible JSON references.
+    """
+    twpa_line_wiring = {}
+    for channel in channels:
+        if channel.instrument_id == "external-mixer":
+            key, reference = create_external_mixer_reference(
+                channel, element_id, line_type
+            )
+            twpa_line_wiring[key] = reference
+        elif not (channel.signal_type == "digital" and channel.io_type == "input"):
+            key, reference = get_channel_port(channel, channels)
+            twpa_line_wiring[key] = reference
+
+    return twpa_line_wiring
 
 def qubit_pair_wiring(
     channels: List[AnyInstrumentChannel], element_id: QubitPairReference
