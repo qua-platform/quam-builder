@@ -1,4 +1,4 @@
-from quam.components import QuantumComponent
+from quam.components import QuantumComponent, pulses
 from quam.components.channels import SingleChannel
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -106,5 +106,12 @@ class GateSet(QuantumComponent):
         from quam_builder.architecture.quantum_dots.voltage_sequence import (
             VoltageSequence,
         )
-
+        for ch in self.channels.values():
+            if hasattr(ch.opx_output, "output_mode"):
+                if ch.opx_output.output_mode == "amplified":
+                    ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.5, length=16)
+                else:
+                    ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.25, length=16)
+            else:
+                ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.25, length=16)
         return VoltageSequence(self, track_integrated_voltage)
