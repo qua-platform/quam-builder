@@ -179,6 +179,12 @@ class BaseQuam(QuamRoot):
         specified either through 'qmm_settings' for full control or through
         individual fields.
 
+        For the standard QuantumMachinesManager, the following fields are needed:
+        - host: The host of the Quantum Machine Manager, e.g. "192.168.1.1"
+        - cluster_name: The cluster name of the QM system, e.g. "Cluster_1"
+        - port (optional): The port of the Quantum Machine Manager, e.g. 50000
+          This is typically not needed.
+
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
 
