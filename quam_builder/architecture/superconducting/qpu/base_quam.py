@@ -1,5 +1,6 @@
 from dataclasses import field
 from typing import List, Dict, ClassVar, Optional, Union
+import importlib
 
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
@@ -89,14 +90,28 @@ class BaseQuam(QuamRoot):
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
         """
-        settings = dict(
-            host=self.network["host"],
-            cluster_name=self.network["cluster_name"],
-            octave=self.get_octave_config(),
-        )
-        if "port" in self.network:
-            settings["port"] = self.network["port"]
-        self.qmm = QuantumMachinesManager(**settings)
+        if "qmm_class" in self.network:
+            # e.g. iqcc_cloud_client.CloudQuantumMachinesManager
+            qmm_path = self.network["qmm_class"]
+            module_path, class_name = qmm_path.rsplit(".", 1)
+
+            module = importlib.import_module(module_path)
+            qmm_class = getattr(module, class_name)
+        else:
+            qmm_class = QuantumMachinesManager
+
+        if "qmm_settings" in self.network:
+            settings = dict(self.network["qmm_settings"])
+        else:
+            settings = dict(
+                host=self.network["host"],
+                cluster_name=self.network["cluster_name"],
+                octave=self.get_octave_config(),
+            )
+            if "port" in self.network:
+                settings["port"] = self.network["port"]
+
+        self.qmm = qmm_class(**settings)
         return self.qmm
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
