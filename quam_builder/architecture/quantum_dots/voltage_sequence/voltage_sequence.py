@@ -245,7 +245,7 @@ class VoltageSequence:
 
         Args:
             levels: A dictionary mapping channel names to their target
-                voltage levels.
+                voltage levels (in volts).
             duration: The duration (ns) to hold the voltages, must be >16ns and
                 a multiple of 4ns.
         """
@@ -262,7 +262,7 @@ class VoltageSequence:
 
         Args:
             levels: A dictionary mapping channel names to their target
-                voltage levels.
+                voltage levels (in volts).
             duration: The duration (ns) to hold the voltages after the ramp.
             ramp_duration: The duration (ns) of the ramp.
         """
