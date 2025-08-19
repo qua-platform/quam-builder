@@ -21,6 +21,15 @@ class VoltageTuningPoint(QuamMacro):
     """
     Defines a specific set of DC voltage levels for a group of channels,
     along with a default duration to hold these voltages.
+    
+    This class is typically not instantiated directly by users, but is created
+    automatically by the GateSet.add_point() method. Once created, instances
+    are stored in the GateSet's macros dictionary and can be referenced by
+    name in voltage sequences.
+    
+    Attributes:
+        voltages: Dictionary mapping channel names to their target voltage levels.
+        duration: Default duration in nanoseconds to hold these voltages.
     """
 
     voltages: Dict[str, float]
