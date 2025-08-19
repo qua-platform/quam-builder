@@ -6,8 +6,6 @@ This guide describes a Python framework for generating QUA sequences to control 
 The core components, `GateSet` and `VoltageSequence`, enable precise physical voltage control, essential for quantum dot operations and forming a basis for `VirtualGateSet`.
 This framework is specifically designed to work with channels that have **sticky mode enabled**, which is common in quantum dot experiments because any gaps in the pulse sequence maintain a steady voltage level.
 
-Users must ensure their QUAM configuration defines necessary base QUA operations for each channel.
-
 ## 2. Overview
 
 - `GateSet`: A `QuantumComponent` grouping physical `SingleChannel` objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
