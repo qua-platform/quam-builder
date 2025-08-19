@@ -34,8 +34,44 @@ class VoltageTuningPoint(QuamMacro):
 @quam_dataclass
 class GateSet(QuantumComponent):
     """
-    Represents a set of gate channels used for voltage sequencing.
-    Allows defining named voltage tuning points (macros) for this set.
+    Represents a set of gate channels used for voltage sequencing in quantum dot 
+    experiments.
+
+    A GateSet manages a collection of SingleChannel objects and provides 
+    functionality to:
+    - Define named voltage tuning points (macros) that can be reused across 
+      sequences
+    - Resolve voltage levels for all channels with default fallbacks
+    - Create voltage sequences with proper channel configuration
+
+    The GateSet acts as a logical grouping of related channels (e.g., gates 
+    controlling a specific quantum dot) and enables high-level voltage control 
+    operations. This class also serves as the base for VirtualGateSet, which 
+    enables linear combinations of physical gates.
+
+    Attributes:
+        channels: Dictionary mapping channel names to SingleChannel instances.
+
+    Example:
+        >>> from quam.components.channels import SingleChannel
+        >>> # Create channels for a quantum dot
+        >>> plunger_ch = SingleChannel("plunger", ...)
+        >>> barrier_ch = SingleChannel("barrier", ...)
+        >>>
+        >>> # Create gate set
+        >>> dot_gates = GateSet(
+        ...     id="dot1",
+        ...     channels={"plunger": plunger_ch, "barrier": barrier_ch}
+        ... )
+        >>>
+        >>> # Add voltage tuning points
+        >>> dot_gates.add_point("load", {"plunger": 0.5, "barrier": -0.2}, 1000)
+        >>> dot_gates.add_point("measure", {"plunger": 0.3, "barrier": 0.1}, 500)
+        >>>
+        >>> # Create and use voltage sequence
+        >>> with qua.program() as prog:
+        ...     seq = dot_gates.new_sequence()
+        ...     seq.go_to_point("load")  # Uses the predefined voltage point
     """
 
     channels: Dict[str, SingleChannel]
