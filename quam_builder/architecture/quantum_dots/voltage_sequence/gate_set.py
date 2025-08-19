@@ -97,6 +97,11 @@ class GateSet(QuantumComponent):
             voltages: A dictionary mapping channel names (keys in self.channels)
                 to their target DC voltage (float) for this point.
             duration: The default duration (ns) to hold these voltages.
+
+        Example:
+            >>> gate_set = GateSet(channels={"gate1": ch1, "gate2": ch2})
+            >>> # Create a macro that can be used in voltage sequences
+            >>> gate_set.add_point("load", {"gate1": 0.5, "gate2": -0.2}, duration=1000)
         """
         invalid_channel_names = set(voltages) - set(self.valid_channel_names)
         if invalid_channel_names:
