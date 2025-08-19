@@ -38,7 +38,19 @@ A `GateSet` groups `SingleChannel`s for unified control.
 
 - Defines named voltage/duration presets using the `add_point()` method, which internally registers a `VoltageTuningPoint` in `GateSet.macros`.
 
-- `resolve_voltages()`: Ensures all `GateSet` channels have a defined voltage (defaulting to 0.0V if unspecified).
+- `resolve_voltages()`: Ensures all `GateSet` channels have a defined voltage (defaulting to 0.0V if unspecified). This is particularly useful when you want to specify voltages for only a subset of channels while ensuring all other channels have defined values.
+
+  **Example:**
+  ```python
+  # Assume gate_set has channels: {"P1": channel_P1, "P2": channel_P2, "B1": channel_B1}
+  
+  # Only specify voltages for some channels
+  partial_voltages = {"P1": 0.3, "B1": -0.1}
+  
+  # resolve_voltages fills in missing channels with 0.0V
+  complete_voltages = gate_set.resolve_voltages(partial_voltages)
+  # Result: {"P1": 0.3, "P2": 0.0, "B1": -0.1}
+  ```
 
 - `new_sequence()`: Creates `VoltageSequence` instances.
 

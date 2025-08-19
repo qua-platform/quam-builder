@@ -99,6 +99,11 @@ class GateSet(QuantumComponent):
         with a default voltage of 0.0. Optionally validates that all provided voltage
         entries correspond to valid channels in this GateSet.
 
+        This method is particularly useful when you want to specify voltages for only
+        a subset of channels while ensuring all other channels have defined values,
+        which is essential for voltage sequence operations that need complete channel
+        state information.
+
         Args:
             voltages: Dictionary mapping channel names to their voltage levels.
             allow_extra_entries: If False, raises ValueError if voltages contains
@@ -112,6 +117,20 @@ class GateSet(QuantumComponent):
         Raises:
             ValueError: If allow_extra_entries is False and voltages contains
                 channel names not present in this GateSet.
+
+        Example:
+            >>> # Assume gate_set has channels: {"P1": ch1, "P2": ch2, "B1": ch3}
+            >>> partial_voltages = {"P1": 0.3, "B1": -0.1}
+            >>> complete_voltages = gate_set.resolve_voltages(partial_voltages)
+            >>> print(complete_voltages)
+            {"P1": 0.3, "P2": 0.0, "B1": -0.1}
+            
+            >>> # With invalid channel name (raises error by default)
+            >>> try:
+            ...     gate_set.resolve_voltages({"P1": 0.3, "invalid": 0.1})
+            ... except ValueError as e:
+            ...     print(f"Error: {e}")
+            Error: Channel 'invalid' passed to GateSet.resolve_voltages for GateSet 'gate_set_name' is not part of the GateSet.channels.
         """
         resolved_voltages = {}
 
