@@ -132,6 +132,7 @@ class GateSet(QuantumComponent):
             VoltageSequence: A new voltage sequence instance configured with this GateSet
                 and the specified integrated voltage tracking setting.
         """
+        # Avoid circular import
         from quam_builder.architecture.quantum_dots.voltage_sequence import (
             VoltageSequence,
         )
