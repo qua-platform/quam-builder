@@ -23,8 +23,8 @@ class VoltageTuningPoint(QuamMacro):
     along with a default duration to hold these voltages.
     """
 
-    voltages: Dict[str, float]  # Maps channel name to its target voltage
-    duration: int  # Default duration in ns
+    voltages: Dict[str, float]
+    duration: int
 
     def apply(self, *args, **kwargs):
         # TODO: Implement apply method
@@ -48,8 +48,25 @@ class GateSet(QuantumComponent):
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
     ) -> Dict[str, VoltageLevelType]:
         """
-        Adds any channels in the GateSet that are not in the target_levels_dict
-        to the target_levels_dict with a default voltage of 0.0.
+        Resolves voltage levels for all channels in the GateSet.
+
+        Adds any channels in the GateSet that are not in the provided voltages dict
+        with a default voltage of 0.0. Optionally validates that all provided voltage
+        entries correspond to valid channels in this GateSet.
+
+        Args:
+            voltages: Dictionary mapping channel names to their voltage levels.
+            allow_extra_entries: If False, raises ValueError if voltages contains
+                channel names not present in this GateSet's channels. If True,
+                extra entries are ignored.
+
+        Returns:
+            Dict[str, VoltageLevelType]: Dictionary containing voltage levels for all
+            channels in this GateSet. Missing channels are assigned 0.0 voltage.
+
+        Raises:
+            ValueError: If allow_extra_entries is False and voltages contains
+                channel names not present in this GateSet.
         """
         resolved_voltages = {}
 
@@ -98,20 +115,34 @@ class GateSet(QuantumComponent):
         """
         Creates a new VoltageSequence instance associated with this GateSet.
 
+        Automatically configures half_max_square operations for all channels based on
+        their output mode (amplified vs direct) before creating the sequence.
+
         Args:
             track_integrated_voltage: Whether to track integrated voltage.
                 If False, the sequence will not track integrated voltage, and
                 apply_compensation_pulse will not be available.
+
+        Returns:
+            VoltageSequence: A new voltage sequence instance configured with this GateSet
+                and the specified integrated voltage tracking setting.
         """
         from quam_builder.architecture.quantum_dots.voltage_sequence import (
             VoltageSequence,
         )
+
         for ch in self.channels.values():
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
-                    ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.5, length=16)
+                    ch.operations["half_max_square"] = pulses.SquarePulse(
+                        amplitude=0.5, length=16
+                    )
                 else:
-                    ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.25, length=16)
+                    ch.operations["half_max_square"] = pulses.SquarePulse(
+                        amplitude=0.25, length=16
+                    )
             else:
-                ch.operations["half_max_square"] = pulses.SquarePulse(amplitude=0.25, length=16)
+                ch.operations["half_max_square"] = pulses.SquarePulse(
+                    amplitude=0.25, length=16
+                )
         return VoltageSequence(self, track_integrated_voltage)
