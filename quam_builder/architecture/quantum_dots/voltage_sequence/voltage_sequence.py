@@ -306,7 +306,7 @@ class VoltageSequence:
         """
         self._common_level_change(levels, duration, ramp_duration_ns=ramp_duration)
 
-    def go_to_point(self, name: str, duration: Optional[int] = None):
+    def go_to_point(self, name: str, duration: Optional[DurationType] = None):
         """
         Steps all channels to the voltages defined in a predefined tuning point.
 
@@ -608,6 +608,8 @@ class VoltageSequence:
         Args:
             ramp_duration_ns: Optional. The duration (ns) of the ramp to zero.
                 If None, QUA's `ramp_to_zero` command is used for an immediate ramp.
+                Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
+                variable.
 
         Example:
             >>> with qua.program() as prog:
