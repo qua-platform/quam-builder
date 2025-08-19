@@ -246,7 +246,8 @@ class VoltageSequence:
         Args:
             levels: A dictionary mapping channel names to their target
                 voltage levels.
-            duration: The duration (ns) to hold the voltages.
+            duration: The duration (ns) to hold the voltages, must be >16ns and
+                a multiple of 4ns.
         """
         self._common_level_change(levels, duration, ramp_duration_ns=None)
 
