@@ -6,7 +6,7 @@ from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set impor
     VirtualGateSet,
 )
 from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
-    DEFAULT_PULSE_NAME,  # "250mV_square"
+    DEFAULT_PULSE_NAME,  # DEFAULT_PULSE_NAME
 )
 from test_utils import compare_ast_nodes, print_ast_as_code
 
@@ -122,13 +122,13 @@ def test_vgs_step_to_virtual_level_qua_voltage(virtual_gate_set: VirtualGateSet)
 
         qua.play(
             DEFAULT_PULSE_NAME
-            * qua.amp((((0.0 + ((0.5 * exp_qua_v_g1_level) + -0.3)) - 0.0) * 4.0)),
+            * qua.amp((((0.0 + ((0.5 * exp_qua_v_g1_level) + -0.3)) - 0.0) << 2)),
             "ch1",
             duration=30,
         )
         qua.play(
             DEFAULT_PULSE_NAME
-            * qua.amp((((0.0 + ((0.0 * exp_qua_v_g1_level) + 0.6)) - 0.0) * 4.0)),
+            * qua.amp((((0.0 + ((0.0 * exp_qua_v_g1_level) + 0.6)) - 0.0) << 2)),
             "ch2",
             duration=30,
         )
@@ -223,8 +223,8 @@ def test_step_then_ramp(machine):
 
     with qua.program() as expected_program:
         # Go to point p_step (0.1, 0.1), duration 100ns (25 cycles)
-        qua.play("250mV_square" * qua.amp(0.4), "ch1", duration=25)
-        qua.play("250mV_square" * qua.amp(0.4), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=25)
         # Ramp to level (0.3, -0.1), ramp=80ns (20 cycles), hold=160ns (40 cycles)
         # ch1: 0.1 -> 0.3 (delta=0.2)
         # ch2: 0.1 -> -0.1 (delta=-0.2)
@@ -258,8 +258,8 @@ def test_ramp_then_step(machine):
         # Go to point (0.05, -0.05), duration 500ns (125 cycles)
         # ch1: 0.2 -> 0.05 (delta=-0.15) -> amp = -0.15 / 0.25 = -0.6
         # ch2: 0.2 -> -0.05 (delta=-0.25) -> amp = -0.25 / 0.25 = -1.0
-        qua.play("250mV_square" * qua.amp(-0.6), "ch1", duration=125)
-        qua.play("250mV_square" * qua.amp(-1.0), "ch2", duration=125)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(-0.6), "ch1", duration=125)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(-1.0), "ch2", duration=125)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -308,8 +308,8 @@ def test_ramp_to_level_with_qua_ramp_duration(machine):
         _vseq_tmp_ch1_ramp_rate = qua.declare(qua.fixed)
         _vseq_tmp_ch2_ramp_rate = qua.declare(qua.fixed)
         qua.assign(expected_qua_ramp_dur, 80)
-        # ch1: 0.0 -> 0.2 (delta=0.2), ramp=80(20), hold=160(40) -> 40 - 9 = 31
-        # ch2: 0.0 -> 0.0 (delta=0.0), ramp=80(20), hold=160(40) -> 40 - 9 = 31
+        # ch1: 0.0 -> 0.2 (delta=0.2), ramp=80(20), hold=160(40) -> 40
+        # ch2: 0.0 -> 0.0 (delta=0.0), ramp=80(20), hold=160(40) -> 40
         qua.assign(
             _vseq_tmp_ch1_ramp_rate, 0.2 * qua.Math.div(1.0, expected_qua_ramp_dur)
         )
@@ -318,7 +318,7 @@ def test_ramp_to_level_with_qua_ramp_duration(machine):
             "ch1",
             duration=expected_qua_ramp_dur >> 2,
         )
-        qua.wait(31, "ch1")  # 40 - 9 = 31 (Hold duration adjustment for QUA ramp)
+        qua.wait(40, "ch1")
         qua.assign(
             _vseq_tmp_ch2_ramp_rate, 0.0 * qua.Math.div(1.0, expected_qua_ramp_dur)
         )
@@ -327,7 +327,7 @@ def test_ramp_to_level_with_qua_ramp_duration(machine):
             "ch2",
             duration=expected_qua_ramp_dur >> 2,
         )
-        qua.wait(31, "ch2")  # 40 - 9 = 31
+        qua.wait(40, "ch2")
 
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
