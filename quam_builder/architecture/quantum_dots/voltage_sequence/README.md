@@ -41,12 +41,13 @@ A `GateSet` groups `SingleChannel`s for unified control.
 - `resolve_voltages()`: Ensures all `GateSet` channels have a defined voltage (defaulting to 0.0V if unspecified). This is particularly useful when you want to specify voltages for only a subset of channels while ensuring all other channels have defined values.
 
   **Example:**
+
   ```python
   # Assume gate_set has channels: {"P1": channel_P1, "P2": channel_P2, "B1": channel_B1}
-  
+
   # Only specify voltages for some channels
   partial_voltages = {"P1": 0.3, "B1": -0.1}
-  
+
   # resolve_voltages fills in missing channels with 0.0V
   complete_voltages = gate_set.resolve_voltages(partial_voltages)
   # Result: {"P1": 0.3, "P2": 0.0, "B1": -0.1}
@@ -146,19 +147,7 @@ with qua.program() as prog:
   voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom voltage limit
   ```
 
-## 5. User Responsibility for QUA Configuration
-
-Each `SingleChannel` in the `GateSet` needs a base QUA operation `250mV_square` which is used by the `VoltageSequence`. This should be defined per channel as
-
-```
-from quam.components import pulses
-
-# Assume ch is a singlechannel
-
-ch.operations["250mV_square"] = pulses.SquarePulse(amplitude=0.25, duration=16)
-```
-
-## 6. Foundation for Virtual Gates
+## 5. Foundation for Virtual Gates
 
 `GateSet` and `VoltageSequence` provide the physical voltage control layer necessary for `VirtualGateSet`.
 A `VirtualGateSet` translates virtual gate operations into physical gate voltage changes, which are then applied using the `VoltageSequence` mechanisms.
