@@ -177,9 +177,104 @@ with qua.program() as complex_control:
 # - P3: 0.3V direct control
 ```
 
-## 6. Underlying Architecture and Voltage Resolution
+## 6. Mathematical Relationships
 
-### 6.1 How Virtual Gate Resolution Works
+### 6.1 Forward Transformation (Virtual to Physical)
+
+The core mathematical relationship for each virtualisation layer is:
+
+```
+V_target = M * V_source
+```
+
+Where:
+- `V_source` is the vector of virtual gate voltages (source gates)
+- `V_target` is the vector of target gate voltages (physical or lower-level virtual gates)
+- `M` is the transformation matrix
+
+For example, with a 2x2 matrix:
+```python
+matrix = [[1.0, 0.5], [0.5, 1.0]]
+source_gates = ["v_Gate1", "v_Gate2"]
+target_gates = ["P1", "P2"]
+```
+
+The relationship becomes:
+```
+[P1]   [1.0  0.5] [v_Gate1]
+[P2] = [0.5  1.0] [v_Gate2]
+```
+
+Expanded:
+- `P1 = 1.0 * v_Gate1 + 0.5 * v_Gate2`
+- `P2 = 0.5 * v_Gate1 + 1.0 * v_Gate2`
+
+### 6.2 Inverse Transformation (Voltage Resolution)
+
+During voltage resolution, the system applies the inverse transformation:
+
+```
+V_source = M⁻¹ * V_target
+```
+
+The code implements this using `numpy.linalg.inv()` to calculate the inverse matrix. For each layer's resolution:
+
+```python
+inverse_matrix = np.linalg.inv(matrix)
+for target_gate, inv_matrix_row in zip(target_gates, inverse_matrix):
+    resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
+```
+
+### 6.3 Multi-Layer Resolution
+
+For multiple virtualisation layers, transformations are applied sequentially in reverse order. Consider two layers:
+
+**Layer 1:** `v_Coarse1, v_Coarse2 → P1, P2`
+```
+matrix_1 = [[1.0, 0.5], [0.5, 1.0]]
+```
+
+**Layer 2:** `v_Fine1, v_Fine2 → v_Coarse1, v_Coarse2`
+```
+matrix_2 = [[0.1, 0.0], [0.0, 0.1]]
+```
+
+The combined transformation is:
+```
+[P1]   [1.0  0.5] [0.1  0.0] [v_Fine1]
+[P2] = [0.5  1.0] [0.0  0.1] [v_Fine2]
+```
+
+Which gives the overall relationship:
+```
+[P1]   [0.1  0.05] [v_Fine1]
+[P2] = [0.05 0.1 ] [v_Fine2]
+```
+
+### 6.4 Additive Voltage Contributions
+
+The system supports additive contributions from different layers and direct physical gate control. If you specify:
+- `v_Fine1 = 1.0V` (from Layer 2)
+- `v_Coarse1 = 0.2V` (from Layer 1)
+- `P1 = 0.1V` (direct)
+
+The final voltage for P1 becomes:
+```
+P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
+         = 0.1 + (1.0 * 0.2) + (1.0 * 0.1)
+         = 0.1 + 0.2 + 0.1 = 0.4V
+```
+
+### 6.5 Matrix Constraints
+
+For a valid virtualisation layer:
+- Matrix must be square: `len(source_gates) == len(target_gates)`
+- Matrix must be invertible (non-singular): `det(M) ≠ 0`
+- The inverse matrix is calculated using `numpy.linalg.inv(matrix)`
+
+## 7. Underlying Architecture and Voltage Resolution
+
+### 7.1 How Virtual Gate Resolution Works
 
 When you apply a voltage operation on virtual gates, the system automatically converts this to voltages applied to the underlying physical gates using matrix transformations. Here's how it works:
 
@@ -189,7 +284,7 @@ When you apply a voltage operation on virtual gates, the system automatically co
 
 3. **Additive Contributions**: All contributions from virtual gates at different layers are summed together at the physical gate level, allowing for complex control schemes.
 
-### 6.2 Core Allocation and Performance
+### 7.2 Core Allocation and Performance
 
 **One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualisation layers. This has important implications:
 
@@ -199,7 +294,7 @@ When you apply a voltage operation on virtual gates, the system automatically co
 
 For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualisation layers, you still only need 3 cores - one for each physical gate.
 
-### 6.3 Matrix Calculation Example
+### 7.3 Matrix Calculation Example
 
 Consider a simple two-layer system:
 
