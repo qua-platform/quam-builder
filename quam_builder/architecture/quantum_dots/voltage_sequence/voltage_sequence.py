@@ -28,7 +28,7 @@ from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import (
 
 from .sequence_state_tracker import SequenceStateTracker
 from .constants import DEFAULT_PULSE_NAME
-from ..exceptions import (
+from .exceptions import (
     VoltagePointError,
 )
 from ....tools.qua_tools import is_qua_type, validate_duration, VoltageLevelType, DurationType
