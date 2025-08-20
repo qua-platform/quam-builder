@@ -1,5 +1,6 @@
 from dataclasses import field
 from typing import List, Dict
+import numpy as np
 
 from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import GateSet
@@ -37,6 +38,7 @@ class VirtualGateSet(GateSet):
         self,
         source_gates: List[str],
         target_gates: List[str],
+        matrix: List[List[float]],
     ):
         """
         Validates the new layer to be added to the VirtualGateSet.
@@ -47,11 +49,14 @@ class VirtualGateSet(GateSet):
         - Each target gate must not be a target gate in any previous layer
         - Each source gate must not be a source gate in any previous layer
         - Each source gate must not be a target gate in any previous layer
+        - Matrix is square (equal number of rows and columns)
+        - Matrix is invertible (non-zero determinant)
 
         Args:
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
+            matrix: The virtualisation matrix defining the transformation.
 
         Raises:
             ValueError: If any of the checks fail.
@@ -112,6 +117,23 @@ class VirtualGateSet(GateSet):
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
 
+        # Check 5: Matrix must be square
+        matrix_array = np.array(matrix)
+        if matrix_array.shape[0] != matrix_array.shape[1]:
+            raise ValueError(
+                f"Matrix must be square. Got shape {matrix_array.shape}"
+            )
+
+        # Check 6: Matrix must be invertible (non-zero determinant)
+        try:
+            det = np.linalg.det(matrix_array)
+            if abs(det) < 1e-10:  # Use small tolerance for floating point
+                raise ValueError(
+                    f"Matrix is not invertible (determinant ≈ 0): {det}"
+                )
+        except np.linalg.LinAlgError as e:
+            raise ValueError(f"Matrix inversion failed: {e}")
+
     def add_layer(
         self,
         source_gates: List[str],
@@ -130,7 +152,7 @@ class VirtualGateSet(GateSet):
         Returns:
             The created VirtualisationLayer object.
         """
-        self._validate_new_layer(source_gates, target_gates)
+        self._validate_new_layer(source_gates, target_gates, matrix)
 
         virtualisation_layer = VirtualisationLayer(
             source_gates=source_gates, target_gates=target_gates, matrix=matrix
