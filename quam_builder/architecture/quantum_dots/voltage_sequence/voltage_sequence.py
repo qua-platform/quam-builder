@@ -31,7 +31,7 @@ from .constants import DEFAULT_PULSE_NAME
 from ..exceptions import (
     VoltagePointError,
 )
-from ..utils import is_qua_type, validate_duration, VoltageLevelType, DurationType
+from ....tools.qua_tools import is_qua_type, validate_duration, VoltageLevelType, DurationType
 
 __all__ = [
     "VoltageTuningPoint",

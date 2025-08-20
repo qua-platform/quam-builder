@@ -5,7 +5,7 @@ from qm.qua.type_hints import QuaVariable, Scalar
 from qm.qua import declare, assign, Cast
 
 from quam_builder.architecture.quantum_dots.exceptions import StateError
-from quam_builder.architecture.quantum_dots.utils import is_qua_type
+from quam_builder.tools.qua_tools import is_qua_type
 
 __all__ = [
     "SequenceStateTracker",

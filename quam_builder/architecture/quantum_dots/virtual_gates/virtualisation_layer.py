@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 import numpy as np
 
 from quam.core import QuamComponent, quam_dataclass
-from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType
 
 
 __all__ = ["VirtualisationLayer"]

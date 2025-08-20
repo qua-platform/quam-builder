@@ -24,9 +24,3 @@ class VoltagePointError(VoltageSequenceError):
     """Errors related to named voltage points."""
 
     pass
-
-
-class TimingError(VoltageSequenceError):
-    """Errors related to pulse durations or timing."""
-
-    pass

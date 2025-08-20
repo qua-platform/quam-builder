@@ -3,7 +3,7 @@ from typing import List, Dict
 
 from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import GateSet
-from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType
 from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer import (
     VirtualisationLayer,
 )

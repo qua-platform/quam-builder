@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
-from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType
 from .constants import DEFAULT_PULSE_NAME
 
 __all__ = ["GateSet", "VoltageTuningPoint"]

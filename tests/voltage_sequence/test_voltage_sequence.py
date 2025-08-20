@@ -1,6 +1,5 @@
 from qm import qua
 import pytest
-from quam_builder.architecture.quantum_dots.exceptions import TimingError
 from quam_builder.architecture.quantum_dots.voltage_sequence.constants import (
     DEFAULT_PULSE_NAME,
 )
@@ -31,7 +30,7 @@ def test_invalid_timing_multiple_4(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=41)
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
-        with pytest.raises(TimingError):
+        with pytest.raises(TypeError):
             seq.go_to_point("p1")
 
 
@@ -39,7 +38,7 @@ def test_invalid_timing_min_duration(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=12)
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
-        with pytest.raises(TimingError):
+        with pytest.raises(TypeError):
             seq.go_to_point("p1")
 
 
