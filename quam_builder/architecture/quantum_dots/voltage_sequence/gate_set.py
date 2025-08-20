@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     )
 
 from quam_builder.architecture.quantum_dots.utils import VoltageLevelType
+from .constants import DEFAULT_PULSE_NAME
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
@@ -184,7 +185,7 @@ class GateSet(QuantumComponent):
         """
         Creates a new VoltageSequence instance associated with this GateSet.
 
-        Automatically configures half_max_square operations for all channels based on
+        Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
         their output mode (amplified vs direct) before creating the sequence.
 
         Args:
@@ -204,15 +205,15 @@ class GateSet(QuantumComponent):
         for ch in self.channels.values():
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
-                    ch.operations["half_max_square"] = pulses.SquarePulse(
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
                         amplitude=0.5, length=16
                     )
                 else:
-                    ch.operations["half_max_square"] = pulses.SquarePulse(
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
                         amplitude=0.25, length=16
                     )
             else:
-                ch.operations["half_max_square"] = pulses.SquarePulse(
+                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
                     amplitude=0.25, length=16
                 )
         return VoltageSequence(self, track_integrated_voltage)
