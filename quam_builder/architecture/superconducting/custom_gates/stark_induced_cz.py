@@ -14,10 +14,13 @@ qua_T = Union[QuaVariable, QuaExpression]
 _tuple = Tuple[Union[float, qua_T]]
 _list = List[Union[float, qua_T]]
 
+
 @quam_dataclass
 class StarkInducedCZGate(QubitPairMacro):
     qc_correction_phase: float = 0.0
     qt_correction_phase: float = 0.0
+    zz_control_amp_scaling: Union[float, qua_T, _tuple, _list] = 1.0
+    zz_target_amp_scaling: Union[float, qua_T, _tuple, _list] = 1.0
 
     def apply(
         self,
@@ -28,7 +31,6 @@ class StarkInducedCZGate(QubitPairMacro):
         qt_correction_phase: Optional[Union[float, qua_T]] = None,
         zz_duration_clock_cycles: Optional[Union[float, qua_T]] = None,
     ) -> None:
-
         qc = self.qubit_pair.qubit_control
         qt = self.qubit_pair.qubit_target
         zz = self.qubit_pair.zz_drive
@@ -80,5 +82,5 @@ class StarkInducedCZGate(QubitPairMacro):
 
         self.qubit_pair.align()
 
-        qt_shift_correction_phase()
+        qc_shift_correction_phase()
         qt_shift_correction_phase()
