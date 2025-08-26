@@ -1,5 +1,4 @@
-from quam.core import quam_dataclass
-from quam.components.quantum_components import QuantumComponent
+from quam.core import quam_dataclass, QuamComponent
 from quam_builder.architecture.superconducting.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
@@ -12,7 +11,7 @@ __all__ = ["TWPA"]
 
 
 @quam_dataclass
-class TWPA(QuantumComponent):
+class TWPA(QuamComponent):
     """
     QUAM component for a Traveling Wave Parametric Amplifier (TWPA).
 
