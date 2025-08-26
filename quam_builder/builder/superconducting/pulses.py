@@ -8,6 +8,8 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 import numpy as np
 from typing import Union
 
@@ -262,7 +264,7 @@ def add_Square_pulses(
 
 
 def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
+    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
 ):
     """Adds default pulses to a transmon qubit:
         * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
@@ -292,7 +294,7 @@ def add_default_transmon_pulses(
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
@@ -316,4 +318,17 @@ def add_default_transmon_pair_pulses(
         if transmon_pair.zz_drive is not None:
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
+            )
+
+
+def add_default_twpa_pulses(twpa: TWPA):
+    """Adds default pulses to a TWPA pumps:
+        * twpa.pump.operations["const"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
+    Args:
+        transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the pulses will be added.
+    """
+    if hasattr(twpa, "pump"):
+        if twpa.pump is not None:
+            twpa.pump.operations["const"] = pulses.SquarePulse(
+                amplitude=0.25, length=2 * u.us, axis_angle=0
             )

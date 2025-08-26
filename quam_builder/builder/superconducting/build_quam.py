@@ -6,6 +6,7 @@ from quam_builder.architecture.superconducting.components.mixer import Standalon
 from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
+    add_default_twpa_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
@@ -22,7 +23,7 @@ from quam_builder.builder.superconducting.add_transmon_resonator_component impor
     add_transmon_resonator_component,
 )
 from quam_builder.builder.superconducting.add_twpa_pump_component import (
-    add_twpa_pump_component
+    add_twpa_pump_component,
 )
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
@@ -83,6 +84,7 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -
     x = qubit_number // number_of_rows
     return f"{x},{y}"
 
+
 def add_transmons(machine: AnyQuam):
     """Adds transmon qubits and qubit pairs to the machine based on the wiring configuration.
 
@@ -142,7 +144,8 @@ def add_transmons(machine: AnyQuam):
                         raise ValueError(f"Unknown line type: {line_type}")
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
                     machine.active_qubit_pair_names.append(transmon_pair.name)
-                    
+
+
 def add_twpas(machine: AnyQuam):
     """Adds TWPAs to the machine based on the wiring configuration.
 
@@ -171,7 +174,6 @@ def add_twpas(machine: AnyQuam):
                 machine.active_twpa_names.append(twpa.name)
 
 
-
 def add_pulses(machine: AnyQuam):
     """Adds default pulses to the transmon qubits and qubit pairs in the machine.
 
@@ -185,6 +187,10 @@ def add_pulses(machine: AnyQuam):
     if hasattr(machine, "qubit_pairs"):
         for qubit_pair in machine.qubit_pairs.values():
             add_default_transmon_pair_pulses(qubit_pair)
+
+    if hasattr(machine, "twpas"):
+        for twpa in machine.twpas.values():
+            add_default_twpa_pulses(twpa)
 
 
 def add_octaves(
