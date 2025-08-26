@@ -2,6 +2,7 @@ from typing import Optional
 
 from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
@@ -41,6 +42,7 @@ class ReadoutResonatorBase:
     gef_centers: list = None
     gef_confusion_matrix: list = None
     GEF_frequency_shift: float = None
+    twpa: TWPA = None
 
     @staticmethod
     def calculate_voltage_scaling_factor(
