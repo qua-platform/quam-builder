@@ -95,28 +95,28 @@ class VoltageSequence:
         self,
         channel: SingleChannel,
         delta_v: VoltageLevelType,
-        duration_ns: DurationType,
+        duration: DurationType,
     ):
         """Plays a scaled step on a single channel."""
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
-        py_duration_ns = 0
-        if not is_qua_type(duration_ns):
-            py_duration_ns = int(float(str(duration_ns)))
+        py_duration = 0
+        if not is_qua_type(duration):
+            py_duration = int(float(str(duration)))
 
-        if py_duration_ns == 0 and not is_qua_type(duration_ns):
+        if py_duration == 0 and not is_qua_type(duration):
             return
 
         if is_qua_type(delta_v):
             scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
             scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
-        duration_cycles = duration_ns >> 2  # Convert ns to clock cycles
+        duration_cycles = duration >> 2  # Convert ns to clock cycles
 
-        if is_qua_type(duration_ns):
+        if is_qua_type(duration):
             # If duration is QUA, it must be in clock cycles for play override
-            # Assuming QUA duration_ns is already in ns, convert to cycles
+            # Assuming QUA duration is already in ns, convert to cycles
             channel.play(
                 DEFAULT_PULSE_NAME,
                 amplitude_scale=scaled_amp,
@@ -124,18 +124,18 @@ class VoltageSequence:
                 validate=False,  # Do not validate as pulse may not exist yet
             )
         else:  # Fixed Python duration
-            if py_duration_ns == MIN_PULSE_DURATION_NS:
+            if py_duration == MIN_PULSE_DURATION_NS:
                 channel.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp,
                     duration=duration_cycles,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
-            elif py_duration_ns > 0:
+            elif py_duration > 0:
                 channel.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp,
-                    duration=py_duration_ns >> 2,
+                    duration=py_duration >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
 
@@ -143,23 +143,21 @@ class VoltageSequence:
         self,
         channel: SingleChannel,
         delta_v: VoltageLevelType,
-        ramp_duration_ns: DurationType,
-        hold_duration_ns: DurationType,
+        ramp_duration: DurationType,
+        hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
-        py_ramp_duration_ns = 0
-        if not is_qua_type(ramp_duration_ns):
-            py_ramp_duration_ns = int(float(str(ramp_duration_ns)))
+        py_ramp_duration = 0
+        if not is_qua_type(ramp_duration):
+            py_ramp_duration = int(float(str(ramp_duration)))
 
         ramp_duration_cycles = (
-            ramp_duration_ns >> 2
-            if is_qua_type(ramp_duration_ns)
-            else py_ramp_duration_ns >> 2
+            ramp_duration >> 2 if is_qua_type(ramp_duration) else py_ramp_duration >> 2
         )
 
-        if is_qua_type(delta_v) or is_qua_type(ramp_duration_ns):
+        if is_qua_type(delta_v) or is_qua_type(ramp_duration):
             ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
-            assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration_ns))
+            assign(ramp_rate, delta_v * Math.div(1.0, ramp_duration))
             channel.play(
                 ramp(ramp_rate),
                 duration=ramp_duration_cycles,
@@ -167,42 +165,42 @@ class VoltageSequence:
             )
         else:
             py_delta_v = float(str(delta_v))
-            if py_ramp_duration_ns > 0:
-                ramp_rate_val = py_delta_v / py_ramp_duration_ns
+            if py_ramp_duration > 0:
+                ramp_rate_val = py_delta_v / py_ramp_duration
                 channel.play(
                     ramp(ramp_rate_val),
                     duration=ramp_duration_cycles,
                     validate=False,
                 )
 
-        py_hold_duration_ns = 0
-        if not is_qua_type(hold_duration_ns):
-            py_hold_duration_ns = int(float(str(hold_duration_ns)))
+        py_hold_duration = 0
+        if not is_qua_type(hold_duration):
+            py_hold_duration = int(float(str(hold_duration)))
 
-        if is_qua_type(hold_duration_ns):
-            wait_cycles = hold_duration_ns >> 2
-            if is_qua_type(ramp_duration_ns):  # Adjust for QUA ramp calculation time
+        if is_qua_type(hold_duration):
+            wait_cycles = hold_duration >> 2
+            if is_qua_type(ramp_duration):  # Adjust for QUA ramp calculation time
                 wait_cycles -= RAMP_QUA_DELAY_CYCLES
             with if_(wait_cycles > 0):
                 channel.wait(wait_cycles)
         else:
-            if py_hold_duration_ns > 0:
-                channel.wait(py_hold_duration_ns >> 2)
+            if py_hold_duration > 0:
+                channel.wait(py_hold_duration >> 2)
 
     def _common_level_change(
         self,
         target_levels_dict: Dict[str, VoltageLevelType],
-        duration_ns: DurationType,
-        ramp_duration_ns: Optional[DurationType] = None,
+        duration: DurationType,
+        ramp_duration: Optional[DurationType] = None,
     ):
         """Common logic for step_to_level and ramp_to_level."""
-        validate_duration(duration_ns, "duration_ns")
-        if ramp_duration_ns is not None:
-            validate_duration(ramp_duration_ns, "ramp_duration_ns")
-            if is_qua_type(ramp_duration_ns):
+        validate_duration(duration, "duration")
+        if ramp_duration is not None:
+            validate_duration(ramp_duration, "ramp_duration")
+            if is_qua_type(ramp_duration):
                 print(  # Changed from warn to print as warn is not imported
-                    "Guidance: Using QUA variable for `ramp_duration_ns`. "
-                    "Ensure hold `duration_ns` is sufficient."
+                    "Guidance: Using QUA variable for `ramp_duration`. "
+                    "Ensure hold `duration` is sufficient."
                 )
 
         full_target_levels_dict = self.gate_set.resolve_voltages(target_levels_dict)
@@ -225,21 +223,20 @@ class VoltageSequence:
             if self._track_integrated_voltage:
                 tracker.update_integrated_voltage(
                     target_voltage,
-                    duration_ns,
-                    ramp_duration_ns,
+                    duration,
+                    ramp_duration,
                 )
 
-            if ramp_duration_ns is None or (
-                not is_qua_type(ramp_duration_ns)
-                and int(float(str(ramp_duration_ns))) == 0
+            if ramp_duration is None or (
+                not is_qua_type(ramp_duration) and int(float(str(ramp_duration))) == 0
             ):
-                self._play_step_on_channel(channel_obj, delta_v, duration_ns)
+                self._play_step_on_channel(channel_obj, delta_v, duration)
             else:
                 self._play_ramp_on_channel(
                     channel_obj,
                     delta_v,
-                    ramp_duration_ns,
-                    duration_ns,
+                    ramp_duration,
+                    duration,
                 )
             tracker.current_level = target_voltage
 
@@ -269,7 +266,7 @@ class VoltageSequence:
             ...     # Any channel not specified (e.g., "B1") will be set to 0.0V
             ...     voltage_seq.step_to_level({"P1": 0.5}, duration=500)
         """
-        self._common_level_change(levels, duration, ramp_duration_ns=None)
+        self._common_level_change(levels, duration, ramp_duration=None)
 
     def ramp_to_level(
         self,
@@ -310,7 +307,7 @@ class VoltageSequence:
             ...         levels={"P2": 0.2}, duration=1000, ramp_duration=ramp_time
             ...     )
         """
-        self._common_level_change(levels, duration, ramp_duration_ns=ramp_duration)
+        self._common_level_change(levels, duration, ramp_duration=ramp_duration)
 
     def step_to_point(self, name: str, duration: Optional[DurationType] = None):
         """
@@ -346,7 +343,7 @@ class VoltageSequence:
         tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
         self._common_level_change(
-            tuning_point.voltages, effective_duration, ramp_duration_ns=None
+            tuning_point.voltages, effective_duration, ramp_duration=None
         )
 
     def ramp_to_point(
@@ -393,7 +390,7 @@ class VoltageSequence:
         self._common_level_change(
             tuning_point.voltages,
             effective_duration,
-            ramp_duration_ns=ramp_duration,
+            ramp_duration=ramp_duration,
         )
 
     def _calculate_python_compensation_params(
@@ -403,7 +400,7 @@ class VoltageSequence:
     ) -> Tuple[float, int]:
         """
         Calculates compensation pulse amplitude and duration for Python-only values.
-        Returns (amplitude, duration_ns).
+        Returns (amplitude, duration).
         """
         py_int_v = int(float(str(tracker.integrated_voltage)))
         if py_int_v == 0:
@@ -432,7 +429,7 @@ class VoltageSequence:
     ) -> Tuple[QuaScalarExpression, QuaScalarExpression]:
         """
         Generates QUA code to calculate compensation pulse amplitude and duration.
-        Returns (qua_amplitude_expression, qua_duration_ns_expression).
+        Returns (qua_amplitude_expression, qua_duration_expression).
         """
         integrated_v = tracker.integrated_voltage
         # current_v = tracker.current_level # Not directly needed for amp/dur calc here
@@ -558,36 +555,36 @@ class VoltageSequence:
         self,
         channel_obj: SingleChannel,
         tracker: SequenceStateTracker,
-        ramp_duration_ns: int,
+        ramp_duration: int,
     ):
         """Helper for ramp_to_zero when a specific duration is provided."""
         DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
         current_v = tracker.current_level
-        validate_duration(ramp_duration_ns, "ramp_duration_ns")
+        validate_duration(ramp_duration, "ramp_duration")
 
         if is_qua_type(current_v):
             ramp_rate = self._get_temp_qua_var(f"{channel_obj.name}_r2z_rate")
-            with if_(ramp_duration_ns > 0):
-                assign(ramp_rate, -current_v * Math.div(1.0, ramp_duration_ns))
+            with if_(ramp_duration > 0):
+                assign(ramp_rate, -current_v * Math.div(1.0, ramp_duration))
                 channel_obj.play(
                     ramp(ramp_rate),
-                    duration=ramp_duration_ns >> 2,
+                    duration=ramp_duration >> 2,
                 )
             with else_():  # Duration is 0, effectively a step
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=-current_v
                     * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
-                    duration=ramp_duration_ns >> 2,
+                    duration=ramp_duration >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
         else:
             py_curr_v = float(str(current_v))
-            if ramp_duration_ns > 0 and py_curr_v != 0.0:
-                rate_val = -py_curr_v / ramp_duration_ns
+            if ramp_duration > 0 and py_curr_v != 0.0:
+                rate_val = -py_curr_v / ramp_duration
                 channel_obj.play(
                     ramp(rate_val),
-                    duration=ramp_duration_ns >> 2,
+                    duration=ramp_duration >> 2,
                     validate=False,
                 )
             elif py_curr_v != 0.0:  # Duration is 0, step
@@ -601,18 +598,18 @@ class VoltageSequence:
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
                     amplitude_scale=scaled_amp_to_zero,
-                    duration=ramp_duration_ns >> 2,
+                    duration=ramp_duration >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
 
-    def ramp_to_zero(self, ramp_duration_ns: Optional[int] = None):
+    def ramp_to_zero(self, ramp_duration: Optional[int] = None):
         """
         Ramps the voltage on all channels in the GateSet to zero
 
         Also resets integrated voltage tracking.
 
         Args:
-            ramp_duration_ns: Optional. The duration (ns) of the ramp to zero.
+            ramp_duration: Optional. The duration (ns) of the ramp to zero.
                 If None, QUA's `ramp_to_zero` command is used for an immediate ramp.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
@@ -626,18 +623,18 @@ class VoltageSequence:
             ...
             ...     # Different ways to return to zero
             ...     voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
-            ...     voltage_seq.ramp_to_zero(ramp_duration_ns=100)  # Controlled ramp over 100ns
+            ...     voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
             ...
             ...     # All channels now at 0V, integrated voltage tracking reset
         """
         for ch_name, channel_obj in self.gate_set.channels.items():
             tracker = self.state_trackers[ch_name]
 
-            if ramp_duration_ns is None:
+            if ramp_duration is None:
                 ramp_to_zero(channel_obj.name)
             else:
                 self._perform_ramp_to_zero_with_duration(
-                    channel_obj, tracker, ramp_duration_ns
+                    channel_obj, tracker, ramp_duration
                 )
 
             tracker.current_level = 0.0

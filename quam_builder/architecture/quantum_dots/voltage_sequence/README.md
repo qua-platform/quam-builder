@@ -131,12 +131,12 @@ with qua.program() as prog:
   voltage_seq.ramp_to_point("idle", ramp_duration=50, duration=1000)
   ```
 
-- `ramp_to_zero(ramp_duration_ns: Optional[int] = None)`  
-  Ramps the voltage on all channels in the GateSet to zero and resets the integrated voltage tracking for each channel. If no duration is specified, uses QUA's built-in `ramp_to_zero` command for immediate ramping. Essential for safely returning to a neutral state. The `ramp_duration_ns` parameter can be a QUA variable.
+- `ramp_to_zero(ramp_duration: Optional[int] = None)`  
+  Ramps the voltage on all channels in the GateSet to zero and resets the integrated voltage tracking for each channel. If no duration is specified, uses QUA's built-in `ramp_to_zero` command for immediate ramping. Essential for safely returning to a neutral state. The `ramp_duration` parameter can be a QUA variable.
 
   ```python
   voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
-  voltage_seq.ramp_to_zero(ramp_duration_ns=100)  # Controlled ramp over 100ns
+  voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
   ```
 
 - `apply_compensation_pulse(max_voltage: float = 0.49)`  

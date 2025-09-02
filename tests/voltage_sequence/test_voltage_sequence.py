@@ -220,7 +220,7 @@ def test_ramp_to_zero_with_duration(machine):
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
         seq.step_to_level(levels={"ch1": 0.25}, duration=100)
-        seq.ramp_to_zero(ramp_duration_ns=200)
+        seq.ramp_to_zero(ramp_duration=200)
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -237,7 +237,7 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
         seq = machine.gate_set.new_sequence()
         seq.step_to_level(levels={"ch1": 0.25}, duration=100)
         seq.step_to_level(levels={"ch1": 0.25, "ch2": 0.25}, duration=100)
-        seq.ramp_to_zero(ramp_duration_ns=200)
+        seq.ramp_to_zero(ramp_duration=200)
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:

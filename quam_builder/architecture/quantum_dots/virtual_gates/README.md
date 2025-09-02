@@ -100,8 +100,8 @@ Since `VirtualGateSet` inherits all features from `GateSet`, you have access to 
 
 #### System Control
 
-- `ramp_to_zero(ramp_duration_ns: Optional[int] = None)`  
-  Ramps all channels to zero and resets integrated voltage tracking. The `ramp_duration_ns` parameter can be a QUA variable.
+- `ramp_to_zero(ramp_duration: Optional[int] = None)`  
+  Ramps all channels to zero and resets integrated voltage tracking. The `ramp_duration` parameter can be a QUA variable.
 
 - `apply_compensation_pulse(max_voltage: float = 0.49)`  
   Applies compensation pulses to counteract integrated voltage drift (when tracking enabled).
@@ -167,7 +167,7 @@ with qua.program() as complex_control:
     )
 
     # Return to zero
-    voltage_seq.ramp_to_zero(ramp_duration_ns=200)
+    voltage_seq.ramp_to_zero(ramp_duration=200)
 
 # The system automatically resolves all virtual gate contributions:
 # - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
