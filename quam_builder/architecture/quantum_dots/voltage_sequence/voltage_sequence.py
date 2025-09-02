@@ -187,13 +187,13 @@ class VoltageSequence:
             if py_hold_duration > 0:
                 channel.wait(py_hold_duration >> 2)
 
-    def _common_level_change(
+    def _common_voltages_change(
         self,
-        target_levels_dict: Dict[str, VoltageLevelType],
+        target_voltages_dict: Dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: Optional[DurationType] = None,
     ):
-        """Common logic for step_to_level and ramp_to_level."""
+        """Common logic for step_to_voltages and ramp_to_voltages."""
         validate_duration(duration, "duration")
         if ramp_duration is not None:
             validate_duration(ramp_duration, "ramp_duration")
@@ -203,9 +203,9 @@ class VoltageSequence:
                     "Ensure hold `duration` is sufficient."
                 )
 
-        full_target_levels_dict = self.gate_set.resolve_voltages(target_levels_dict)
+        full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
 
-        for ch_name, target_voltage in full_target_levels_dict.items():
+        for ch_name, target_voltage in full_target_voltages_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
                 continue
@@ -240,20 +240,20 @@ class VoltageSequence:
                 )
             tracker.current_level = target_voltage
 
-    def step_to_level(
-        self, levels: Dict[str, VoltageLevelType], duration: DurationType
+    def step_to_voltages(
+        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
     ):
         """
         Steps all specified channels directly to the given voltage levels.
 
         Creates immediate voltage changes without ramping. Any channel not specified in
-        `levels` will be set to zero volts for the duration. This method is useful
+        `voltages` will be set to zero volts for the duration. This method is useful
         when you need precise, instantaneous voltage transitions for operations
         like loading or measuring quantum dots.
 
         Args:
-            levels: A dictionary mapping channel names to their target
-                voltage levels (in volts). Channels not included will be set to 0.0V.
+            voltages: A dictionary mapping channel names to their target
+                voltages (in volts). Channels not included will be set to 0.0V.
                 Each voltage level can be a fixed value or a QUA variable.
             duration: The duration (ns) to hold the voltages, must be >16ns and
                 a multiple of 4ns. Can be a fixed value or a QUA variable.
@@ -262,15 +262,15 @@ class VoltageSequence:
             >>> with qua.program() as prog:
             ...     voltage_seq = gate_set.new_sequence()
             ...     # Step plunger gates to loading voltages instantly
-            ...     voltage_seq.step_to_level({"P1": 0.3, "P2": 0.1}, duration=1000)
+            ...     voltage_seq.step_to_voltages({"P1": 0.3, "P2": 0.1}, duration=1000)
             ...     # Any channel not specified (e.g., "B1") will be set to 0.0V
-            ...     voltage_seq.step_to_level({"P1": 0.5}, duration=500)
+            ...     voltage_seq.step_to_voltages({"P1": 0.5}, duration=500)
         """
-        self._common_level_change(levels, duration, ramp_duration=None)
+        self._common_voltages_change(voltages, duration, ramp_duration=None)
 
-    def ramp_to_level(
+    def ramp_to_voltages(
         self,
-        levels: Dict[str, VoltageLevelType],
+        voltages: Dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: DurationType,
     ):
@@ -283,7 +283,7 @@ class VoltageSequence:
         specified ramp duration.
 
         Args:
-            levels: A dictionary mapping channel names to their target
+            voltages: A dictionary mapping channel names to their target
                 voltage levels (in volts). Channels not included will be set to 0.0V.
                 Each voltage level can be a fixed value or a QUA variable.
             duration: The duration (ns) to hold the voltages after the ramp. Must be
@@ -295,19 +295,19 @@ class VoltageSequence:
             >>> with qua.program() as prog:
             ...     voltage_seq = gate_set.new_sequence()
             ...     # Smooth ramp to avoid voltage spikes on sensitive gates
-            ...     voltage_seq.ramp_to_level(
-            ...         levels={"P1": 0.0, "B1": -0.1},
+            ...     voltage_seq.ramp_to_voltages(
+            ...         voltages={"P1": 0.0, "B1": -0.1},
             ...         duration=500,
             ...         ramp_duration=40
             ...     )
             ...     # Can use QUA variables for dynamic control
             ...     ramp_time = declare(int)
             ...     assign(ramp_time, 80)
-            ...     voltage_seq.ramp_to_level(
-            ...         levels={"P2": 0.2}, duration=1000, ramp_duration=ramp_time
+            ...     voltage_seq.ramp_to_voltages(
+            ...         voltages={"P2": 0.2}, duration=1000, ramp_duration=ramp_time
             ...     )
         """
-        self._common_level_change(levels, duration, ramp_duration=ramp_duration)
+        self._common_voltages_change(voltages, duration, ramp_duration=ramp_duration)
 
     def step_to_point(self, name: str, duration: Optional[DurationType] = None):
         """
@@ -342,7 +342,7 @@ class VoltageSequence:
             )
         tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
-        self._common_level_change(
+        self._common_voltages_change(
             tuning_point.voltages, effective_duration, ramp_duration=None
         )
 
@@ -387,7 +387,7 @@ class VoltageSequence:
             )
         tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
-        self._common_level_change(
+        self._common_voltages_change(
             tuning_point.voltages,
             effective_duration,
             ramp_duration=ramp_duration,
@@ -485,8 +485,8 @@ class VoltageSequence:
             ...     voltage_seq = gate_set.new_sequence(track_integrated_voltage=True)
             ...
             ...     # Perform voltage operations that accumulate drift
-            ...     voltage_seq.step_to_level({"P1": 0.3}, duration=5000)
-            ...     voltage_seq.ramp_to_level({"P1": 0.0}, duration=1000, ramp_duration=100)
+            ...     voltage_seq.step_to_voltages({"P1": 0.3}, duration=5000)
+            ...     voltage_seq.ramp_to_voltages({"P1": 0.0}, duration=1000, ramp_duration=100)
             ...
             ...     # Apply compensation to counteract accumulated drift
             ...     voltage_seq.apply_compensation_pulse()  # Use default 0.49V limit
@@ -619,7 +619,7 @@ class VoltageSequence:
             ...     voltage_seq = gate_set.new_sequence()
             ...
             ...     # Set various voltages
-            ...     voltage_seq.step_to_level({"P1": 0.3, "P2": 0.1}, duration=1000)
+            ...     voltage_seq.step_to_voltages({"P1": 0.3, "P2": 0.1}, duration=1000)
             ...
             ...     # Different ways to return to zero
             ...     voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in

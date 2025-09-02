@@ -169,14 +169,14 @@ class VirtualGateSet(GateSet):
 
         Args:
             voltages: A dictionary mapping gate names (virtual or physical) to
-                      voltage levels.
+                      voltages.
             allow_extra_entries: If True, gates in `voltages` that are not
                 part of this VirtualGateSet (neither physical nor virtual)
                 will be ignored. If False, a ValueError will be raised.
 
         Returns:
             A dictionary mapping physical gate names to their fully resolved
-            voltage levels.
+            voltages.
         """
 
         # If not allowing extra entries, check that all keys in voltages are either

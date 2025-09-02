@@ -20,7 +20,7 @@ __all__ = ["GateSet", "VoltageTuningPoint"]
 @quam_dataclass
 class VoltageTuningPoint(QuamMacro):
     """
-    Defines a specific set of DC voltage levels for a group of channels,
+    Defines a specific set of DC voltages for a group of channels,
     along with a default duration to hold these voltages.
 
     This class is typically not instantiated directly by users, but is created
@@ -29,7 +29,7 @@ class VoltageTuningPoint(QuamMacro):
     name in voltage sequences.
 
     Attributes:
-        voltages: Dictionary mapping channel names to their target voltage levels.
+        voltages: Dictionary mapping channel names to their target voltages.
         duration: Default duration in nanoseconds to hold these voltages.
     """
 
@@ -51,7 +51,7 @@ class GateSet(QuantumComponent):
     functionality to:
     - Define named voltage tuning points (macros) that can be reused across
       sequences
-    - Resolve voltage levels for all channels with default fallbacks
+    - Resolve voltages for all channels with default fallbacks
     - Create voltage sequences with proper channel configuration
 
     The GateSet acts as a logical grouping of related channels (e.g., gates
@@ -94,7 +94,7 @@ class GateSet(QuantumComponent):
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
     ) -> Dict[str, VoltageLevelType]:
         """
-        Resolves voltage levels for all channels in the GateSet.
+        Resolves voltages for all channels in the GateSet.
 
         Adds any channels in the GateSet that are not in the provided voltages dict
         with a default voltage of 0.0. Optionally validates that all provided voltage
@@ -106,13 +106,13 @@ class GateSet(QuantumComponent):
         state information.
 
         Args:
-            voltages: Dictionary mapping channel names to their voltage levels.
+            voltages: Dictionary mapping channel names to their voltages.
             allow_extra_entries: If False, raises ValueError if voltages contains
                 channel names not present in this GateSet's channels. If True,
                 extra entries are ignored.
 
         Returns:
-            Dict[str, VoltageLevelType]: Dictionary containing voltage levels for all
+            Dict[str, VoltageLevelType]: Dictionary containing voltages for all
             channels in this GateSet. Missing channels are assigned 0.0 voltage.
 
         Raises:

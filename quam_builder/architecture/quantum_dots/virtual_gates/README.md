@@ -84,10 +84,10 @@ Since `VirtualGateSet` inherits all features from `GateSet`, you have access to 
 
 #### Direct Voltage Control
 
-- `step_to_level(levels: Dict[str, float], duration: int)`  
+- `step_to_voltages(levels: Dict[str, float], duration: int)`  
   Steps channels directly to specified voltage levels. Both `levels` values and `duration` can be QUA variables.
 
-- `ramp_to_level(levels: Dict[str, float], duration: int, ramp_duration: int)`  
+- `ramp_to_voltages(levels: Dict[str, float], duration: int, ramp_duration: int)`  
   Ramps channels to specified voltage levels over the ramp duration, then holds. All parameters can be QUA variables.
 
 #### Predefined Tuning Points
@@ -142,7 +142,7 @@ with qua.program() as complex_control:
     voltage_seq = v_gate_set.new_sequence()
 
     # Step to a virtual gate configuration
-    voltage_seq.step_to_level(
+    voltage_seq.step_to_voltages(
         levels={"v_FineTune1": 0.05, "v_FineTune2": -0.02},
         duration=500
     )
@@ -151,7 +151,7 @@ with qua.program() as complex_control:
     voltage_seq.ramp_to_point("readout", ramp_duration=100, duration=2000)
 
     # Combine virtual and physical control
-    voltage_seq.step_to_level(
+    voltage_seq.step_to_voltages(
         levels={
             "v_FineTune1": 0.1,    # Virtual gate adjustment
             "P3": 0.3              # Direct physical gate control
@@ -160,7 +160,7 @@ with qua.program() as complex_control:
     )
 
     # Fine ramp with virtual gates
-    voltage_seq.ramp_to_level(
+    voltage_seq.ramp_to_voltages(
         levels={"v_FineTune2": 0.0},
         duration=500,
         ramp_duration=50

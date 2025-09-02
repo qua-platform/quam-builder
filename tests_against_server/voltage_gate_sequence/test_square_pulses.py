@@ -98,7 +98,7 @@ def test_square_pulses_qua(qmm, machine):
         a = qua.declare(qua.fixed, value=level_init[0])
         b = qua.declare(qua.fixed, value=level_init[1])
         seq = machine.gate_set.new_sequence()
-        seq.step_to_level(levels={"ch1": a, "ch2": b}, duration=duration_init)
+        seq.step_to_voltages(levels={"ch1": a, "ch2": b}, duration=duration_init)
         seq.step_to_point("idle")
         seq.step_to_point("readout")
         seq.ramp_to_zero()

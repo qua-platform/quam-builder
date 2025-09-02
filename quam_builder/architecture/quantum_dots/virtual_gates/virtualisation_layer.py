@@ -47,14 +47,14 @@ class VirtualisationLayer(QuamComponent):
         Resolves virtual gate voltages to physical gate voltages for this layer.
 
         Args:
-            voltages: A dictionary mapping gate names to voltage levels.
+            voltages: A dictionary mapping gate names to voltages.
                 These can be virtual or physical gate names.
             allow_extra_entries: If True, gates in `voltages` that are not
                 part of `source_gates` will be ignored. If False, an
                 AssertionError will be raised.
 
         Returns:
-            A dictionary mapping physical gate names to their resolved voltage levels.
+            A dictionary mapping physical gate names to their resolved voltages.
         """
         if not allow_extra_entries:
             assert all(ch_name in self.source_gates for ch_name in voltages), (

@@ -30,7 +30,7 @@ class SequenceStateTracker:
     is crucial for calculating DC compensation pulses.
 
     The class handles both standard Python numerical types (float, int) for
-    voltage levels and durations, as well as QUA variables/expressions
+    voltages and durations, as well as QUA variables/expressions
     (`QuaVariable`, `QuaExpression`). When QUA types are involved in calculations
     that update the integrated voltage, the internal tracking for the element's
     integrated voltage is automatically promoted to a QUA variable if it isn't
