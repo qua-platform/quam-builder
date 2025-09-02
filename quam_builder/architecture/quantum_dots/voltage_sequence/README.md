@@ -116,12 +116,12 @@ with qua.program() as prog:
   voltage_seq.ramp_to_level(levels={"P1": 0.0}, duration=500, ramp_duration=40)
   ```
 
-- `go_to_point(name: str, duration: Optional[int] = None)`  
+- `step_to_point(name: str, duration: Optional[int] = None)`  
   Steps all channels to the voltages defined in a predefined `VoltageTuningPoint` macro. If no duration is provided, uses the default duration from the tuning point definition. This enables quick transitions to well-defined system states. The `duration` parameter can be a QUA variable.
 
   ```python
-  voltage_seq.go_to_point("idle")
-  voltage_seq.go_to_point("readout", duration=2000)  # Override default duration
+  voltage_seq.step_to_point("idle")
+  voltage_seq.step_to_point("readout", duration=2000)  # Override default duration
   ```
 
 - `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`  

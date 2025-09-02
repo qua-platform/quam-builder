@@ -31,7 +31,7 @@ def test_invalid_timing_multiple_4(machine):
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
         with pytest.raises(TypeError):
-            seq.go_to_point("p1")
+            seq.step_to_point("p1")
 
 
 def test_invalid_timing_min_duration(machine):
@@ -39,7 +39,7 @@ def test_invalid_timing_min_duration(machine):
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence()
         with pytest.raises(TypeError):
-            seq.go_to_point("p1")
+            seq.step_to_point("p1")
 
 
 def test_go_to_single_point(machine):
@@ -47,7 +47,7 @@ def test_go_to_single_point(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
-        seq.go_to_point("p1")
+        seq.step_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -64,8 +64,8 @@ def test_go_to_multiple_points(machine):
     machine.gate_set.add_point("p2", voltages={"ch1": 0.3, "ch2": 0.4}, duration=200)
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
-        seq.go_to_point("p1")
-        seq.go_to_point("p2")
+        seq.step_to_point("p1")
+        seq.step_to_point("p2")
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -78,15 +78,15 @@ def test_go_to_multiple_points(machine):
     assert compare_ast_nodes(ast, expected_ast)
 
 
-def test_go_to_point_with_custom_duration(machine):
-    """Tests overriding the point's default duration in go_to_point."""
+def test_step_to_point_with_custom_duration(machine):
+    """Tests overriding the point's default duration in step_to_point."""
     machine.gate_set.add_point(
         "p1", voltages={"ch1": 0.1}, duration=100
     )  # Default duration
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
-        seq.go_to_point("p1", duration=60)
-        seq.go_to_point("p1")
+        seq.step_to_point("p1", duration=60)
+        seq.step_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -127,15 +127,15 @@ def test_step_to_level_multiple_channels(machine):
     assert compare_ast_nodes(ast, expected_ast)
 
 
-def test_step_to_level_then_go_to_point(machine):
-    """Tests a step_to_level operation followed by a go_to_point."""
+def test_step_to_level_then_step_to_point(machine):
+    """Tests a step_to_level operation followed by a step_to_point."""
     machine.gate_set.add_point(
         "p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80
     )
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
         seq.step_to_level(levels={"ch1": 0.1}, duration=100)
-        seq.go_to_point("p_after_step")
+        seq.step_to_point("p_after_step")
 
     ast = ProgramTreeBuilder().build(prog)
 

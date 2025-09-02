@@ -92,7 +92,7 @@ Since `VirtualGateSet` inherits all features from `GateSet`, you have access to 
 
 #### Predefined Tuning Points
 
-- `go_to_point(name: str, duration: Optional[int] = None)`  
+- `step_to_point(name: str, duration: Optional[int] = None)`  
   Steps to a predefined `VoltageTuningPoint`. The `duration` parameter can be a QUA variable.
 
 - `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`  
@@ -188,11 +188,13 @@ V_target = M * V_source
 ```
 
 Where:
+
 - `V_source` is the vector of virtual gate voltages (source gates)
 - `V_target` is the vector of target gate voltages (physical or lower-level virtual gates)
 - `M` is the transformation matrix
 
 For example, with a 2x2 matrix:
+
 ```python
 matrix = [[1.0, 0.5], [0.5, 1.0]]
 source_gates = ["v_Gate1", "v_Gate2"]
@@ -200,12 +202,14 @@ target_gates = ["P1", "P2"]
 ```
 
 The relationship becomes:
+
 ```
 [P1]   [1.0  0.5] [v_Gate1]
 [P2] = [0.5  1.0] [v_Gate2]
 ```
 
 Expanded:
+
 - `P1 = 1.0 * v_Gate1 + 0.5 * v_Gate2`
 - `P2 = 0.5 * v_Gate1 + 1.0 * v_Gate2`
 
@@ -230,22 +234,26 @@ for target_gate, inv_matrix_row in zip(target_gates, inverse_matrix):
 For multiple virtualisation layers, transformations are applied sequentially in reverse order. Consider two layers:
 
 **Layer 1:** `v_Coarse1, v_Coarse2 → P1, P2`
+
 ```
 matrix_1 = [[1.0, 0.5], [0.5, 1.0]]
 ```
 
 **Layer 2:** `v_Fine1, v_Fine2 → v_Coarse1, v_Coarse2`
+
 ```
 matrix_2 = [[0.1, 0.0], [0.0, 0.1]]
 ```
 
 The combined transformation is:
+
 ```
 [P1]   [1.0  0.5] [0.1  0.0] [v_Fine1]
 [P2] = [0.5  1.0] [0.0  0.1] [v_Fine2]
 ```
 
 Which gives the overall relationship:
+
 ```
 [P1]   [0.1  0.05] [v_Fine1]
 [P2] = [0.05 0.1 ] [v_Fine2]
@@ -254,11 +262,13 @@ Which gives the overall relationship:
 ### 6.4 Additive Voltage Contributions
 
 The system supports additive contributions from different layers and direct physical gate control. If you specify:
+
 - `v_Fine1 = 1.0V` (from Layer 2)
 - `v_Coarse1 = 0.2V` (from Layer 1)
 - `P1 = 0.1V` (direct)
 
 The final voltage for P1 becomes:
+
 ```
 P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
          = 0.1 + (1.0 * 0.2) + (1.0 * 0.1)
@@ -268,6 +278,7 @@ P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
 ### 6.5 Matrix Constraints
 
 For a valid virtualisation layer:
+
 - Matrix must be square: `len(source_gates) == len(target_gates)`
 - Matrix must be invertible (non-singular): `det(M) ≠ 0`
 - The inverse matrix is calculated using `numpy.linalg.inv(matrix)`

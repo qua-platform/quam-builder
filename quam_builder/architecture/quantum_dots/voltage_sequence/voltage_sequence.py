@@ -31,7 +31,12 @@ from .constants import DEFAULT_PULSE_NAME
 from .exceptions import (
     VoltagePointError,
 )
-from ....tools.qua_tools import is_qua_type, validate_duration, VoltageLevelType, DurationType
+from ....tools.qua_tools import (
+    is_qua_type,
+    validate_duration,
+    VoltageLevelType,
+    DurationType,
+)
 
 __all__ = [
     "VoltageTuningPoint",
@@ -307,7 +312,7 @@ class VoltageSequence:
         """
         self._common_level_change(levels, duration, ramp_duration_ns=ramp_duration)
 
-    def go_to_point(self, name: str, duration: Optional[DurationType] = None):
+    def step_to_point(self, name: str, duration: Optional[DurationType] = None):
         """
         Steps all channels to the voltages defined in a predefined tuning point.
 
@@ -330,8 +335,8 @@ class VoltageSequence:
             >>> with qua.program() as prog:
             ...     voltage_seq = gate_set.new_sequence()
             ...     # Use predefined voltage configurations
-            ...     voltage_seq.go_to_point("load")  # Uses default 1000ns duration
-            ...     voltage_seq.go_to_point("measure", duration=2000)  # Override duration
+            ...     voltage_seq.step_to_point("load")  # Uses default 1000ns duration
+            ...     voltage_seq.step_to_point("measure", duration=2000)  # Override duration
         """
         tuning_point_macro = self.gate_set.macros.get(name)
         if not isinstance(tuning_point_macro, VoltageTuningPoint):

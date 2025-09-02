@@ -22,12 +22,12 @@ class VoltageTuningPoint(QuamMacro):
     """
     Defines a specific set of DC voltage levels for a group of channels,
     along with a default duration to hold these voltages.
-    
+
     This class is typically not instantiated directly by users, but is created
     automatically by the GateSet.add_point() method. Once created, instances
     are stored in the GateSet's macros dictionary and can be referenced by
     name in voltage sequences.
-    
+
     Attributes:
         voltages: Dictionary mapping channel names to their target voltage levels.
         duration: Default duration in nanoseconds to hold these voltages.
@@ -44,19 +44,19 @@ class VoltageTuningPoint(QuamMacro):
 @quam_dataclass
 class GateSet(QuantumComponent):
     """
-    Represents a set of gate channels used for voltage sequencing in quantum dot 
+    Represents a set of gate channels used for voltage sequencing in quantum dot
     experiments.
 
-    A GateSet manages a collection of SingleChannel objects and provides 
+    A GateSet manages a collection of SingleChannel objects and provides
     functionality to:
-    - Define named voltage tuning points (macros) that can be reused across 
+    - Define named voltage tuning points (macros) that can be reused across
       sequences
     - Resolve voltage levels for all channels with default fallbacks
     - Create voltage sequences with proper channel configuration
 
-    The GateSet acts as a logical grouping of related channels (e.g., gates 
-    controlling a specific quantum dot) and enables high-level voltage control 
-    operations. This class also serves as the base for VirtualGateSet, which 
+    The GateSet acts as a logical grouping of related channels (e.g., gates
+    controlling a specific quantum dot) and enables high-level voltage control
+    operations. This class also serves as the base for VirtualGateSet, which
     enables linear combinations of physical gates.
 
     Attributes:
@@ -81,7 +81,7 @@ class GateSet(QuantumComponent):
         >>> # Create and use voltage sequence
         >>> with qua.program() as prog:
         ...     seq = dot_gates.new_sequence()
-        ...     seq.go_to_point("load")  # Uses the predefined voltage point
+        ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
     channels: Dict[str, SingleChannel]
@@ -125,7 +125,7 @@ class GateSet(QuantumComponent):
             >>> complete_voltages = gate_set.resolve_voltages(partial_voltages)
             >>> print(complete_voltages)
             {"P1": 0.3, "P2": 0.0, "B1": -0.1}
-            
+
             >>> # With invalid channel name (raises error by default)
             >>> try:
             ...     gate_set.resolve_voltages({"P1": 0.3, "invalid": 0.1})

@@ -48,7 +48,7 @@ def test_vgs_go_to_virtual_point(virtual_gate_set: VirtualGateSet):
 
     with qua.program() as prog:
         seq = vgs.new_sequence()
-        seq.go_to_point("virt_p1")
+        seq.step_to_point("virt_p1")
 
     # Calculate expected physical voltages (assuming initial state is 0V for ch1, ch2)
     # v_g1_target = 1.0, v_g2_target = 0.4
@@ -215,7 +215,7 @@ def test_step_then_ramp(machine):
     )
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
-        seq.go_to_point("p_step")  # Current level: ch1=0.1, ch2=0.1
+        seq.step_to_point("p_step")  # Current level: ch1=0.1, ch2=0.1
         seq.ramp_to_level(
             levels={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80
         )
@@ -246,7 +246,7 @@ def test_ramp_then_step(machine):
         seq.ramp_to_level(
             levels={"ch1": 0.2, "ch2": 0.2}, duration=100, ramp_duration=40
         )  # Current level: ch1=0.2, ch2=0.2
-        seq.go_to_point("p_final")
+        seq.step_to_point("p_final")
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
