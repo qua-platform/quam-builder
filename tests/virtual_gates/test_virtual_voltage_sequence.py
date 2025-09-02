@@ -170,7 +170,7 @@ def test_ramp_to_voltages_simple(machine):
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
         seq.ramp_to_voltages(
-            levels={"ch1": 0.2, "ch2": -0.1},
+            voltages={"ch1": 0.2, "ch2": -0.1},
             duration=120,
             ramp_duration=40,  # ns
         )
@@ -217,7 +217,7 @@ def test_step_then_ramp(machine):
         seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
         seq.step_to_point("p_step")  # Current level: ch1=0.1, ch2=0.1
         seq.ramp_to_voltages(
-            levels={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80
+            voltages={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80
         )
     ast = ProgramTreeBuilder().build(prog)
 
@@ -244,7 +244,7 @@ def test_ramp_then_step(machine):
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
         seq.ramp_to_voltages(
-            levels={"ch1": 0.2, "ch2": 0.2}, duration=100, ramp_duration=40
+            voltages={"ch1": 0.2, "ch2": 0.2}, duration=100, ramp_duration=40
         )  # Current level: ch1=0.2, ch2=0.2
         seq.step_to_point("p_final")
     ast = ProgramTreeBuilder().build(prog)
@@ -271,7 +271,7 @@ def test_ramp_to_voltages_with_qua_voltage(machine):
         qua_level = qua.declare(qua.fixed)
         qua.assign(qua_level, 0.15)
         seq.ramp_to_voltages(
-            levels={"ch1": qua_level, "ch2": 0.1}, duration=100, ramp_duration=40
+            voltages={"ch1": qua_level, "ch2": 0.1}, duration=100, ramp_duration=40
         )
     ast = ProgramTreeBuilder().build(prog)
 
@@ -301,7 +301,7 @@ def test_ramp_to_voltages_with_qua_ramp_duration(machine):
         qua_ramp_dur = qua.declare(int)
         qua.assign(qua_ramp_dur, 80)  # ns
         seq.ramp_to_voltages(
-            levels={"ch1": 0.2}, duration=160, ramp_duration=qua_ramp_dur
+            voltages={"ch1": 0.2}, duration=160, ramp_duration=qua_ramp_dur
         )
     ast = ProgramTreeBuilder().build(prog)
 

@@ -102,18 +102,18 @@ with qua.program() as prog:
 
 **Core Methods (used in `qua.program()` context):**
 
-- `step_to_voltages(levels: Dict[str, float], duration: int)`  
-  Steps all specified channels directly to the given voltage levels and holds them for the specified duration (in nanoseconds). This creates immediate voltage changes without ramping. Both `levels` values and `duration` can be QUA variables for dynamic control.
+- `step_to_voltages(voltages: Dict[str, float], duration: int)`  
+  Steps all specified channels directly to the given voltage levels and holds them for the specified duration (in nanoseconds). This creates immediate voltage changes without ramping. Both `voltages` values and `duration` can be QUA variables for dynamic control.
 
   ```python
-  voltage_seq.step_to_voltages(levels={"P1": 0.3, "P2": 0.1}, duration=1000)
+  voltage_seq.step_to_voltages(voltages={"P1": 0.3, "P2": 0.1}, duration=1000)
   ```
 
-- `ramp_to_voltages(levels: Dict[str, float], duration: int, ramp_duration: int)`  
+- `ramp_to_voltages(voltages: Dict[str, float], duration: int, ramp_duration: int)`  
   Ramps all specified channels to the given voltage levels over the specified ramp duration, then holds them for the duration (both in nanoseconds). This provides smooth voltage transitions useful for avoiding voltage spikes that could affect sensitive quantum systems. All parameters can be QUA variables.
 
   ```python
-  voltage_seq.ramp_to_voltages(levels={"P1": 0.0}, duration=500, ramp_duration=40)
+  voltage_seq.ramp_to_voltages(voltages={"P1": 0.0}, duration=500, ramp_duration=40)
   ```
 
 - `step_to_point(name: str, duration: Optional[int] = None)`  
