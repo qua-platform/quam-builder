@@ -32,7 +32,29 @@ A `VirtualGateSet` allows users to define and operate with virtual gates, abstra
   - `matrix`: The transformation matrix (list of lists of floats).
 - **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualisation matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualisation by processing layers from the outermost to the innermost.
 
-### 3.1 Defining a `VirtualGateSet`
+### 3.1 Important Behavior: Unspecified Virtual Gates Are Zeroed Per Operation
+
+Each `VoltageSequence` call (e.g., `step_to_voltages`, `ramp_to_voltages`, `step_to_point`) is resolved independently. Any virtual gate not explicitly provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages.
+
+- This applies at every layer. If a higher-level virtual gate is not specified, its contribution is taken as 0 V when resolving to lower levels.
+- Physical channels not specified in a call are also driven to 0 V for that operation (same behavior as `GateSet`).
+
+Implication: Virtual gates do not “remember” their last values across operations. If you want to maintain a virtual configuration, include all relevant virtual gates and their values in each call, or operate directly on physical gates.
+
+Example:
+
+```python
+# Suppose v_C1 and v_C2 map to P1, P2 via a layer
+
+# First call: set both virtual gates
+voltage_seq.step_to_voltages({"v_C1": 0.2, "v_C2": 0.1}, duration=1000)
+
+# Second call: only specify v_C1
+# v_C2 is assumed 0 V for this call, so its previous contribution is removed
+voltage_seq.step_to_voltages({"v_C1": 0.2}, duration=1000)
+```
+
+### 3.2 Defining a `VirtualGateSet`
 
 ```python
 from quam.components import SingleChannel

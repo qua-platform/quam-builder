@@ -65,6 +65,17 @@ class VoltageSequence:
     of MIN_PULSE_DURATION_NS (16ns) with a waveform whose constant sample value is
     DEFAULT_BASE_WF_SAMPLE (0.25V).
     This class does not modify the QUA configuration.
+
+    Important behavior:
+    - Unspecified channels are treated as 0 V on every call. Each
+      operation (step/ramp/point) receives a fresh set of target voltages and
+      any channel not included is driven to 0 V for that operation.
+    - When used with a VirtualGateSet, the same rule applies to virtual gates:
+      any virtual gate not explicitly provided in a call is assumed to be 0 V
+      for that operation. This effectively removes prior contributions of those
+      virtual gates from the resulting physical voltages. To preserve a prior
+      virtual configuration, include all relevant virtual gates (and their
+      values) in each call, or operate directly on physical gates.
     """
 
     def __init__(self, gate_set: GateSet, track_integrated_voltage: bool = True):
@@ -251,6 +262,13 @@ class VoltageSequence:
         when you need precise, instantaneous voltage transitions for operations
         like loading or measuring quantum dots.
 
+        Note on virtual gates:
+            When this sequence is created from a VirtualGateSet, any virtual gate
+            not included in `voltages` is assumed to be 0 V for this call. As a
+            result, previous contributions from such virtual gates are cleared in
+            the resolved physical voltages. Include all relevant virtual gates in
+            each call if you want to maintain their contributions.
+
         Args:
             voltages: A dictionary mapping channel names to their target
                 voltages (in volts). Channels not included will be set to 0.0V.
@@ -281,6 +299,13 @@ class VoltageSequence:
         that could affect sensitive quantum systems. The ramp creates a linear
         transition from the current voltage to the target voltage over the
         specified ramp duration.
+
+        Note on virtual gates:
+            When this sequence is created from a VirtualGateSet, any virtual gate
+            not included in `voltages` is assumed to be 0 V for this call. As a
+            result, previous contributions from such virtual gates are cleared in
+            the resolved physical voltages. Include all relevant virtual gates in
+            each call if you want to maintain their contributions.
 
         Args:
             voltages: A dictionary mapping channel names to their target

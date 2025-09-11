@@ -90,6 +90,13 @@ Generates QUA commands for voltage manipulation, associated with a `GateSet`.
 
 - Supports Python numbers and QUA variables for levels/durations.
 
+### Important Behavior (Zeroing Semantics)
+
+- Unspecified physical channels are treated as 0 V on each call (consistent with `GateSet.resolve_voltages`).
+- When the sequence is created from a `VirtualGateSet`, any virtual gate not included in a call is assumed 0 V for that operation. This clears any previous contribution from that virtual gate in the resolved physical voltages.
+
+Implication: virtual gates do not maintain state across calls. To preserve a virtual configuration, always include all relevant virtual gates (and their values) in each `step_to_voltages`/`ramp_to_voltages` call, or operate directly on physical gates.
+
 **Creating a `VoltageSequence`:**
 
 The sequence must be defined within a QUA program
