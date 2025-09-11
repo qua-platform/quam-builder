@@ -20,6 +20,9 @@ class VirtualGateSet(GateSet):
 
     Attributes:
         layers: A list of `VirtualisationLayer` objects, applied sequentially.
+        channels: Inherited from `GateSet`. Physical channels are `SingleChannel`
+            instances (and may be `VoltageGate` objects) that the virtual gates
+            ultimately resolve to.
     """
 
     layers: List[VirtualisationLayer] = field(default_factory=list)

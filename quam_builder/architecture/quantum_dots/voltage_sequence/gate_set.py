@@ -47,7 +47,8 @@ class GateSet(QuantumComponent):
     Represents a set of gate channels used for voltage sequencing in quantum dot
     experiments.
 
-    A GateSet manages a collection of SingleChannel objects and provides
+    A GateSet manages a collection of channels (instances of `SingleChannel`,
+    including subclasses like `VoltageGate`) and provides
     functionality to:
     - Define named voltage tuning points (macros) that can be reused across
       sequences
@@ -60,7 +61,10 @@ class GateSet(QuantumComponent):
     enables linear combinations of physical gates.
 
     Attributes:
-        channels: Dictionary mapping channel names to SingleChannel instances.
+        channels: Dictionary mapping channel names to `SingleChannel` instances.
+            This may include `VoltageGate` objects, which are specialized
+            `SingleChannel`s that model voltage gates with optional attenuation
+            and DC offset handling.
 
     Example:
         >>> from quam.components.channels import SingleChannel
