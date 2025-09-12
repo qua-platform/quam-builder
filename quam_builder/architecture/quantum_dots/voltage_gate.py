@@ -1,6 +1,7 @@
 from quam.components import SingleChannel
 from quam.core import quam_dataclass
 
+__all__ = ["VoltageGate"]
 
 @quam_dataclass
 class VoltageGate(SingleChannel):
