@@ -67,7 +67,7 @@ my_gate_set = GateSet(id="dot_plungers", channels={"P1": channel_P1, "P2": chann
 
 ```
 
-While the DC points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
+While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
 
 ```
 my_gate_set.add_point(name="idle", voltages={"P1": 0.1, "P2": -0.05}, duration=1000)
