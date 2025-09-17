@@ -3,12 +3,12 @@ from qm.qua import *
 from quam.core import quam_dataclass
 from quam.components.pulses import Pulse
 from quam.components.macro import QubitPairMacro
-from qm.qua._dsl import QuaExpression, QuaVariable
+from typing import Any
 
 __all__ = ["CRGate"]
 
 
-qua_T = QuaVariable | QuaExpression
+qua_T = Any
 
 
 @quam_dataclass

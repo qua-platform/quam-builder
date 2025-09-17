@@ -16,6 +16,7 @@ from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
 
 from qualang_tools.results.data_handler import DataHandler
+from quam.serialisation import JSONSerialiser
 
 __all__ = ["BaseQuam"]
 
