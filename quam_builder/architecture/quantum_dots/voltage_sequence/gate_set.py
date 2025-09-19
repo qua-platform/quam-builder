@@ -37,8 +37,7 @@ class VoltageTuningPoint(QuamMacro):
     duration: int
 
     def apply(self, *args, **kwargs):
-        # TODO: Implement apply method
-        pass
+        raise NotImplementedError("Not yet implemented")
 
 
 @quam_dataclass
