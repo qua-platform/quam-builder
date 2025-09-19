@@ -57,7 +57,7 @@ You can map virtualisation layers onto your existing physical or virtual gates u
   )
   ```
 
-#### 2.3.3 Add `VoltageTuningPoints` if needed 
+#### 2.3.3 Add `VoltageTuningPoints` if needed 
 
 The `VoltageTuningPoint` can comprise of any combination of physical and virtual gates. 
 
