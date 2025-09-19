@@ -18,9 +18,9 @@ This framework is specifically designed to work with channels that have **sticky
 
 #### 1  Define QUAM `VoltageGate` objects for physical gates
 
-    - A `VoltageGate` channel is a Quantum Dot specific channel inheriting from QuAM's `SingleChannel` object. It adds to the `SingleChannel` by containing an `offset_parameter` and an `attenuation` value. 
+- A `VoltageGate` channel is a Quantum Dot specific channel inheriting from QuAM's `SingleChannel` object. It adds to the `SingleChannel` by containing an `offset_parameter` and an `attenuation` value. 
 
-    - Below is an example of how a `VoltageGate` is instantiated. 
+- Below is an example of how a `VoltageGate` is instantiated. 
 
   ```python
   from quam_builder.architecture.quantum_dots import VoltageGate
@@ -43,57 +43,57 @@ This framework is specifically designed to work with channels that have **sticky
 
 #### 2  Ensure each channel has a base QUA operation (e.g., `half_max_square` for a short, 0.25V pulse)
 
-    1. Will be redundant in a future release
+  1. Will be redundant in a future release
 
-    2. This has already been done in step 1. Notice the `operations` input has a default operation named `"half_max_square"`.
+  2. This has already been done in step 1. Notice the `operations` input has a default operation named `"half_max_square"`.
 
 
 
 #### 3  Group channels into a channel dictionary
 
-    ```python
-    channels = {
-      "channel_p1": channel_p1
-      "channel_p2": channel_p2
-    }
-    ```
+  ```python
+  channels = {
+    "channel_p1": channel_p1,
+    "channel_p2": channel_p2,
+  }
+  ```
 
-    1. It is important to ensure that the string names used here match the string names in your QuAM machine
-    
-    2. If your channel object are already parented by a QuAM machine (i.e. `machine.channel["channel_p1"] = VoltageGate(...)`), then the channels cannot be re-parented into your GateSet. In this case, it is important to use the channel reference as such: 
+  1. It is important to ensure that the string names used here match the string names in your QuAM machine
 
-    ```python
-    channels = {
-      "channel_p1": channel_p1.get_reference()
-      "channel_p2": channel_p2.get_reference()
-    }
-    ```
+  2. If your channel object are already parented by a QuAM machine (i.e. `machine.channel["channel_p1"] = VoltageGate(...)`), then the channels cannot be re-parented into your GateSet. In this case, it is important to use the channel reference as such: 
+
+  ```python
+  channels = {
+    "channel_p1": channel_p1.get_reference(),
+    "channel_p2": channel_p2.get_reference()
+  }
+  ```
 
 #### 4 Instantiate your GateSet with your channel mapping
 
-    ```python 
-    from quam_builder.architecture.quantum_dots.voltage_sequence import GateSet
+  ```python 
+  from quam_builder.architecture.quantum_dots.voltage_sequence import GateSet
 
-    my_gate_set = GateSet(id="dot_plungers", channels=channels)
-    ```
+  my_gate_set = GateSet(id="dot_plungers", channels=channels)
+  ```
 
 #### 5  Optionally, add `VoltageTuningPoint` macros to the `GateSet`
     
-    This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
+  This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
 
-    ```python
-    my_gate_set.add_point(name="idle", voltages={"channel_P1": 0.1, "channel_P2": -0.05}, duration=1000)
-    ```
+  ```python
+  my_gate_set.add_point(name="idle", voltages={"channel_P1": 0.1, "channel_P2": -0.05}, duration=1000)
+  ```
     
     Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
 
 #### 6  Create a `VoltageSequence` from the `GateSet`
 
-    ```python 
-    voltage_seq = my_gate_set.new_sequence()
-    ```
+  ```python 
+  voltage_seq = my_gate_set.new_sequence()
+  ```
 
-    `voltage_seq` can now be reference in QUA programs to easily step/ramp to points. 
+  `voltage_seq` can now be reference in QUA programs to easily step/ramp to points. 
 
 #### 7  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
 
