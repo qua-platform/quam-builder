@@ -93,7 +93,7 @@ This framework is specifically designed to work with channels that have **sticky
   voltage_seq = my_gate_set.new_sequence()
   ```
 
-- `voltage_seq` can now be reference in QUA programs to easily step/ramp to points. 
+- `voltage_seq` can be used in QUA programs to easily step/ramp to points. 
 
 #### 7.  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
 
