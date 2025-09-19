@@ -12,11 +12,11 @@ This framework is specifically designed to work with channels that have **sticky
 
 - `VoltageSequence`: uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
 
-### **Workflow:**
+### 2.1 **Workflow:**
 
-- **This README will start with an end-to-end example before delving into the specifics. This example workflow takes place in 4 broad steps:**
+- **This README will start with an end-to-end example before delving into the specifics. This example workflow takes place in 7 broad steps:**
 
-1.  Define QUAM `VoltageGate` objects for physical gates
+#### 1  Define QUAM `VoltageGate` objects for physical gates
 
     - A `VoltageGate` channel is a Quantum Dot specific channel inheriting from QuAM's `SingleChannel` object. It adds to the `SingleChannel` by containing an `offset_parameter` and an `attenuation` value. 
 
@@ -24,15 +24,16 @@ This framework is specifically designed to work with channels that have **sticky
 
   ```python
   from quam_builder.architecture.quantum_dots import VoltageGate
-  from quam.components import (
-    StickyChannelAddon, 
-    pulses
-    )
+  from quam.components import StickyChannelAddon, pulses
+
+
   channel_p1 = VoltageGate(
     opx_output = ("con1", 1), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
     operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
   )
+
+
   channel_p2 = VoltageGate(
     opx_output = ("con1", 2), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
@@ -40,7 +41,7 @@ This framework is specifically designed to work with channels that have **sticky
   )
   ```
 
-2.  Ensure each channel has a base QUA operation (e.g., `half_max_square` for a short, 0.25V pulse)
+#### 2  Ensure each channel has a base QUA operation (e.g., `half_max_square` for a short, 0.25V pulse)
 
     1. Will be redundant in a future release
 
@@ -48,7 +49,7 @@ This framework is specifically designed to work with channels that have **sticky
 
 
 
-3.  Group channels into a channel dictionary
+#### 3  Group channels into a channel dictionary
 
     ```python
     channels = {
@@ -68,7 +69,7 @@ This framework is specifically designed to work with channels that have **sticky
     }
     ```
 
-4. Instantiate your GateSet with your channel mapping
+#### 4 Instantiate your GateSet with your channel mapping
 
     ```python 
     from quam_builder.architecture.quantum_dots.voltage_sequence import GateSet
@@ -76,7 +77,7 @@ This framework is specifically designed to work with channels that have **sticky
     my_gate_set = GateSet(id="dot_plungers", channels=channels)
     ```
 
-5.  Optionally, add `VoltageTuningPoint` macros to the `GateSet`
+#### 5  Optionally, add `VoltageTuningPoint` macros to the `GateSet`
     
     This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
 
@@ -86,7 +87,7 @@ This framework is specifically designed to work with channels that have **sticky
     
     Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
 
-6.  Create a `VoltageSequence` from the `GateSet`
+#### 6  Create a `VoltageSequence` from the `GateSet`
 
     ```python 
     voltage_seq = my_gate_set.new_sequence()
@@ -94,7 +95,7 @@ This framework is specifically designed to work with channels that have **sticky
 
     `voltage_seq` can now be reference in QUA programs to easily step/ramp to points. 
 
-7.  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
+#### 7  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
 
   - Remember: The sequence must be defined inside the QUA program.
 

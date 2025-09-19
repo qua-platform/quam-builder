@@ -20,97 +20,97 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 
 ### 2.3 Complete Example
 
-This section provides a complete example of the workflow before the specifics, so that you have an idea of what the finished program might look like. 
+This section provides a complete example of the workflow before getting into the specifics, so that you have an idea of what the finished program might look like. 
 
-1. Instantiate your VirtualGateSet
+#### 2.3.1 Instantiate your VirtualGateSet
 
-This first section assumes you have already instantiated VoltageGate or SingleChannel objects. For a concrete example, check section 8. The VirtualGateSet instantiation is identical to that of GateSet
-
-
-```python
-from quam.components import SingleChannel
-from quam_builder.architecture.quantum_dots.virtual_gates import VirtualGateSet
-
-# Physical channels for a double quantum dot
-physical_channels = {"P1": channel_P1, "P2": channel_P2, "P3": channel_P3}
-v_gate_set = VirtualGateSet(id="double_dot_gates", channels=physical_channels)
-
-```
-
-2. Add Virtualisation Layers 
-
-You can map virtualisation layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates. 
-
-```python
-# Add coarse tuning layer (virtual gates for overall dot positions)
-v_gate_set.add_layer(
-    source_gates=["v_Coarse1", "v_Coarse2"],
-    target_gates=["P1", "P2"],
-    matrix=[[1.0, 0.5], [0.5, 1.0]]  # Coupled control
-)
-
-# Add fine tuning layer (virtual gates for precise adjustments)
-v_gate_set.add_layer(
-    source_gates=["v_FineTune1", "v_FineTune2"],
-    target_gates=["v_Coarse1", "v_Coarse2"],
-    matrix=[[0.1, 0.0], [0.0, 0.1]]  # Small adjustments
-)
-```
-
-3. Add `VoltageTuningPoints` if needed 
-
-The `VoltageTuningPoint` can comprise of any combination of physical and virtual gates. 
-
-```python
-# Add a predefined tuning point for readout
-v_gate_set.add_point(name="readout", voltages={"v_Coarse1": 0.2, "v_Coarse2": 0.1}, duration=1000)
-```
-
-4. Create your QUA program with your `VoltageSequence`
-
-Instantiate your new sequence in the QUA programme, and step/ramp to any point.
+    This first section assumes you have already instantiated VoltageGate or SingleChannel objects. For a concrete example, check section 8. The VirtualGateSet instantiation is identical to that of GateSet
 
 
-```python
-# Create voltage sequence
-with qua.program() as complex_control:
-    voltage_seq = v_gate_set.new_sequence()
+    ```python
+    from quam.components import SingleChannel
+    from quam_builder.architecture.quantum_dots.virtual_gates import VirtualGateSet
 
-    # Step to a virtual gate configuration
-    voltage_seq.step_to_voltages(
-        voltages={"v_FineTune1": 0.05, "v_FineTune2": -0.02},
-        duration=500
+    # Physical channels for a double quantum dot
+    physical_channels = {"P1": channel_P1, "P2": channel_P2, "P3": channel_P3}
+    v_gate_set = VirtualGateSet(id="double_dot_gates", channels=physical_channels)
+
+    ```
+
+#### 2.3.2 Add Virtualisation Layers 
+
+    You can map virtualisation layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates. 
+
+    ```python
+    # Add coarse tuning layer (virtual gates for overall dot positions)
+    v_gate_set.add_layer(
+        source_gates=["v_Coarse1", "v_Coarse2"],
+        target_gates=["P1", "P2"],
+        matrix=[[1.0, 0.5], [0.5, 1.0]]  # Coupled control
     )
 
-    # Ramp to a predefined point
-    voltage_seq.ramp_to_point("readout", ramp_duration=100, duration=2000)
-
-    # Combine virtual and physical control
-    voltage_seq.step_to_voltages(
-        voltages={
-            "v_FineTune1": 0.1,    # Virtual gate adjustment
-            "P3": 0.3              # Direct physical gate control
-        },
-        duration=1000
+    # Add fine tuning layer (virtual gates for precise adjustments)
+    v_gate_set.add_layer(
+        source_gates=["v_FineTune1", "v_FineTune2"],
+        target_gates=["v_Coarse1", "v_Coarse2"],
+        matrix=[[0.1, 0.0], [0.0, 0.1]]  # Small adjustments
     )
+    ```
 
-    # Fine ramp with virtual gates
-    voltage_seq.ramp_to_voltages(
-        voltages={"v_FineTune2": 0.0},
-        duration=500,
-        ramp_duration=40 # Ensure multiple of 4
-    )
+#### 2.3.3 Add `VoltageTuningPoints` if needed 
 
-    # Return to zero
-    voltage_seq.ramp_to_zero(ramp_duration=200)
+    The `VoltageTuningPoint` can comprise of any combination of physical and virtual gates. 
 
-# The system automatically resolves all virtual gate contributions:
-# - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
-# - v_FineTune2 (0.0V) -> v_Coarse2: 0.0V contribution
-# - v_Coarse1 (0.1V) + readout (0.2V) -> P1: 0.3V total
-# - v_Coarse2 (0.0V) + readout (0.1V) -> P2: 0.1V total
-# - P3: 0.3V direct control
-```
+    ```python
+    # Add a predefined tuning point for readout
+    v_gate_set.add_point(name="readout", voltages={"v_Coarse1": 0.2, "v_Coarse2": 0.1}, duration=1000)
+    ```
+
+#### 2.3.4 Create your QUA program with your `VoltageSequence`
+
+    Instantiate your new sequence in the QUA programme, and step/ramp to any point.
+
+
+    ```python
+    # Create voltage sequence
+    with qua.program() as complex_control:
+        voltage_seq = v_gate_set.new_sequence()
+
+        # Step to a virtual gate configuration
+        voltage_seq.step_to_voltages(
+            voltages={"v_FineTune1": 0.05, "v_FineTune2": -0.02},
+            duration=500
+        )
+
+        # Ramp to a predefined point
+        voltage_seq.ramp_to_point("readout", ramp_duration=100, duration=2000)
+
+        # Combine virtual and physical control
+        voltage_seq.step_to_voltages(
+            voltages={
+                "v_FineTune1": 0.1,    # Virtual gate adjustment
+                "P3": 0.3              # Direct physical gate control
+            },
+            duration=1000
+        )
+
+        # Fine ramp with virtual gates
+        voltage_seq.ramp_to_voltages(
+            voltages={"v_FineTune2": 0.0},
+            duration=500,
+            ramp_duration=40 # Ensure multiple of 4
+        )
+
+        # Return to zero
+        voltage_seq.ramp_to_zero(ramp_duration=200)
+
+    # The system automatically resolves all virtual gate contributions:
+    # - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
+    # - v_FineTune2 (0.0V) -> v_Coarse2: 0.0V contribution
+    # - v_Coarse1 (0.1V) + readout (0.2V) -> P1: 0.3V total
+    # - v_Coarse2 (0.0V) + readout (0.1V) -> P2: 0.1V total
+    # - P3: 0.3V direct control
+    ```
 
 ## 3. VirtualGateSet
 
