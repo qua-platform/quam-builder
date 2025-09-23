@@ -3,9 +3,9 @@ from typing import List, Dict
 import numpy as np
 
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.gate_set import GateSet
+from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
 from quam_builder.tools.qua_tools import VoltageLevelType
-from quam_builder.architecture.quantum_dots.virtualisation_layer import (
+from quam_builder.architecture.quantum_dots.components.virtualisation_layer import (
     VirtualisationLayer,
 )
 

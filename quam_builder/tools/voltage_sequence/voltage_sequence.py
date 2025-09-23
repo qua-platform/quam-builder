@@ -1,13 +1,11 @@
-from typing import Dict, Optional, Any, Union, List, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from qm.qua import (
     declare,
     assign,
-    play,
     fixed,
     Cast,
-    amp,
     ramp,
     ramp_to_zero,
     Math,
@@ -21,7 +19,7 @@ from qm.qua.type_hints import (
 
 from quam.components.channels import SingleChannel
 
-from quam_builder.architecture.quantum_dots.gate_set import (
+from quam_builder.architecture.quantum_dots.components.gate_set import (
     GateSet,
     VoltageTuningPoint,
 )
