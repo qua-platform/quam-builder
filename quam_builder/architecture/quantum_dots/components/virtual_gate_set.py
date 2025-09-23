@@ -26,7 +26,7 @@ class VirtualGateSet(GateSet):
     of a GateSet, plus functionality to: 
     - Add any number of virtualisation layers onto any subset of physical or virtual gates,
       using square, invertible, user-defined matrices
-    - Define named voltage tuning points (macros), which can consist of any number of 
+    - Define named voltage tuning points (macros), which can consist of any combination of 
       physical and virtual gates, that can be reused across sequences
     - Resolve voltages for all gates, even if the input voltages contain both physical
       and virtual gates; with default fallbacks
