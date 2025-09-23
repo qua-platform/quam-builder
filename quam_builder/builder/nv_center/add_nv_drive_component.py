@@ -40,7 +40,6 @@ def add_nv_drive_component(
         nv_center.xy = XYDriveIQ(
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
-            #Todo: why is this reference not resolved? (Wrong import or due to build_quam_wiring that uses SC AnyQuam?)
             frequency_converter_up=f"{wiring_path}/frequency_converter_up",
             RF_frequency=None,
             digital_outputs=digital_outputs,

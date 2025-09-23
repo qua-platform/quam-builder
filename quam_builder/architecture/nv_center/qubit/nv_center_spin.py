@@ -43,7 +43,8 @@ class NVCenter(Qubit):
         id (Union[int, str]): The id of the NV center, used to generate the name.
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         xy (Union[MWChannel, IQChannel]): The xy drive component.
-        spcm (SPCM): The readout component.
+        spcm1 (SPCM): The first detector component.
+        spcm2 (SPCM): A second detector component.
         T1 (float): The transmon T1 in seconds. Default is None.
         T2ramsey (float): The transmon T2* in seconds.
         T2echo (float): The transmon T2 in seconds.
@@ -194,16 +195,16 @@ class NVCenter(Qubit):
             Warning: If the function is called in simulation mode, a warning is issued indicating
                      that the qubit reset has been skipped.
         """
-        # Todo: this should be done from the laser component, not the readout?
-        if not simulate:
-            if reset_type == "laser":
-                self.reset_qubit_laser(**kwargs)
-        else:
-            if log_callable is None:
-                log_callable = getLogger(__name__).warning
-            log_callable(
-                "For simulating the QUA program, the qubit reset has been skipped."
-            )
+        raise NotImplementedError("This method is not implemented yet.")
+        # if not simulate:
+        #     if reset_type == "laser":
+        #         self.reset_qubit_laser(**kwargs)
+        # else:
+        #     if log_callable is None:
+        #         log_callable = getLogger(__name__).warning
+        #     log_callable(
+        #         "For simulating the QUA program, the qubit reset has been skipped."
+        #     )
 
     def reset_qubit_laser(self, **kwargs):
         """
@@ -212,8 +213,8 @@ class NVCenter(Qubit):
         This function waits for a duration specified by the laser pumping time
         to allow the qubit to return to its ground state through laser pumping.
         """
-        # Todo
-        self.wait(self.thermalization_time // 4)
+        raise NotImplementedError("This method is not implemented yet.")
+        # self.wait(self.thermalization_time // 4)
 
     def wait(self, duration: int):
         """Wait for a given duration on all channels of the qubit.
