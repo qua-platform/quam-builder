@@ -1,9 +1,11 @@
-from .voltage_gate import VoltageGate
-from .voltage_sequence import *
-from .virtual_gates import *
+from .voltage_gate import *
+from .virtualisation_layer import *
+from .virtual_gate_set import *
+from .gate_set import *
 
 __all__ = [
     *voltage_gate.__all__,
-    *voltage_sequence.__all__,
-    *virtual_gates.__all__,
+    *virtualisation_layer.__all__,
+    *virtual_gate_set.__all__,
+    *gate_set.__all__,
 ]

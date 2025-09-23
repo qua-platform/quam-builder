@@ -7,12 +7,13 @@ from quam.core.macro import QuamMacro
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
+    from quam_builder.tools.voltage_sequence import (
         VoltageSequence,
     )
 
 from quam_builder.tools.qua_tools import VoltageLevelType
-from .constants import DEFAULT_PULSE_NAME
+
+DEFAULT_PULSE_NAME = "half_max_square"
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
@@ -201,7 +202,7 @@ class GateSet(QuantumComponent):
                 and the specified integrated voltage tracking setting.
         """
         # Avoid circular import
-        from quam_builder.architecture.quantum_dots.voltage_sequence import (
+        from quam_builder.tools.voltage_sequence import (
             VoltageSequence,
         )
 

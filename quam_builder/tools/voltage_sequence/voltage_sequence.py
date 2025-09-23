@@ -21,17 +21,16 @@ from qm.qua.type_hints import (
 
 from quam.components.channels import SingleChannel
 
-from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import (
+from quam_builder.architecture.quantum_dots.gate_set import (
     GateSet,
     VoltageTuningPoint,
 )
 
 from .sequence_state_tracker import SequenceStateTracker
-from .constants import DEFAULT_PULSE_NAME
 from .exceptions import (
     VoltagePointError,
 )
-from ....tools.qua_tools import (
+from ...tools.qua_tools import (
     is_qua_type,
     validate_duration,
     VoltageLevelType,
@@ -50,6 +49,7 @@ INTEGRATED_VOLTAGE_SCALING_FACTOR = 1024
 COMPENSATION_SCALING_FACTOR = 1.0 / INTEGRATED_VOLTAGE_SCALING_FACTOR
 MIN_COMPENSATION_DURATION_NS = 16
 DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
+DEFAULT_PULSE_NAME = "half_max_square"
 # QUA_COMPENSATION_GAP_NS = 96 # Not used if Channel methods handle timing
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
@@ -495,6 +495,8 @@ class VoltageSequence:
 
     def apply_compensation_pulse(self, max_voltage: float = 0.49):
         """
+        To be included in future release: Use with caution
+
         Apply compensation pulse to each channel to counteract integrated voltage drift.
 
         When integrated voltage tracking is enabled, this method calculates and applies
@@ -520,61 +522,65 @@ class VoltageSequence:
         Note:
             Only available when track_integrated_voltage=True is set in new_sequence().
         """
-        if not self._track_integrated_voltage:
-            raise ValueError(
-                "apply_compensation_pulse is not supported when integrated voltage is not tracked."
-            )
-        if max_voltage <= 0:
-            raise ValueError("max_voltage must be positive.")
+        ### To be implemented in future release. Use with caution!
 
-        for ch_name, channel_obj in self.gate_set.channels.items():
-            DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
-            DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
+        # if not self._track_integrated_voltage:
+        #     raise ValueError(
+        #         "apply_compensation_pulse is not supported when integrated voltage is not tracked."
+        #     )
+        # if max_voltage <= 0:
+        #     raise ValueError("max_voltage must be positive.")
 
-            tracker = self.state_trackers[ch_name]
-            current_v = tracker.current_level
+        # for ch_name, channel_obj in self.gate_set.channels.items():
+        #     DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
+        #     DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
 
-            comp_amp_val: VoltageLevelType
-            comp_dur_val: DurationType  # ns
+        #     tracker = self.state_trackers[ch_name]
+        #     current_v = tracker.current_level
 
-            if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(
-                current_v
-            ):
-                py_comp_amp, py_comp_dur = self._calculate_python_compensation_params(
-                    tracker, max_voltage
-                )
-                if py_comp_dur == 0:  # No pulse needed
-                    tracker.current_level = py_comp_amp  # Should be 0.0
-                    continue
+        #     comp_amp_val: VoltageLevelType
+        #     comp_dur_val: DurationType  # ns
 
-                delta_v = py_comp_amp - float(str(current_v))
-                if is_qua_type(delta_v):
-                    scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
-                else:
-                    scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
-                channel_obj.play(
-                    DEFAULT_PULSE_NAME,
-                    amplitude_scale=scaled_amp,
-                    duration=py_comp_dur >> 2,
-                    validate=False,  # Do not validate as pulse may not exist yet
-                )
-                comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
-            else:
-                q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
-                    tracker, max_voltage, channel_obj.name
-                )
-                delta_v_q = q_comp_amp - current_v
-                scaled_amp_q = delta_v_q << DEFAULT_AMPLITUDE_BITSHIFT
-                with if_(q_comp_dur_4ns > 0):
-                    channel_obj.play(
-                        DEFAULT_PULSE_NAME,
-                        amplitude_scale=scaled_amp_q,
-                        duration=q_comp_dur_4ns >> 2,
-                        validate=False,  # Do not validate as pulse may not exist yet
-                    )
-                comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
+        #     if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(
+        #         current_v
+        #     ):
+        #         py_comp_amp, py_comp_dur = self._calculate_python_compensation_params(
+        #             tracker, max_voltage
+        #         )
+        #         if py_comp_dur == 0:  # No pulse needed
+        #             tracker.current_level = py_comp_amp  # Should be 0.0
+        #             continue
 
-            tracker.current_level = comp_amp_val
+        #         delta_v = py_comp_amp - float(str(current_v))
+        #         if is_qua_type(delta_v):
+        #             scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
+        #         else:
+        #             scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
+        #         channel_obj.play(
+        #             DEFAULT_PULSE_NAME,
+        #             amplitude_scale=scaled_amp,
+        #             duration=py_comp_dur >> 2,
+        #             validate=False,  # Do not validate as pulse may not exist yet
+        #         )
+        #         comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
+        #     else:
+        #         q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
+        #             tracker, max_voltage, channel_obj.name
+        #         )
+        #         delta_v_q = q_comp_amp - current_v
+        #         scaled_amp_q = delta_v_q << DEFAULT_AMPLITUDE_BITSHIFT
+        #         with if_(q_comp_dur_4ns > 0):
+        #             channel_obj.play(
+        #                 DEFAULT_PULSE_NAME,
+        #                 amplitude_scale=scaled_amp_q,
+        #                 duration=q_comp_dur_4ns >> 2,
+        #                 validate=False,  # Do not validate as pulse may not exist yet
+        #             )
+        #         comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
+
+        #     tracker.current_level = comp_amp_val
+
+        raise NotImplementedError("Compensation pulses not yet implemented, to be included in future release. Use with caution")
 
     def _perform_ramp_to_zero_with_duration(
         self,
