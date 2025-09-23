@@ -20,6 +20,7 @@ class VirtualisationLayer(QuamComponent):
                       layer maps to.
         matrix: The virtualisation matrix [source_gates x target_gates]
             defining the transformation.
+            - NOTE: Matrix elements must be python literals, not QUA variables
     """
 
     source_gates: List[str]

@@ -23,7 +23,7 @@ This framework is specifically designed to work with channels that have **sticky
 - Below is an example of how a `VoltageGate` is instantiated. 
 
   ```python
-  from quam_builder.architecture.quantum_dots import VoltageGate
+  from quam_builder.architecture.quantum_dots.components import VoltageGate
   from quam.components import StickyChannelAddon, pulses
 
 
@@ -72,7 +72,7 @@ This framework is specifically designed to work with channels that have **sticky
 #### 4.  Instantiate your GateSet with your channel mapping
 
   ```python 
-  from quam_builder.architecture.quantum_dots.voltage_sequence import GateSet
+  from quam_builder.architecture.quantum_dots.components import GateSet
 
   my_gate_set = GateSet(id="dot_plungers", channels=channels)
   ```

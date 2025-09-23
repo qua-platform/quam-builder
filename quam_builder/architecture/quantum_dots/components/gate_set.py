@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
-from quam_builder.tools.qua_tools import VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType, CLOCK_CYCLE_NS, MIN_PULSE_DURATION_NS
 
 DEFAULT_PULSE_NAME = "half_max_square"
 
@@ -31,7 +31,9 @@ class VoltageTuningPoint(QuamMacro):
 
     Attributes:
         voltages: Dictionary mapping channel names to their target voltages.
-        duration: Default duration in nanoseconds to hold these voltages.
+        duration: Default duration in nanoseconds to hold these voltages. 
+            - Duration must be in integer multiple of 4ns
+            - Minimum duration is 16ns
     """
 
     voltages: Dict[str, float]
@@ -165,7 +167,10 @@ class GateSet(QuantumComponent):
             name: The name for this tuning point.
             voltages: A dictionary mapping channel names (keys in self.channels)
                 to their target DC voltage (float) for this point.
+                - Values are to be entered in units of V
             duration: The default duration (ns) to hold these voltages.
+                - The duration must be an integer multiple of 4ns
+                - Minimum duration is 16ns
 
         Example:
             >>> gate_set = GateSet(channels={"gate1": ch1, "gate2": ch2})
@@ -210,14 +215,14 @@ class GateSet(QuantumComponent):
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
                     ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=0.5, length=16
+                        amplitude=0.5, length=MIN_PULSE_DURATION_NS
                     )
                 else:
                     ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=0.25, length=16
+                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
                     )
             else:
                 ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                    amplitude=0.25, length=16
+                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
                 )
         return VoltageSequence(self, track_integrated_voltage)

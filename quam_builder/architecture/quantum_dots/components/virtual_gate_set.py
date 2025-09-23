@@ -18,11 +18,56 @@ class VirtualGateSet(GateSet):
     """
     A set of virtual gates that can be used to create a virtual gate layer.
 
+    Inheriting from GateSet, VirtualGateSet allows control of a set of virtual 
+    gates that can be used to create a virtual gate layer. 
+
+    A VirtualGateSet manages a collection of channels (instances of `SingleChannel`,
+    including subclasses like `VoltageGate`) and provides all the functionalities 
+    of a GateSet, plus functionality to: 
+    - Add any number of virtualisation layers onto any subset of physical or virtual gates,
+      using square, invertible, user-defined matrices
+    - Define named voltage tuning points (macros), which can consist of any number of 
+      physical and virtual gates, that can be reused across sequences
+    - Resolve voltages for all gates, even if the input voltages contain both physical
+      and virtual gates; with default fallbacks
+      
+    The VirtualGateSet retains all the capabilities of the GateSet (i.e. acting as
+    a logical grouping of related channels), while also allowing linear combinations
+    of physical and virtual gates for universal control. 
+
     Attributes:
         layers: A list of `VirtualisationLayer` objects, applied sequentially.
         channels: Inherited from `GateSet`. Physical channels are `SingleChannel`
             instances (and may be `VoltageGate` objects) that the virtual gates
             ultimately resolve to.
+
+    Example:
+        >>> from quam.components.channels import SingleChannel
+        >>> # Create channels for a quantum dot
+        >>> plunger_ch = SingleChannel("plunger", ...)
+        >>> barrier_ch = SingleChannel("barrier", ...)
+        >>>
+        >>> # Create virtual gate set
+        >>> dot_gates = VirtualGateSet(
+        ...     id="dot1",
+        ...     channels={"plunger": plunger_ch, "barrier": barrier_ch}
+        ... )
+        >>>
+        >>> # Create any number of virtualisation layers
+        >>> dot_gates.add_layer()
+        ...     source_gates = ["virtual1", "virtual2"],
+        ...     target_gates=["plunger", "barrier"], 
+        ...     matrix = [[1, 0.3],[0.4, 1]]
+        ... )
+        >>>
+        >>> # Add voltage tuning points
+        >>> dot_gates.add_point("load", {"virtual1": 0.5, "barrier": -0.2}, 1000)
+        >>> dot_gates.add_point("measure", {"plunger": 0.3, "virtual2": 0.1}, 500)
+        >>>
+        >>> # Create and use voltage sequence
+        >>> with qua.program() as prog:
+        ...     seq = dot_gates.new_sequence()
+        ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
     layers: List[VirtualisationLayer] = field(default_factory=list)

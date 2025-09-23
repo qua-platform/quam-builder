@@ -47,7 +47,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 - Below is an example of how a `VoltageGate` is instantiated. As appropriate, add `offset_parameter` and `attenuation` arguments. 
 
   ```python
-  from quam_builder.architecture.quantum_dots import VoltageGate
+  from quam_builder.architecture.quantum_dots.components import VoltageGate
   from quam.components import StickyChannelAddon, pulses
 
 
@@ -100,7 +100,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 - Below shows an example of instantiating your `GateSet`, for basic group control of `VoltageGate` channels. 
 
   ```python 
-  from quam_builder.architecture.quantum_dots import GateSet
+  from quam_builder.architecture.quantum_dots.components import GateSet
 
   my_gate_set = GateSet(id="dot_plungers", channels=channels)
   ```
@@ -108,7 +108,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 - If virtual gates are necessary in your setup, use the `VirtualGateSet` instead. The instantiation of `VirtualGateSet` is identical to the `GateSet`. 
 
   ```python
-  from quam_builder.architecture.quantum_dots import VirtualGateSet
+  from quam_builder.architecture.quantum_dots.components import VirtualGateSet
 
   my_virtual_gate_set = VirtualGateSet(id="dot_plungers", channels=channels)
 
@@ -601,7 +601,7 @@ from quam.components import (
     StickyChannelAddon, 
     pulses
 )
-from quam_builder.architecture.quantum_dots import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 
 machine = BasicQuam()
 
@@ -635,7 +635,7 @@ channels = {
     "ch3": machine.channels["ch3"].get_reference(),
 }
 
-from quam_builder.architecture.quantum_dots import VirtualGateSet  # Requires quam-builder
+from quam_builder.architecture.quantum_dots.components import VirtualGateSet  # Requires quam-builder
 machine.virtual_gate_set = VirtualGateSet(id = "Plungers", channels = channels)
 
 ```
