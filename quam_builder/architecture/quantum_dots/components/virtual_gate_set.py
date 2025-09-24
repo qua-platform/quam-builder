@@ -1,16 +1,104 @@
 from dataclasses import field
-from typing import List, Dict
+from typing import List, Dict, Any
 import numpy as np
 
-from quam.core import quam_dataclass
+from quam.core import QuamComponent, quam_dataclass
 from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
 from quam_builder.tools.qua_tools import VoltageLevelType
-from quam_builder.architecture.quantum_dots.components.virtualisation_layer import (
-    VirtualisationLayer,
-)
 
 
-__all__ = ["VirtualGateSet"]
+__all__ = ["VirtualGateSet", "VirtualizationLayer"]
+
+@quam_dataclass
+class VirtualizationLayer(QuamComponent):
+    """
+    Represents a layer of virtual gates, defining the transformation from
+    virtual gate voltages to physical gate voltages.
+
+    Attributes:
+        source_gates: Names of the virtual gates defined in this layer.
+        target_gates: Names of the physical or underlying virtual gates this
+                      layer maps to.
+        matrix: The virtualization matrix [source_gates x target_gates]
+            defining the transformation.
+            - NOTE: Matrix elements must be python literals, not QUA variables
+    """
+
+    source_gates: List[str]
+    target_gates: List[str]
+    matrix: List[List[float]]
+
+    def calculate_inverse_matrix(self) -> np.ndarray:
+        """Calculates the inverse of the virtualization matrix."""
+        try:
+            inv_matrix = np.linalg.inv(self.matrix)
+            if not inv_matrix.shape == (len(self.source_gates), len(self.target_gates)):
+                raise ValueError(
+                    "Inverse matrix has incorrect dimensions. "
+                    f"Expected {len(self.source_gates)}x{len(self.target_gates)}, "
+                    f"got {inv_matrix.shape}."
+                )
+            return inv_matrix
+        except Exception as e:
+            raise ValueError(f"Error calculating inverse matrix: {e}")
+
+    def resolve_voltages(
+        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> Dict[str, VoltageLevelType]:
+        """
+        Resolves virtual gate voltages to physical gate voltages for this layer.
+
+        Args:
+            voltages: A dictionary mapping gate names to voltages.
+                These can be virtual or physical gate names.
+            allow_extra_entries: If True, gates in `voltages` that are not
+                part of `source_gates` will be ignored. If False, an
+                AssertionError will be raised.
+
+        Returns:
+            A dictionary mapping physical gate names to their resolved voltages.
+        """
+        if not allow_extra_entries:
+            assert all(ch_name in self.source_gates for ch_name in voltages), (
+                "All channels in voltages must be part of the "
+                f"VirtualizationLayer.source_gates: {self.source_gates}"
+            )
+
+        resolved_voltages = voltages.copy()
+
+        inverse_matrix = self.calculate_inverse_matrix()
+
+        source_voltages = [
+            resolved_voltages.pop(source_gate, 0.0) for source_gate in self.source_gates
+        ]
+
+        for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix):
+            resolved_voltages.setdefault(target_gate, 0.0)
+            resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
+
+        return resolved_voltages
+
+    def to_dict(
+        self, follow_references: bool = False, include_defaults: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Converts the VirtualizationLayer to a dictionary.
+
+        Ensures that the matrix is converted to a list if it's a numpy array.
+
+        Args:
+            follow_references: If True, follow references to other QuamComponents.
+            include_defaults: If True, include default values in the dictionary.
+
+        Returns:
+            A dictionary representation of the VirtualizationLayer.
+        """
+        d = super().to_dict(
+            follow_references=follow_references, include_defaults=include_defaults
+        )
+        if isinstance(d["matrix"], np.ndarray):
+            d["matrix"] = d["matrix"].tolist()
+        return d
 
 
 @quam_dataclass
@@ -24,7 +112,7 @@ class VirtualGateSet(GateSet):
     A VirtualGateSet manages a collection of channels (instances of `SingleChannel`,
     including subclasses like `VoltageGate`) and provides all the functionalities 
     of a GateSet, plus functionality to: 
-    - Add any number of virtualisation layers onto any subset of physical or virtual gates,
+    - Add any number of virtualization layers onto any subset of physical or virtual gates,
       using square, invertible, user-defined matrices
     - Define named voltage tuning points (macros), which can consist of any combination of 
       physical and virtual gates, that can be reused across sequences
@@ -36,7 +124,7 @@ class VirtualGateSet(GateSet):
     of physical and virtual gates for universal control. 
 
     Attributes:
-        layers: A list of `VirtualisationLayer` objects, applied sequentially.
+        layers: A list of `VirtualizationLayer` objects, applied sequentially.
         channels: Inherited from `GateSet`. Physical channels are `SingleChannel`
             instances (and may be `VoltageGate` objects) that the virtual gates
             ultimately resolve to.
@@ -53,7 +141,7 @@ class VirtualGateSet(GateSet):
         ...     channels={"plunger": plunger_ch, "barrier": barrier_ch}
         ... )
         >>>
-        >>> # Create any number of virtualisation layers
+        >>> # Create any number of virtualization layers
         >>> dot_gates.add_layer()
         ...     source_gates = ["virtual1", "virtual2"],
         ...     target_gates=["plunger", "barrier"], 
@@ -70,7 +158,7 @@ class VirtualGateSet(GateSet):
         ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
-    layers: List[VirtualisationLayer] = field(default_factory=list)
+    layers: List[VirtualizationLayer] = field(default_factory=list)
 
     @property
     def valid_channel_names(self) -> list[str]:
@@ -104,7 +192,7 @@ class VirtualGateSet(GateSet):
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualisation matrix defining the transformation.
+            matrix: The virtualization matrix defining the transformation.
 
         Raises:
             ValueError: If any of the checks fail.
@@ -187,33 +275,33 @@ class VirtualGateSet(GateSet):
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
-    ) -> VirtualisationLayer:
+    ) -> VirtualizationLayer:
         """
-        Adds a new virtualisation layer to the VirtualGateSet.
+        Adds a new virtualization layer to the VirtualGateSet.
 
         Args:
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualisation matrix defining the transformation.
+            matrix: The virtualization matrix defining the transformation.
 
         Returns:
-            The created VirtualisationLayer object.
+            The created VirtualizationLayer object.
         """
         self._validate_new_layer(source_gates, target_gates, matrix)
 
-        virtualisation_layer = VirtualisationLayer(
+        virtualization_layer = VirtualizationLayer(
             source_gates=source_gates, target_gates=target_gates, matrix=matrix
         )
-        self.layers.append(virtualisation_layer)
-        return virtualisation_layer
+        self.layers.append(virtualization_layer)
+        return virtualization_layer
 
     def resolve_voltages(
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
     ) -> Dict[str, VoltageLevelType]:
         """
         Resolves all virtual gate voltages to physical gate voltages by applying
-        all virtualisation layers in reverse order.
+        all virtualization layers in reverse order.
 
         Args:
             voltages: A dictionary mapping gate names (virtual or physical) to
@@ -241,7 +329,7 @@ class VirtualGateSet(GateSet):
         # Start with a copy of the input voltages to avoid mutating the original
         resolved_voltages = voltages.copy()
 
-        # Apply each virtualisation layer in reverse order (from highest to lowest)
+        # Apply each virtualization layer in reverse order (from highest to lowest)
         # Each layer resolves its virtual gates to the next lower layer
         for layer in reversed(self.layers):
             resolved_voltages = layer.resolve_voltages(

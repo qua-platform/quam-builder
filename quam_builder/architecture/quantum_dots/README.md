@@ -1,4 +1,4 @@
-# Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualisation Layers
+# Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
 
 ## 1. Introduction
 
@@ -8,7 +8,7 @@ The components `GateSet` and `VoltageSequence` enable precise physical voltage c
 
 Spin qubit experiments are encouraged to use the **VoltageGate** QuAM channel. A `VoltageGate` channel is a Quantum Dot specific channel inheriting from QuAM's `SingleChannel` object. It adds to the `SingleChannel` by containing an `offset_parameter` and an `attenuation` value. 
 
-Subsequently, this document introduces the **VirtualGateSet** and **VirtualisationLayer** components. These extend the physical gate control capabilities provided by `GateSet` and `VoltageSequence` by adding one or more layers of virtual gates.
+Subsequently, this document introduces the **VirtualGateSet** and **VirtualizationLayer** components. These extend the physical gate control capabilities provided by `GateSet` and `VoltageSequence` by adding one or more layers of virtual gates.
 
 Virtual gates simplify complex tuning procedures in experiments, especially for spin qubits, by allowing control over abstract parameters that map to multiple physical gate voltages.
 
@@ -44,9 +44,9 @@ The `VirtualGateSet` framework provides the necessary tools to implement these a
 
 #### 2.1.4 VirtualGateSet
 
-A subclass of `GateSet`. It manages a list of `VirtualisationLayer` objects, which define the transformations from virtual gate voltages to underlying (either physical or lower-level virtual) gate voltages.
+A subclass of `GateSet`. It manages a list of `VirtualizationLayer` objects, which define the transformations from virtual gate voltages to underlying (either physical or lower-level virtual) gate voltages.
 
-#### 2.1.5 VirtualisationLayer
+#### 2.1.5 VirtualizationLayer
 
 Represents a single linear transformation (matrix) from a set of source (virtual) gates to a set of target gates.
 
@@ -124,9 +124,9 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 
   ```
 
-##### 3.1 (Optional) Add Virtualisation Layers 
+##### 3.1 (Optional) Add Virtualization Layers 
 
-- If you are using the `VirtualGateSet`, you can map virtualisation layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates. 
+- If you are using the `VirtualGateSet`, you can map virtualization layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates. 
 
   ```python
   # Add coarse tuning layer (virtual gates for overall dot positions)
@@ -357,12 +357,12 @@ A `VirtualGateSet` allows users to define and operate with virtual gates, abstra
 **Key Features:**
 
 - **Inherits from `GateSet`:** Retains all functionalities of `GateSet`, including physical channel management and `VoltageTuningPoint` definitions.
-- **Manage Multiple Virtualisation Layers:** Stores a list of `VirtualisationLayer` objects. Multiple layers can be defined and stacked, allowing for hierarchical virtualisation. Layers are applied sequentially (in reverse order during voltage resolution) to translate top-level virtual gate voltages into physical gate voltages.
-- **Add Layers:** Use `add_layer(source_gates, target_gates, matrix)` to define and append a new `VirtualisationLayer`:
+- **Manage Multiple Virtualization Layers:** Stores a list of `VirtualizationLayer` objects. Multiple layers can be defined and stacked, allowing for hierarchical virtualization. Layers are applied sequentially (in reverse order during voltage resolution) to translate top-level virtual gate voltages into physical gate voltages.
+- **Add Layers:** Use `add_layer(source_gates, target_gates, matrix)` to define and append a new `VirtualizationLayer`:
   - `source_gates`: Names of the new virtual gates defined by this layer.
   - `target_gates`: Names of the gates (physical or virtual from a previous layer) that this layer maps onto.
   - `matrix`: The transformation matrix (list of lists of floats).
-- **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualisation matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualisation by processing layers from the outermost to the innermost.
+- **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualization matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualization by processing layers from the outermost to the innermost.
 
 ### 6.1 Important Behavior: Unspecified Virtual Gates Are Zeroed Per Operation
 
@@ -387,22 +387,22 @@ voltage_seq.step_to_voltages({"v_C1": 0.2}, duration=1000)
 ```
 
 
-## 7. VirtualisationLayer
+## 7. VirtualizationLayer
 
-A `VirtualisationLayer` defines a single step in the virtual-to-physical gate voltage transformation.
+A `VirtualizationLayer` defines a single step in the virtual-to-physical gate voltage transformation.
 
 **Key Attributes:**
 
 - `source_gates` (`List[str]`): Names of the virtual gates defined in this layer.
 - `target_gates` (`List[str]`): Names of the physical or underlying virtual gates this layer maps to.
-- `matrix` (`List[List[float]]`): The virtualisation matrix defining the linear transformation. The relationship is `V_source = M * V_target`. When resolving, `V_target = M_inverse * V_source` is used for this layer's contribution.
+- `matrix` (`List[List[float]]`): The virtualization matrix defining the linear transformation. The relationship is `V_source = M * V_target`. When resolving, `V_target = M_inverse * V_source` is used for this layer's contribution.
 - Handles the calculation of the inverse matrix and the resolution of voltages for its specific layer.
 
 ### Mathematical Relations
 
 ### 7.1 Forward Transformation (Virtual to Physical)
 
-The core mathematical relationship for each virtualisation layer is:
+The core mathematical relationship for each virtualization layer is:
 
 ```
 V_target = M * V_source
@@ -452,7 +452,7 @@ for target_gate, inv_matrix_row in zip(target_gates, inverse_matrix):
 
 ### 7.3 Multi-Layer Resolution
 
-For multiple virtualisation layers, transformations are applied sequentially in reverse order. Consider two layers:
+For multiple virtualization layers, transformations are applied sequentially in reverse order. Consider two layers:
 
 **Layer 1:** `v_Coarse1, v_Coarse2 → P1, P2`
 
@@ -498,7 +498,7 @@ P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
 
 ### 7.5 Matrix Constraints
 
-For a valid virtualisation layer:
+For a valid virtualization layer:
 
 - Matrix must be square: `len(source_gates) == len(target_gates)`
 - Matrix must be invertible (non-singular): `det(M) ≠ 0`
@@ -506,13 +506,13 @@ For a valid virtualisation layer:
 
 ### 7.6 Core Allocation and Performance
 
-**One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualisation layers. This has important implications:
+**One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualization layers. This has important implications:
 
-- **Scalable Performance**: Adding virtual gates or virtualisation layers doesn't increase the computational load on the QUA system
+- **Scalable Performance**: Adding virtual gates or virtualization layers doesn't increase the computational load on the QUA system
 - **Real-Time Operation**: All matrix calculations are performed at compile time, not during execution
 - **Predictable Resource Usage**: The number of cores required is determined solely by the number of physical channels
 
-For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualisation layers, you still only need 3 cores - one for each physical gate.
+For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualization layers, you still only need 3 cores - one for each physical gate.
 
 ### 7.7 Matrix Calculation Example
 
@@ -583,8 +583,6 @@ machine.virtual_gate_set = VirtualGateSet(id = "Plungers", channels = channels)
 
 ```
 
-from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
-
 ### 8.3. Add virtual gate layers
 
 ```python
@@ -616,7 +614,7 @@ with program() as prog:
 ```
 
 **What is happening here?**
-- In `init`, the input dict is `{"ch1": -0.25, "ch3": 0.12}`. Since ch2 is omitted in this layer, this will internally translate to a full dict of `{"ch1": -0.25, "ch2": 0.0, "ch3": 0.12}`. 
+- In `init`, the input dict is `{"ch1": -0.25, "ch3": 0.12}`. Since `ch2` is omitted in this layer, this will internally translate to a full dict of `{"ch1": -0.25, "ch2": 0.0, "ch3": 0.12}`. 
 
 - In `op`, the input dict is comprised of virtual gates `{"V1": 0.2, "V2": 0.1}`. `ch3` is absent, and since `V1` and `V2` map only to `ch1` and `ch2`, `ch3` is interpreted as having an input 0.0, to produce a dict of `{"V1": 0.2, "V2": 0.1, "ch3": 0.0}`. Internally, the physical gate voltages are calculated using the inverse of the virtual gate matrix, to a physical gate dict of `{"ch1": 0.05, "ch2": 0.1, "ch3": 0.0}`. Bear in mind that these voltages are absolute, not relative, despite the sticky elements.
 
