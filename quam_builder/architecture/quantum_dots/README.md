@@ -160,7 +160,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   my_virtual_gate_set.add_point(name="idle", voltages={"v_FineTune1": 0.1, "v_Coarse2": -0.05}, duration=1000)
   ```
 
-- NOTE: Any virtual gate not **explicitly** provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages. For more specific information on this, see section 6.1.
+- NOTE: Any virtual gate not **explicitly** provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages. For more specific information on this, see sections [4](#important-behavior-zeroing-semantics) and [6.1](#61-important-behavior-unspecified-virtual-gates-are-zeroed-per-operation).
 
 #### 5.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
 

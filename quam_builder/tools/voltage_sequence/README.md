@@ -1,6 +1,6 @@
 # VoltageSequence: Orchestrating DC Voltage Control in QUA
 
-NOTE: For a more thorough guide on GateSet, VoltageSequence and VirtualGateSet, please refer to [quantum_dots README](../../architecture/quantum_dots/README.md). This document is a brief summary of GateSet and VoltageSequence, not a full guide. 
+NOTE: This document is a brief intro into `GateSet` and `VoltageSequence`, not a full guide. For a more thorough guide on `GateSet`, `VoltageSequence` and `VirtualGateSet`, please refer to the [quantum_dots README](../../architecture/quantum_dots/README.md). 
 
 ## 1. Introduction
 
