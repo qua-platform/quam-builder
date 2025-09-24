@@ -1,4 +1,4 @@
-# GateSet & VirtualGateSet: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualisation Layers
+# Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualisation Layers
 
 ## 1. Introduction
 
@@ -14,37 +14,53 @@ Virtual gates simplify complex tuning procedures in experiments, especially for 
 
 **`VirtualGateSet` builds upon `GateSet` and inherits all of its features**, including physical channel management, `VoltageTuningPoint` definitions, and all voltage control methods. This means you can use virtual gates while still having access to all the voltage control capabilities of the underlying `GateSet`.
 
+### 1.1  Relevance to Spin Qubits
+
+Virtual gates are extremely powerful for operating spin qubits:
+
+- **Orthogonal Control:** Provide more orthogonal control over quantum dot properties (e.g., independently tuning inter-dot tunnel coupling and dot chemical potential).
+- **Hierarchical Tuning:** Multiple layers allow for a hierarchy of control, from coarse adjustments to fine-tuning.
+- **Simplified Tuning:** Complex multi-dimensional tuning tasks become simpler in virtual gate space.
+- **Automated Calibration:** Virtual gate matrices can be calibrated automatically, adapting to device changes.
+- **Standardization:** Defines device operation in terms of abstract parameters rather than specific physical gate voltages, improving experiment portability and comparability.
+
+The `VirtualGateSet` framework provides the necessary tools to implement these advanced control schemes within QUA.
+
 ## 2. Overview and Workflow
 
 ### 2.1. Components Overview
 
-#### 2.1.1 GateSet
-
-`GateSet` is a `QuantumComponent` grouping physical `VoltageGate` (and thus `SingleChannel`) objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
-
-#### 2.1.2 VoltageSequence
-
-`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
-
-#### 2.1.3 VirtualGateSet
-
-A subclass of `GateSet`. It manages a list of `VirtualisationLayer` objects, which define the transformations from virtual gate voltages to underlying (either physical or lower-level virtual) gate voltages.
-
-#### 2.1.4 VirtualisationLayer
-
-Represents a single linear transformation (matrix) from a set of source (virtual) gates to a set of target gates.
-
-#### 2.1.5 VoltageGate
+#### 2.1.1 VoltageGate
 
 `VoltageGate` is a QuAM channel built specifically to handle quantum dot and spin qubit experiments. It inherits from `SingleChannel`, adding an `offset_parameter` and `attenuation` values. 
 
+#### 2.1.2 GateSet
+
+`GateSet` is a `QuantumComponent` grouping physical `VoltageGate` (and thus `SingleChannel`) objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
+
+#### 2.1.3 VoltageSequence
+
+`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
+
+#### 2.1.4 VirtualGateSet
+
+A subclass of `GateSet`. It manages a list of `VirtualisationLayer` objects, which define the transformations from virtual gate voltages to underlying (either physical or lower-level virtual) gate voltages.
+
+#### 2.1.5 VirtualisationLayer
+
+Represents a single linear transformation (matrix) from a set of source (virtual) gates to a set of target gates.
+
 ### 2.2 Workflow
 
-**This document will start with an end-to-end example before diving into the specifics. This example workflow takes place in 7 broad steps:**
+**This document will start with an end-to-end example before diving into the specifics. This example workflow takes place in 6 broad steps:**
 
 #### 1.  Define QUAM `VoltageGate` objects for physical gates
 
 - Below is an example of how a `VoltageGate` is instantiated. As appropriate, add `offset_parameter` and `attenuation` arguments. 
+
+- In order for `GateSet`, `VirtualGateSet` and `VoltageSequence` to function properly, the channels **must** be instantiated as **sticky** elements. 
+  - This means that any applied offset is maintained. 
+  - Any `sequence` in the `GateSet`/`VirtualGateSet`, as well as core functionalities such as `ramp_to_zero`, rely on sticky elements. This is a core requirement.
 
   ```python
   from quam_builder.architecture.quantum_dots.components import VoltageGate
@@ -54,7 +70,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   channel_p1 = VoltageGate(
     opx_output = ("con1", 1), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)}, # Ensure that the instantiated channel is STICKY
   )
 
 
@@ -65,16 +81,10 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   )
   ```
 
-#### 2.  Ensure each channel has a base QUA operation (e.g., `half_max_square` for a short, 0.25V pulse)
-
-- This will be redundant in a future release.
-
-- This has already been done in step 1. Notice the `operations` input has a default operation named `"half_max_square"`. 
-
-- NOTE: `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
+- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
 
 
-#### 3.  Group channels into a channel dictionary
+#### 2.  Group channels into a channel dictionary
 
   ```python
   channels = {
@@ -95,7 +105,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   ```
 
 
-#### 4.  Instantiate your GateSet with your channel mapping
+#### 3.  Instantiate your GateSet with your channel mapping
 
 - Below shows an example of instantiating your `GateSet`, for basic group control of `VoltageGate` channels. 
 
@@ -114,7 +124,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 
   ```
 
-##### 4.1 (Optional) Add Virtualisation Layers 
+##### 3.1 (Optional) Add Virtualisation Layers 
 
 - If you are using the `VirtualGateSet`, you can map virtualisation layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates. 
 
@@ -134,7 +144,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   )
   ```
 
-#### 5.  Add `VoltageTuningPoint` macros to the `GateSet` or `VirtualGateSet`
+#### 4.  Add `VoltageTuningPoint` macros to the `GateSet` or `VirtualGateSet`
     
 - This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
 
@@ -150,7 +160,9 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   my_virtual_gate_set.add_point(name="idle", voltages={"v_FineTune1": 0.1, "v_Coarse2": -0.05}, duration=1000)
   ```
 
-#### 6.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
+- NOTE: Any virtual gate not **explicitly** provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages. For more specific information on this, see section 6.1.
+
+#### 5.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
 
 - `voltage_seq` in the below example can be used in QUA programs to easily step/ramp to points defined as macros in your `GateSet` or `VirtualGateSet`
 
@@ -166,7 +178,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
     voltage_seq = my_virtual_gate_set.new_sequence()
   ```
 
-#### 7. Create your QUA program with your `VoltageSequence`
+#### 6. Create your QUA program with your `VoltageSequence`
 
 - Instantiate your new sequence in the QUA programme, and step/ramp to any point.
 
@@ -278,7 +290,7 @@ Generates QUA commands for voltage manipulation, associated with a `GateSet`.
 
 Implication: virtual gates do not maintain state across calls. To preserve a virtual configuration, always include all relevant virtual gates (and their values) in each `step_to_voltages`/`ramp_to_voltages` call, or operate directly on physical gates.
 
-- NOTE: When using QUA loops (such as for_, or infinite_loop_) bear in mind that the internal voltage tracker can not track voltages past the first loop. As such, ensure that the start and end point of the loop of the elements are identical
+- NOTE: When using QUA loops (such as for_, or infinite_loop_), it is good practise to end the inner loop with a `ramp_to_zero` command, to ensure that the voltages are accurately tracked across loops.
 
 **Creating a `VoltageSequence`:**
 
@@ -492,64 +504,7 @@ For a valid virtualisation layer:
 - Matrix must be invertible (non-singular): `det(M) ≠ 0`
 - The inverse matrix is calculated using `numpy.linalg.inv(matrix)`
 
-
-## 8. Workflow and Usage
-
-### 8.1 Broad Steps
-
-1. **Initialize `VirtualGateSet`:** Create an instance with the physical `SingleChannel` objects.
-2. **Add Layers:** Use `v_gate_set.add_layer()` to define each virtualisation matrix. Multiple layers can be stacked.
-3. **Create `VoltageSequence`:** Obtain a `VoltageSequence` from the `VirtualGateSet` instance:
-   ```python
-   vs = v_gate_set.new_sequence()
-   ```
-4. **Control Virtual (and Physical) Gates in QUA:** Use `VoltageSequence` methods with virtual gate names, physical gate names, or a mix. The `VirtualGateSet` and `VoltageSequence` will automatically calculate the final physical voltages, summing contributions from all specified levels.
-
-### 8.2 Available VoltageSequence Methods
-
-Since `VirtualGateSet` inherits all features from `GateSet`, you have access to all the same voltage control methods. Here are the key methods you can use:
-
-#### Direct Voltage Control
-
-- `step_to_voltages(voltages: Dict[str, float], duration: int)`  
-  Steps channels directly to specified voltage levels. Both `voltages` values and `duration` can be QUA variables.
-
-- `ramp_to_voltages(voltages: Dict[str, float], duration: int, ramp_duration: int)`  
-  Ramps channels to specified voltage levels over the ramp duration, then holds. All parameters can be QUA variables.
-
-#### Predefined Tuning Points
-
-- `step_to_point(name: str, duration: Optional[int] = None)`  
-  Steps to a predefined `VoltageTuningPoint`. The `duration` parameter can be a QUA variable.
-
-- `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`  
-  Ramps to a predefined `VoltageTuningPoint`. Both `ramp_duration` and `duration` can be QUA variables.
-
-#### System Control
-
-- `ramp_to_zero(ramp_duration: Optional[int] = None)`  
-  Ramps all channels to zero and resets integrated voltage tracking. The `ramp_duration` parameter can be a QUA variable.
-
-- `apply_compensation_pulse(max_voltage: float = 0.49)`  
-  Applies compensation pulses to counteract integrated voltage drift (when tracking enabled).
-
-### 8.3 Combining Physical and Virtual Gates
-
-You can seamlessly combine physical and virtual gates in the same operation. The system automatically resolves all contributions and applies them additively to the physical channels.
-
-## 9. Underlying Architecture and Voltage Resolution
-
-### 9.1 How Virtual Gate Resolution Works
-
-When you apply a voltage operation on virtual gates, the system automatically converts this to voltages applied to the underlying physical gates using matrix transformations. Here's how it works:
-
-1. **Matrix-Based Transformation**: Each `VirtualisationLayer` defines a transformation matrix that maps virtual gate voltages to target gate voltages (either physical gates or lower-level virtual gates).
-
-2. **Multi-Layer Resolution**: For multi-layer virtualisation, the system processes layers from the outermost (highest-level virtual gates) to the innermost (physical gates), applying the inverse of each transformation matrix.
-
-3. **Additive Contributions**: All contributions from virtual gates at different layers are summed together at the physical gate level, allowing for complex control schemes.
-
-### 9.2 Core Allocation and Performance
+### 7.6 Core Allocation and Performance
 
 **One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualisation layers. This has important implications:
 
@@ -559,7 +514,7 @@ When you apply a voltage operation on virtual gates, the system automatically co
 
 For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualisation layers, you still only need 3 cores - one for each physical gate.
 
-### 9.3 Matrix Calculation Example
+### 7.7 Matrix Calculation Example
 
 Consider a simple two-layer system:
 
@@ -578,21 +533,9 @@ When you set `v_FineTune1 = 0.1V`, the system:
 
 This transformation happens at compile time, so the QUA program only sees the final physical gate voltages.
 
-## 10. Relevance to Spin Qubits
+## 8. Full End to End Example
 
-Virtual gates are extremely powerful for operating spin qubits:
-
-- **Orthogonal Control:** Provide more orthogonal control over quantum dot properties (e.g., independently tuning inter-dot tunnel coupling and dot chemical potential).
-- **Hierarchical Tuning:** Multiple layers allow for a hierarchy of control, from coarse adjustments to fine-tuning.
-- **Simplified Tuning:** Complex multi-dimensional tuning tasks become simpler in virtual gate space.
-- **Automated Calibration:** Virtual gate matrices can be calibrated automatically, adapting to device changes.
-- **Standardization:** Defines device operation in terms of abstract parameters rather than specific physical gate voltages, improving experiment portability and comparability.
-
-The `VirtualGateSet` framework provides the necessary tools to implement these advanced control schemes within QUA.
-
-## 11. Full End to End Example
-
-### 11.1. Create your channels (VoltageGate or SingleChannel)
+### 8.1. Create your channels (VoltageGate or SingleChannel)
 
 ```python
 
@@ -624,7 +567,7 @@ machine.channels["ch3"] = VoltageGate(
 
 ```
 
-### 11.2. Create channel dictionary and create your VirtualGateSet
+### 8.2. Create channel dictionary and create your VirtualGateSet
 
 ```python
 
@@ -642,7 +585,7 @@ machine.virtual_gate_set = VirtualGateSet(id = "Plungers", channels = channels)
 
 from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 
-### 11.3. Add virtual gate layers
+### 8.3. Add virtual gate layers
 
 ```python
 machine.virtual_gate_set.add_layer(
@@ -652,7 +595,7 @@ machine.virtual_gate_set.add_layer(
 )
 ```
 
-### 11.4. Add any relevant tuning points to your GateSet
+### 8.4. Add any relevant tuning points to your GateSet
 
 ```python
 #Some example points
@@ -662,7 +605,7 @@ machine.virtual_gate_set.add_point("meas", {"ch3": -0.12}, duration = 3_000)
 
 ```
 
-### 11.5. Write QUA program
+### 8.5. Write QUA program
 
 ```python
 with program() as prog: 

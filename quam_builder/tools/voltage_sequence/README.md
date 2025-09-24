@@ -1,8 +1,10 @@
-# GateSet and VoltageSequence: Orchestrating DC Voltage Control in QUA
+# VoltageSequence: Orchestrating DC Voltage Control in QUA
+
+NOTE: For a more thorough guide on GateSet, VoltageSequence and VirtualGateSet, please refer to [quantum_dots README](../../architecture/quantum_dots/README.md). This document is a brief summary of GateSet and VoltageSequence, not a full guide. 
 
 ## 1. Introduction
 
-This guide describes a Python framework for generating QUA sequences to control DC gate voltages, which is particularly useful for spin qubit experiments.
+This document describes a Python framework for generating QUA sequences to control DC gate voltages, which is particularly useful for spin qubit experiments.
 The core components, `GateSet` and `VoltageSequence`, enable precise physical voltage control, essential for quantum dot operations and forming a basis for `VirtualGateSet`.
 This framework is specifically designed to work with channels that have **sticky mode enabled**, which is common in quantum dot experiments because any gaps in the pulse sequence maintain a steady voltage level.
 
@@ -14,7 +16,7 @@ This framework is specifically designed to work with channels that have **sticky
 
 ### 2.1 **Workflow:**
 
-- **This README will start with an end-to-end example before delving into the specifics. This example workflow takes place in 7 broad steps:**
+- **This README will start with an end-to-end example before delving into the specifics. This example workflow takes place in 6 broad steps:**
 
 #### 1.  Define QUAM `VoltageGate` objects for physical gates
 
@@ -41,15 +43,11 @@ This framework is specifically designed to work with channels that have **sticky
   )
   ```
 
-#### 2.  Ensure each channel has a base QUA operation (e.g., `half_max_square` for a short, 0.25V pulse)
-
-- Will be redundant in a future release
-
-- This has already been done in step 1. Notice the `operations` input has a default operation named `"half_max_square"`.
+- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
 
 
 
-#### 3.  Group channels into a channel dictionary
+#### 2.  Group channels into a channel dictionary
 
   ```python
   channels = {
@@ -69,7 +67,7 @@ This framework is specifically designed to work with channels that have **sticky
   }
   ```
 
-#### 4.  Instantiate your GateSet with your channel mapping
+#### 3.  Instantiate your GateSet with your channel mapping
 
   ```python 
   from quam_builder.architecture.quantum_dots.components import GateSet
@@ -77,7 +75,7 @@ This framework is specifically designed to work with channels that have **sticky
   my_gate_set = GateSet(id="dot_plungers", channels=channels)
   ```
 
-#### 5.  Optionally, add `VoltageTuningPoint` macros to the `GateSet`
+#### 4.  Optionally, add `VoltageTuningPoint` macros to the `GateSet`
     
 - This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
 
@@ -87,7 +85,7 @@ This framework is specifically designed to work with channels that have **sticky
     
     Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
 
-#### 6.  Create a `VoltageSequence` from the `GateSet`
+#### 5.  Create a `VoltageSequence` from the `GateSet`
 
   ```python 
   voltage_seq = my_gate_set.new_sequence()
@@ -95,7 +93,7 @@ This framework is specifically designed to work with channels that have **sticky
 
 - `voltage_seq` can be used in QUA programs to easily step/ramp to points. 
 
-#### 7.  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
+#### 6.  Use `VoltageSequence` methods within a QUA `program()` to define voltage changes
 
 - Remember: The sequence must be defined inside the QUA program.
 

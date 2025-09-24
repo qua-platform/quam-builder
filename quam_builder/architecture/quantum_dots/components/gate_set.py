@@ -215,7 +215,7 @@ class GateSet(QuantumComponent):
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
                     ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=0.5, length=MIN_PULSE_DURATION_NS
+                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
                     )
                 else:
                     ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
