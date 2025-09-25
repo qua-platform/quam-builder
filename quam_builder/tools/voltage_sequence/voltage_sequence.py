@@ -23,7 +23,7 @@ from quam_builder.architecture.quantum_dots.components.gate_set import (
     GateSet,
     VoltageTuningPoint,
 )
-
+import warnings
 from .sequence_state_tracker import SequenceStateTracker
 from .exceptions import (
     VoltagePointError,
@@ -90,6 +90,9 @@ class VoltageSequence:
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
         self._track_integrated_voltage: bool = track_integrated_voltage
+        warnings.warn("When using this class outside the scope of qua-dashboards video_mode, please contact your Customer Success Physicist at Quantum Machines. " \
+        "Complete validation of this framework is currently in progress, and it will be fully available soon.")
+
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
