@@ -34,6 +34,17 @@ The `VirtualGateSet` framework provides the necessary tools to implement these a
 
 `VoltageGate` is a QuAM channel built specifically to handle quantum dot and spin qubit experiments. It inherits from `SingleChannel`, adding an `offset_parameter` and `attenuation` values. 
 
+- `offset_parameter` is built to work with external voltage sources (and external drivers) in mind. For example, in the case that the external voltage is provided by the QM QDAC-II, one can use the QCoDeS driver as follows: 
+
+  ```python
+  channel_p1 = VoltageGate(...)
+
+  channel_p1.offset_parameter = QDAC.ch17.dc_constant_V # QDAC is a QCoDeS driver
+
+  channel_p1.offset_parameter(0.1) # Sets the DC offset to 0.1
+  channel_p1.offset_parameter() # Returns 0.1
+  ```
+
 #### 2.1.2 GateSet
 
 `GateSet` is a `QuantumComponent` grouping physical `VoltageGate` (and thus `SingleChannel`) objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
