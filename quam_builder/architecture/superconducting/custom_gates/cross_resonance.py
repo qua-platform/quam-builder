@@ -13,20 +13,18 @@ qua_T = QuaVariable | QuaExpression
 
 @quam_dataclass
 class CRGate(QubitPairMacro):
-    qc_correction_phase: float = 0.0
+    zz_correction_phase: float = 0.0
 
     def apply(
         self,
-        cr_type: Literal[
-            "direct", "direct+cancel", "direct+echo", "direct+cancel+echo"
-        ] = "direct",
+        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
         wf_type: Literal["square", "cosine", "gauss", "flattop"] = "square",
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
         cr_drive_phase: Optional[float | qua_T] = None,
         cr_cancel_amp_scaling: Optional[float | qua_T] = None,
         cr_cancel_phase: Optional[float | qua_T] = None,
         cr_duration_clock_cycles: Optional[float | qua_T] = None,
-        qc_correction_phase: Optional[float | qua_T] = None,
+        zz_correction_phase: Optional[float | qua_T] = None,
     ) -> None:
         qc = self.qubit_pair.qubit_control
         qt = self.qubit_pair.qubit_target
@@ -57,9 +55,10 @@ class CRGate(QubitPairMacro):
             if cr_cancel_phase is not None:
                 qt.xy.frame_rotation_2pi(cr_cancel_phase)
 
-        def qc_shift_correction_phase():
-            if qc_correction_phase is not None:
-                qc.xy.frame_rotation_2pi(qc_correction_phase)
+        def zz_shift_correction_phase():
+            if zz_correction_phase is not None:
+                qc.xy.frame_rotation_2pi(zz_correction_phase)
+                qt.xy.frame_rotation_2pi(zz_correction_phase)
 
         def cr_drive_play(
             sgn: Literal["direct", "echo"] = "direct",
@@ -93,7 +92,7 @@ class CRGate(QubitPairMacro):
             align(*cr_elems)
 
             reset_frame(cr.name)
-            qc_shift_correction_phase()
+            zz_shift_correction_phase()
             align(*cr_elems)
 
         elif cr_type == "direct+echo":
@@ -113,7 +112,7 @@ class CRGate(QubitPairMacro):
             align(*cr_elems)
 
             reset_frame(cr.name)
-            qc_shift_correction_phase()
+            zz_shift_correction_phase()
             align(*cr_elems)
 
         elif cr_type == "direct+cancel":
@@ -127,7 +126,7 @@ class CRGate(QubitPairMacro):
 
             reset_frame(cr.name)
             reset_frame(qt.xy.name)
-            qc_shift_correction_phase()
+            zz_shift_correction_phase()
             align(*cr_elems)
 
         elif cr_type == "direct+cancel+echo":
@@ -151,5 +150,5 @@ class CRGate(QubitPairMacro):
 
             reset_frame(cr.name)
             reset_frame(qt.xy.name)
-            qc_shift_correction_phase()
+            zz_shift_correction_phase()
             align(*cr_elems)
