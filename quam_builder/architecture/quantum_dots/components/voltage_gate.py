@@ -12,6 +12,22 @@ class VoltageGate(SingleChannel):
         attenuation: The attenuation of the voltage gate. Default is zero
         offset_parameter: The optional DC offset of the voltage gate
             Can be e.g. a QDAC channel
+
+    Example:
+        >>>
+        >>> # Create VoltageGate
+        >>> gate = VoltageGate(
+        ...     opx_output = (...), 
+        ...     operations = {...}, 
+        ...     sticky = ...
+        ...     )
+        >>> 
+        >>> # Attach e.g. a QCoDeS driver channel to VoltageGate; example shows a QCoDeS driver for QDAC-II
+        >>> gate.offset_parameter = QDAC.ch17.dc_constant_V
+        >>>
+        >>> # Set and return the DC voltage
+        >>> gate.offset_parameter(0.1) # Sets 0.1V
+        >>> gate.offset_parameter() # Returns 0.1V
     """
 
     attenuation: float = 0.0
