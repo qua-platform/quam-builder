@@ -43,7 +43,7 @@ def add_nv_spcm_component(
             enabled=enabled,
         )
         spcm = SPCM(
-            opx_output=f"{wiring_path}/opx_output",
+            opx_output=f"{wiring_path}/opx_output",  # TODO: Is the output really needed? For the laser?
             opx_input=f"{wiring_path}/opx_input",
             opx_input_offset=0.0,
             time_of_flight=time_of_flight,

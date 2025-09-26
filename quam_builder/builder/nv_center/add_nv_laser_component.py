@@ -27,17 +27,20 @@ def add_nv_laser_component(
     Raises:
         ValueError: If the port keys do not match any implemented mapping.
     """
-    digital_outputs = get_digital_outputs(wiring_path, ports)
+    digital_outputs = get_digital_outputs(wiring_path, ports, "laser_switch")
+
+    laser_length = 1 * u.us
 
     if "opx_output" in ports:
         nv_center.laser = LaserLFAnalog(
-            opx_output=f"{wiring_path}/opx_output"
+            opx_output=f"{wiring_path}/opx_output",
+            laser_length=laser_length,
+            digital_outputs=digital_outputs
         )
-
-    # Todo: add pipeline for digital channel
-    # nv_center.laser = LaserLFDigital(
-    #     digital_outputs=digital_outputs
-    # )
+    elif "digital_output" in ports:
+        nv_center.laser = LaserLFDigital(
+            digital_outputs=digital_outputs, laser_length=laser_length
+        )
     else:
         raise ValueError(
             f"Unimplemented mapping of port keys to channel for ports: {ports}"
