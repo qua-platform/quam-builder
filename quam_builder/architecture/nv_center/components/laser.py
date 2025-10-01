@@ -11,9 +11,6 @@ __all__ = ["LaserLFAnalog", "LaserLFDigital"]
 class LaserLFAnalog(SingleChannel):
     """
     QUAM component for a laser.
-
-    Attributes:
-        laser_length (int): The laser pulse time in ns. Default is 1000ns.
     """
 
     pass
@@ -23,9 +20,6 @@ class LaserLFAnalog(SingleChannel):
 class LaserLFDigital(Channel):
     """
     QUAM component for a laser.
-
-    Attributes:
-        laser_length (int): The laser pulse time in ns. Default is 1000ns.
     """
 
     pass
