@@ -89,13 +89,13 @@ def add_default_nv_center_pulses(
     # if hasattr(nv_center, "laser"):
     #     if nv_center.laser is not None:
     #         nv_center.laser.operations["laser_on"] = pulses.SquarePulse(
-    #             length=nv_center.laser.laser_length, amplitude=0.5, digital_marker=None
+    #             length=3000 * u.ns, amplitude=0.5, digital_marker=None
     #         )
 
     if hasattr(nv_center, "spcm1"):
         if nv_center.spcm1 is not None:
             nv_center.spcm1.operations["readout"] = pulses.ReadoutPulse(
-                length=nv_center.spcm1.readout_time, digital_marker=None
+                length=500 * u.ns, digital_marker=None
             )
 
 

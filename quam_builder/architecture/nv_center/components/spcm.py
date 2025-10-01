@@ -11,4 +11,4 @@ class SPCM(InOutSingleChannel):
     QUAM component for a readout.
     """
 
-    readout_time: int = 400
+    pass

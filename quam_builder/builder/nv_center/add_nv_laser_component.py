@@ -29,16 +29,14 @@ def add_nv_laser_component(
     """
     digital_outputs = get_digital_outputs(wiring_path, ports)
 
-    laser_length = 1 * u.us
-
     if "opx_output" in ports:
         nv_center.laser = LaserLFAnalog(
-            opx_output=f"{wiring_path}/opx_output", laser_length=laser_length
+            opx_output=f"{wiring_path}/opx_output"
         )
 
     # Todo: add pipeline for digital channel
     # nv_center.laser = LaserLFDigital(
-    #     digital_outputs=digital_outputs, laser_length=laser_length
+    #     digital_outputs=digital_outputs
     # )
     else:
         raise ValueError(

@@ -16,7 +16,7 @@ class LaserLFAnalog(SingleChannel):
         laser_length (int): The laser pulse time in ns. Default is 1000ns.
     """
 
-    laser_length: int = 1000
+    pass
 
 
 @quam_dataclass
@@ -28,4 +28,4 @@ class LaserLFDigital(Channel):
         laser_length (int): The laser pulse time in ns. Default is 1000ns.
     """
 
-    laser_length: int = 1000
+    pass
