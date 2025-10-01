@@ -63,7 +63,6 @@ class NVCenter(Qubit):
     xy: Union[XYDriveIQ, XYDriveMW] = None
     laser: Union[LaserLFAnalog, LaserLFDigital] = None
     spcm1: SPCM = None
-    spcm2: SPCM = None
 
     f_01: float = None
 
@@ -195,16 +194,17 @@ class NVCenter(Qubit):
             Warning: If the function is called in simulation mode, a warning is issued indicating
                      that the qubit reset has been skipped.
         """
-        raise NotImplementedError("This method is not implemented yet.")
-        # if not simulate:
-        #     if reset_type == "laser":
-        #         self.reset_qubit_laser(**kwargs)
-        # else:
-        #     if log_callable is None:
-        #         log_callable = getLogger(__name__).warning
-        #     log_callable(
-        #         "For simulating the QUA program, the qubit reset has been skipped."
-        #     )
+        if not simulate:
+            if reset_type == "laser":
+                self.reset_qubit_laser(**kwargs)
+            else:
+                raise NotImplementedError(f"Reset type {reset_type} is not implemented.")
+        else:
+            if log_callable is None:
+                log_callable = getLogger(__name__).warning
+            log_callable(
+                "For simulating the QUA program, the qubit reset has been skipped."
+            )
 
     def reset_qubit_laser(self, **kwargs):
         """
@@ -213,8 +213,7 @@ class NVCenter(Qubit):
         This function waits for a duration specified by the laser pumping time
         to allow the qubit to return to its ground state through laser pumping.
         """
-        raise NotImplementedError("This method is not implemented yet.")
-        # self.wait(self.thermalization_time // 4)
+        self.laser.play("laser_on")
 
     def wait(self, duration: int):
         """Wait for a given duration on all channels of the qubit.

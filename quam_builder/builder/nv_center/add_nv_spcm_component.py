@@ -22,7 +22,6 @@ def add_nv_spcm_component(
     Raises:
         ValueError: If the port keys do not match any implemented mapping.
     """
-    readout_time: int = 400
     time_of_flight: int = 32  # 4ns above default so that it appears in state.json
 
     signal_threshold: float = 800 / 4096  # The signal threshold in volts
@@ -48,7 +47,6 @@ def add_nv_spcm_component(
             opx_input=f"{wiring_path}/opx_input",
             opx_input_offset=0.0,
             time_of_flight=time_of_flight,
-            readout_time=readout_time,
             time_tagging=time_tagging,
         )
         setattr(nv_center, name, spcm)
