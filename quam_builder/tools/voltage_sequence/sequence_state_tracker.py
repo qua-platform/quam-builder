@@ -12,7 +12,10 @@ __all__ = [
 ]
 
 # --- Constants ---
-INTEGRATED_VOLTAGE_SCALING_FACTOR = 1024  # For fixed-point precision (V*ns*1024)
+INTEGRATED_VOLTAGE_BITSHIFT = 10
+INTEGRATED_VOLTAGE_SCALING_FACTOR = (
+    2**INTEGRATED_VOLTAGE_BITSHIFT
+)  # For fixed-point precision (V*ns*1024)
 
 # --- Type Aliases ---
 VoltageLevelType = Scalar[float]
@@ -228,7 +231,8 @@ class SequenceStateTracker:
         if needs_qua_calc:
             int_v_var = self._ensure_qua_integrated_voltage_var()
             level_contribution = Cast.mul_int_by_fixed(
-                duration << 10,  # duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
+                duration
+                << INTEGRATED_VOLTAGE_BITSHIFT,  # duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
                 level,
             )
             assign(int_v_var, int_v_var + level_contribution)
@@ -255,7 +259,7 @@ class SequenceStateTracker:
 
                 ramp_contribution = Cast.mul_int_by_fixed(
                     ramp_duration
-                    << 10,  # ramp_duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
+                    << INTEGRATED_VOLTAGE_BITSHIFT,  # ramp_duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
                     avg_ramp_level,
                 )
                 assign(int_v_var, int_v_var + ramp_contribution)
