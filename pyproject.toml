@@ -4,10 +4,12 @@ version = "0.1.2"
 description = "A Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP)."
 readme = "README.md"
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
-requires-python = ">=3.9,<=3.12"
+requires-python = ">=3.9,<3.13"
 dependencies = [
     "qualang-tools>=0.19.0",
     "quam>=0.4.0",
+    "qm-qua>=1.2.2",
+    "xarray>=2024.7.0",
 ]
 
 [build-system]
@@ -19,3 +21,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[dependency-groups]
+dev = ["ipykernel>=7.0.0a1", "pytest-mock>=3.14.0", "pytest>=8.3.5"]
+ast = [
+    "qua-qsim@git+https://github.com/qua-platform/qua-qsim.git@bare-ast-visitor",
+]
+
+[tool.uv.pip]
+prerelease = "allow"
+
+[tool.uv]
+prerelease = "allow"

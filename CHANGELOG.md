@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
+### Added
+- Architecture components for Quantum Dots: added support for `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`.
+### Changed
+- Fixed dev dependencies and added tool.uv.prerelease=allow to the pyproject.toml file.
 
 ## [0.1.2] - 2025-08-06
 ### Added
