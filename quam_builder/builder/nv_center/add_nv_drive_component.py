@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict
 
 from qualang_tools.addons.calibration.calibrations import unit
 

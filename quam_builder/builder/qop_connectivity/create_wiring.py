@@ -35,6 +35,8 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.RESONATOR,
                 WiringLineType.DRIVE,
                 WiringLineType.FLUX,
+                WiringLineType.LASER,
+                WiringLineType.SPCM,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
                     set_nested_value_with_path(
@@ -49,13 +51,6 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
                     set_nested_value_with_path(
                         wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
-                    )
-
-            # Todo: need to properly integrate this in the `WiringLineType`
-            elif line_type in ["la", "ro"]:
-                for k, v in qubit_wiring(channels, element_id, line_type).items():
-                    set_nested_value_with_path(
-                        wiring, f"qubits/{element_id}/{line_type}/{k}", v
                     )
 
             else:
