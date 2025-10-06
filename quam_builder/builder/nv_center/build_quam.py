@@ -95,7 +95,7 @@ def add_nv_center(machine: AnyQuamNV):
                     wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
                     if line_type == WiringLineType.LASER.value:
                         add_nv_laser_component(nv_center, wiring_path, ports)
-                    if line_type == WiringLineType.SPCM.value:
+                    elif line_type == WiringLineType.SPCM.value:
                         spcm_name = f"spcm{spcm_number}"
                         add_nv_spcm_component(nv_center, wiring_path, ports, spcm_name)
                         spcm_number += 1
