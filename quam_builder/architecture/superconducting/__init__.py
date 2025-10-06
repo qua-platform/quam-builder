@@ -10,7 +10,7 @@ from .components import (
     zz_drive,
     xy_drive,
 )
-from .custom_gates.cross_resonance import CRGate
+from .custom_gates.fixed_transmon_pair.two_qubit_gates import CRGate
 
 
 __all__ = [
