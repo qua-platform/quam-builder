@@ -1,14 +1,16 @@
-from typing import Optional, Literal
+from typing import Literal, Optional
+
 from qm.qua import *
-from quam.core import quam_dataclass
-from quam.components.pulses import Pulse
+from qm.qua._dsl import QuaVariable
+
 from quam.components.macro import QubitPairMacro
-from qm.qua._dsl import QuaExpression, QuaVariable
+from quam.components.pulses import Pulse
+from quam.core import quam_dataclass
 
 __all__ = ["CRGate"]
 
 
-qua_T = QuaVariable | QuaExpression
+qua_T = QuaVariable
 
 
 @quam_dataclass
@@ -17,9 +19,7 @@ class CRGate(QubitPairMacro):
 
     def apply(
         self,
-        cr_type: Literal[
-            "direct", "direct+cancel", "direct+echo", "direct+cancel+echo"
-        ] = "direct",
+        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
         wf_type: Literal["square", "cosine", "gauss", "flattop"] = "square",
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
         cr_drive_phase: Optional[float | qua_T] = None,

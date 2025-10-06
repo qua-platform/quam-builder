@@ -1,16 +1,13 @@
 import warnings
 from dataclasses import field
-from re import T
-from typing import ClassVar, Dict, Type, Union
-
-from quam_builder.architecture.superconducting.components.tunable_coupler import (
-    TunableCoupler,
-)
-from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
-from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
-from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
+from typing import Dict, Union, ClassVar, Type
 
 from quam.core import quam_dataclass
+
+from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
+from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
+from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
+
 
 __all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
@@ -87,13 +84,13 @@ class FluxTunableQuam(BaseQuam):
     def set_all_fluxes(
         self,
         flux_point: str,
-        target: Union[FluxTunableTransmon, FluxTunableTransmonPair, TunableCoupler],
+        target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
     ):
         """Set the fluxes to the specified point for the target qubit or qubit pair.
 
         Args:
-            flux_point (str): The flux point to set ('independent', 'pairwise', 'joint', 'min', 'off', 'on').
-            target (Union[FluxTunableTransmon, FluxTunableTransmonPair, TunableCoupler]): The target qubit, qubit pair or coupler.
+            flux_point (str): The flux point to set ('independent', 'pairwise', 'joint', 'min').
+            target (Union[FluxTunableTransmon, FluxTunableTransmonPair]): The target qubit or qubit pair.
         """
         if flux_point == "independent":
             assert isinstance(
@@ -103,10 +100,6 @@ class FluxTunableQuam(BaseQuam):
             assert isinstance(
                 target, FluxTunableTransmonPair
             ), "Pairwise flux point is only supported for transmon pairs"
-        elif flux_point == "off" or flux_point == "on":
-            assert isinstance(
-                target, TunableCoupler
-            ), "Off/On flux points are only supported for tunable couplers"
 
         target_bias = None
         if flux_point == "joint":
@@ -115,7 +108,7 @@ class FluxTunableQuam(BaseQuam):
                 target_bias = target.mutual_flux_bias
             else:
                 target_bias = target.z.joint_offset
-        elif flux_point != "off" and flux_point != "on":
+        else:
             self.apply_all_flux_to_min()
 
         if flux_point == "independent":
@@ -126,23 +119,7 @@ class FluxTunableQuam(BaseQuam):
             target.to_mutual_idle()
             target_bias = target.mutual_flux_bias
 
-        elif flux_point == "off":
-            target.to_decouple_idle()
-            target_bias = target.decouple_offset
-
-        elif flux_point == "on":
-            target.to_interaction_idle()
-            target_bias = target.interaction_offset
-
-        if isinstance(target, FluxTunableTransmon):
-            target.z.settle()
-        elif isinstance(target, FluxTunableTransmonPair):
-            target.coupler.settle()
-        elif isinstance(target, TunableCoupler):
-            target.settle()
-        else:
-            raise NotImplementedError()
-
+        target.z.settle()
         target.align()
         return target_bias
 
@@ -153,9 +130,6 @@ class FluxTunableQuam(BaseQuam):
             flux_point (str): The flux point to set. Default is 'joint'.
             target: The qubit under study.
         """
+        flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
-        if isinstance(target, TunableCoupler):
-            flux_point = kwargs.get("flux_point", "off")
-        else:
-            flux_point = kwargs.get("flux_point", "joint")
         self.set_all_fluxes(flux_point, target)
