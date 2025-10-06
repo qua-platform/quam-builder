@@ -2,7 +2,8 @@
 Squares (Python) + Ramps (None) + Compensation (max_amplitude=0.45)
 """
 
-from validation_utils import *
+from validation_utils import simulate_program, validate_program, validate_compensation
+from conftest import QuamGateSet, QuamVirtualGateSet
 from qm import qua
 
 ###################
@@ -104,3 +105,19 @@ def test_square_pulses_qua(qmm, machine):
         seq.ramp_to_zero()
     qmm, samples = simulate_program(qmm, machine, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
+
+
+def test_python_voltage_sequence(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.2, "ch2": -0.2}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.3, "ch2": -0.3}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples)

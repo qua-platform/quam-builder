@@ -8,7 +8,9 @@ import numpy as np
 
 def simulate_program(qmm, machine, prog, simulation_duration=10000):
     # Simulates the QUA program for the specified duration
-    simulation_config = SimulationConfig(duration=simulation_duration // 4)  # In clock cycles = 4ns
+    simulation_config = SimulationConfig(
+        duration=simulation_duration // 4
+    )  # In clock cycles = 4ns
     # Simulate blocks python until the simulation is done
     config = machine.generate_config()
     print(generate_qua_script(prog, config))
@@ -22,6 +24,7 @@ def simulate_program(qmm, machine, prog, simulation_duration=10000):
 def validate_program(samples, requested_wf_p, requested_wf_m):
     t0 = np.where(samples["con1"].analog[f"{5}-{6}"] != 0)[0][0]
     import matplotlib.pyplot as plt
+
     wf_p = samples["con1"].analog[f"{5}-{6}"][t0:]
     wf_m = samples["con1"].analog[f"{5}-{3}"][t0:]
     plt.plot(wf_p)
@@ -48,10 +51,16 @@ def validate_program(samples, requested_wf_p, requested_wf_m):
     print(
         f"Relative sum after compensation (-): {np.sum(wf_m[:t1+1]) / np.sum(wf_p[:len(requested_wf_m)]) * 100:.2f} %"
     )
-    print(f"Max gradient during compensation (+): {max(np.diff(wf_p[:t1+1])) * 1000:.2f} mV")
-    print(f"Max gradient during compensation (-): {max(np.diff(wf_m[:t1+1])) * 1000:.2f} mV")
+    print(
+        f"Max gradient during compensation (+): {max(np.diff(wf_p[:t1+1])) * 1000:.2f} mV"
+    )
+    print(
+        f"Max gradient during compensation (-): {max(np.diff(wf_m[:t1+1])) * 1000:.2f} mV"
+    )
     # Success criteria
-    assert (np.mean((wf_p[: len(requested_wf_p)] - requested_wf_p) / requested_wf_p) < 0.1) & (
+    assert (
+        np.mean((wf_p[: len(requested_wf_p)] - requested_wf_p) / requested_wf_p) < 0.1
+    ) & (
         np.mean((wf_m[: len(requested_wf_m)] - requested_wf_m) / requested_wf_m) < 0.1
     ), "Simulated wf doesn't match requested wf."
     # assert (np.sum(wf_p[: t1 + 1]) / np.sum(wf_p[: len(requested_wf_p)]) * 100 < 1) & (
@@ -78,5 +87,18 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
     num_points = duration
     if num_points <= 1:
         return [start_value] * num_points
-    ramp = [start_value + (end_value - start_value) * (i + 1) / num_points for i in range(num_points)]
+    ramp = [
+        start_value + (end_value - start_value) * (i + 1) / num_points
+        for i in range(num_points)
+    ]
     return [point for point in ramp for _ in range(sampling_rate)]
+
+
+def validate_compensation(samples, allowed=1.0):
+    plt.figure()
+    for name, sample in samples.con1.analog.items():
+        integrated = np.abs(np.trapz(sample))
+        assert integrated < allowed, f"{name}, {integrated}"
+        plt.plot(sample, label=name)
+    plt.legend()
+    plt.show()
