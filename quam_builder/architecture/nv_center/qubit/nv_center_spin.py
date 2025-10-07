@@ -139,31 +139,31 @@ class NVCenter(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    # def readout_state(self, state, readout_name: str = "readout"):
-    #     """
-    #     Perform a readout of the qubit state using the specified pulse.
-    #
-    #     This function measures the qubit state using the specified readout pulse and assigns the result to the given state variable.
-    #
-    #     Args:
-    #         state: The variable to assign the readout result to.
-    #         readout_name (str): The name of the readout pulse to use. Default is "readout".
-    #
-    #     Returns:
-    #         None
-    #
-    #     The function declares integer variables times and counts, measures the qubit state using the specified pulse with time tagging, and assigns the count result to the state variable.
-    #     """
-    #     times = declare(int, size=100)
-    #     counts = declare(int)
-    #     self.readout.measure_time_tagging(
-    #         readout_name,
-    #         size=100,
-    #         max_time=self.readout.readout_time,
-    #         qua_vars=(times, counts),
-    #         mode="analog",
-    #     )
-    #     assign(state, counts)
+    def readout_state(self, state, readout_name: str = "readout"):
+        """
+        Perform a readout of the qubit state using the specified pulse.
+
+        This function measures the qubit state using the specified readout pulse and assigns the result to the given state variable.
+
+        Args:
+            state: The variable to assign the readout result to.
+            readout_name (str): The name of the readout pulse to use. Default is "readout".
+
+        Returns:
+            None
+
+        The function declares integer variables times and counts, measures the qubit state using the specified pulse with time tagging, and assigns the count result to the state variable.
+        """
+        times = declare(int, size=100)
+        counts = declare(int)
+        self.spcm1.measure_time_tagging(
+            readout_name,
+            size=100,
+            max_time=self.spcm1.operations[readout_name].length,
+            qua_vars=(times, counts),
+            mode="analog",
+        )
+        assign(state, counts)
 
     def reset(
         self,
