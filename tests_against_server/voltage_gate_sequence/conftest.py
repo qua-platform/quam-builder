@@ -25,7 +25,9 @@ class QuamVirtualGateSet(QuamRoot):
 
 @pytest.fixture
 def qmm():
-    qmm = QuantumMachinesManager(host="172.16.33.115", cluster_name="CS_3")
+    qmm = QuantumMachinesManager(
+        host="172.16.33.114", cluster_name="CS_4"
+    )  # CS_4 172.16.33.114 #CS_3 172.16.33.115
     return qmm
 
 
@@ -36,11 +38,15 @@ def machine():
             id="test_gate_set",
             channels={
                 "ch1": SingleChannel(
-                    opx_output=LFFEMAnalogOutputPort("con1", 5, 6),
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 6, upsampling_mode="pulse"
+                    ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                 ),
                 "ch2": SingleChannel(
-                    opx_output=LFFEMAnalogOutputPort("con1", 5, 3),
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 3, upsampling_mode="pulse"
+                    ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                 ),
             },
@@ -51,33 +57,33 @@ def machine():
 
 @pytest.fixture
 def virtual_machine():
-    machine = QuamVirtualGateSet()
-    virt_matrix = np.eye(2)
-
-    gate_set = VirtualGateSet(
-        id="test_virtual_gate_set",
-        channels={
-            "ch1": SingleChannel(
-                opx_output=LFFEMAnalogOutputPort(
-                    "con1", 5, 6, upsampling_mode="pulse", output_mode="direct"
+    virt_matrix = np.array([[1, 1], [-1, 1]])
+    machine = QuamVirtualGateSet(
+        virtual_gate_set=VirtualGateSet(
+            id="test_virtual_gate_set",
+            channels={
+                "ch1": SingleChannel(
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 6, upsampling_mode="pulse", output_mode="direct"
+                    ),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
                 ),
-                sticky=StickyChannelAddon(duration=100, digital=False),
-            ),
-            "ch2": SingleChannel(
-                opx_output=LFFEMAnalogOutputPort(
-                    "con1", 5, 3, upsampling_mode="pulse", output_mode="direct"
+                "ch2": SingleChannel(
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 3, upsampling_mode="pulse", output_mode="direct"
+                    ),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
                 ),
-                sticky=StickyChannelAddon(duration=100, digital=False),
-            ),
-        },
-        layers=[
-            VirtualizationLayer(
-                source_gates=["v1", "v2"],
-                target_gates=["ch1", "ch2"],
-                matrix=virt_matrix.tolist(),
-            )
-        ],
+            },
+            layers=[
+                VirtualizationLayer(
+                    source_gates=["energy", "detuning"],
+                    target_gates=["ch1", "ch2"],
+                    matrix=virt_matrix.tolist(),
+                )
+            ],
+        )
     )
 
-    machine.virtual_gate_set = gate_set
+    # machine.virtual_gate_set = gate_set
     return machine

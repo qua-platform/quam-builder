@@ -225,6 +225,9 @@ class VoltageSequence:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
                 continue
 
+            if isinstance(target_voltage, int):
+                target_voltage = float(target_voltage)
+
             tracker = self.state_trackers[ch_name]
             channel_obj = self.gate_set.channels[ch_name]
             current_v = tracker.current_level

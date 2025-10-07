@@ -121,3 +121,63 @@ def test_python_voltage_sequence(qmm, machine: QuamGateSet):
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
     validate_compensation(samples)
+
+
+def test_qua_voltage_sequence(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed, value=0.1)
+        amplitude_2 = qua.declare(qua.fixed, value=0.2)
+        amplitude_3 = qua.declare(qua.fixed, value=0.3)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_1, "ch2": -amplitude_1}, duration=100
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_2, "ch2": -amplitude_2}, duration=100
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=100
+        )
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples, allowed=10.0)
+
+
+def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": -0.1, "ch2": -0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_python_voltage_sequence_virtual_gates(
+    qmm, virtual_machine: QuamVirtualGateSet
+):
+
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"detuning": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0.2}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0.3}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"detuning": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    validate_compensation(samples)
