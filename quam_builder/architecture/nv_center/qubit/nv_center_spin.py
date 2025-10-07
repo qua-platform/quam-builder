@@ -5,10 +5,7 @@ from logging import getLogger
 from quam.core import quam_dataclass
 from quam.components.quantum_components import Qubit
 from quam_builder.architecture.nv_center.components.spcm import SPCM
-from quam_builder.architecture.nv_center.components.laser import (
-    LaserLFAnalog,
-    LaserLFDigital,
-)
+from quam_builder.architecture.nv_center.components.laser import LaserControl
 from quam_builder.architecture.nv_center.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
@@ -61,7 +58,7 @@ class NVCenter(Qubit):
     id: Union[int, str]
 
     xy: Union[XYDriveIQ, XYDriveMW] = None
-    laser: Union[LaserLFAnalog, LaserLFDigital] = None
+    laser: LaserControl = None
     spcm1: SPCM = None
 
     f_01: float = None

@@ -136,10 +136,11 @@ class BaseQuamNV(QuamRoot):
         Returns:
             tuple: A tuple containing lists of QUA variables and streams.
         """
-        n = declare(int)
-        n_st = declare_stream()
-        return n, n_st
+        raise NotImplementedError("This function is not yet implemented.")
 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the specified settings."""
-        pass
+        # set laser dc offset
+        for qubit in self.qubits:
+            if qubit.laser.power:
+                qubit.laser.power.set_dc_offset(qubit.laser.power.dc_voltage)

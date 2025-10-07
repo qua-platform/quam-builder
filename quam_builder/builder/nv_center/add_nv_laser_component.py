@@ -1,10 +1,11 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from qualang_tools.addons.calibration.calibrations import unit
 
 from quam_builder.architecture.nv_center.components.laser import (
     LaserLFAnalog,
     LaserLFDigital,
+    LaserControl,
 )
 from quam_builder.architecture.nv_center.qubit import AnyNVCenter
 from quam_builder.builder.qop_connectivity.get_digital_outputs import (
@@ -29,16 +30,24 @@ def add_nv_laser_component(
     """
     digital_outputs = get_digital_outputs(wiring_path, ports, "laser_switch")
 
+    nv_center.laser = LaserControl()
+
+    # If we have a digital trigger path for the laser
+    if "digital_output" in ports:
+        nv_center.laser.trigger = LaserLFDigital(
+            id="trigger",
+            digital_outputs=digital_outputs,
+        )
+
+    # If we have an analog control path for laser power
     if "opx_output" in ports:
-        nv_center.laser = LaserLFAnalog(
+        nv_center.laser.power = LaserLFAnalog(
+            id="power",
             opx_output=f"{wiring_path}/opx_output",
-            digital_outputs=digital_outputs
         )
-    elif "digital_output" in ports:
-        nv_center.laser = LaserLFDigital(
-            digital_outputs=digital_outputs
-        )
-    else:
+
+    if nv_center.laser.trigger is None and nv_center.laser.power is None:
         raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
+            "Laser wiring must provide at least one of: 'opx_output' (analog) "
+            "or 'digital_output' (digital)."
         )
