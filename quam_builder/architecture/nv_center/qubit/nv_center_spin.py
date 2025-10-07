@@ -156,6 +156,7 @@ class NVCenter(Qubit):
         """
         times = declare(int, size=100)
         counts = declare(int)
+        self.laser.trigger.play("laser_on")
         self.spcm1.measure_time_tagging(
             readout_name,
             size=100,
@@ -210,7 +211,7 @@ class NVCenter(Qubit):
         This function waits for a duration specified by the laser pumping time
         to allow the qubit to return to its ground state through laser pumping.
         """
-        self.laser.play("laser_on")
+        self.laser.trigger.play("laser_on")
 
     def wait(self, duration: int):
         """Wait for a given duration on all channels of the qubit.
