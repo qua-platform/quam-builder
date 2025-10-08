@@ -181,3 +181,24 @@ def test_python_voltage_sequence_virtual_gates(
 
     qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
     validate_compensation(samples)
+
+
+def test_python_voltage_sequence_virtual_gates_and_elements(
+    qmm, virtual_machine: QuamVirtualGateSet
+):
+    """test that a combination of gates from multiple layers can be combined in step_to_voltages, ramp_to_voltages e.t.c
+    example:
+    seq.step_to_voltages(voltages={"detuning": 0.1, "ch1":0.2}, duration=100)
+    """
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"detuning": 0.1, "ch1": 0.2}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0, "ch1": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"detuning": 0, "ch1": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    validate_compensation(samples)

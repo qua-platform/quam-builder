@@ -11,6 +11,7 @@ from qm.qua import (
     Math,
     if_,
     else_,
+    align,
 )
 from qm.qua.type_hints import (
     QuaVariable,
@@ -219,7 +220,7 @@ class VoltageSequence:
                 )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
-
+        align(*full_target_voltages_dict)  # TODO: is this the best place for an align?
         for ch_name, target_voltage in full_target_voltages_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
@@ -486,7 +487,7 @@ class VoltageSequence:
         )
         with if_(q_comp_dur_i < MIN_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_i, MIN_COMPENSATION_DURATION_NS)
-        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)
+        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)  # why +3 here?
         with if_(q_comp_dur_4ns < DEFAULT_QUA_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_4ns, DEFAULT_QUA_COMPENSATION_DURATION_NS)
 
