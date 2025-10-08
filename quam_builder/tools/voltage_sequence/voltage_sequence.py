@@ -487,7 +487,7 @@ class VoltageSequence:
         )
         with if_(q_comp_dur_i < MIN_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_i, MIN_COMPENSATION_DURATION_NS)
-        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)  # why +3 here?
+        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)
         with if_(q_comp_dur_4ns < DEFAULT_QUA_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_4ns, DEFAULT_QUA_COMPENSATION_DURATION_NS)
 
