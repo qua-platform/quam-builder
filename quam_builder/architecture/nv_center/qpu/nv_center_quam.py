@@ -5,7 +5,7 @@ from quam.core import quam_dataclass
 
 from quam_builder.architecture.nv_center.qpu.base_quam import BaseQuamNV
 from quam_builder.architecture.nv_center.qubit import NVCenter
-from quam_builder.architecture.nv_center.qubit_pair import (NVCenterPair)
+from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 
 __all__ = ["NVCenterQuam", "NVCenter", "NVCenterPair"]
 
@@ -25,9 +25,7 @@ class NVCenterQuam(BaseQuamNV):
     """
 
     qubit_type: ClassVar[Type[NVCenter]] = NVCenter
-    qubit_pair_type: ClassVar[
-        Type[NVCenterPair]
-    ] = NVCenterPair
+    qubit_pair_type: ClassVar[Type[NVCenterPair]] = NVCenterPair
 
     qubits: Dict[str, NVCenter] = field(default_factory=dict)
     qubit_pairs: Dict[str, NVCenterPair] = field(default_factory=dict)

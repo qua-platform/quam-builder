@@ -126,7 +126,9 @@ class NVCenter(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(self, state, readout_method: str = "optical", readout_name: str = "readout"):
+    def readout_state(
+        self, state, readout_method: str = "optical", readout_name: str = "readout"
+    ):
         """
         Perform a readout of the qubit state using the specified method.
 
@@ -141,8 +143,10 @@ class NVCenter(Qubit):
         if readout_method == "optical":
             self.optical_readout(state, readout_name)
         else:
-            raise NotImplementedError(f"Readout method {readout_method} is not implemented. "
-                                      f"Implemented readout methods are ['optical'].")
+            raise NotImplementedError(
+                f"Readout method {readout_method} is not implemented. "
+                f"Implemented readout methods are ['optical']."
+            )
 
     def optical_readout(self, state, readout_name: str = "readout"):
         """
@@ -202,7 +206,9 @@ class NVCenter(Qubit):
             if reset_type == "laser":
                 self.reset_qubit_laser(**kwargs)
             else:
-                raise NotImplementedError(f"Reset type {reset_type} is not implemented.")
+                raise NotImplementedError(
+                    f"Reset type {reset_type} is not implemented."
+                )
         else:
             if log_callable is None:
                 log_callable = getLogger(__name__).warning
