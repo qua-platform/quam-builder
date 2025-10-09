@@ -92,9 +92,9 @@ def add_default_nv_center_pulses(
     #             length=3000 * u.ns, amplitude=0.5, digital_marker=None
     #         )
 
-    if hasattr(nv_center, "spcm1"):
-        if nv_center.spcm1 is not None:
-            nv_center.spcm1.operations["readout"] = pulses.ReadoutPulse(
+    if hasattr(nv_center, "spcm"):
+        if nv_center.spcm is not None:
+            nv_center.spcm.operations["readout"] = pulses.ReadoutPulse(
                 length=500 * u.ns, digital_marker=None
             )
 

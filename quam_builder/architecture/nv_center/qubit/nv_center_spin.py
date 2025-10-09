@@ -14,19 +14,7 @@ from quam_builder.architecture.nv_center.components.xy_drive import (
 from qm import QuantumMachine, logger
 from qm.qua.type_hints import QuaVariable
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
-from qm.qua import (
-    save,
-    declare,
-    fixed,
-    assign,
-    wait,
-    while_,
-    StreamType,
-    if_,
-    update_frequency,
-    Math,
-    Cast,
-)
+from qm.qua import declare, assign, wait
 
 __all__ = ["NVCenter"]
 
@@ -40,8 +28,7 @@ class NVCenter(Qubit):
         id (Union[int, str]): The id of the NV center, used to generate the name.
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         xy (Union[MWChannel, IQChannel]): The xy drive component.
-        spcm1 (SPCM): The first detector component.
-        spcm2 (SPCM): A second detector component.
+        spcm (SPCM): The single photon counting module component.
         T1 (float): The transmon T1 in seconds. Default is None.
         T2ramsey (float): The transmon T2* in seconds.
         T2echo (float): The transmon T2 in seconds.
@@ -59,7 +46,7 @@ class NVCenter(Qubit):
 
     xy: Union[XYDriveIQ, XYDriveMW] = None
     laser: LaserControl = None
-    spcm1: SPCM = None
+    spcm: SPCM = None
 
     f_01: float = None
 
@@ -176,10 +163,10 @@ class NVCenter(Qubit):
         times = declare(int, size=100)
         counts = declare(int)
         self.laser.trigger.play("laser_on")
-        self.spcm1.measure_time_tagging(
+        self.spcm.measure_time_tagging(
             readout_name,
             size=100,
-            max_time=self.spcm1.operations[readout_name].length,
+            max_time=self.spcm.operations[readout_name].length,
             qua_vars=(times, counts),
             mode="analog",
         )
