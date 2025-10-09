@@ -88,8 +88,11 @@ def add_default_nv_center_pulses(
 
     if hasattr(nv_center, "laser"):
         if nv_center.laser.trigger is not None:
-            nv_center.laser.trigger.operations["laser_on"] = pulses.SquarePulse(
-                length=3000 * u.ns, amplitude=0.5, digital_marker=None
+            nv_center.laser.trigger.operations["laser_on"] = pulses.Pulse(
+                length=3000 * u.ns, digital_marker="ON"
+            )
+            nv_center.laser.trigger.operations["laser_off"] = pulses.Pulse(
+                length="#../laser_on/length", digital_marker=[[0, 0]]
             )
 
     if hasattr(nv_center, "spcm"):
