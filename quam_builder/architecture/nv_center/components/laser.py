@@ -4,13 +4,16 @@ from quam.core import QuamComponent, quam_dataclass
 from quam.components.channels import Channel, SingleChannel
 
 
-__all__ = ["LaserLFAnalog", "LaserLFDigital"]
+__all__ = ["LaserControl", "LaserLFAnalog", "LaserLFDigital"]
 
 
 @quam_dataclass
 class LaserLFAnalog(SingleChannel):
     """
     QUAM component for a laser to set the laser power.
+
+    Attributes:
+        dc_voltage (float): the voltage setpoints to control the laser power in V.
     """
 
     dc_voltage: float = 1.0  # power control in volts
@@ -30,6 +33,10 @@ class LaserControl(QuamComponent):
     """
     QUAM component of the laser.
     Includes a digital laser trigger and analog control for the laser power.
+
+    Attributes:
+        trigger Optional[LaserLFDigital]: the digital laser trigger component.
+        power Optional[LaserLFAnalog]: the laser power control component.
     """
 
     trigger: Optional[LaserLFDigital] = None
