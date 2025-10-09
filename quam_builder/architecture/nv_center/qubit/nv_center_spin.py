@@ -139,11 +139,30 @@ class NVCenter(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(self, state, readout_name: str = "readout"):
+    def readout_state(self, state, readout_method: str = "optical", readout_name: str = "readout"):
         """
-        Perform a readout of the qubit state using the specified pulse.
+        Perform a readout of the qubit state using the specified method.
 
-        This function measures the qubit state using the specified readout pulse and assigns the result to the given state variable.
+        Args:
+            state: The variable to assign the readout result to.
+            readout_method: The readout method to use.
+            readout_name (str): The name of the readout pulse to use. Default is "readout".
+
+        Returns:
+            None
+        """
+        if readout_method == "optical":
+            self.optical_readout(state, readout_name)
+        else:
+            raise NotImplementedError(f"Readout method {readout_method} is not implemented. "
+                                      f"Implemented readout methods are ['optical'].")
+
+    def optical_readout(self, state, readout_name: str = "readout"):
+        """
+        Perform a single fluorescence readout of the qubit state using the specified pulse.
+
+        This function measures the qubit fluorescence from optical readout of the state using the specified pulse.
+        It assigns the result to the given state variable.
 
         Args:
             state: The variable to assign the readout result to.
