@@ -595,8 +595,6 @@ class VoltageSequence:
 
             tracker.current_level = comp_amp_val
 
-        # raise NotImplementedError("Compensation pulses not yet implemented, to be included in future release. Use with caution")
-
     def _perform_ramp_to_zero_with_duration(
         self,
         channel_obj: SingleChannel,
@@ -650,7 +648,9 @@ class VoltageSequence:
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
 
-    def ramp_to_zero(self, ramp_duration: Optional[int] = None):
+    def ramp_to_zero(
+        self, ramp_duration: Optional[int] = None, reset_tracker: Optional[bool] = False
+    ):
         """
         Ramps the voltage on all channels in the GateSet to zero
 
@@ -661,6 +661,7 @@ class VoltageSequence:
                 If None, QUA's `ramp_to_zero` command is used for an immediate ramp.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
+            reset_tracker: Optional. Reset integrated voltage tracking
 
         Example:
             >>> with qua.program() as prog:
@@ -670,25 +671,40 @@ class VoltageSequence:
             ...     voltage_seq.step_to_voltages({"P1": 0.3, "P2": 0.1}, duration=1000)
             ...
             ...     # Different ways to return to zero
-            ...     voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
+            ...     voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in with duration defined on element
             ...     voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
             ...
-            ...     # All channels now at 0V, integrated voltage tracking reset
+            ...     # All channels now at 0V, optionally reset tracked integrated voltage
         """
-        for ch_name, channel_obj in self.gate_set.channels.items():
-            tracker = self.state_trackers[ch_name]
 
-            if ramp_duration is None:
+        if ramp_duration is None:
+            for ch_name, channel_obj in self.gate_set.channels.items():
+                tracker = self.state_trackers[ch_name]
                 ramp_to_zero(channel_obj.name)
-            else:
-                self._perform_ramp_to_zero_with_duration(
-                    channel_obj, tracker, ramp_duration
+                tracker.update_integrated_voltage(
+                    level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
                 )
 
-            tracker.current_level = 0.0
+        else:
+            self.ramp_to_voltages(
+                voltages={ch_name: 0.0 for ch_name in self.gate_set.channels},
+                duration=0,
+                ramp_duration=ramp_duration,
+            )
 
-            if self._track_integrated_voltage:
-                tracker.reset_integrated_voltage()
+        if self._track_integrated_voltage:
+            if reset_tracker:
+                self.reset_integrated_voltage()
+
+    def reset_integrated_voltage(
+        self,
+    ):
+        """
+        resets all trackers integrated voltage
+        TODO: also reset current level?
+        """
+        for tracker in self.state_trackers.values():
+            tracker.reset_integrated_voltage()
 
     def apply_to_config(self, config: dict):
         """
