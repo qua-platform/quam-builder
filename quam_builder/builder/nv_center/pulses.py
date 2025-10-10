@@ -10,6 +10,7 @@ from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 # Class containing tools to help handling units and conversions.
 u = unit(coerce_to_integer=True)
 
+
 def add_Square_pulses(
     nv_center: NVCenter,
     amplitude: float,
@@ -69,9 +70,7 @@ def add_Square_pulses(
         nv_center.set_gate_shape("Square")
 
 
-def add_default_nv_center_pulses(
-    nv_center: NVCenter
-):
+def add_default_nv_center_pulses(nv_center: NVCenter):
     """Adds default pulses to a nv_center qubit:
         * nv_center.xy.operations["cw"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
         * nv_center.laser.operations["laser_on"] = pulses.SquarePulse(length=2000, amplitude=0.0, digital_marker="ON")
@@ -102,9 +101,7 @@ def add_default_nv_center_pulses(
             )
 
 
-def add_default_nv_center_pair_pulses(
-    nv_center_pair: NVCenterPair
-):
+def add_default_nv_center_pair_pulses(nv_center_pair: NVCenterPair):
     """Adds default pulses to a nv_center qubit pair depending on its attributes:
         * nv_center_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
         * nv_center_pair.cross_resonance.operations["square"] = pulses.SquarePulse(amplitude=0.1, length=100)

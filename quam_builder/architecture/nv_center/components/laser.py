@@ -41,3 +41,8 @@ class LaserControl(QuamComponent):
 
     trigger: Optional[LaserLFDigital] = None
     power: Optional[LaserLFAnalog] = None
+
+    @property
+    def name(self) -> str:
+        """Returns the name of the laser component"""
+        return f"{self.parent.id}.laser"

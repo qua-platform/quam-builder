@@ -9,6 +9,7 @@ from quam_builder.tools.qua_tools import VoltageLevelType
 
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
 
+
 @quam_dataclass
 class VirtualizationLayer(QuamComponent):
     """
@@ -106,22 +107,22 @@ class VirtualGateSet(GateSet):
     """
     A set of virtual gates that can be used to create a virtual gate layer.
 
-    Inheriting from GateSet, VirtualGateSet allows control of a set of virtual 
-    gates that can be used to create a virtual gate layer. 
+    Inheriting from GateSet, VirtualGateSet allows control of a set of virtual
+    gates that can be used to create a virtual gate layer.
 
     A VirtualGateSet manages a collection of channels (instances of `SingleChannel`,
-    including subclasses like `VoltageGate`) and provides all the functionalities 
-    of a GateSet, plus functionality to: 
+    including subclasses like `VoltageGate`) and provides all the functionalities
+    of a GateSet, plus functionality to:
     - Add any number of virtualization layers onto any subset of physical or virtual gates,
       using square, invertible, user-defined matrices
-    - Define named voltage tuning points (macros), which can consist of any combination of 
+    - Define named voltage tuning points (macros), which can consist of any combination of
       physical and virtual gates, that can be reused across sequences
     - Resolve voltages for all gates, even if the input voltages contain both physical
       and virtual gates; with default fallbacks
-      
+
     The VirtualGateSet retains all the capabilities of the GateSet (i.e. acting as
     a logical grouping of related channels), while also allowing linear combinations
-    of physical and virtual gates for universal control. 
+    of physical and virtual gates for universal control.
 
     Attributes:
         layers: A list of `VirtualizationLayer` objects, applied sequentially.
@@ -144,7 +145,7 @@ class VirtualGateSet(GateSet):
         >>> # Create any number of virtualization layers
         >>> dot_gates.add_layer()
         ...     source_gates = ["virtual1", "virtual2"],
-        ...     target_gates=["plunger", "barrier"], 
+        ...     target_gates=["plunger", "barrier"],
         ...     matrix = [[1, 0.3],[0.4, 1]]
         ... )
         >>>
@@ -211,7 +212,9 @@ class VirtualGateSet(GateSet):
         if self.layers:  # Not the first layer
             # Get all source gates from previous layers
             all_previous_source_gates = set()
-            for lyr in (
+            for (
+                lyr
+            ) in (
                 self.layers
             ):  # Iterate through existing layers before adding the new one
                 all_previous_source_gates.update(lyr.source_gates)
@@ -256,17 +259,13 @@ class VirtualGateSet(GateSet):
         # Check 5: Matrix must be square
         matrix_array = np.array(matrix)
         if matrix_array.shape[0] != matrix_array.shape[1]:
-            raise ValueError(
-                f"Matrix must be square. Got shape {matrix_array.shape}"
-            )
+            raise ValueError(f"Matrix must be square. Got shape {matrix_array.shape}")
 
         # Check 6: Matrix must be invertible (non-zero determinant)
         try:
             det = np.linalg.det(matrix_array)
             if abs(det) < 1e-10:  # Use small tolerance for floating point
-                raise ValueError(
-                    f"Matrix is not invertible (determinant ≈ 0): {det}"
-                )
+                raise ValueError(f"Matrix is not invertible (determinant ≈ 0): {det}")
         except np.linalg.LinAlgError as e:
             raise ValueError(f"Matrix inversion failed: {e}")
 
