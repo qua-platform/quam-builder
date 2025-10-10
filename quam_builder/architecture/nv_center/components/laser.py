@@ -44,5 +44,5 @@ class LaserControl(QuamComponent):
 
     @property
     def name(self) -> str:
-        """Returns the name of the qubit"""
+        """Returns the name of the laser component"""
         return f"{self.parent.id}.laser"
