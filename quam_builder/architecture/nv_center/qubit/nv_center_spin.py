@@ -126,7 +126,7 @@ class NVCenter(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(
+    def readout_counts(
         self, state, readout_method: str = "optical", readout_name: str = "readout"
     ):
         """
