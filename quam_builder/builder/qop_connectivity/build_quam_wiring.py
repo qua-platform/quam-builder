@@ -10,6 +10,7 @@ from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
 AnyQuam = Union[AnyQuamSC, AnyQuamNV]
 
+
 def build_quam_wiring(
     connectivity: Connectivity,
     host_ip: str,
