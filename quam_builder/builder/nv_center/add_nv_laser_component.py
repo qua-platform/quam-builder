@@ -35,14 +35,14 @@ def add_nv_laser_component(
     # If we have a digital trigger path for the laser
     if "digital_output" in ports:
         nv_center.laser.trigger = LaserLFDigital(
-            id="trigger",
+            id=None,
             digital_outputs=digital_outputs,
         )
 
     # If we have an analog control path for laser power
     if "opx_output" in ports:
         nv_center.laser.power = LaserLFAnalog(
-            id="power",
+            id=None,
             opx_output=f"{wiring_path}/opx_output",
         )
 
