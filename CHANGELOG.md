@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Macro class for the CZ gate on tunable transmons: `CZGate`
-### Added
 - Architecture components for Quantum Dots: added support for `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`.
 ### Changed
 - Fixed dev dependencies and added tool.uv.prerelease=allow to the pyproject.toml file.
