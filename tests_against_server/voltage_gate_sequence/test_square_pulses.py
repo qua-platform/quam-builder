@@ -5,6 +5,7 @@ Squares (Python) + Ramps (None) + Compensation (max_amplitude=0.45)
 from validation_utils import simulate_program, validate_program, validate_compensation
 from conftest import QuamGateSet, QuamVirtualGateSet
 from qm import qua
+from qualang_tools.loops import from_array
 
 ###################
 # The QUA program #
@@ -146,6 +147,26 @@ def test_qua_voltage_sequence(qmm, machine: QuamGateSet):
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
     validate_compensation(samples, allowed=10.0)
+
+
+def test_qua_voltage_sequence_loop(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        amplitude = qua.declare(qua.fixed)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+
+        with qua.for_each_(amplitude, [0.01, 0.05, 0.1]):
+            seq.step_to_voltages(
+                voltages={"ch1": amplitude, "ch2": -amplitude}, duration=100
+            )
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+
+    validate_compensation(samples, allowed=1e9)
 
 
 def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):
