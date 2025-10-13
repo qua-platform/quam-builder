@@ -175,6 +175,7 @@ class NVCenter(Qubit):
             mode="analog",
         )
         assign(state, counts)
+        self.align()
 
     def reset(
         self,
@@ -224,6 +225,7 @@ class NVCenter(Qubit):
         to allow the qubit to return to its ground state through laser pumping.
         """
         self.laser.trigger.play("laser_on")
+        self.align()
 
     def wait(self, duration: int):
         """Wait for a given duration on all channels of the qubit.
