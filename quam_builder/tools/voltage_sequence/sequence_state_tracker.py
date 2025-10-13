@@ -2,7 +2,7 @@ from typing import Optional
 import numpy as np
 
 from qm.qua.type_hints import QuaVariable, Scalar
-from qm.qua import declare, assign, Cast
+from qm.qua import declare, assign, Cast, fixed
 
 from quam_builder.tools.voltage_sequence.exceptions import StateError
 from quam_builder.tools.qua_tools import is_qua_type
@@ -80,7 +80,10 @@ class SequenceStateTracker:
 
         self._element_name: str = element_name
         # Initialize state variables directly for the single element
-        self._current_level_internal: Scalar[float] = 0.0
+        # self._current_level_internal: Scalar[float] = 0.0
+        self._current_level_internal = declare(
+            fixed, value=0.0
+        )  # TODO: can we get back to having this python if not required by program?
         # Whether to track integrated voltage
         self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
@@ -116,7 +119,7 @@ class SequenceStateTracker:
         Args:
             level: The new voltage level (float or QUA type) of the element.
         """
-        self._current_level_internal = level
+        assign(self._current_level_internal, level)
 
     @property
     def integrated_voltage(self) -> Scalar[int]:
