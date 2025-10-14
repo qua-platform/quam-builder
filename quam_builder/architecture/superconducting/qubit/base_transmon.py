@@ -418,8 +418,7 @@ class BaseTransmon(Qubit):
         for p in range(3):
             assign(
                 diff[p],
-                (I - gef_centers[p][0]) * (I - gef_centers[p][0])
-                + (Q - gef_centers[p][1]) * (Q - gef_centers[p][1]),
+                Math.abs(I - gef_centers[p][0]) + Math.abs(Q - gef_centers[p][1]),
             )
         assign(state, Math.argmin(diff))
         wait(self.resonator.depletion_time // 4, self.resonator.name)
