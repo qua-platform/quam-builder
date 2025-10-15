@@ -520,7 +520,10 @@ class VoltageSequence:
         return q_comp_amp, q_comp_dur_4ns
 
     def apply_compensation_pulse(
-        self, max_voltage: float = 0.49, go_to_zero=True, return_to_zero=True
+        self,
+        max_voltage: float = 0.49,
+        go_to_zero: bool = True,
+        return_to_zero: bool = True,
     ):
         """
         To be included in future release: Use with caution
@@ -531,8 +534,13 @@ class VoltageSequence:
         pulses to neutralize accumulated voltage drift on AC-coupled lines. The
         compensation amplitude and duration are optimized to stay within voltage limits.
 
+        Resets tracked integrated voltage, required for correct operation in qua loops.
+        TODO: verify this works with signature: python_points -> qua_points -> python_points.
+
         Args:
             max_voltage: The maximum absolute amplitude for the compensation pulse.
+            go_to_zero: Step to zero before starting calculations for compensation parameters, defaults to True.
+            return_to_zero: Step to zero after compensation pulse, default to True.
 
         Example:
             >>> with qua.program() as prog:
@@ -550,7 +558,6 @@ class VoltageSequence:
         Note:
             Only available when track_integrated_voltage=True is set in new_sequence().
         """
-        ### To be implemented in future release. Use with caution!
 
         if not self._track_integrated_voltage:
             raise ValueError(
@@ -609,8 +616,12 @@ class VoltageSequence:
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
 
             tracker.current_level = comp_amp_val
-        if go_to_zero:
+        if return_to_zero:
             self._common_voltages_change(target_voltages_dict={}, duration=16)
+            self.ramp_to_zero()
+
+        for tracker in self.state_trackers.values():
+            tracker.reset_integrated_voltage()
 
     def _perform_ramp_to_zero_with_duration(
         self,

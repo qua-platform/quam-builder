@@ -154,6 +154,7 @@ class SequenceStateTracker:
         # Reset QUA variable if it exists, otherwise reset Python int
         if self._integrated_voltage_qua_var is not None:
             if self._current_py_val_before_promotion is not None:
+                print(self._current_py_val_before_promotion)
                 assign(
                     self._integrated_voltage_qua_var,
                     self._current_py_val_before_promotion,
