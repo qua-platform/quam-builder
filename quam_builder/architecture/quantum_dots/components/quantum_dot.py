@@ -1,26 +1,23 @@
-from quam.core import quam_dataclass
-from gate_set import GateSet
-from readout_resonator import ReadoutResonatorBase
+from quam.core import quam_dataclass, QuamComponent
+from voltage_gate import VoltageGate
+from quam.components import Channel
+from typing import Dict
+
+__all__ = ["QuantumDot"]
+
 
 @quam_dataclass
 class QuantumDot:
     """
     Quam component for a single Quantum Dot
     """
-    virtualgateset: GateSet
+    id: str
+    physical_channel: Channel
+    sticky_tracker: float = 0.0
 
-
-
-@quam_dataclass
-class Sensor(QuantumDot):
-    """
-    Quam component for Sensor Quantum Dot 
-    """
-
-    readout_resonator: ReadoutResonatorBase
-
-    
-
-
-
-
+    def go_to_voltage(self, voltage) -> Dict[str, float]:
+        """
+        Returns a dict entry to be handled by the QPU, input directly into the VirtualGateSet
+        """
+        self.sticky_tracker = voltage
+        return {self.id: voltage}
