@@ -112,15 +112,31 @@ def test_python_voltage_sequence(qmm, machine: QuamGateSet):
 
     with qua.program() as program:
         seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
-        seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=100)
-        seq.step_to_voltages(voltages={"ch1": 0.2, "ch2": -0.2}, duration=100)
-        seq.step_to_voltages(voltages={"ch1": 0.3, "ch2": -0.3}, duration=100)
-        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+        with qua.strict_timing_():
+            seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=100)
+            seq.step_to_voltages(voltages={"ch1": 0.2, "ch2": -0.2}, duration=100)
+            seq.step_to_voltages(voltages={"ch1": 0.3, "ch2": -0.3}, duration=100)
+            seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
 
         seq.apply_compensation_pulse(max_voltage=0.3)
         seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_python_voltage_sequence_points(machine: QuamGateSet | QuamVirtualGateSet):
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        machine.gate_set.add_point("init", {"ch1": 0.1, "ch2": -0.2}, duration=2000)
+        machine.gate_set.add_point("init_return", {"ch1": 0, "ch2": 0}, duration=2000)
+
+        qua.align()
+        seq.step_to_point("init")
+        seq.step_to_point("init_return")
+        seq.apply_compensation_pulse(max_voltage=0.2)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(5e3))
     validate_compensation(samples)
 
 
@@ -166,7 +182,7 @@ def test_qua_voltage_sequence_loop(qmm, machine: QuamGateSet):
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
 
-    validate_compensation(samples, allowed=1e9)
+    validate_compensation(samples, allowed=100)
 
 
 def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):

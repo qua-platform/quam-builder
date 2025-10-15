@@ -11,7 +11,7 @@ from qm.qua import (
     Math,
     if_,
     else_,
-    align,
+    # align,
 )
 from qm.qua.type_hints import (
     QuaVariable,
@@ -220,7 +220,6 @@ class VoltageSequence:
                 )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
-        align(*full_target_voltages_dict)  # TODO: is this the best place for an align?
         for ch_name, target_voltage in full_target_voltages_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
@@ -504,11 +503,25 @@ class VoltageSequence:
                         Cast.mul_int_by_fixed(eval_int_v, COMPENSATION_SCALING_FACTOR),
                     ),
                 )
+
+                # assign(
+                #     q_comp_amp,
+                #     -Cast.mul_fixed_by_int(COMPENSATION_SCALING_FACTOR, eval_int_v),
+                # )
+                # assign(q_comp_amp, q_comp_amp * inv_dur)
+
+                # assign(q_comp_amp, -Cast.mul_fixed_by_int(inv_dur, (eval_int_v / 100)))
+                # assign(
+                #     q_comp_amp,
+                #     q_comp_amp * (COMPENSATION_SCALING_FACTOR * 100),
+                # )
             with else_():
                 assign(q_comp_amp, 0.0)
         return q_comp_amp, q_comp_dur_4ns
 
-    def apply_compensation_pulse(self, max_voltage: float = 0.49):
+    def apply_compensation_pulse(
+        self, max_voltage: float = 0.49, go_to_zero=True, return_to_zero=True
+    ):
         """
         To be included in future release: Use with caution
 
@@ -546,6 +559,9 @@ class VoltageSequence:
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
 
+        if go_to_zero:
+            self._common_voltages_change(target_voltages_dict={}, duration=16)
+
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
@@ -554,7 +570,6 @@ class VoltageSequence:
             current_v = tracker.current_level
 
             comp_amp_val: VoltageLevelType
-            comp_dur_val: DurationType  # ns
 
             if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(
                 current_v
@@ -594,6 +609,8 @@ class VoltageSequence:
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
 
             tracker.current_level = comp_amp_val
+        if go_to_zero:
+            self._common_voltages_change(target_voltages_dict={}, duration=16)
 
     def _perform_ramp_to_zero_with_duration(
         self,
@@ -701,7 +718,6 @@ class VoltageSequence:
     ):
         """
         resets all trackers integrated voltage
-        TODO: also reset current level?
         """
         for tracker in self.state_trackers.values():
             tracker.reset_integrated_voltage()

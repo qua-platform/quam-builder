@@ -80,16 +80,14 @@ class SequenceStateTracker:
 
         self._element_name: str = element_name
         # Initialize state variables directly for the single element
-        # self._current_level_internal: Scalar[float] = 0.0
-        self._current_level_internal = declare(
-            fixed, value=0.0
-        )  # TODO: can we get back to having this python if not required by program?
+        self._current_level_internal: Scalar[float] = 0.0
         # Whether to track integrated voltage
         self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
         self._integrated_voltage_internal: Scalar[int] = 0
         # Keep track of the declared QUA variable for integrated voltage, if any
         self._integrated_voltage_qua_var: Optional[QuaVariable] = None
+        self._current_py_val_before_promotion = None
 
     @property
     def element_name(self) -> str:
@@ -119,7 +117,15 @@ class SequenceStateTracker:
         Args:
             level: The new voltage level (float or QUA type) of the element.
         """
-        assign(self._current_level_internal, level)
+
+        if is_qua_type(level):
+            if not is_qua_type(self._current_level_internal):
+                self._current_level_internal = declare(fixed)
+            assign(self._current_level_internal, level)
+        elif is_qua_type(self._current_level_internal):
+            assign(self._current_level_internal, level)
+        else:
+            self._current_level_internal = level
 
     @property
     def integrated_voltage(self) -> Scalar[int]:
@@ -139,14 +145,21 @@ class SequenceStateTracker:
 
     def reset_integrated_voltage(self):
         """
-        Resets the accumulated integrated voltage for the tracked element to zero.
+        Resets the accumulated integrated voltage for the tracked element to zero or the required python value.
 
-        This is typically done after a `ramp_to_zero` operation or when DC
-        compensation for a sequence segment is considered complete.
+        This is typically done after an "apply_compensation_pulse" operation,
+        if a compensation pulse is applied inside a qua loop containing both python offsets and qua offsets,
+        the value is reset to account for all python offsets
         """
         # Reset QUA variable if it exists, otherwise reset Python int
         if self._integrated_voltage_qua_var is not None:
-            assign(self._integrated_voltage_qua_var, 0)
+            if self._current_py_val_before_promotion is not None:
+                assign(
+                    self._integrated_voltage_qua_var,
+                    self._current_py_val_before_promotion,
+                )
+            else:
+                assign(self._integrated_voltage_qua_var, 0)
             # The _integrated_voltage_internal attribute should still point to the QUA var
             self._integrated_voltage_internal = self._integrated_voltage_qua_var
         else:
@@ -182,6 +195,7 @@ class SequenceStateTracker:
                 )
 
             # Use element name in variable declaration for clarity in generated QUA
+            self._current_py_val_before_promotion = current_py_val
             int_v_var = declare(int, value=current_py_val)
             self._integrated_voltage_qua_var = int_v_var
             self._integrated_voltage_internal = (
