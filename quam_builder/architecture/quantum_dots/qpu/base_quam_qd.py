@@ -25,8 +25,9 @@ class BaseQuamQD(QuamRoot):
     Attributes: 
         octaves (Dict[str, Octave]): A dictionary of Octave components.
         mixers (Dict[str, FrequencyConverter]): A dictionary of frequency converters.
-        qubits (Dict[str, AnyTransmon]): A dictionary of transmon qubits.
-        qubit_pairs (Dict[str, AnyTransmonPair]): A dictionary of transmon qubit pairs.
+        qubits (Dict[str, AnySpinQubit]): A dictionary of spin qubits.
+        qubit_pairs (Dict[str, AnySpinQubitPair]): A dictionary of spin qubit pairs.
+        quantum_dots (Dict[str, QuantumDot]): A dictionary of additional coupled quantum dots to be included in the VirtualGateSet.
         b_field (float): The operating external magnetic field.
         back_gate (VoltageGate): The channel object associated with the back gate.
         wiring (dict): The wiring configuration.
