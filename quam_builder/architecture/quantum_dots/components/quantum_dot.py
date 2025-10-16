@@ -1,14 +1,13 @@
 from quam.core import quam_dataclass, QuamComponent
-from voltage_gate import VoltageGate
 from quam.components import Channel
 from typing import Dict, Union, Tuple, Optional
-from logging import logger
+
 
 from qm import QuantumMachine
 
-from quam_builder.architecture.quantum_dots.components import BarrierGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 
-__all__ = ["QuantumDot", "NeighborLink"]
+__all__ = ["QuantumDot"]
 
 
 @quam_dataclass
@@ -17,7 +16,7 @@ class QuantumDot:
     Quam component for a single Quantum Dot
     """
     id: Union[int, str]
-    physical_channel: Channel
+    physical_channel: VoltageGate
     current_voltage: float = 0.0
 
 

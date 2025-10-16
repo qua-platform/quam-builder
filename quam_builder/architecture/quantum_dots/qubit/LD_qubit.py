@@ -56,11 +56,6 @@ class LDQubit(Qubit):
     T2ramsey: float = None
     T2echo: float = None
     thermalization_time_factor: int = 5
-
-
-    @property 
-    def id(self): 
-        return self.quantum_dot.id
     
     @property
     def physical_channel(self): 

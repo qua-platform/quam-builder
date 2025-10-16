@@ -1,8 +1,9 @@
 from .ld_qubit import *
-from typing import Union
 
 __all__ = [
-    *ld_qubit
+    *ld_qubit.__all__
 ]
+
+from typing import Union
 
 AnySpinQubit = Union[LDQubit]
