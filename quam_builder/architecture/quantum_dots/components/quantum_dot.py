@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 from qm import QuantumMachine
 
-from quam_builder.architecture.quantum_dots.components import BarrierGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 
-__all__ = ["QuantumDot", "NeighborLink"]
+__all__ = ["QuantumDot"]
 
 
 @quam_dataclass
