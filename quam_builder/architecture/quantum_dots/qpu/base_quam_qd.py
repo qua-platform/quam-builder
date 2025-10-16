@@ -151,21 +151,25 @@ class BaseQuamQD(QuamRoot):
         )
         
 
-    def update_capacitance_matrix(self, capacitance_matrix:List[List[float]], gate_set_name:str=None) -> None: 
+    def update_capacitance_matrix(self, capacitance_matrix:List[List[float]], gate_set_name:str = None) -> None: 
         if gate_set_name is not None and gate_set_name not in list(self.virtual_gate_sets.keys()):
             raise ValueError("Gate Set not found in Quam")
         if gate_set_name is None: 
             gate_set_name = list(self.virtual_gate_sets.keys())[0]
-            
+
         self.virtual_gate_sets[gate_set_name].layers[0].matrix = capacitance_matrix
         
-    def step_to_voltage(self, voltages:Dict, default_to_zero:bool = False) -> None: 
+    def step_to_voltage(self, voltages:Dict, default_to_zero:bool = False, gate_set_name:str = None) -> None: 
         """
         Input a dict of {qubit_name : voltage}, which will be resolved internally. 
         If default_to_zero = True, then all the unnamed qubit values will be defaulted to zero. 
         If default_to_zero = False, then unnamed qubits will be kept at their last tracked level. 
         """
-        new_sequence = self.virtual_gate_set.new_sequence()
+        if gate_set_name is not None and gate_set_name not in list(self.virtual_gate_sets.keys()):
+            raise ValueError("Gate Set not found in Quam")
+        if gate_set_name is None: 
+            gate_set_name = list(self.virtual_gate_sets.keys())[0]
+        new_sequence = self.virtual_gate_sets[gate_set_name].new_sequence()
         if not default_to_zero: 
             for qubit in self.qubits.keys(): 
                 if qubit in voltages: 
