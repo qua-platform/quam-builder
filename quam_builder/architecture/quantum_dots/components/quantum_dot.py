@@ -17,7 +17,11 @@ from quam_builder.tools.voltage_sequence import VoltageSequence
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
-__all__ = ["QuantumDot"]
+from qm import QuantumMachine
+
+from quam_builder.architecture.quantum_dots.components import BarrierGate
+
+__all__ = ["QuantumDot", "NeighborLink"]
 
 
 @quam_dataclass

@@ -660,7 +660,6 @@ class BaseQuamQD(QuamRoot):
             settings["port"] = self.network["port"]
         self.qmm = QuantumMachinesManager(**settings)
         return self.qmm
-
     def get_octave_config(self) -> QmOctaveConfig:
         """Return the Octave configuration."""
         octave_config = None

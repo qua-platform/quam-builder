@@ -1,3 +1,162 @@
-from quam.components.quantum_components import Qubit
+from typing import List, Dict, Tuple, Union, Literal
+from dataclasses import field
 
+from quam.components.quantum_components import Qubit
+from quam.components import Channel
+from quam.core import quam_dataclass
+
+from qm.octave.octave_mixer_calibration import MixerCalibrationResults
+from qm import logger
+from qm import QuantumMachine
+from qm.qua.type_hints import QuaVariable
+from qm.qua import (
+    save,
+    declare,
+    fixed,
+    assign,
+    wait,
+    while_,
+    StreamType,
+    if_,
+    update_frequency,
+    Math,
+    Cast,
+)
+
+from quam_builder.architecture.quantum_dots.components import QuantumDot
+
+
+__all__ = ["LDQubit"]
+
+
+@quam_dataclass
+class LDQubit(Qubit):
+    """
+    An example QUAM component for a Loss DiVincenzo Qubit
+
+    Attributes:
+        quantum_dot (QuantumDot): The single QuantumDot instance associated with the Loss DiVincenzo qubit. 
+        drive (Channel): The QUAM channel associated with the EDSR or ESR line of the qubit. 
+        T1 (float): The qubit T1 in seconds. Default is None.
+        T2ramsey (float): The qubit T2* in seconds.
+        T2echo (float): The qubit T2 in seconds.
+        thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
+
+    Methods: 
+        id: returns the id of the associated QuantumDot
+        go_to_voltage: returns a dict to be entered into a VirtualGateSet
+        calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
+        thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
+    """
+    quantum_dot: QuantumDot
+    drive: Channel = None
+
+    # Qubit Specific Features
+    T1: float = None
+    T2ramsey: float = None
+    T2echo: float = None
+    thermalization_time_factor: int = 5
+
+
+    @property 
+    def id(self): 
+        return self.quantum_dot.id
+    
+    @property
+    def physical_channel(self): 
+        return self.quantum_dot.physical_channel
+    
+    @property 
+    def current_voltage(self): 
+        return self.quantum_dot.current_voltage
+    
+    @property
+    def thermalization_time(self):
+        """The transmon thermalization time in ns."""
+        if self.T1 is not None:
+            return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
+        else:
+            return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
+
+    def go_to_voltage(self, voltage:float): 
+        return self.quantum_dot.go_to_voltage(voltage)
+    
+
+    def calibrate_octave(
+        self,
+        QM: QuantumMachine,
+        calibrate_drive: bool = True,
+    ) -> Tuple[
+        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
+    ]:
+        """Calibrate the Octave channels (EDSR and possible resonator) linked to this qubit for the LO frequency, intermediate
+        frequency and Octave gain as defined in the state.
+
+        Args:
+            QM (QuantumMachine): the running quantum machine.
+            calibrate_drive (bool): flag to calibrate xy line.
+
+        Return:
+            The Octave calibration results as (drive)
+        """
+        ### HASHING OUT FOR NOW. We must think about the resonator architecture
+
+        # if calibrate_resonator and self.resonator is not None:
+        #     if hasattr(self.resonator, "frequency_converter_up"):
+        #         logger.info(f"Calibrating {self.resonator.name}")
+        #         resonator_calibration_output = QM.calibrate_element(
+        #             self.resonator.name,
+        #             {
+        #                 self.resonator.frequency_converter_up.LO_frequency: (
+        #                     self.resonator.intermediate_frequency,
+        #                 )
+        #             },
+        #         )
+        #     else:
+        #         raise RuntimeError(
+        #             f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely "
+        #             "not connected to an Octave."
+        #         )
+        # else:
+        #     resonator_calibration_output = None
+
+        if calibrate_drive and self.drive is not None:
+            if hasattr(self.drive, "frequency_converter_up"):
+                logger.info(f"Calibrating {self.drive.name}")
+                drive_calibration_output = QM.calibrate_element(
+                    self.drive.name,
+                    {
+                        self.drive.frequency_converter_up.LO_frequency: (
+                            self.drive.intermediate_frequency,
+                        )
+                    },
+                )
+            else:
+                raise RuntimeError(
+                    f"{self.drive.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely not "
+                    "connected to an Octave."
+                )
+        else:
+            drive_calibration_output = None
+        return drive_calibration_output
+    
+    def reset(
+        self, 
+        reset_type: Literal["thermal"] = "thermal", 
+        ):
+
+        if reset_type == "thermal": 
+            self.reset_qubit_thermal()
+
+    def reset_qubit_thermal(self): 
+        """
+        Perform a thermal reset of the qubit.
+
+        This function waits for a duration specified by the thermalization time
+        to allow the qubit to return to its ground state through natural thermal
+        relaxation.
+        """
+        self.wait(self.thermalization_time // 4)
+
+    
 
