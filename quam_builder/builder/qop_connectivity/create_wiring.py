@@ -47,6 +47,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.COUPLER,
                 WiringLineType.CROSS_RESONANCE,
                 WiringLineType.ZZ_DRIVE,
+                WiringLineType.PARAMETRIC_DRIVE,
             ]:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
                     set_nested_value_with_path(

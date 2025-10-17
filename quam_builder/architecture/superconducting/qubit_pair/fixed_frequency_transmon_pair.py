@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional, Union
 from dataclasses import field
-
+from quam.components import SingleChannel
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
 from quam.components.quantum_components import QubitPair
@@ -32,6 +32,9 @@ class FixedFrequencyTransmonPair(QubitPair):
         cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross resonance component.
         zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         xy_detuned (Union[MWChannel, IQChannel]): The detuned xy drive component.
+        parametric_drive (Optional[SingleChannel]): The primary parametric drive channel.
+        parametric_drive_alt (Optional[SingleChannel]): An alternative parametric drive channel, 
+        for pairs with multiple clusters available.
         confusion (list): The readout confusion matrix.
         extras (Dict[str, Any]): Additional attributes for the transmon pair.
     """
@@ -43,6 +46,8 @@ class FixedFrequencyTransmonPair(QubitPair):
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
     xy_detuned: Union[MWChannel, IQChannel] = None
+    parametric_drive: Optional[SingleChannel] = None
+    parametric_drive_alt: Optional[SingleChannel] = None
 
     confusion: list = None
 

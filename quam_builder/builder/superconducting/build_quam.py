@@ -17,6 +17,7 @@ from quam_builder.builder.superconducting.add_transmon_pair_component import (
     add_transmon_pair_tunable_coupler_component,
     add_transmon_pair_cross_resonance_component,
     add_transmon_pair_zz_drive_component,
+    add_transmon_pair_parametric_drive_component
 )
 from quam_builder.builder.superconducting.add_transmon_resonator_component import (
     add_transmon_resonator_component,
@@ -43,7 +44,7 @@ def build_quam(
     add_transmons(machine)
     add_pulses(machine)
 
-    machine.save()
+    machine.save(path="C:/Users/BenjaminSafvati/OneDrive - QM Machines LTD/Documents/GitHub/quam_state")
 
     return machine
 
@@ -133,6 +134,10 @@ def add_transmons(machine: AnyQuam):
                         )
                     elif line_type == WiringLineType.ZZ_DRIVE.value:
                         add_transmon_pair_zz_drive_component(
+                            transmon_pair, wiring_path, ports
+                        )
+                    elif line_type == WiringLineType.PARAMETRIC_DRIVE.value:
+                        add_transmon_pair_parametric_drive_component(
                             transmon_pair, wiring_path, ports
                         )
                     else:

@@ -120,9 +120,13 @@ def create_lf_opx_plus_port(
                 for channel_with_same_type in channels_with_same_type
             ]
         ):
-            key = f"opx_{channel.io_type}_I"
+            # key = f"opx_{channel.io_type}_I"
+            key = f"opx_{channel.io_type}"
+
         else:
-            key = f"opx_{channel.io_type}_Q"
+            # key = f"opx_{channel.io_type}_Q"
+            key = f"opx_{channel.io_type}_alt"
+
     else:
         raise NotImplementedError(
             f"Can't handle when channel number is not 1 or 2, got {len(channels_with_same_type)}"

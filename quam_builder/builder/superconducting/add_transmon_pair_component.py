@@ -14,7 +14,8 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
-
+from quam.components import SingleChannel
+import re
 
 def add_transmon_pair_tunable_coupler_component(
     transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
@@ -105,6 +106,7 @@ def add_transmon_pair_zz_drive_component(
     Raises:
         ValueError: If the port keys do not match any implemented mapping.
     """
+
     qubit_control_name = ports["control_qubit"].name
     qubit_target_name = ports["target_qubit"].name
     qubit_pair_name = f"{qubit_control_name}_{qubit_target_name}"
@@ -132,3 +134,49 @@ def add_transmon_pair_zz_drive_component(
         raise ValueError(
             f"Unimplemented mapping of port keys to channel for ports: {ports}"
         )
+
+def add_transmon_pair_parametric_drive_component(
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    wiring_path: str,
+    ports: Dict[str, str],
+):
+    """Adds a drive component to a transmon qubit pair based on the provided wiring path and ports.
+
+    Args:
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the parametric drive component will be added.
+        wiring_path (str): The path to the wiring configuration.
+        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
+
+    Raises:
+        ValueError: If the port keys do not match any implemented mapping.
+    """
+
+    coupler_idx = [[1,2,5,6],[2,3,6,7],[3,4,7,8],
+                   [5,6,9,10],[7,8,11,12], 
+                   [9,10,13,14],[11,12,15,16],
+                   [13,14,17,18],[14,15,18,19],[15,16,19,20]
+                    ]
+
+    qubit_control_name = ports["control_qubit"].name
+    qc_num = int(re.findall(r'\d+',qubit_control_name)[0])
+    qubit_target_name = ports["target_qubit"].name
+    qt_num = int(re.findall(r'\d+',qubit_target_name)[0])
+    qubit_pair_name = f"Q{qc_num}{qt_num}"
+    coupler_nums = [i+1 for i, sublist in enumerate(coupler_idx) if qc_num in sublist and qt_num in sublist]
+    parametric_drive_name = f"c{coupler_nums[0]}_{qubit_pair_name}"
+
+    if "opx_output" in ports.keys():
+        transmon_pair.parametric_drive = SingleChannel(
+            id=parametric_drive_name, opx_output=f"{wiring_path}/opx_output"
+        )
+    else:
+        raise ValueError(
+            f"Unimplemented mapping of port keys to channel for ports: {ports}"
+        )
+    if  "opx_output_alt" in ports.keys():
+        parametric_drive_alt_name = f"c{coupler_nums[1]}_{qubit_pair_name}"
+
+        transmon_pair.parametric_drive_alt = SingleChannel(
+            id=parametric_drive_alt_name, opx_output=f"{wiring_path}/opx_output_alt"
+        )
+    
