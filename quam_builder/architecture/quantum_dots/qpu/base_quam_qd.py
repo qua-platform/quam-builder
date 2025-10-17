@@ -96,6 +96,28 @@ class BaseQuamQD(QuamRoot):
             content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
         )
     
+    def _get_virtual_name(self, channel: Channel): 
+        vgs_name = None
+        for name, vgs in self.virtual_gate_sets.items(): 
+            if channel in vgs.channels.values():
+                vgs_name = name
+                break
+            else:
+                continue
+        if vgs_name is None:
+            raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
+        vgs = self.virtual_gate_sets[vgs_name]
+
+        for key, val in vgs.channels.items(): 
+            if val is channel: 
+                physical_name = key
+            else: 
+                raise ValueError(f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}")
+            
+        virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
+        return virtual_name
+
+
     def register_qubit(self, 
                        qubit_type: str, 
                        ): 
@@ -112,26 +134,17 @@ class BaseQuamQD(QuamRoot):
         The name of the QuantumDot will be found in the first layer of the corresponding VirtualGateSet. 
 
         """
-        vgs = self.virtual_gate_sets[gate_set_id]
-
         for ch in plunger_channels: 
-            for key, val in vgs.channels.items(): 
-                if val is ch: 
-                    physical_name = key
-                else: 
-                    raise ValueError(f"Channel {ch.id} not associated with VirtualGateSet {gate_set_id}")
-                
-            virtual_qd_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
+            virtual_qd_name = self._get_virtual_name(ch)
             quantum_dot = QuantumDot(
                 id = virtual_qd_name, # Should now be the same as the virtual gate name
                 physical_channel = ch.get_reference()
             )
-
             self.quantum_dots[virtual_qd_name] = quantum_dot
 
     def register_quantum_dot_pair(
         self,
-        
+
     ) -> None: 
         """
         
