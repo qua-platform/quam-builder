@@ -375,6 +375,11 @@ class BaseQuamQD(QuamRoot):
             sensor_dots=[self.sensor_dots[n].get_reference() for n in sensor_names],
             dot_coupling=dot_coupling,
         )
+    
+    def register_qubit(self, 
+                       qubit_type: str, 
+                       ): 
+        pass
 
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
