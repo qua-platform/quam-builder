@@ -12,7 +12,7 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["ReadoutResonatorIQ", "ReadoutResonatorMW"]
+__all__ = ["ReadoutResonatorBase", "ReadoutResonatorIQ", "ReadoutResonatorMW"]
 
 
 @quam_dataclass

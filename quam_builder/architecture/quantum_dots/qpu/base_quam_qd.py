@@ -19,6 +19,7 @@ from quam_builder.architecture.quantum_dots.components import (
     SensorDot, 
     BarrierGate,
     QuantumDotPair,
+    ReadoutResonatorBase
 )
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import AnySpinQubitPair
@@ -96,14 +97,22 @@ class BaseQuamQD(QuamRoot):
             content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
         )
     
+    def _get_virtual_gate_set(self, channel: Channel): 
+        virtual_gate_set = None
+        for vgs in self.virtual_gate_sets.values(): 
+            if channel in vgs.channels.values(): 
+                virtual_gate_set = vgs
+        if virtual_gate_set is None: 
+            raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
+        return virtual_gate_set
+    
     def _get_virtual_name(self, channel: Channel): 
         vgs_name = None
         for name, vgs in self.virtual_gate_sets.items(): 
             if channel in vgs.channels.values():
                 vgs_name = name
                 break
-            else:
-                continue
+
         if vgs_name is None:
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         vgs = self.virtual_gate_sets[vgs_name]
@@ -117,40 +126,114 @@ class BaseQuamQD(QuamRoot):
         virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
+    def register_channel_elements(
+        self, 
+        plunger_channels: List[Channel], 
+        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+        barrier_channels: List[Channel]
+    ) -> None:
+        self.register_quantum_dots(plunger_channels)
+        self.register_barrier_gates(barrier_channels)
+        self.register_sensor_dots(sensor_channels_resonators)
+
+    def register_quantum_dots(
+        self, 
+        plunger_channels: List[Channel], 
+    ) -> None: 
+        """
+        Creates QuantumDot objects from a list of plunger_channels Channel objects. 
+
+        The name of the QuantumDot will be found in the first layer of the corresponding VirtualGateSet. 
+
+        """
+        for ch in plunger_channels: 
+            virtual_name = self._get_virtual_name(ch)
+            quantum_dot = QuantumDot(
+                id = virtual_name, # Should now be the same as the virtual gate name
+                physical_channel = ch.get_reference()
+            )
+            self.quantum_dots[virtual_name] = quantum_dot
+
+    def register_sensor_dots(
+        self,
+        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+    ) -> None:
+        
+        for ch, res in sensor_channels_resonators.items(): 
+            virtual_name = self._get_virtual_name(ch)
+            sensor_dot = SensorDot(
+                id = virtual_name, 
+                physical_channel = ch, 
+                readout_resonator = res
+            )
+            self.sensor_dots[virtual_name] = sensor_dot
+
+    def register_barrier_gates(
+        self, 
+        barrier_channels: List[Channel]
+    ) -> None:
+        for ch in barrier_channels: 
+            virtual_name = self._get_virtual_name(ch)
+            barrier_gate = BarrierGate(
+                id = virtual_name, 
+                opx_output = ch.opx_output, 
+                offset_parameter = ch.offset_parameter,
+                attenuation = ch.attenuation
+            )
+            self.barrier_gates[virtual_name] = barrier_gate
+
+
+    def register_quantum_dot_pair(
+        self, 
+        quantum_dots: List[Channel], 
+        sensor_dots: List[Channel], 
+        barrier_gate: Channel,
+        id:str = None,
+        dot_coupling: float = 0.0,
+    ) -> None: 
+        """
+        Creates QuantumDotPair objects given a list of Channels
+        Args: 
+            quantum_dots (List[QuantumDot]): A list of two Channel objects which are already registered as QuantumDots.
+
+        """
+
+        if len(quantum_dots) != 2: 
+            raise ValueError(f"Must be 2 QuantumDot objects. Received {len(quantum_dots)}")
+        
+        qd_names = [self._get_virtual_name(qd) for qd in quantum_dots]
+        for name in qd_names: 
+            if name not in self.quantum_dots.keys(): 
+                raise ValueError(f"Quantum Dot {name} not registered. Please register first")
+        if id is None: 
+            id = f"{qd_names[0]}_{qd_names[1]}"
+            
+        sensor_names = [self._get_virtual_name(qd) for qd in sensor_dots]
+        for name in sensor_names: 
+            if name not in self.sensor_dots.keys(): 
+                raise ValueError(f"Sensor Dot {name} not registered. Please register first")
+
+        barrier_name = self._get_virtual_name(barrier_gate)
+        if barrier_name not in self.barrier_gates.keys():
+            raise ValueError(f"Barrier Gate {barrier_name} not registered. Please register first")
+
+        quantum_dot_pair = QuantumDotPair(
+            id = id,
+            quantum_dots = [self.quantum_dots[m] for m in qd_names], 
+            barrier_gate = self.barrier_gates[barrier_name], 
+            sensor_dots = [self.sensor_dots[n] for n in sensor_names], 
+            dot_coupling = dot_coupling
+        )
+
+        self.quantum_dot_pairs[id] = quantum_dot_pair
 
     def register_qubit(self, 
                        qubit_type: str, 
                        ): 
         pass
 
-    def register_quantum_dots(
-        self, 
-        plunger_channels: List[Channel], 
-        gate_set_id: str
-    ) -> None: 
-        """
-        This function creates QuantumDot objects from a list of plunger_channels Channel objects. 
 
-        The name of the QuantumDot will be found in the first layer of the corresponding VirtualGateSet. 
 
-        """
-        for ch in plunger_channels: 
-            virtual_qd_name = self._get_virtual_name(ch)
-            quantum_dot = QuantumDot(
-                id = virtual_qd_name, # Should now be the same as the virtual gate name
-                physical_channel = ch.get_reference()
-            )
-            self.quantum_dots[virtual_qd_name] = quantum_dot
-
-    def register_quantum_dot_pair(
-        self,
-
-    ) -> None: 
-        """
-        
-        """
-
-        pass
 
     def create_virtual_gate_set(
             self, 
@@ -187,48 +270,33 @@ class BaseQuamQD(QuamRoot):
             matrix = compensation_matrix
         )
         
-    def get_matrix_index(self, virtual_gate_set_name: str, gate_name: str): 
+    def get_matrix_index(self, channel): 
         """ 
         In-case the user would like to find the index of a specified gate in the VirtualGateSet
         """
-        # Check for the correct VirtualGateSet in self.virtual_gate_sets
-        if virtual_gate_set_name not in self.virtual_gate_sets:
-            raise ValueError(f"No such VirtualGateSet. Received {virtual_gate_set_name}")
-        
-        virtual_gate_set = self.virtual_gate_sets[virtual_gate_set_name]
+        vgs = self._get_virtual_gate_set(channel)
+        virtual_name = self._get_virtual_name(channel)
+        index = vgs.layers[0].source_gates.index(virtual_name)
 
-        if gate_name not in virtual_gate_set.valid_channel_names: 
-            raise ValueError(f"Gate name {gate_name} not in VirtualGateSet.")
-        
-        # Only look in the cross-compensation layer of the VirtualGateSet.
-        layer = virtual_gate_set.layers[0]
-        if gate_name in layer.source_gates: 
-            return layer.source_gates.index(gate_name)
-        if gate_name in layer.target_gates:
-            return layer.target_gates.index(gate_name)
-        
-        raise ValueError(
-            f"Gate '{gate_name}' exists in the gate set but not in the base capacitance layer. "
-            f"Capacitance can only be updated for gates in layer 0: "
-            f"physical gates {layer.source_gates} or virtual gates {layer.target_gates}."
-        )
+        return vgs, index
 
-    def update_cross_compensation_element(self, virtual_gate_set_name: str, gate1: str, gate2: str, value: float): 
+    def update_cross_compensation_element(self, ch1: Channel, ch2: Channel, value: float): 
         """
         Updates the cross-compensation value in the bottommost layer of the VirtualGateSet. 
 
         Args:  
-            virtual_gate_set_name (str): The name of the VirtualGateSet in self.virtual_gate_sets.
-            gate1 (str): The name of the first virtual or physical gate name. 
-            gate2 (str): The name of the second virtual or physical gate name. 
+            ch1 (Channel): Hardware channel 1. 
+            ch2 (Channel): Hardware Channel 2.
             value (float): The matrix element value.
         """
+        vgs1, gate1_index = self.get_matrix_index(ch1)
+        vgs2, gate2_index = self.get_matrix_index(ch2)
 
-        gate1_index, gate2_index = self.get_matrix_index(virtual_gate_set_name, gate1), self.get_matrix_index(virtual_gate_set_name, gate2)
-        virtual_gate_set = self.virtual_gate_sets[virtual_gate_set_name]
+        if vgs1 is not vgs2: 
+            raise ValueError("Channels not in the same VirtualGateSet.")
 
-        virtual_gate_set.layers[0].matrix[gate1_index][gate2_index] = value
-        virtual_gate_set.layers[0].matrix[gate2_index][gate1_index] = value
+        vgs1.layers[0].matrix[gate1_index][gate2_index] = value
+        vgs1.layers[0].matrix[gate2_index][gate1_index] = value
 
 
     def update_full_cross_compensation(self, compensation_matrix:List[List[float]], virtual_gate_set_name:str = None) -> None: 
