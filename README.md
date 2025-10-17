@@ -2,13 +2,13 @@
 
 This repository contains the `quam-builder`, a Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP).
 
-The current version focuses primarily on superconducting qubits, though future versions will include other qubit types.
+The current version implements superconducting qubits and single NV centers. Future versions will include other qubit types.
 
 ## Overview
 
 The `quam-builder` simplifies the process of generating complex QUAM configurations by providing:
 
-1.  **Modular Architecture Definitions:** Defines Python classes representing various components of a superconducting quantum processor (QPUs, qubits, readout resonators, drive lines, flux lines, couplers, etc.).
+1.  **Modular Architecture Definitions:** Defines Python classes representing various components of a superconducting or NV center quantum processor (QPUs, qubits, readout resonators, drive lines, flux lines, couplers, laser, spcm, etc.).
 
 2.  **QOP Wiring Generation:** Functionality to automatically generate the `wiring` section of the QUAM configuration, mapping logical quantum elements to physical QOP controller ports (analog and digital).
 
@@ -28,9 +28,9 @@ The `quam-builder` simplifies the process of generating complex QUAM configurati
 
 This module defines the hierarchical structure and data types for various QUAM components within a QUAM configuration tailored for specific qubit types:
 
-* **QPU (`qpu`):** Base classes (`BaseQuam`) and specific implementations for different QPU types (`FixedFrequencyQPU`, `FluxTunableQPU`).
+* **QPU (`qpu`):** Base classes (`BaseQuam`) and specific implementations for different QPU types (`FixedFrequencyQPU`, `FluxTunableQPU`, `NVCenterQPU`).
 
-* **Qubits (`qubit`):** Defines transmon qubit types, including `BaseTransmon`, `FixedFrequencyTransmon`, and `FluxTunableTransmon`.
+* **Qubits (`qubit`):** Defines transmon qubit types, including `BaseTransmon`, `FixedFrequencyTransmon`, `FluxTunableTransmon` and `NVCenter`.
 
 * **Components (`components`):** Represents the elements associated with qubits or qubit interactions, such as `ReadoutResonator`, `XYDrive`, or `TunableCoupler`for instance.
 
@@ -40,7 +40,7 @@ Note that several tools can be found in `quam_builder/tools`:
   - [power_tools](./quam_builder/tools/power_tools.py): Functions to precisely set and retrieve the output power (in dBm) for specific operations on `MWChannel` (`set_output_power_mw_channel`, `get_output_power_mw_channel`) and `IQChannel` (`set_output_power_iq_channel`, `get_output_power_iq_channel`) components defined in QUAM. Handles adjustments to full-scale power or gain/amplitude to achieve target power levels using helpers like `calculate_voltage_scaling_factor`.
 
 
-Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md) and in the docstrings of the components.
+Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md) or [architecture/nv_center/README.md](./quam_builder/architecture/nv_center/README.md) and in the docstrings of the components.
 
 ### 2. QUAM Construction (`quam_builder.builder`)
 
@@ -50,7 +50,7 @@ This module provides functions to build the main QUAM structure:
 
 * **Component Adders (`add_*_*_component`):** Helper functions (`add_transmon_drive_component`, or `add_transmon_pair_component` for instance) used by `build_quam` to populate the QUAM object with the appropriate components based on the specified architecture.
 
-* **Pulse Definitions (`pulses`):** Contains functions to generate default pulse shapes and parameters (e.g., `drag_gauss_pulse`, `square_pulse`) commonly used in superconducting qubit experiments.
+* **Pulse Definitions (`pulses`):** Contains functions to generate default pulse shapes and parameters (e.g., `drag_gauss_pulse`, `square_pulse`) commonly used in superconducting qubit and NV center experiments.
 
 ### 3. QOP Connectivity & Wiring (`quam_builder.builder.qop_connectivity`)
 
@@ -66,7 +66,7 @@ This module focuses on generating the `wiring` part of the QUAM configuration, c
 
 ## Usage Examples
 
-Examples for typical wiring configurations can be found in the [qua-platform/qua-libs](https://github.com/qua-platform/qua-libs) GitHub repository in the folder `qualibration_graphs/superconducting/quam_config/wiring_examples`.
+Examples for typical wiring configurations can be found in the [qua-platform/qua-libs](https://github.com/qua-platform/qua-libs) GitHub repository in the folder `qualibration_graphs/superconducting/quam_config/wiring_examples` or `qualibration_graphs/nv_center/quam_config/wiring_examples`.
 
 The `wiring_examples` directory provides practical scripts demonstrating how to use `build_quam` and `build_quam_wiring` for different hardware configurations:
 
