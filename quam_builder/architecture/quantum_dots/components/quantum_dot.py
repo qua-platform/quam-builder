@@ -11,7 +11,7 @@ __all__ = ["QuantumDot"]
 
 
 @quam_dataclass
-class QuantumDot:
+class QuantumDot(QuamComponent):
     """
     Quam component for a single Quantum Dot
     Attributes: 
@@ -29,6 +29,10 @@ class QuantumDot:
     physical_channel: VoltageGate
     current_voltage: float = 0.0
     charge_number: int = 0
+
+    @property
+    def name(self) -> str: 
+        return self.id if isinstance(self.id, str) else f"dot{self.id}"
 
     def go_to_voltage(self, voltage: float) -> Dict[str, float]:
         """

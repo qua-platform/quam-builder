@@ -10,10 +10,16 @@ from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
 from quam.components import Channel
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
-from quam.core import quam_dataclass, QuamRoot
+from quam.core import quam_dataclass, QuamRoot, QuamBase
 
-from quam_builder.architecture.quantum_dots.components import GateSet, VirtualGateSet, QuantumDot, VoltageGate
-from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, ld_qubit
+from quam_builder.architecture.quantum_dots.components import (
+    VirtualGateSet, 
+    QuantumDot, 
+    VoltageGate, 
+    SensorDot, 
+    BarrierGate,
+)
+from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import AnySpinQubitPair
 
 __all__ = ["BaseQuamQD"]
@@ -58,6 +64,8 @@ class BaseQuamQD(QuamRoot):
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
     quantum_dots: Dict[str, QuantumDot] = field(default_factory = dict)
+    sensor_dots: dict[str, SensorDot] = field(default_factory = dict)
+    barrier_gates: dict[str, BarrierGate] = field(default_factory = dict)
 
     back_gate: VoltageGate = None
     b_field: float = 0
@@ -98,16 +106,18 @@ class BaseQuamQD(QuamRoot):
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
 
         channel_mapping = {}
-
+        
         # Helper function which takes a dict and extracts a list of physical names and virtual names, while updating the channel_mapping
         def add_gates(items: Dict, get_channel_fn): 
             physical_names = []
             virtual_names = []
-            for name, item in items.items():
-                physical_name = f"{name}_physical"
+            for item in items.values():
+                physical_name = f"{item.id}_physical"
                 physical_names.append(physical_name)
-                virtual_names.append(name)
-                channel_mapping[physical_name] = get_channel_fn(item)
+                virtual_names.append(item.id)
+                channel = get_channel_fn(item)
+                channel_mapping[physical_name] = channel.get_reference()
+
             return physical_names, virtual_names
 
         # Add any qubits to the channel mapping
@@ -115,10 +125,6 @@ class BaseQuamQD(QuamRoot):
 
         # Add any miscellaneous dots to the channel mapping
         physical_dot_names, virtual_dot_names = add_gates(self.quantum_dots, lambda dot: dot.physical_channel)
-
-        # Find all the barrier gates and sensor dots associated to the qubitpairs
-        physical_barrier_names, virtual_barrier_names = [],[]
-        physical_sensor_names, virtual_sensor_names = [],[]
 
         def merge_couplings_dicts(base, new):
             """
@@ -138,25 +144,38 @@ class BaseQuamQD(QuamRoot):
             for key, value in new.items():
                 result[key].update(value)
             return result
-        
-        
+
+        # Find all the relevant sensor and barrier gates 
+
+        physical_barrier_names, virtual_barrier_names = [], []
+        physical_sensor_names, virtual_sensor_names = [], []
+        if self.sensor_dots != {}: 
+            physical_sensor_names, virtual_sensor_names = add_gates(self.sensor_dots, lambda dot: dot.physical_channel)
+        if self.barrier_gates != {}:
+            physical_barrier_names, virtual_barrier_names = add_gates(self.barrier_gates, lambda gate: gate)
+    
         couplings = {}
-        seen_sensors = set()
+        seen_sensors = set(virtual_sensor_names)
+        seen_barriers = set(virtual_barrier_names)
         for q_pair in list(self.qubit_pairs.values()): 
             couplings = merge_couplings_dicts(couplings, q_pair.couplings)
             barrier_gate = q_pair.barrier_gate
-            phys_barrier_name = f"{barrier_gate.id}_physical"
-            virtual_barrier_names.append(barrier_gate.id)
-            physical_barrier_names.append(phys_barrier_name)
-            channel_mapping[phys_barrier_name] = barrier_gate
+            if barrier_gate.id not in seen_barriers:
+                phys_barrier_name = f"{barrier_gate.id}_physical"
+                virtual_barrier_names.append(barrier_gate.id)
+                physical_barrier_names.append(phys_barrier_name)
 
+                # Need a .get_reference() here, since the barrier_gate should already be parented (by the QubitPair)
+                channel_mapping[phys_barrier_name] = barrier_gate.get_reference()
             for s_dot in q_pair.sensor_dots:
                 if s_dot.id not in seen_sensors:
                     seen_sensors.add(s_dot.id)
                     phys_sensor_name = f"{s_dot.id}_physical" 
                     virtual_sensor_names.append(s_dot.id)
                     physical_sensor_names.append(phys_sensor_name)
-                    channel_mapping[phys_sensor_name] = s_dot.physical_channel
+
+                    # No need for .get_reference() here, since the sensor dots are in a list
+                    channel_mapping[phys_sensor_name] = s_dot.physical_channel.get_reference()
 
         # Create a full list of all the virtual and physical gate names, mapped correctly
         full_virtual_list = virtual_qubit_names + virtual_dot_names + virtual_sensor_names + virtual_barrier_names 
@@ -258,6 +277,14 @@ class BaseQuamQD(QuamRoot):
         if gate_set_name is None: 
             gate_set_name = list(self.virtual_gate_sets.keys())[0]
         new_sequence = self.virtual_gate_sets[gate_set_name].new_sequence()
+
+        actual_voltages = {}
+        for name, value in voltages.items(): 
+            if name in self.qubits: 
+                actual_voltages[self.qubits[name].id] = value
+            else: 
+                actual_voltages[name] = value
+
         if not default_to_zero: 
             for qubit in self.qubits.keys(): 
                 if qubit in voltages: 
@@ -265,7 +292,7 @@ class BaseQuamQD(QuamRoot):
                 else: 
                     voltages[qubit] = self.qubits[qubit].current_voltage
                     
-        new_sequence.step_to_voltages(voltages)
+        new_sequence.step_to_voltages(actual_voltages)
 
     def connect(self) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.

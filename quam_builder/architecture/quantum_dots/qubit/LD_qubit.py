@@ -48,6 +48,8 @@ class LDQubit(Qubit):
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
     """
+    id: Union[str, int] = None
+
     quantum_dot: QuantumDot
     drive: Channel = None
 
@@ -58,9 +60,11 @@ class LDQubit(Qubit):
     thermalization_time_factor: int = 5
 
     def __post_init__(self): 
+        if self.id is None: 
+            self.id = self.quantum_dot.id
         if self.id != self.quantum_dot.id:
             raise ValueError(
-                f"Loss DiVincenzo Qubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
+                f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
                 f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
             )
     

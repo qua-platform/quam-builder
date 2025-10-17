@@ -59,7 +59,7 @@ class LDQubitPair(QubitPair):
     barrier_gate: BarrierGate = None
 
     sensor_dots: List[SensorDot] = field(default_factory=list)
-    couplings: Dict[str, Dict[str, float]] = {barrier_gate.id: {}}
+    couplings: Dict[str, Dict[str, float]] = field(default_factory = dict)
 
     def __post_init__(self): 
         if self.id is None:
