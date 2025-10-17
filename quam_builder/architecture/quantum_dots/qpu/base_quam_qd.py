@@ -1,6 +1,7 @@
 from typing import List, Dict, Union, ClassVar, Optional
 from dataclasses import field
 import numpy as np
+from collections import defaultdict
 
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
@@ -56,7 +57,7 @@ class BaseQuamQD(QuamRoot):
 
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
-    quantum_dots: Dict[str, QuantumDot] = None
+    quantum_dots: Dict[str, QuantumDot] = field(default_factory = dict)
 
     back_gate: VoltageGate = None
     b_field: float = 0
@@ -86,78 +87,165 @@ class BaseQuamQD(QuamRoot):
     def create_virtual_gate_set(self, 
                                 gate_set_id:str = None, 
                                 capacitance_matrix: List[List[float]] = None, 
-                                use_pair_capacitance: bool = True,
+                                use_pair_couplings: bool = True,
     ) -> None: 
         """
         Create an internal VirtualGateSet to include all the coupled channels in your hardware. 
         Internally creates a mapping of virtual_gates -> physical_gates
         """
+        # Set default name for the VirtualGateSet
         if gate_set_id is None: 
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
 
-        # Find all the qubits in self.qubits
-        physical_qubit_names, virtual_qubit_names = [], []
         channel_mapping = {}
-        for q in list(self.qubits.keys()): 
-            physical_name = q + "_physical"
-            physical_qubit_names.append(physical_name)
-            virtual_qubit_names.append(q)
-            channel_mapping[physical_name] = self.qubits[q].physical_channel
 
+        # Helper function which takes a dict and extracts a list of physical names and virtual names, while updating the channel_mapping
+        def add_gates(items: Dict, get_channel_fn): 
+            physical_names = []
+            virtual_names = []
+            for name, item in items.items():
+                physical_name = f"{name}_physical"
+                physical_names.append(physical_name)
+                virtual_names.append(name)
+                channel_mapping[physical_name] = get_channel_fn(item)
+            return physical_names, virtual_names
 
-        # Find all the barrier gates and sensor dos associated to the qubitpairs
+        # Add any qubits to the channel mapping
+        physical_qubit_names, virtual_qubit_names = add_gates(self.qubits, lambda q: q.physical_channel)
+
+        # Add any miscellaneous dots to the channel mapping
+        physical_dot_names, virtual_dot_names = add_gates(self.quantum_dots, lambda dot: dot.physical_channel)
+
+        # Find all the barrier gates and sensor dots associated to the qubitpairs
         physical_barrier_names, virtual_barrier_names = [],[]
         physical_sensor_names, virtual_sensor_names = [],[]
+
+        def merge_couplings_dicts(base, new):
+            """
+            Merge the element to qubit couplings with new entries. Resulting dict should be, e.g., 
+                {
+                    "sensor1" : {
+                        "qubit1" : 0.1, 
+                        "qubit2" : 0.2, 
+                    }, 
+                    "barrier1": {
+                        "qubit1" : 0.02, 
+                        "qubit2" : 0.01, 
+                    }, 
+                }
+            """
+            result = defaultdict(dict, base)
+            for key, value in new.items():
+                result[key].update(value)
+            return result
+        
+        
+        couplings = {}
+        seen_sensors = set()
         for q_pair in list(self.qubit_pairs.values()): 
+            couplings = merge_couplings_dicts(couplings, q_pair.couplings)
             barrier_gate = q_pair.barrier_gate
-            
-            phys_barrier_name = barrier_gate.id + "_physical"
+            phys_barrier_name = f"{barrier_gate.id}_physical"
             virtual_barrier_names.append(barrier_gate.id)
             physical_barrier_names.append(phys_barrier_name)
             channel_mapping[phys_barrier_name] = barrier_gate
 
-            sensor_dots = q_pair.sensor_dots
-            for s_dot in sensor_dots:
-                if s_dot.id not in virtual_sensor_names:
-                    phys_sensor_name = s_dot.id + "_physical"
+            for s_dot in q_pair.sensor_dots:
+                if s_dot.id not in seen_sensors:
+                    seen_sensors.add(s_dot.id)
+                    phys_sensor_name = f"{s_dot.id}_physical" 
                     virtual_sensor_names.append(s_dot.id)
                     physical_sensor_names.append(phys_sensor_name)
                     channel_mapping[phys_sensor_name] = s_dot.physical_channel
 
-        # Find any miscellaneous quantum dots (psudo-reservoirs, etc)
-        physical_dot_names, virtual_dot_names = [],[]
-        for dot in list(self.quantum_dots.keys()): 
-            physical_name = dot + "_physical"
-            physical_dot_names.append(physical_name)
-            virtual_dot_names.append(dot)
-            channel_mapping[physical_name] = self.quantum_dots[dot].physical_channel
-
-
+        # Create a full list of all the virtual and physical gate names, mapped correctly
         full_virtual_list = virtual_qubit_names + virtual_dot_names + virtual_sensor_names + virtual_barrier_names 
         full_physical_list = physical_qubit_names + physical_dot_names + physical_sensor_names + physical_barrier_names
 
-        self.full_virtual_names_list = full_virtual_list
-        self.full_physical_names_list = full_physical_list
-        
+        # Instantiate the VirtualGateSet using the channel mapping. Add it to the internal self.virtual_gate_sets dict
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(id = gate_set_id, channels = channel_mapping)
+
+        # If the user does not include the (cross-capacitance) matrix for very first layer, then assume identity
         if capacitance_matrix is None: 
             capacitance_matrix = np.eye(len(full_virtual_list)).tolist()
-
-
+        
+        # Add first initial layer to map the virtual gates -> underlying physical channels. 
+        # This matrix is update-able via a class method
         self.virtual_gate_sets[gate_set_id].add_layer(
             source_gates = full_virtual_list, 
             target_gates = full_physical_list, 
             matrix = capacitance_matrix
         )
+
+        if use_pair_couplings:
+            # Add the element-to-qubit couplings
+            for gate in couplings:
+                for (g, value) in couplings[gate].items():
+                    self.update_cross_compensation_element(gate_set_id, gate, g, value)
+            
+            # Add the qubit-to-qubit couplings
+            for q_pair in self.qubit_pairs.values(): 
+                self.update_cross_compensation_element(gate_set_id, q_pair.qubit_control.id, q_pair.qubit_target.id, q_pair.dot_coupling)
+            
         
+    def get_matrix_index(self, virtual_gate_set_name: str, gate_name: str): 
+        """ 
+        In-case the user would like to find the index of a specified gate in the VirtualGateSet
+        """
+        # Check for the correct VirtualGateSet in self.virtual_gate_sets
+        if virtual_gate_set_name not in self.virtual_gate_sets:
+            raise ValueError(f"No such VirtualGateSet. Received {virtual_gate_set_name}")
+        
+        virtual_gate_set = self.virtual_gate_sets[virtual_gate_set_name]
 
-    def update_capacitance_matrix(self, capacitance_matrix:List[List[float]], gate_set_name:str = None) -> None: 
-        if gate_set_name is not None and gate_set_name not in list(self.virtual_gate_sets.keys()):
-            raise ValueError("Gate Set not found in Quam")
-        if gate_set_name is None: 
-            gate_set_name = list(self.virtual_gate_sets.keys())[0]
+        if gate_name not in virtual_gate_set.valid_channel_names: 
+            raise ValueError(f"Gate name {gate_name} not in VirtualGateSet.")
+        
+        # Only look in the cross-compensation layer of the VirtualGateSet.
+        layer = virtual_gate_set.layers[0]
+        if gate_name in layer.source_gates: 
+            return layer.source_gates.index(gate_name)
+        if gate_name in layer.target_gates:
+            return layer.target_gates.index(gate_name)
+        
+        raise ValueError(
+            f"Gate '{gate_name}' exists in the gate set but not in the base capacitance layer. "
+            f"Capacitance can only be updated for gates in layer 0: "
+            f"physical gates {layer.source_gates} or virtual gates {layer.target_gates}."
+        )
 
-        self.virtual_gate_sets[gate_set_name].layers[0].matrix = capacitance_matrix
+    def update_cross_compensation_element(self, virtual_gate_set_name: str, gate1: str, gate2: str, value: float): 
+        """
+        Updates the cross-compensation value in the bottommost layer of the VirtualGateSet. 
+
+        Args:  
+            virtual_gate_set_name (str): The name of the VirtualGateSet in self.virtual_gate_sets.
+            gate1 (str): The name of the first virtual or physical gate name. 
+            gate2 (str): The name of the second virtual or physical gate name. 
+            value (float): The matrix element value.
+        """
+
+        gate1_index, gate2_index = self.get_matrix_index(virtual_gate_set_name, gate1), self.get_matrix_index(virtual_gate_set_name, gate2)
+        virtual_gate_set = self.virtual_gate_sets[virtual_gate_set_name]
+
+        virtual_gate_set.layers[0].matrix[gate1_index][gate2_index] = value
+        virtual_gate_set.layers[0].matrix[gate2_index][gate1_index] = value
+
+
+    def update_full_cross_compensation(self, compensation_matrix:List[List[float]], virtual_gate_set_name:str = None) -> None: 
+        """
+        If an already-established full cross-compensation matrix exists, use this method to add.
+        Args: 
+            compensation_matrix (List[List[float]]): A full cross-compensation matrix to overwrite the existing matrix in the first VirtualGateSet layer
+            virtual_gate_set_name (str): The name of the VirtualGateSet in self.virtual_gate_sets. 
+        """
+        
+        if virtual_gate_set_name is not None and virtual_gate_set_name not in self.virtual_gate_sets:
+            raise ValueError(f"No such VirtualGateSet. Received {virtual_gate_set_name}")
+        if virtual_gate_set_name is None: 
+            virtual_gate_set_name = next(iter(self.virtual_gate_sets.keys()))
+
+        self.virtual_gate_sets[virtual_gate_set_name].layers[0].matrix = compensation_matrix
         
     def step_to_voltage(self, voltages:Dict, default_to_zero:bool = False, gate_set_name:str = None) -> None: 
         """

@@ -15,5 +15,7 @@ class SensorDot(QuantumDot):
     """
 
     readout_resonator: Union[ReadoutResonatorMW, ReadoutResonatorIQ]
+    state_threshold: float = None
+
 
     
