@@ -56,6 +56,13 @@ class LDQubit(Qubit):
     T2ramsey: float = None
     T2echo: float = None
     thermalization_time_factor: int = 5
+
+    def __post_init__(self): 
+        if self.id != self.quantum_dot.id:
+            raise ValueError(
+                f"Loss DiVincenzo Qubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
+                f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
+            )
     
     @property
     def physical_channel(self): 
@@ -152,6 +159,16 @@ class LDQubit(Qubit):
         relaxation.
         """
         self.wait(self.thermalization_time // 4)
+
+    def wait(self, duration:int): 
+        """Wait for a given duration on all channels of the qubit.
+
+        Args:
+            duration (int): The duration to wait for in unit of clock cycles (4ns).
+        """
+        channel_names = [channel.name for channel in self.channels.values()]
+        wait(duration, *channel_names)
+
 
     
 

@@ -51,6 +51,7 @@ class QuantumDot(VoltageMacroMixin):
     physical_channel: VoltageGate
     charge_number: int = 0
     current_voltage: float = 0.0
+    charge_number: int = 0
 
     @property
     def name(self) -> str:
