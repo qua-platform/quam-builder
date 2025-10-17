@@ -1,68 +1,23 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Union, Tuple, List
 
 from qm.qua import *
-from qm.qua._dsl import QuaVariable
+from qm.qua._expressions import QuaExpression, QuaVariable
 
 from quam.components.macro import QubitPairMacro
-from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
 
-__all__ = ["CRGate"]
+__all__ = ["CRGate", "StarkInducedCZGate"]
+
+qua_T = Union[QuaVariable, QuaExpression]
+_tuple = Tuple[Union[float, qua_T]]
+_list = List[Union[float, qua_T]]
 
 
-qua_T = QuaVariable
-
-
-@quam_dataclass
-class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR gate as a unit).
-    # These parameters are stored under macros in state.json and not each for operation
-    zi_correction_phase: Optional[float | qua_T] = 0.0
-    iz_correction_phase: Optional[float | qua_T] = 0.0
-
-    # -------------------------------------------------------------------------
-    # Public API
-    # -------------------------------------------------------------------------
-    def apply(
-        self,
-        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
-        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = None,
-        cr_duration_clock_cycles: Optional[int | qua_T] = None,
-        cr_drive_amp_scaling: Optional[float | qua_T] = None,
-        cr_drive_phase: Optional[float | qua_T] = None,
-        cr_cancel_amp_scaling: Optional[float | qua_T] = None,
-        cr_cancel_phase: Optional[float | qua_T] = None,
-        zi_correction_phase: Optional[float | qua_T] = None,
-        iz_correction_phase: Optional[float | qua_T] = None,
-    ) -> None:
-        """
-        Thin router that delegates to a dedicated method per CR sequence.
-        Any provided kwargs override the instance's gate parameters for this call.
-        """
-        p = self._merged_params(
-            wf_type=wf_type,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            cr_drive_phase=cr_drive_phase,
-            cr_cancel_amp_scaling=cr_cancel_amp_scaling,
-            cr_cancel_phase=cr_cancel_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            zi_correction_phase=zi_correction_phase,
-            iz_correction_phase=iz_correction_phase,
-        )
-
-        if cr_type == "direct":
-            self._direct(**p)
-        elif cr_type == "direct+echo":
-            self._direct_echo(**p)
-        elif cr_type == "direct+cancel":
-            self._direct_cancel(**p)
-        elif cr_type == "direct+cancel+echo":
-            self._direct_cancel_echo(**p)
-        else:
-            raise ValueError(f"Unknown cr_type '{cr_type}'")
-
-    # -------------------------------------------------------------------------
-    # Small helpers
-    # -------------------------------------------------------------------------
+# ============================================================================
+# Shared helpers for 2-qubit gates (no dataclass fields here; just utilities)
+# ============================================================================
+class _QubitPairCrossDriveHelpers:
+    # ---- Small helpers (common) ----
     @property
     def _qc(self):
         return self.qubit_pair.qubit_control
@@ -71,56 +26,35 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
     def _qt(self):
         return self.qubit_pair.qubit_target
 
-    @property
-    def _cr(self):
-        return self.qubit_pair.cross_resonance
+    # Generic merge that ignores None (None == "no override")
+    def _merge_params(self, defaults: dict, **overrides) -> dict:
+        out = dict(defaults)
+        for k, v in overrides.items():
+            if k in ["qc_correction_phase", "qt_correction_phase"] and v is not None:
+                out[k] = v
+            else:
+                out[k] = v
+        return out
 
-    @property
-    def _cr_elems(self):
-        return [self._qc.xy.name, self._qt.xy.name, self._cr.name]
+    # ---- Phase shifts (common ZI / IZ corrections) ----
+    def _qc_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
+        if phi is not None:
+            self._qc.xy.frame_rotation_2pi(phi)
 
-    def _merged_params(self, **overrides):
-        """Merge per-call overrides onto instance defaults."""
-        base = dict(
-            wf_type=self.wf_type,
-            cr_drive_amp_scaling=self.cr_drive_amp_scaling,
-            cr_drive_phase=self.cr_drive_phase,
-            cr_cancel_amp_scaling=self.cr_cancel_amp_scaling,
-            cr_cancel_phase=self.cr_cancel_phase,
-            cr_duration_clock_cycles=self.cr_duration_clock_cycles,
-            zi_correction_phase=self.zi_correction_phase,
-            iz_correction_phase=self.iz_correction_phase,
-        )
-        base.update({k: v for k, v in overrides.items() if v is not None})
-        return base
+    def _qt_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
+        if phi is not None:
+            self._qt.xy.frame_rotation_2pi(phi)
 
-    # ---- Phase shifts ----
-    def _cr_drive_shift_phase(self, cr_drive_phase: Optional[float | qua_T]) -> None:
-        if cr_drive_phase is not None:
-            self._cr.frame_rotation_2pi(cr_drive_phase)
-
-    def _cr_cancel_shift_phase(self, cr_cancel_phase: Optional[float | qua_T]) -> None:
-        if cr_cancel_phase is not None:
-            self._qt.xy.frame_rotation_2pi(cr_cancel_phase)
-
-    def _zi_shift_correction_phase(self, zi_correction_phase: Optional[float | qua_T]) -> None:
-        if zi_correction_phase is not None:
-            self._qc.xy.frame_rotation_2pi(zi_correction_phase)
-
-    def _iz_shift_correction_phase(self, iz_correction_phase: Optional[float | qua_T]) -> None:
-        if iz_correction_phase is not None:
-            self._qt.xy.frame_rotation_2pi(iz_correction_phase)
-
-    # ---- Low-level play helpers ----
+    # ---- Low-level play helper (common) ----
     @staticmethod
-    def _play_cr_pulse(
-        elem: str,
+    def _play_pulse(
+        elem,
         wf_type: str,
-        amp_scale: Optional[float | qua_T],
-        duration: Optional[int | qua_T],
+        amp_scale: Optional[Union[float, qua_T, _tuple, _list]],
+        duration: Optional[Union[int, float, qua_T]],
         sgn: int = 1,
     ) -> None:
-        # Mirrors the original branching to avoid QUA optional arg issues
+        # Keep the branching explicit to satisfy QUA's optional-kw behavior
         if amp_scale is None and duration is None:
             elem.play(wf_type)
         elif amp_scale is None:
@@ -130,6 +64,74 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
         else:
             elem.play(wf_type, amplitude_scale=sgn * amp_scale, duration=duration)
 
+
+# ============================================================================
+# Cross-Resonance (CR) Gate
+# ============================================================================
+@quam_dataclass
+class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
+    # Gate-level parameters (composite CR, stored under macros)
+    qc_correction_phase: Optional[float] = None # ZI correction
+    qt_correction_phase: Optional[float] = None # IZ correction
+
+    # ---- Public API ----
+    def apply(
+        self,
+        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
+        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
+        cr_duration_clock_cycles: Optional[int | qua_T] = None,
+        cr_drive_amp_scaling: Optional[float | qua_T] = None,
+        cr_drive_phase: Optional[float | qua_T] = None,
+        cr_cancel_amp_scaling: Optional[float | qua_T] = None,
+        cr_cancel_phase: Optional[float | qua_T] = None,
+        qc_correction_phase: Optional[float | qua_T] = None,
+        qt_correction_phase: Optional[float | qua_T] = None,
+    ) -> None:
+        params = self._merge_params(
+            dict(
+                qc_correction_phase=self.qc_correction_phase,
+                qt_correction_phase=self.qt_correction_phase,
+            ),
+            wf_type=wf_type,
+            cr_duration_clock_cycles=cr_duration_clock_cycles,
+            cr_drive_amp_scaling=cr_drive_amp_scaling,
+            cr_drive_phase=cr_drive_phase,
+            cr_cancel_amp_scaling=cr_cancel_amp_scaling,
+            cr_cancel_phase=cr_cancel_phase,
+            qc_correction_phase=qc_correction_phase,
+            qt_correction_phase=qt_correction_phase,
+        )
+
+        if cr_type == "direct":
+            self._direct(**params)
+        elif cr_type == "direct+echo":
+            self._direct_echo(**params)
+        elif cr_type == "direct+cancel":
+            self._direct_cancel(**params)
+        elif cr_type == "direct+cancel+echo":
+            self._direct_cancel_echo(**params)
+        else:
+            raise ValueError(f"Unknown cr_type '{cr_type}'")
+
+    # hardware elems
+    @property
+    def _cr(self):
+        return self.qubit_pair.cross_resonance
+
+    @property
+    def _cr_elems(self):
+        return [self._qc.xy.name, self._qt.xy.name, self._cr.name]
+
+    # ---- Phase helpers specific to CR ----
+    def _cr_drive_shift_phase(self, phi: Optional[float | qua_T]) -> None:
+        if phi is not None:
+            self._cr.frame_rotation_2pi(phi)
+
+    def _cr_cancel_shift_phase(self, phi: Optional[float | qua_T]) -> None:
+        if phi is not None:
+            self._qt.xy.frame_rotation_2pi(phi)
+
+    # ---- Play wrappers ----
     def _cr_drive_play(
         self,
         sgn: Literal["direct", "echo"],
@@ -137,7 +139,7 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
         cr_drive_amp_scaling,
         cr_duration_clock_cycles,
     ) -> None:
-        self._play_cr_pulse(
+        self._play_pulse(
             elem=self._cr,
             wf_type=wf_type,
             amp_scale=cr_drive_amp_scaling,
@@ -154,7 +156,7 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
     ) -> None:
         # Cancel waveform name depends on pair
         cancel_wf = f"cr_{wf_type}_{self.qubit_pair.name}"
-        self._play_cr_pulse(
+        self._play_pulse(
             elem=self._qt.xy,
             wf_type=cancel_wf,
             amp_scale=cr_cancel_amp_scaling,
@@ -166,11 +168,11 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
     def _direct(
         self,
         wf_type: str,
+        cr_duration_clock_cycles,
         cr_drive_amp_scaling,
         cr_drive_phase,
-        cr_duration_clock_cycles,
-        zi_correction_phase,
-        iz_correction_phase,
+        qc_correction_phase,
+        qt_correction_phase,
         **_,
     ) -> None:
         self._cr_drive_shift_phase(cr_drive_phase)
@@ -182,18 +184,18 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
 
         # Cleanup
         reset_frame(self._cr.name)
-        self._zi_shift_correction_phase(zi_correction_phase)
-        self._iz_shift_correction_phase(iz_correction_phase)
+        self._qc_shift_correction_phase(qc_correction_phase)
+        self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
     def _direct_echo(
         self,
         wf_type: str,
+        cr_duration_clock_cycles,
         cr_drive_amp_scaling,
         cr_drive_phase,
-        cr_duration_clock_cycles,
-        zi_correction_phase,
-        iz_correction_phase,
+        qc_correction_phase,
+        qt_correction_phase,
         **_,
     ) -> None:
         self._cr_drive_shift_phase(cr_drive_phase)
@@ -215,20 +217,20 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
 
         # Cleanup
         reset_frame(self._cr.name)
-        self._zi_shift_correction_phase(zi_correction_phase)
-        self._iz_shift_correction_phase(iz_correction_phase)
+        self._qc_shift_correction_phase(qc_correction_phase)
+        self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
     def _direct_cancel(
         self,
         wf_type: str,
+        cr_duration_clock_cycles,
         cr_drive_amp_scaling,
         cr_drive_phase,
         cr_cancel_amp_scaling,
         cr_cancel_phase,
-        cr_duration_clock_cycles,
-        zi_correction_phase,
-        iz_correction_phase,
+        qc_correction_phase,
+        qt_correction_phase,
         **_,
     ) -> None:
         self._cr_drive_shift_phase(cr_drive_phase)
@@ -245,21 +247,20 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
         reset_frame(self._qt.xy.name)
         align(*self._cr_elems)
 
-        self._zi_shift_correction_phase(zi_correction_phase)
-        self._iz_shift_correction_phase(iz_correction_phase)
+        self._qc_shift_correction_phase(qc_correction_phase)
+        self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
-
 
     def _direct_cancel_echo(
         self,
         wf_type: str,
+        cr_duration_clock_cycles,
         cr_drive_amp_scaling,
         cr_drive_phase,
         cr_cancel_amp_scaling,
         cr_cancel_phase,
-        cr_duration_clock_cycles,
-        zi_correction_phase,
-        iz_correction_phase,
+        qc_correction_phase,
+        qt_correction_phase,
         **_,
     ) -> None:
         self._cr_drive_shift_phase(cr_drive_phase)
@@ -287,157 +288,80 @@ class CRGate(QubitPairMacro):    # Gate-level parameters (apply to the entire CR
         reset_frame(self._qt.xy.name)
         align(*self._cr_elems)
 
-        self._zi_shift_correction_phase(zi_correction_phase)
-        self._iz_shift_correction_phase(iz_correction_phase)
+        self._qc_shift_correction_phase(qc_correction_phase)
+        self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
 
+# ============================================================================
+# Stark-Induced CZ Gate
+# ============================================================================
+@quam_dataclass
+class StarkInducedCZGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
+    # Gate-level parameters (composite CR, stored under macros)
+    qc_correction_phase: Optional[float] = None # ZI correction
+    qt_correction_phase: Optional[float] = None # IZ correction
 
-
-
-
-
-
-
-
-
-
+    # ---- Public API ----
     def apply(
         self,
-        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
-        wf_type: Literal["square", "cosine", "gauss", "flattop"] = "square",
-        cr_drive_amp_scaling: Optional[float | qua_T] = None,
-        cr_drive_phase: Optional[float | qua_T] = None,
-        cr_cancel_amp_scaling: Optional[float | qua_T] = None,
-        cr_cancel_phase: Optional[float | qua_T] = None,
-        cr_duration_clock_cycles: Optional[float | qua_T] = None,
-        zi_correction_phase: Optional[float | qua_T] = None,
+        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
+        zz_duration_clock_cycles: Optional[Union[float, qua_T]] = None,
+        zz_control_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
+        zz_target_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
+        zz_relative_phase: Optional[Union[float, qua_T, _tuple, _list]] = None,
+        qc_correction_phase: Optional[Union[float, qua_T]] = None,
+        qt_correction_phase: Optional[Union[float, qua_T]] = None,
     ) -> None:
-        qc = self.qubit_pair.qubit_control
-        qt = self.qubit_pair.qubit_target
-        cr = self.qubit_pair.cross_resonance
-        cr_elems = [qc.xy.name, qt.xy.name, cr.name]
-
-        def _play_cr_pulse(
-            elem,
-            wf_type: str = wf_type,
-            amp_scale: Optional[float | qua_T] = None,
-            duration: Optional[float | qua_T] = None,
-            sgn: int = 1,
-        ):
-            if amp_scale is None and duration is None:
-                elem.play(wf_type)
-            elif amp_scale is None:
-                elem.play(wf_type, duration=duration)
-            elif duration is None:
-                elem.play(wf_type, amplitude_scale=sgn * amp_scale)
-            else:
-                elem.play(wf_type, amplitude_scale=sgn * amp_scale, duration=duration)
-
-
-    # ---- Phase shifts ----
-        def cr_drive_shift_phase():
-            if cr_drive_phase is not None:
-                cr.frame_rotation_2pi(cr_drive_phase)
-
-        def cr_cancel_shift_phase():
-            if cr_cancel_phase is not None:
-                qt.xy.frame_rotation_2pi(cr_cancel_phase)
-
-        def zz_shift_correction_phase():
-            if zi_correction_phase is not None:
-                qc.xy.frame_rotation_2pi(zi_correction_phase)
-                qt.xy.frame_rotation_2pi(zi_correction_phase)
-
-        def cr_drive_play(
-            sgn: Literal["direct", "echo"] = "direct",
+        p = self._merge_params(
+            dict(
+                qc_correction_phase=self.qc_correction_phase,
+                qt_correction_phase=self.qt_correction_phase,
+            ),
             wf_type=wf_type,
-        ):
-            _play_cr_pulse(
-                elem=cr,
-                wf_type=wf_type,
-                amp_scale=cr_drive_amp_scaling,
-                duration=cr_duration_clock_cycles,
-                sgn=1 if sgn == "direct" else -1,
-            )
+            zz_duration_clock_cycles=zz_duration_clock_cycles,
+            zz_control_amp_scaling=zz_control_amp_scaling,
+            zz_target_amp_scaling=zz_target_amp_scaling,
+            zz_relative_phase=zz_relative_phase,
+            qc_correction_phase=qc_correction_phase,
+            qt_correction_phase=qt_correction_phase,
+        )
 
-        def cr_cancel_play(
-            sgn: Literal["direct", "echo"] = "direct",
+        # Relative-phase pre-rotation
+        self._zz_shift_relative_phase(zz_relative_phase)
+
+        # Main lobes
+        align(self._zz.name, self._qt.xy_detuned.name)
+        self._zz_control_drive_play(wf_type, zz_control_amp_scaling, zz_duration_clock_cycles)
+        self._zz_target_drive_play(wf_type, zz_target_amp_scaling, zz_duration_clock_cycles)
+
+        # Correct and clean up
+        align(self._zz.name, self._qt.xy_detuned.name, self._qc.xy.name, self._qt.xy.name)
+        self._qc_shift_correction_phase(qc_correction_phase)  # ZI
+        self._qt_shift_correction_phase(qt_correction_phase)  # IZ
+
+    # hardware elem
+    @property
+    def _zz(self):
+        return self.qubit_pair.zz_drive
+
+    # ---- Sequence-specific helpers ----
+    def _zz_shift_relative_phase(self, phi: Optional[Union[float, qua_T, _tuple, _list]]) -> None:
+        if phi is not None:
+            self._qt.xy_detuned.frame_rotation_2pi(phi)
+    def _zz_control_drive_play(self, wf_type, zz_control_amp_scaling, zz_duration_clock_cycles) -> None:
+        self._play_pulse(
+            elem=self._zz,
             wf_type=wf_type,
-        ):
-            _play_cr_pulse(
-                elem=qt.xy,
-                wf_type=f"cr_{wf_type}_{self.qubit_pair.name}",
-                amp_scale=cr_cancel_amp_scaling,
-                duration=cr_duration_clock_cycles,
-                sgn=1 if sgn == "direct" else -1,
-            )
+            amp_scale=zz_control_amp_scaling,
+            duration=zz_duration_clock_cycles,
+        )
 
-        if cr_type == "direct":
-            cr_drive_shift_phase()
-            align(*cr_elems)
-
-            cr_drive_play(sgn="direct")
-            align(*cr_elems)
-
-            reset_frame(cr.name)
-            zz_shift_correction_phase()
-            align(*cr_elems)
-
-        elif cr_type == "direct+echo":
-            cr_drive_shift_phase()
-            align(*cr_elems)
-
-            cr_drive_play(sgn="direct")
-            align(*cr_elems)
-
-            qc.xy.play("x180")
-            align(*cr_elems)
-
-            cr_drive_play(sgn="echo")
-            align(*cr_elems)
-
-            qc.xy.play("x180")
-            align(*cr_elems)
-
-            reset_frame(cr.name)
-            zz_shift_correction_phase()
-            align(*cr_elems)
-
-        elif cr_type == "direct+cancel":
-            cr_drive_shift_phase()
-            cr_cancel_shift_phase()
-            align(*cr_elems)
-
-            cr_drive_play(sgn="direct")
-            cr_cancel_play(sgn="direct")
-            align(*cr_elems)
-
-            reset_frame(cr.name)
-            reset_frame(qt.xy.name)
-            zz_shift_correction_phase()
-            align(*cr_elems)
-
-        elif cr_type == "direct+cancel+echo":
-            cr_drive_shift_phase()
-            cr_cancel_shift_phase()
-            align(*cr_elems)
-
-            cr_drive_play(sgn="direct")
-            cr_cancel_play(sgn="direct")
-            align(*cr_elems)
-
-            qc.xy.play("x180")
-            align(*cr_elems)
-
-            cr_drive_play(sgn="echo")
-            cr_cancel_play(sgn="echo")
-            align(*cr_elems)
-
-            qc.xy.play("x180")
-            align(*cr_elems)
-
-            reset_frame(cr.name)
-            reset_frame(qt.xy.name)
-            zz_shift_correction_phase()
-            align(*cr_elems)
+    def _zz_target_drive_play(self, wf_type, zz_target_amp_scaling, zz_duration_clock_cycles) -> None:
+        target_wf = f"zz_{wf_type}_{self.qubit_pair.name}"
+        self._play_pulse(
+            elem=self._qt.xy_detuned,
+            wf_type=target_wf,
+            amp_scale=zz_target_amp_scaling,
+            duration=zz_duration_clock_cycles,
+        )
