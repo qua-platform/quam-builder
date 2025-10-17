@@ -9,6 +9,7 @@ from .components import (
     cross_resonance,
     zz_drive,
     xy_drive,
+    xy_detuned_drive,
 )
 from .custom_gates.fixed_transmon_pair.two_qubit_gates import CRGate
 
