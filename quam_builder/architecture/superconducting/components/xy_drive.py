@@ -101,10 +101,11 @@ class XYDriveIQ(IQChannel, XYDriveBase):
 class XYDriveMW(MWChannel, XYDriveBase):
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
 
-    @property
-    def upconverter_frequency(self):
-        """Returns the up-converter/LO frequency in Hz."""
-        return self.opx_output.upconverter_frequency
+    # @property
+    # def upconverter_frequency(self):
+    #     """Returns the up-converter/LO frequency in Hz."""
+    #     print(f"kaka - quam-builder1, LO: {self.LO_frequency} UCF: {self.upconverter_frequency}, UCF OO: {self.opx_output.upconverter_frequency}, {self.opx_output}")
+    #     return self.opx_output.upconverter_frequency
 
     def get_output_power(self, operation, Z=50) -> float:
         """
