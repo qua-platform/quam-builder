@@ -9,6 +9,7 @@ from quam_builder.builder.superconducting.pulses import (
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
+    add_transmon_detuned_drive_component,
 )
 from quam_builder.builder.superconducting.add_transmon_flux_component import (
     add_transmon_flux_component,
@@ -107,6 +108,8 @@ def add_transmons(machine: AnyQuam):
                         add_transmon_drive_component(transmon, wiring_path, ports)
                     elif line_type == WiringLineType.FLUX.value:
                         add_transmon_flux_component(transmon, wiring_path, ports)
+                    elif line_type == WiringLineType.DETUNED_DRIVE.value:
+                        add_transmon_detuned_drive_component(transmon, wiring_path, ports)
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
                 machine.active_qubit_names.append(transmon.name)
