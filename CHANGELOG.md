@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 ### Added
+- Macro class for the CR and CZ gate on fixed frequency transmons: `CRGate` and `StarkInducedCZGate`.
+- qpu class for `FixedFrequencyZZDriveQuam` and associated `FixedFrequencyZZDriveTransmon` and `ZZDriveIQ`, `ZZDriveMW`. 
+- Architecture components for Quantum Dots: added support for `zz_drive`, `xy_detuned_drive`.
 - Complete architecture for single NV centers. 
 - Macro class for the CZ gate on tunable transmons: `CZGate`
 - Architecture components for Quantum Dots: added support for `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`.

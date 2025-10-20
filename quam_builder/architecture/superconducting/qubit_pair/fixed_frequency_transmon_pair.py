@@ -12,9 +12,7 @@ from quam_builder.architecture.superconducting.components.zz_drive import (
     ZZDriveIQ,
     ZZDriveMW,
 )
-from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
-    FixedFrequencyTransmon,
-)
+from quam_builder.architecture.superconducting.qubit import AnyFixedFrequencyTransmon, FixedFrequencyZZDriveTransmon
 
 
 __all__ = ["FixedFrequencyTransmonPair"]
@@ -27,8 +25,8 @@ class FixedFrequencyTransmonPair(QubitPair):
     Attributes:
         id (Union[int, str]): The id of the Transmon pair, used to generate the name.
             Can be a string, or an integer in which case it will add `Channel._default_label`.
-        qubit_control (FixedFrequencyTransmon): The control qubit of the pair.
-        qubit_target (FixedFrequencyTransmon): The target qubit of the pair.
+        qubit_control (Union[FixedFrequencyTransmon, FixedFrequencyZZDriveTransmon]): The control qubit of the pair.
+        qubit_target (Union[FixedFrequencyTransmon, FixedFrequencyZZDriveTransmon]): The target qubit of the pair.
         cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross resonance component.
         zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         xy_detuned (Union[MWChannel, IQChannel]): The detuned xy drive component.
@@ -37,12 +35,11 @@ class FixedFrequencyTransmonPair(QubitPair):
     """
 
     id: Union[int, str]
-    qubit_control: FixedFrequencyTransmon = None
-    qubit_target: FixedFrequencyTransmon = None
+    qubit_control: AnyFixedFrequencyTransmon = None
+    qubit_target: FixedFrequencyZZDriveTransmon = None
 
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
-    xy_detuned: Union[MWChannel, IQChannel] = None
 
     confusion: list = None
 
