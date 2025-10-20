@@ -90,9 +90,10 @@ class VoltageSequence:
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
         self._track_integrated_voltage: bool = track_integrated_voltage
-        warnings.warn("When using this class outside the scope of qua-dashboards video_mode, please contact your Customer Success Physicist at Quantum Machines. " \
-        "Complete validation of this framework is currently in progress, and it will be fully available soon.")
-
+        warnings.warn(
+            "When using this class outside the scope of qua-dashboards video_mode, please contact your Customer Success Physicist at Quantum Machines. "
+            "Complete validation of this framework is currently in progress, and it will be fully available soon."
+        )
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -581,7 +582,9 @@ class VoltageSequence:
 
         #     tracker.current_level = comp_amp_val
 
-        raise NotImplementedError("Compensation pulses not yet implemented, to be included in future release. Use with caution")
+        raise NotImplementedError(
+            "Compensation pulses not yet implemented, to be included in future release. Use with caution"
+        )
 
     def _perform_ramp_to_zero_with_duration(
         self,

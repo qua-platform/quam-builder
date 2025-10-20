@@ -11,7 +11,11 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
-from quam_builder.tools.qua_tools import VoltageLevelType, CLOCK_CYCLE_NS, MIN_PULSE_DURATION_NS
+from quam_builder.tools.qua_tools import (
+    VoltageLevelType,
+    CLOCK_CYCLE_NS,
+    MIN_PULSE_DURATION_NS,
+)
 
 DEFAULT_PULSE_NAME = "half_max_square"
 
@@ -31,7 +35,7 @@ class VoltageTuningPoint(QuamMacro):
 
     Attributes:
         voltages: Dictionary mapping channel names to their target voltages.
-        duration: Default duration in nanoseconds to hold these voltages. 
+        duration: Default duration in nanoseconds to hold these voltages.
             - Duration must be in integer multiple of 4ns
             - Minimum duration is 16ns
     """
