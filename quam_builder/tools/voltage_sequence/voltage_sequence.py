@@ -11,7 +11,6 @@ from qm.qua import (
     Math,
     if_,
     else_,
-    # align,
 )
 from qm.qua.type_hints import (
     QuaVariable,
@@ -48,12 +47,10 @@ __all__ = [
 # --- Constants ---
 MIN_PULSE_DURATION_NS = 16
 CLOCK_CYCLE_NS = 4
-# INTEGRATED_VOLTAGE_SCALING_FACTOR = 1024
 COMPENSATION_SCALING_FACTOR = 1.0 / INTEGRATED_VOLTAGE_SCALING_FACTOR
 MIN_COMPENSATION_DURATION_NS = 16
 DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
-# QUA_COMPENSATION_GAP_NS = 96 # Not used if Channel methods handle timing
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
 
