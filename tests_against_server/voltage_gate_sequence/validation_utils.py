@@ -97,8 +97,16 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
 def validate_compensation(samples, allowed=1.0):
     plt.figure()
     for name, sample in samples.con1.analog.items():
-        integrated = np.abs(np.trapz(sample))
-        assert integrated < allowed, f"{name}, {integrated}"
         plt.plot(sample, label=name)
     plt.legend()
     plt.show()
+    for name, sample in samples.con1.analog.items():
+        integrated = np.abs(np.trapz(sample))
+        assert integrated < allowed, f"{name}, {integrated}"
+
+
+def validate_durations(sample, expected_durations):
+    durations = np.diff(np.where(np.abs(np.diff(sample)))[0])
+    assert all(
+        durations == expected_durations
+    ), f"durations: {durations}, expected: {expected_durations}"

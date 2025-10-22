@@ -11,6 +11,7 @@ from qm.qua import (
     Math,
     if_,
     else_,
+    align,
 )
 from qm.qua.type_hints import (
     QuaVariable,
@@ -52,6 +53,21 @@ MIN_COMPENSATION_DURATION_NS = 16
 DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
+VOLTAGE_BITSHIFT = 12
+
+
+def round_amplitude(level):
+    """
+    Rounds an amplitude to 16-bit precision.
+    With sticky elements, the amplitude is accumulated with 16-bit resolution,
+    to avoid accumulating error the desired voltage levels are all rounded to this precision.
+    """
+    if is_qua_type(level):
+        level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
+        # assign(level, (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT)
+    else:
+        level = float(np.float16(level))
+    return level
 
 
 class VoltageSequence:
@@ -205,6 +221,7 @@ class VoltageSequence:
         target_voltages_dict: Dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: Optional[DurationType] = None,
+        ensure_align: bool = True,
     ):
         """Common logic for step_to_voltages and ramp_to_voltages."""
         validate_duration(duration, "duration")
@@ -217,6 +234,10 @@ class VoltageSequence:
                 )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
+        if ensure_align:
+            # this align is need for general use, as "step_to_voltages" adds math that can offset pulses in time
+            # ensure_align allows to overwrite this, (currently only set to False inside apply_compensation_pulse)
+            align(*full_target_voltages_dict)
         for ch_name, target_voltage in full_target_voltages_dict.items():
             if ch_name not in self.gate_set.channels:
                 print(f"Warning: Channel '{ch_name}' not in GateSet. Skipping.")
@@ -224,6 +245,8 @@ class VoltageSequence:
 
             if isinstance(target_voltage, int):
                 target_voltage = float(target_voltage)
+
+            target_voltage = round_amplitude(target_voltage)
 
             tracker = self.state_trackers[ch_name]
             channel_obj = self.gate_set.channels[ch_name]
@@ -615,7 +638,10 @@ class VoltageSequence:
 
             tracker.current_level = comp_amp_val
         if return_to_zero:
-            self._common_voltages_change(target_voltages_dict={}, duration=16)
+            # ensure_align = False here to allow different duration of compensation pulses pr channel.
+            self._common_voltages_change(
+                target_voltages_dict={}, duration=16, ensure_align=False
+            )
             self.ramp_to_zero()
 
         for tracker in self.state_trackers.values():

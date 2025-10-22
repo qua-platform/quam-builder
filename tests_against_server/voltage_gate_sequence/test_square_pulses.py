@@ -2,7 +2,12 @@
 Squares (Python) + Ramps (None) + Compensation (max_amplitude=0.45)
 """
 
-from validation_utils import simulate_program, validate_program, validate_compensation
+from validation_utils import (
+    simulate_program,
+    validate_program,
+    validate_compensation,
+    validate_durations,
+)
 from conftest import QuamGateSet, QuamVirtualGateSet
 from qm import qua
 from qualang_tools.loops import from_array
@@ -158,6 +163,31 @@ def test_qua_voltage_sequence(qmm, machine: QuamGateSet):
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
     validate_compensation(samples, allowed=100.0)
+
+
+def test_qua_voltage_sequence_durations(qmm, machine: QuamGateSet):
+    duration = 100
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed, value=0.1)
+        amplitude_2 = qua.declare(qua.fixed, value=0.2)
+        amplitude_3 = qua.declare(qua.fixed, value=0.3)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_1, "ch2": -amplitude_1}, duration=duration
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_2, "ch2": -amplitude_2}, duration=duration
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=duration
+        )
+        seq.step_to_voltages(voltages={}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    for sample in samples.con1.analog.values():
+        validate_durations(
+            sample, [duration * 2] * 3
+        )  # duration * 2 because we are validating on OPX1k with 2GS/s
 
 
 def test_qua_voltage_sequence_double_loop(
