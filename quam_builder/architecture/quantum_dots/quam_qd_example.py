@@ -187,20 +187,42 @@ machine.virtual_gate_sets["main_qpu"].add_point(
 
 from qm.qua import *
 
-with program() as prog: 
+# with program() as prog: 
+#     i = declare(int)
+#     sequence = machine.voltage_sequences["main_qpu"]
+#     with for_(i, 0, i<100, i+1):
+#     #     sequence.step_to_point("Idle")
+#     #     sequence.step_to_point("Operation")
+#     #     sequence.step_to_point("Readout")
+#     #     sequence.ramp_to_zero()
+
+#         with sequence.simultaneous(duration = 1000): 
+#             # Inside the simultaneous block, the voltages are all in one call. 
+#             machine.qubits["virtual_dot_1"].step_to_voltages(0.4)
+#             machine.qubits["virtual_dot_2"].step_to_voltages(0.2)
+        
+#         sequence.ramp_to_zero()
+
+
+with program() as prog:
     i = declare(int)
     sequence = machine.voltage_sequences["main_qpu"]
+    print(f"Sequence object: {sequence}")
+    print(f"Batched voltages before: {sequence._batched_voltages}")
+    
     with for_(i, 0, i<100, i+1):
-        sequence.step_to_point("Idle")
-        sequence.step_to_point("Operation")
-        sequence.step_to_point("Readout")
+        print("Entering simultaneous block")
+        with sequence.simultaneous(duration = 1000): 
+            print("Inside simultaneous, before dot1")
+            print(f"Quantum dots: {list(machine.quantum_dots.keys())}")
+            machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.4)
+            print(f"Batched after dot1: {sequence._batched_voltages}")
+            machine.quantum_dots["virtual_dot_2"].step_to_voltages(0.2)
+            print(f"Batched after dot2: {sequence._batched_voltages}")
+        print("Exited simultaneous block")
         sequence.ramp_to_zero()
 
-    # Bear in mind that this only inputs the virtual_dot_1 into the dict, not any other gates
-    machine.qubits["virtual_dot_1"].step_to_voltages(0.4)
-
-
-
+        
 from qm import QuantumMachinesManager, SimulationConfig
 qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
 

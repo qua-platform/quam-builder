@@ -1,4 +1,5 @@
 from typing import Dict, Optional, Tuple
+from contextlib import contextmanager
 
 import numpy as np
 from qm.qua import (
@@ -92,7 +93,25 @@ class VoltageSequence:
         self._track_integrated_voltage: bool = track_integrated_voltage
         warnings.warn("When using this class outside the scope of qua-dashboards video_mode, please contact your Customer Success Physicist at Quantum Machines. " \
         "Complete validation of this framework is currently in progress, and it will be fully available soon.")
+        self._batched_voltages = None
 
+    @contextmanager
+    def simultaneous(self, duration: int = 16, ramp_duration: int = None):
+        """Batch multiple voltage commands to execute simultaneously."""
+        self._batched_voltages = {}
+        try:
+            yield
+        finally:
+            if self._batched_voltages:
+                voltages_to_execute = self._batched_voltages.copy()
+                self._batched_voltages = None  # ← Set to None BEFORE calling step_to_voltages
+                
+                if ramp_duration == 0 or ramp_duration is None:
+                    self.step_to_voltages(voltages_to_execute, duration)
+                else:
+                    self.ramp_to_voltages(voltages_to_execute, ramp_duration, duration)
+            else:
+                self._batched_voltages = None
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -206,6 +225,11 @@ class VoltageSequence:
         ramp_duration: Optional[DurationType] = None,
     ):
         """Common logic for step_to_voltages and ramp_to_voltages."""
+
+        if self._batched_voltages is not None:
+            self._batched_voltages.update(target_voltages_dict)
+            return
+
         validate_duration(duration, "duration")
         if ramp_duration is not None:
             validate_duration(ramp_duration, "ramp_duration")
