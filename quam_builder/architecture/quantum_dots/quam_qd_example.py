@@ -199,7 +199,7 @@ with program() as prog:
     with for_(i, 0, i<100, i+1):
 
         # Option 1 for simultaneous stepping
-        seq.step_to_voltages({"virtual_dot_1": 0.4, "virtual_dot_2": 0.2})
+        seq.step_to_voltages({"virtual_dot_1": -0.4, "virtual_dot_2": -0.2}, duration = 1000)
 
         # Option 2 for simultaneous stepping: May be easier for the user
         with seq.simultaneous(duration = 1000): 
