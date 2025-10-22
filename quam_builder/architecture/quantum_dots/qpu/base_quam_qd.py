@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, ClassVar, Optional
+from typing import List, Dict, Union, ClassVar, Optional, Literal
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
@@ -21,6 +21,7 @@ from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
     ReadoutResonatorBase
 )
+from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import AnySpinQubitPair
 
@@ -59,10 +60,12 @@ class BaseQuamQD(QuamRoot):
         initialize_qpu: Initialize the QPU with the specified settings.
     """
 
-    physical_channels: Dict[str, Channel] = field(default_factory = list)
+    physical_channels: Dict[str, Channel] = field(default_factory = dict)
     
     qubits: Dict[str, AnySpinQubit] = field(default_factory = dict)
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory = dict)
+    voltage_sequences: Dict[str, VoltageSequence] = field(default_factory=dict)
+
     capacitance_matrix: List[List[float]] = field(default_factory = list)
 
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
@@ -98,18 +101,20 @@ class BaseQuamQD(QuamRoot):
         )
     
     def _get_virtual_gate_set(self, channel: Channel): 
+        """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
-        for vgs in self.virtual_gate_sets.values(): 
-            if channel in vgs.channels.values(): 
+        for vgs in list(self.virtual_gate_sets.values()): 
+            if channel in list(vgs.channels.values()): 
                 virtual_gate_set = vgs
         if virtual_gate_set is None: 
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         return virtual_gate_set
     
     def _get_virtual_name(self, channel: Channel): 
+        """Return the name of the virtual gate associated with e particular output channel"""
         vgs_name = None
-        for name, vgs in self.virtual_gate_sets.items(): 
-            if channel in vgs.channels.values():
+        for name, vgs in list(self.virtual_gate_sets.items()): 
+            if channel in list(vgs.channels.values()):
                 vgs_name = name
                 break
 
@@ -117,14 +122,21 @@ class BaseQuamQD(QuamRoot):
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         vgs = self.virtual_gate_sets[vgs_name]
 
+        physical_name = None
         for key, val in vgs.channels.items(): 
             if val is channel: 
                 physical_name = key
-            else: 
-                raise ValueError(f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}")
-            
+                break  # Found it, exit loop
+        
+        if physical_name is None:
+            raise ValueError(f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}")
+        
         virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
+
+    def reset_voltage_sequence(self, gate_set_id): 
+        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(track_integrated_voltage=True)
+        return
 
     def register_channel_elements(
         self, 
@@ -150,7 +162,8 @@ class BaseQuamQD(QuamRoot):
             virtual_name = self._get_virtual_name(ch)
             quantum_dot = QuantumDot(
                 id = virtual_name, # Should now be the same as the virtual gate name
-                physical_channel = ch.get_reference()
+                physical_channel = ch.get_reference(), 
+                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
             )
             self.quantum_dots[virtual_name] = quantum_dot
 
@@ -163,9 +176,10 @@ class BaseQuamQD(QuamRoot):
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id = virtual_name, 
-                physical_channel = ch, 
-                readout_resonator = res
-            )
+                physical_channel = ch.get_reference(), 
+                readout_resonator = res,                 
+                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
+                )
             self.sensor_dots[virtual_name] = sensor_dot
 
     def register_barrier_gates(
@@ -176,10 +190,11 @@ class BaseQuamQD(QuamRoot):
             virtual_name = self._get_virtual_name(ch)
             barrier_gate = BarrierGate(
                 id = virtual_name, 
-                opx_output = ch.opx_output, 
-                offset_parameter = ch.offset_parameter,
-                attenuation = ch.attenuation
+                opx_output = ch.opx_output.get_reference(), 
+                attenuation = ch.attenuation, 
+                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
             )
+            barrier_gate.offset_parameter = ch.offset_parameter
             self.barrier_gates[virtual_name] = barrier_gate
 
 
@@ -228,12 +243,29 @@ class BaseQuamQD(QuamRoot):
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
     def register_qubit(self, 
-                       qubit_type: str, 
+                       quantum_dots: List[str],
+                       qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
+                       drive_channel: Channel = None
                        ): 
+        """Instantiates a qubit based on the associated quantum dot and qubit type"""
+
+        if qubit_type == "loss_divincenzo": 
+            for d in quantum_dots: 
+                dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
+                qubit = LDQubit(
+                    id = dot.id, 
+                    quantum_dot = dot.get_reference(), 
+                    drive = drive_channel, 
+                )
+            
+                self.qubits[qubit.id] = qubit
+            
+    def register_qubit_pair(self, 
+                            qubits = []): 
         pass
 
-
-
+    def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int): 
+        return self.virtual_gate_sets[gate_set_id].add_point(name, voltages, duration)
 
     def create_virtual_gate_set(
             self, 
@@ -251,7 +283,7 @@ class BaseQuamQD(QuamRoot):
         
         # Ensures everything is parented to the Quam machine
         for channel_object in included_channels: 
-            if channel_object not in self.physical_channels:
+            if channel_object not in list(self.physical_channels.values()):
                 self.physical_channels[channel_object.id] = (channel_object)
 
         channel_mapping = dict(zip(physical_gate_names, [ch.get_reference() for ch in included_channels]))
@@ -269,6 +301,7 @@ class BaseQuamQD(QuamRoot):
             target_gates = physical_gate_names, 
             matrix = compensation_matrix
         )
+        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(track_integrated_voltage=True)
         
     def get_matrix_index(self, channel): 
         """ 
@@ -301,7 +334,7 @@ class BaseQuamQD(QuamRoot):
 
     def update_full_cross_compensation(self, compensation_matrix:List[List[float]], virtual_gate_set_name:str = None) -> None: 
         """
-        If an already-established full cross-compensation matrix exists, use this method to add.
+        If an already-calculated full cross-compensation matrix exists, use this method to add.
         Args: 
             compensation_matrix (List[List[float]]): A full cross-compensation matrix to overwrite the existing matrix in the first VirtualGateSet layer
             virtual_gate_set_name (str): The name of the VirtualGateSet in self.virtual_gate_sets. 
@@ -391,7 +424,7 @@ class BaseQuamQD(QuamRoot):
     @property 
     def active_qubit_pairs(self) -> List[AnySpinQubitPair]:
         """Return the list of active qubit pairs"""
-        return [self.qubits[q] for q in self.active_qubit_pair_names]
+        return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
 
     def declare_qua_variables(
         self, 

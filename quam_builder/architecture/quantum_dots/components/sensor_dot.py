@@ -1,6 +1,7 @@
 from typing import Union
 
 from quam.core import quam_dataclass
+from quam.components import InOutSingleChannel
 
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorIQ, ReadoutResonatorMW
 from quam_builder.architecture.quantum_dots.components import QuantumDot

@@ -84,8 +84,12 @@ class LDQubit(Qubit):
         else:
             return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
 
-    def go_to_voltage(self, voltage:float): 
-        return self.quantum_dot.go_to_voltage(voltage)
+    def step_to_voltages(self, voltage:float): 
+        return self.quantum_dot.step_to_voltages(voltage)
+    
+    def ramp_to_voltages(self, voltage:float, ramp_duration: int): 
+        return self.quantum_dot.step_to_voltages(voltage, ramp_duration)
+    
     
 
     def calibrate_octave(
