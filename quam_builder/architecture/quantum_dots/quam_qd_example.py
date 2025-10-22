@@ -44,15 +44,19 @@ from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW
+from qm.qua import *
 
 
+# Instantiate Quam
 machine = BaseQuamQD()
-
-
 lf_fem = 6
 mw_fem = 1
-# Set up the channels arbitrarily
 
+
+# Setting up arbitrary channels for the example. 
+# 4 Plungers, 3 Barriers, 1 Sensor
+
+# Plungers
 plungers = [
     VoltageGate(
         id = f"plunger_{i}",
@@ -66,6 +70,7 @@ plungers = [
     for i in [1, 2, 3, 4]
 ]
 
+# Barriers
 barriers = [
     VoltageGate(
         id = f"barrier_{i}",
@@ -78,6 +83,8 @@ barriers = [
     )
     for i in [1, 2, 3]
 ]
+
+# Sensor
 sensor = [
     VoltageGate(
         id = "sensor_DC", 
@@ -89,6 +96,7 @@ sensor = [
         sticky = StickyChannelAddon(duration = 16, digital = False), 
     )
 ]
+# Sensor Resonator
 resonator = ReadoutResonatorMW(
     id = "sensor_rf", 
     opx_output = MWFEMAnalogOutputPort(
@@ -109,6 +117,8 @@ resonator = ReadoutResonatorMW(
     RF_frequency=2.075e9,
 )
 
+# Create virtual gate set out of all the relevant HW channels.
+# This function adds HW channels to machine.physical_channels, so no need to independently map
 machine.create_virtual_gate_set(
     virtual_gate_names=[
         "virtual_dot_1", 
@@ -124,6 +134,8 @@ machine.create_virtual_gate_set(
     gate_set_id = "main_qpu"
     )
 
+
+# Shortcut function to register QuantumDots, SensorDots, BarrierGates
 machine.register_channel_elements(
     plunger_channels = plungers, 
     barrier_channels = barriers, 
@@ -132,6 +144,8 @@ machine.register_channel_elements(
     }, 
 )
 
+
+# Register qubits. For ST qubits, quantum_dots should be list of tuples 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dots = [
@@ -141,6 +155,10 @@ machine.register_qubit(
     ]
 )
 
+
+# Define some example points
+
+# Method 1: Add directly to VirtualGateSet
 machine.virtual_gate_sets["main_qpu"].add_point(
     name = "Idle", 
     voltages = {
@@ -155,7 +173,10 @@ machine.virtual_gate_sets["main_qpu"].add_point(
     }, 
     duration = 1000
 )
-machine.virtual_gate_sets["main_qpu"].add_point(
+
+# Method 2: Add via function
+machine.add_point(
+    gate_set_id = "main_qpu",
     name = "Operation", 
     voltages = {
         "virtual_dot_1" : 0.2, 
@@ -169,60 +190,24 @@ machine.virtual_gate_sets["main_qpu"].add_point(
     }, 
     duration = 1000
 )
-machine.virtual_gate_sets["main_qpu"].add_point(
-    name = "Readout", 
-    voltages = {
-        "virtual_dot_1" : 0.05, 
-        "virtual_dot_2" : 0.1, 
-        "virtual_dot_3" : 0.25, 
-        "virtual_dot_4" : 0.15, 
-        "virtual_barrier_1" : 0.3, 
-        "virtual_barrier_2" : 0.35, 
-        "virtual_barrier_3" : 0.37,
-        "virtual_sensor_1" : 0.01
-    }, 
-    duration = 1000
-)
 
 
-from qm.qua import *
-
-# with program() as prog: 
-#     i = declare(int)
-#     sequence = machine.voltage_sequences["main_qpu"]
-#     with for_(i, 0, i<100, i+1):
-#     #     sequence.step_to_point("Idle")
-#     #     sequence.step_to_point("Operation")
-#     #     sequence.step_to_point("Readout")
-#     #     sequence.ramp_to_zero()
-
-#         with sequence.simultaneous(duration = 1000): 
-#             # Inside the simultaneous block, the voltages are all in one call. 
-#             machine.qubits["virtual_dot_1"].step_to_voltages(0.4)
-#             machine.qubits["virtual_dot_2"].step_to_voltages(0.2)
-        
-#         sequence.ramp_to_zero()
-
-
+# Example QUA programme: 
 with program() as prog:
     i = declare(int)
-    sequence = machine.voltage_sequences["main_qpu"]
-    print(f"Sequence object: {sequence}")
-    print(f"Batched voltages before: {sequence._batched_voltages}")
-    
+    seq = machine.voltage_sequences["main_qpu"]
     with for_(i, 0, i<100, i+1):
-        print("Entering simultaneous block")
-        with sequence.simultaneous(duration = 1000): 
-            print("Inside simultaneous, before dot1")
-            print(f"Quantum dots: {list(machine.quantum_dots.keys())}")
-            machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.4)
-            print(f"Batched after dot1: {sequence._batched_voltages}")
-            machine.quantum_dots["virtual_dot_2"].step_to_voltages(0.2)
-            print(f"Batched after dot2: {sequence._batched_voltages}")
-        print("Exited simultaneous block")
-        sequence.ramp_to_zero()
 
-        
+        # Option 1 for simultaneous stepping
+        seq.step_to_voltages({"virtual_dot_1": 0.4, "virtual_dot_2": 0.2})
+
+        # Option 2 for simultaneous stepping: May be easier for the user
+        with seq.simultaneous(duration = 1000): 
+            machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.4)
+            machine.quantum_dots["virtual_dot_2"].step_to_voltages(0.2)
+        seq.ramp_to_zero()
+
+
 from qm import QuantumMachinesManager, SimulationConfig
 qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
 
