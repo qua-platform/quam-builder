@@ -4,25 +4,29 @@ This is an example script on how to instantiate a QPU which contains Loss-DiVinc
 
 Workflow: 
 
-1. Instantiate the base components for the machine. This includes: 
-    - QuantumDots (with their associated VoltageGate channels)
-    - Barrier Gates (A thin wrapper around VoltageGate) - if this is not attached to a LDQubitPair, this will not be included in the machine
-    - Sensor Dots (with the relevant readout resonator information)
+1. Instantiate your machine. 
 
-2. Instantiate your qubits using te existing QuantumDot objects.
-    - Either ensure that the qubit ids match those of the QuantumDots, or leave blank
+2. Instantiate the base hardware channels for the machine. 
+    - In this example, arbitrary HW gates are created as VoltageGates. For QuantumDots and SensorDots, the base channel must be VoltageGate and sticky. 
 
-3. Instantiate your machine. 
+3. Create your VirtualGateSet. You do not need to manually add all the channels, the function create_virtual_gate_set should do it automatically. 
 
-4. Add the qubits to your machine. 
-    - The qubits must be added to the machine before they are added to the LDQubitPair, for parenting reasons
+4. Register your components.  
+    - Register the relevant QuantumDots, SensorDots and BarrierGates, mapped correctly to the relevant output channel. As long as the channel is correctly mapped, 
+        the name of the element will be made consistent to that in the VirtualGateSet
 
-5. Create any relevant LDQubitPair objects
-    - The machine will still be able to instantiate and use the qubits; however, without the addition of QubitPairs, 
-        the sensors and barrier gates are not necessarily added. 
+5. Register Qubits and QubitPairs
+    - Use machine.register_qubits to register qubits with their relevant type and associated dots. 
 
-6. Create the QPU VirtualGateSet
-    - Done through the command Quam.create_virtual_gate_set()
+6. Create your QUA programme
+    - For simultaneous stepping/ramping, use either 
+        sequence = machine.voltage_sequences[gate_set_id]
+        sequence.step_to_voltages({"qubit1": ..., "qubit2": ...})
+    or use sequence.simultaneous: 
+        with sequence.simultaneous(duration = ...): 
+            machine.qubits["qubit1"].step_to_voltages(...)
+            machine.qubits["qubit2"].step_to_voltages(...)
+            
 
 """
 
