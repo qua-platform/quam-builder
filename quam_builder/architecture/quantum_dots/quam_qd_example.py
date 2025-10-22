@@ -26,76 +26,206 @@ Workflow:
 
 """
 
+from quam.components import (
+    StickyChannelAddon, 
+    InOutSingleChannel, 
+    DigitalOutputChannel
+) 
+from quam.components.ports import (
+    FEMPortsContainer,
+    LFFEMAnalogOutputPort,      # Concrete implementation
+    MWFEMAnalogOutputPort,      # Concrete implementation
+    MWFEMAnalogInputPort,       # Concrete implementation
+    FEMDigitalOutputPort,       # Concrete implementation
+)
+
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW
 
-# Instantiate the quantum dots and the relevant barrier gates and sensor dots
-dot1 = QuantumDot(id = "dot1", physical_channel = VoltageGate(opx_output = ("con1", 1)))
-dot2 = QuantumDot(id = "dot2", physical_channel = VoltageGate(opx_output = ("con1", 2)))
-dot3 = QuantumDot(id = "dot3", physical_channel = VoltageGate(opx_output = ("con1", 3)))
-barrier_gate = BarrierGate(id = "barrier_gate", opx_output = ("con1", 1, 6))
-sensor_dot = SensorDot(id = "sensor_gate_1", physical_channel = VoltageGate(opx_output = ("con1", 3)), readout_resonator = ReadoutResonatorMW(intermediate_frequency=2e6, opx_output = ("con1", 2, 1), opx_input = ("con1", 2, 2)))
-sensor_dot_2 = SensorDot(id = "sensor_gate_2", physical_channel = VoltageGate(opx_output = ("con1", 3)), readout_resonator = ReadoutResonatorMW(intermediate_frequency=2e6, opx_output = ("con1", 2, 1), opx_input = ("con1", 2, 2)))
 
-
-# For quantum dots in the system that are LD qubits, instantiate the qubit
-qubit1 = LDQubit(quantum_dot = dot1)
-qubit2 = LDQubit(quantum_dot = dot2)
-
-# Instantiate the machine as a BaseQuamQD
 machine = BaseQuamQD()
 
-# Add the qubits to the machine
-machine.qubits = {
-    "Q1" : qubit1, 
-    "Q2" : qubit2
-}
 
-# Add any miscellaneous quantum dots
-machine.quantum_dots = {
-    "dot3" : dot3
-}
+lf_fem = 6
+mw_fem = 1
+# Set up the channels arbitrarily
 
-# Add all sensor dots and barrier gates of the machine
-machine.sensor_dots = {
-    "sensor1": sensor_dot, 
-    "sensor2": sensor_dot_2
-}
-machine.barrier_gates["barrier1"] = barrier_gate
+plungers = [
+    VoltageGate(
+        id = f"plunger_{i}",
+        opx_output = LFFEMAnalogOutputPort(
+            "con1",
+            lf_fem,
+            port_id = i, 
+        ), 
+        sticky = StickyChannelAddon(duration = 16, digital = False), 
+    )
+    for i in [1, 2, 3, 4]
+]
 
-
-qubit_pair = LDQubitPair(
-    qubit_control = machine.qubits["Q1"].get_reference(), 
-    qubit_target = machine.qubits["Q2"].get_reference(), 
-    barrier_gate = barrier_gate.get_reference(), 
-    sensor_dots = [sensor_dot.get_reference()], 
-    dot_coupling = 0.5
+barriers = [
+    VoltageGate(
+        id = f"barrier_{i}",
+        opx_output = LFFEMAnalogOutputPort(
+            "con1",
+            lf_fem,
+            port_id = i + 4, 
+        ), 
+        sticky = StickyChannelAddon(duration = 16, digital = False), 
+    )
+    for i in [1, 2, 3]
+]
+sensor = [
+    VoltageGate(
+        id = "sensor_DC", 
+        opx_output = LFFEMAnalogOutputPort(
+            "con1",
+            lf_fem,
+            port_id = 8, 
+        ), 
+        sticky = StickyChannelAddon(duration = 16, digital = False), 
+    )
+]
+resonator = ReadoutResonatorMW(
+    id = "sensor_rf", 
+    opx_output = MWFEMAnalogOutputPort(
+        "con1", 
+        mw_fem, 
+        port_id = 1, 
+        band = 1, 
+        upconverter_frequency = 2e9,
+    ), 
+    opx_input = MWFEMAnalogInputPort(
+        "con1", 
+        mw_fem, 
+        port_id = 1, 
+        downconverter_frequency = 2e9,
+        band = 1
+    ), 
+    intermediate_frequency=75e6,
+    RF_frequency=2.075e9,
 )
 
-# Set the couplings values for the barrier gate and the sensor dot
-qubit_pair.couplings[barrier_gate.id] = {
-    qubit1.id: 0.01, 
-    qubit2.id: 0.02
-}
-qubit_pair.couplings[sensor_dot.id] = {
-    qubit1.id: 0.1, 
-    qubit2.id: 0.2
-}
+machine.create_virtual_gate_set(
+    virtual_gate_names=[
+        "virtual_dot_1", 
+        "virtual_dot_2", 
+        "virtual_dot_3", 
+        "virtual_dot_4", 
+        "virtual_barrier_1", 
+        "virtual_barrier_2", 
+        "virtual_barrier_3", 
+        "virtual_sensor_1", 
+    ],
+    included_channels = plungers + barriers + sensor, 
+    gate_set_id = "main_qpu"
+    )
 
-# Attach the qubit pair to the machine
-machine.qubit_pairs = {
-    "qubit_pair_1" : qubit_pair
-}
+machine.register_channel_elements(
+    plunger_channels = plungers, 
+    barrier_channels = barriers, 
+    sensor_channels_resonators = {
+        sensor[0]: resonator
+    }, 
+)
 
-machine.create_virtual_gate_set(gate_set_id = "Virtual0")
-print(machine.virtual_gate_sets["Virtual0"].valid_channel_names)
+machine.register_qubit(
+    qubit_type = "loss_divincenzo",
+    quantum_dots = [
+        "virtual_dot_1", 
+        "virtual_dot_2", 
+        "virtual_dot_3"
+    ]
+)
 
-import numpy as np
-print(np.array(machine.virtual_gate_sets["Virtual0"].layers[0].matrix))
+machine.virtual_gate_sets["main_qpu"].add_point(
+    name = "Idle", 
+    voltages = {
+        "virtual_dot_1" : 0.1, 
+        "virtual_dot_2" : 0.05, 
+        "virtual_dot_3" : 0.3, 
+        "virtual_dot_4" : 0.1, 
+        "virtual_barrier_1" : 0.3, 
+        "virtual_barrier_2" : 0.35, 
+        "virtual_barrier_3" : 0.32,
+        "virtual_sensor_1" : 0.4
+    }, 
+    duration = 1000
+)
+machine.virtual_gate_sets["main_qpu"].add_point(
+    name = "Operation", 
+    voltages = {
+        "virtual_dot_1" : 0.2, 
+        "virtual_dot_2" : -0.02, 
+        "virtual_dot_3" : 0.4, 
+        "virtual_dot_4" : 0.3, 
+        "virtual_barrier_1" : 0.4, 
+        "virtual_barrier_2" : 0.6, 
+        "virtual_barrier_3" : 0.22,
+        "virtual_sensor_1" : 0.36
+    }, 
+    duration = 1000
+)
+machine.virtual_gate_sets["main_qpu"].add_point(
+    name = "Readout", 
+    voltages = {
+        "virtual_dot_1" : 0.05, 
+        "virtual_dot_2" : 0.1, 
+        "virtual_dot_3" : 0.25, 
+        "virtual_dot_4" : 0.15, 
+        "virtual_barrier_1" : 0.3, 
+        "virtual_barrier_2" : 0.35, 
+        "virtual_barrier_3" : 0.37,
+        "virtual_sensor_1" : 0.01
+    }, 
+    duration = 1000
+)
+
+
+from qm.qua import *
+
+with program() as prog: 
+    i = declare(int)
+    sequence = machine.voltage_sequences["main_qpu"]
+    with for_(i, 0, i<100, i+1):
+        sequence.step_to_point("Idle")
+        sequence.step_to_point("Operation")
+        sequence.step_to_point("Readout")
+        sequence.ramp_to_zero()
+
+    # Bear in mind that this only inputs the virtual_dot_1 into the dict, not any other gates
+    machine.qubits["virtual_dot_1"].step_to_voltages(0.4)
 
 
 
-machine.save("/Users/kalidu_laptop/Documents/example_QUAM")
+from qm import QuantumMachinesManager, SimulationConfig
+qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
+
+config = machine.generate_config()
+
+simulate = True
+
+
+if simulate:
+    # Simulates the QUA program for the specified duration
+    simulation_config = SimulationConfig(duration=10_000//4)  # In clock cycles = 4ns
+    # Simulate blocks python until the simulation is done
+    job = qmm.simulate(config, prog, simulation_config)
+    # Get the simulated samples
+    samples = job.get_simulated_samples()
+    # Plot the simulated samples
+    samples.con1.plot()
+    # Get the waveform report object
+    waveform_report = job.get_simulated_waveform_report()
+    # Cast the waveform report to a python dictionary
+    waveform_dict = waveform_report.to_dict()
+    # Visualize and save the waveform report
+    waveform_report.create_plot(samples, plot=True)
+else:
+    qm = qmm.open_qm(config)
+    # Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
+    job = qm.execute(prog)
+

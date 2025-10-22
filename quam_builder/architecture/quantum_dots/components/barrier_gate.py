@@ -19,6 +19,7 @@ class BarrierGate(VoltageMacroMixin):
     """
     A class for a BarrierGate channel
     """
+    voltage_sequence: VoltageSequence
 
     id: str
     physical_channel: VoltageGate

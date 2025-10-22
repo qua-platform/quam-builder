@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 from qm import QuantumMachine
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.tools.voltage_sequence import VoltageSequence
 
 __all__ = ["QuantumDot"]
 
