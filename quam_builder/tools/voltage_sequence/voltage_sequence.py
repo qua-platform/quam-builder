@@ -523,18 +523,6 @@ class VoltageSequence:
                         Cast.mul_int_by_fixed(eval_int_v, COMPENSATION_SCALING_FACTOR),
                     ),
                 )
-
-                # assign(
-                #     q_comp_amp,
-                #     -Cast.mul_fixed_by_int(COMPENSATION_SCALING_FACTOR, eval_int_v),
-                # )
-                # assign(q_comp_amp, q_comp_amp * inv_dur)
-
-                # assign(q_comp_amp, -Cast.mul_fixed_by_int(inv_dur, (eval_int_v / 100)))
-                # assign(
-                #     q_comp_amp,
-                #     q_comp_amp * (COMPENSATION_SCALING_FACTOR * 100),
-                # )
             with else_():
                 assign(q_comp_amp, 0.0)
         return q_comp_amp, q_comp_dur_4ns
@@ -555,7 +543,6 @@ class VoltageSequence:
         compensation amplitude and duration are optimized to stay within voltage limits.
 
         Resets tracked integrated voltage, required for correct operation in qua loops.
-        TODO: verify this works with signature: python_points -> qua_points -> python_points.
 
         Args:
             max_voltage: The maximum absolute amplitude for the compensation pulse.
