@@ -10,6 +10,8 @@ Workflow:
     - In this example, arbitrary HW gates are created as VoltageGates. For QuantumDots and SensorDots, the base channel must be VoltageGate and sticky. 
 
 3. Create your VirtualGateSet. You do not need to manually add all the channels, the function create_virtual_gate_set should do it automatically. 
+    Ensure that the mapping of the desired virtual gate to the relevant HW channel is correct, as the QuantumDot names will be extracted from this input list. 
+    Default virtual gate names will be "virtual_0", "virtual_1", ... if no list is provided
 
 4. Register your components.  
     - Register the relevant QuantumDots, SensorDots and BarrierGates, mapped correctly to the relevant output channel. As long as the channel is correctly mapped, 
@@ -26,7 +28,6 @@ Workflow:
         with sequence.simultaneous(duration = ...): 
             machine.qubits["qubit1"].step_to_voltages(...)
             machine.qubits["qubit2"].step_to_voltages(...)
-            
 
 """
 
