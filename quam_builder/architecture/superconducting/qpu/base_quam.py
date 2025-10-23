@@ -1,5 +1,5 @@
 from dataclasses import field
-from typing import List, Dict, ClassVar, Optional, Union
+from typing import List, Dict, ClassVar, Optional, Type, Union, cast
 
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
@@ -14,6 +14,7 @@ from quam.serialisation import JSONSerialiser
 
 from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
+from quam_builder.tools import load_class_from_string
 
 from qualang_tools.results.data_handler import DataHandler
 
@@ -89,14 +90,30 @@ class BaseQuam(QuamRoot):
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
         """
-        settings = dict(
-            host=self.network["host"],
-            cluster_name=self.network["cluster_name"],
-            octave=self.get_octave_config(),
-        )
-        if "port" in self.network:
-            settings["port"] = self.network["port"]
-        self.qmm = QuantumMachinesManager(**settings)
+
+        if self.network.get("cloud", False):
+            if "qmm_settings" not in self.network:
+                raise ValueError(
+                    "machine.network.qmm_settings is required for cloud connection"
+                )
+            if "qmm_class" not in self.network:
+                raise ValueError(
+                    "machine.network.qmm_class is required for cloud connection"
+                )
+
+            qmm_cls = load_class_from_string(self.network["qmm_class"])
+            qmm_cls = cast(Type[QuantumMachinesManager], qmm_cls)
+            qmm_settings = self.network["qmm_settings"]
+        else:
+            qmm_cls = QuantumMachinesManager
+            qmm_settings = dict(
+                host=self.network["host"],
+                cluster_name=self.network["cluster_name"],
+                octave=self.get_octave_config(),
+            )
+            if "port" in self.network:
+                qmm_settings["port"] = self.network["port"]
+        self.qmm = qmm_cls(**qmm_settings)
         return self.qmm
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
