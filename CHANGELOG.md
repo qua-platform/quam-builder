@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 - Complete architecture for single NV centers. 
 - Macro class for the CZ gate on tunable transmons: `CZGate`
+- Add the `CZGate` fidelity and extras as dictionaries.
 - Architecture components for Quantum Dots: added support for `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`.
 ### Changed
 - Fixed dev dependencies and added tool.uv.prerelease=allow to the pyproject.toml file.
