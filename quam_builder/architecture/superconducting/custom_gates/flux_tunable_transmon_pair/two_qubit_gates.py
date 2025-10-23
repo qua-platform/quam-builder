@@ -1,11 +1,11 @@
-from typing import Literal, Union
+from typing import Union, Any
+from dataclasses import field
 
 import numpy as np
 
-from quam.components.macro import QubitMacro, QubitPairMacro
-from quam.components.pulses import Pulse, ReadoutPulse
+from quam.components.macro import QubitPairMacro
+from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
-from quam.utils.qua_types import QuaVariableBool, QuaVariableFloat, QuaVariableInt
 
 __all__ = ["CZGate"]
 
@@ -19,7 +19,9 @@ def get_pulse_name(pulse: Pulse) -> str:
     elif pulse.parent is not None:
         return pulse.parent.get_attr_name(pulse)
     else:
-        raise AttributeError(f"Cannot infer id of {pulse} because it is not attached to a parent")
+        raise AttributeError(
+            f"Cannot infer id of {pulse} because it is not attached to a parent"
+        )
 
 
 @quam_dataclass
@@ -46,6 +48,10 @@ class CZGate(QubitPairMacro):
     phase_shift_target : float
          Default frame rotation (in units of 2π) applied to the target qubit after flux interaction
          if not overridden and |value| > 1e-6.
+    fidelity: Dict[str, Any]
+         Collection of gate fidelity (e.g. fidelity["RB"]=xx, fidelity["XEB"]=xx).
+    extras: Dict[str, Any]
+         Additional attributes for the CZGate.
 
     Properties
     ----------
@@ -97,6 +103,9 @@ class CZGate(QubitPairMacro):
     phase_shift_control: float = 0.0
     phase_shift_target: float = 0.0
 
+    fidelity: dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
+
     @property
     def flux_pulse_control_label(self) -> str:
         pulse = (
@@ -131,14 +140,18 @@ class CZGate(QubitPairMacro):
 
         if self.coupler_flux_pulse is not None:
             self.qubit_pair.coupler.play(
-                self.coupler_flux_pulse_label, validate=False, amplitude_scale=amplitude_scale_coupler
+                self.coupler_flux_pulse_label,
+                validate=False,
+                amplitude_scale=amplitude_scale_coupler,
             )
 
         self.qubit_pair.align()
         if phase_shift_control is not None:
             self.qubit_pair.qubit_control.xy.frame_rotation_2pi(phase_shift_control)
         elif np.abs(self.phase_shift_control) > 1e-6:
-            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(self.phase_shift_control)
+            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(
+                self.phase_shift_control
+            )
         if phase_shift_target is not None:
             self.qubit_pair.qubit_target.xy.frame_rotation_2pi(phase_shift_target)
         elif np.abs(self.phase_shift_target) > 1e-6:
