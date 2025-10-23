@@ -104,8 +104,9 @@ class VoltageSequence:
         finally:
             if self._batched_voltages:
                 voltages_to_execute = self._batched_voltages.copy()
-                self._batched_voltages = None  # ← Set to None BEFORE calling step_to_voltages
+                self._batched_voltages = None
                 
+                # Cater for ramps
                 if ramp_duration == 0 or ramp_duration is None:
                     self.step_to_voltages(voltages_to_execute, duration)
                 else:

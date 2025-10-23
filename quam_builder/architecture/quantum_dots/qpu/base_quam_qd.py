@@ -249,7 +249,7 @@ class BaseQuamQD(QuamRoot):
                        ): 
         """Instantiates a qubit based on the associated quantum dot and qubit type"""
 
-        if qubit_type == "loss_divincenzo": 
+        if qubit_type.lower() == "loss_divincenzo": 
             for d in quantum_dots: 
                 dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
                 qubit = LDQubit(

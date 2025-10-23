@@ -1,7 +1,7 @@
 from typing import Optional
 
 from quam.core import quam_dataclass
-from quam.components.channels import InOutIQChannel, InOutMWChannel
+from quam.components.channels import InOutIQChannel, InOutMWChannel, InOutSingleChannel
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
@@ -41,6 +41,21 @@ class ReadoutResonatorBase:
         float: The voltage scaling factor.
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
+    
+@quam_dataclass
+class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase): 
+    intermediate_frequency: int = "#/inferred_intermediate_frequency"
+
+    def set_output_power(
+        self,
+        power_in_dbm: float,
+        gain: Optional[int] = None,
+        max_amplitude: Optional[float] = None,
+        Z: int = 50,
+        operation: Optional[str] = "readout",
+    ):
+
+        pass
 
 
 @quam_dataclass
