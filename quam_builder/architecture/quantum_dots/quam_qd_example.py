@@ -7,11 +7,10 @@ Workflow:
 1. Instantiate your machine. 
 
 2. Instantiate the base hardware channels for the machine. 
-    - In this example, arbitrary HW gates are created as VoltageGates. For QuantumDots and SensorDots, the base channel must be VoltageGate and sticky. 
+    - In this example, arbitrary HW gates are created as VoltageGates. For QuantumDots and SensorDots, the base channel must be VoltageGate and sticky. They are instantiated in a mapping dictionary to be input into the machine
 
 3. Create your VirtualGateSet. You do not need to manually add all the channels, the function create_virtual_gate_set should do it automatically. 
-    Ensure that the mapping of the desired virtual gate to the relevant HW channel is correct, as the QuantumDot names will be extracted from this input list. 
-    Default virtual gate names will be "virtual_0", "virtual_1", ... if no list is provided
+    Ensure that the mapping of the desired virtual gate to the relevant HW channel is correct, as the QuantumDot names will be extracted from this input dict. 
 
 4. Register your components.  
     - Register the relevant QuantumDots, SensorDots and BarrierGates, mapped correctly to the relevant output channel. As long as the channel is correctly mapped, 
@@ -58,50 +57,17 @@ lf_fem = 6
 mw_fem = 1
 
 
-# Setting up arbitrary channels for the example. 
-# 4 Plungers, 3 Barriers, 1 Sensor
+virtual_channel_mapping = {
+    "virtual_dot_1": VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_dot_2": VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_dot_3": VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_dot_4": VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_barrier_1": VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_barrier_2": VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_barrier_3": VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False)),
+    "virtual_sensor_1": VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False)),
+}
 
-# Plungers
-plungers = [
-    VoltageGate(
-        id = f"plunger_{i}",
-        opx_output = LFFEMAnalogOutputPort(
-            "con1",
-            lf_fem,
-            port_id = i, 
-        ), 
-        sticky = StickyChannelAddon(duration = 16, digital = False), 
-    )
-    for i in [1, 2, 3, 4]
-]
-
-# Barriers
-barriers = [
-    VoltageGate(
-        id = f"barrier_{i}",
-        opx_output = LFFEMAnalogOutputPort(
-            "con1",
-            lf_fem,
-            port_id = i + 4, 
-        ), 
-        sticky = StickyChannelAddon(duration = 16, digital = False), 
-    )
-    for i in [1, 2, 3]
-]
-
-# Sensor
-sensor = [
-    VoltageGate(
-        id = "sensor_DC", 
-        opx_output = LFFEMAnalogOutputPort(
-            "con1",
-            lf_fem,
-            port_id = 8, 
-        ), 
-        sticky = StickyChannelAddon(duration = 16, digital = False), 
-    )
-]
-# Sensor Resonator
 resonator = ReadoutResonatorMW(
     id = "sensor_rf", 
     opx_output = MWFEMAnalogOutputPort(
@@ -125,30 +91,19 @@ resonator = ReadoutResonatorMW(
 # Create virtual gate set out of all the relevant HW channels.
 # This function adds HW channels to machine.physical_channels, so no need to independently map
 machine.create_virtual_gate_set(
-    virtual_gate_names=[
-        "virtual_dot_1", 
-        "virtual_dot_2", 
-        "virtual_dot_3", 
-        "virtual_dot_4", 
-        "virtual_barrier_1", 
-        "virtual_barrier_2", 
-        "virtual_barrier_3", 
-        "virtual_sensor_1", 
-    ],
-    included_channels = plungers + barriers + sensor, 
+    virtual_channel_mapping = virtual_channel_mapping,
     gate_set_id = "main_qpu"
-    )
+)
 
 
 # Shortcut function to register QuantumDots, SensorDots, BarrierGates
 machine.register_channel_elements(
-    plunger_channels = plungers, 
-    barrier_channels = barriers, 
+    plunger_channels = [virtual_channel_mapping[v] for v in ["virtual_dot_1", "virtual_dot_2", "virtual_dot_3", "virtual_dot_4"]], 
+    barrier_channels = [virtual_channel_mapping[v] for v in ["virtual_barrier_1", "virtual_barrier_2", "virtual_barrier_3"]], 
     sensor_channels_resonators = {
-        sensor[0]: resonator
+        virtual_channel_mapping["virtual_sensor_1"]: resonator
     }, 
 )
-
 
 # Register qubits. For ST qubits, quantum_dots should be list of tuples 
 machine.register_qubit(
@@ -159,7 +114,6 @@ machine.register_qubit(
         "virtual_dot_3"
     ]
 )
-
 
 # Define some example points
 
@@ -197,6 +151,22 @@ machine.add_point(
 )
 
 
+machine.update_cross_compensation_submatrix(
+    virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
+    channels = [virtual_channel_mapping["virtual_dot_4"]], 
+    matrix = [[0.1, 0.5]]
+)
+
+machine.update_cross_compensation_submatrix(
+    virtual_names = ["virtual_dot_1", "virtual_dot_2", "virtual_dot_3", "virtual_dot_4"], 
+    channels = [virtual_channel_mapping[k] for k in ["virtual_dot_1", "virtual_dot_2", "virtual_dot_3", "virtual_dot_4"]], 
+    matrix = [[1, 0.1, 0.1, 0.3], 
+              [0.2, 1, 0.6, 0.8], 
+              [0.1, 0.3, 1, 0.3], 
+              [0.2, 0.5, 0.1, 1]]
+)
+
+
 # Example QUA programme: 
 with program() as prog:
     i = declare(int)
@@ -210,6 +180,10 @@ with program() as prog:
         with seq.simultaneous(duration = 1000): 
             machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.4)
             machine.quantum_dots["virtual_dot_2"].step_to_voltages(0.2)
+
+        with seq.simultaneous(duration = 1500): 
+            machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.1)
+            machine.quantum_dots["virtual_dot_2"].step_to_voltages(-0.2)
         seq.ramp_to_zero()
 
 
