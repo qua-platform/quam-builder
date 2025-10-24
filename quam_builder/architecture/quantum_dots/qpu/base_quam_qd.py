@@ -62,6 +62,7 @@ class BaseQuamQD(QuamRoot):
 
     physical_channels: Dict[str, Channel] = field(default_factory = dict)
     
+    
     qubits: Dict[str, AnySpinQubit] = field(default_factory = dict)
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory = dict)
     voltage_sequences: Dict[str, VoltageSequence] = field(default_factory=dict)
@@ -269,24 +270,29 @@ class BaseQuamQD(QuamRoot):
 
     def create_virtual_gate_set(
             self, 
-            included_channels: List[Channel], 
-            virtual_gate_names: List[str] = None,
+            virtual_channel_mapping: Dict[str, Channel], 
             gate_set_id: str = None, 
             compensation_matrix: List[List[float]] = None
         ) -> None: 
         if gate_set_id is None: 
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
 
-        if virtual_gate_names is None: 
-            virtual_gate_names = [f"virtual_{i}" for i in range(len(included_channels))]
-        physical_gate_names = [f"{ch}_physical" for ch in virtual_gate_names]
-        
-        # Ensures everything is parented to the Quam machine
-        for channel_object in included_channels: 
-            if channel_object not in list(self.physical_channels.values()):
-                self.physical_channels[channel_object.id] = (channel_object)
+        virtual_gate_names, physical_gate_names = [],[]
+        channel_mapping = {}
+        for virtual_name, ch in virtual_channel_mapping.items(): 
 
-        channel_mapping = dict(zip(physical_gate_names, [ch.get_reference() for ch in included_channels]))
+            # Store list of virtual gate names and physical gate names to ensure correct indexing for the VirtualizationLayer
+            virtual_gate_names.append(virtual_name)
+            physical_name = f"{virtual_name}_physical"
+            physical_gate_names.append(physical_name)
+
+            # Add the channel to self.physical_channels if it does not already exist
+            if ch not in list(self.physical_channels.values()): 
+                self.physical_channels[ch.id] = (ch)
+
+            # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
+            channel_mapping[physical_name] = ch.get_reference()
+        
 
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(
             id = gate_set_id, 
@@ -313,23 +319,48 @@ class BaseQuamQD(QuamRoot):
 
         return vgs, index
 
-    def update_cross_compensation_element(self, ch1: Channel, ch2: Channel, value: float): 
+    def update_cross_compensation_submatrix(self, virtual_names: List[str], channels: List[Channel], matrix: Union[List[List[float]], np.ndarray]) -> None: 
         """
-        Updates the cross-compensation value in the bottommost layer of the VirtualGateSet. 
+        Updates the a sub-space of the cross-compensation matrix based on the virtual_names and the associated channels. 
+        Does not have to be a square matrix.
 
         Args:  
-            ch1 (Channel): Hardware channel 1. 
-            ch2 (Channel): Hardware Channel 2.
-            value (float): The matrix element value.
+            virtual_names (List[str]): A list of the virtual gate names in the sub-space you want to edit. Must be in the same VirtualGateSet
+            channels (List[Channel]): The corresponding HW channels that you would like to edit
+            matrix (List | np.ndarray): The matrix elements to edit 
         """
-        vgs1, gate1_index = self.get_matrix_index(ch1)
-        vgs2, gate2_index = self.get_matrix_index(ch2)
+        sub = np.asarray(matrix)
+        if sub.shape != (len(channels), len(virtual_names)): 
+            raise ValueError(f"Sub-matrix shape mismatch: Expected ({len(channels), len(virtual_names)}) but received {sub.shape}")
 
-        if vgs1 is not vgs2: 
-            raise ValueError("Channels not in the same VirtualGateSet.")
+        # Use the first element in the channels list to find relevant VirtualGateSet. All virtual names and channels should be in the same VirtualGateSet anyway
+        vgs = self._get_virtual_gate_set(channels[0])
+        source_gates = vgs.layers[0].source_gates
 
-        vgs1.layers[0].matrix[gate1_index][gate2_index] = value
-        vgs1.layers[0].matrix[gate2_index][gate1_index] = value
+        # Create a mapping of virtual gate : corresponding index in the full matrix. 
+        source_index = {name:i for i, name in enumerate(source_gates)}
+
+        missing_virtual_names = [v for v in virtual_names if v not in source_gates]
+        if missing_virtual_names: 
+            raise ValueError(f"Virtual Gate(s) not in VirtualGateSet {vgs.id}: {missing_virtual_names}")
+
+        full_matrix = vgs.layers[0].matrix
+
+        for subspace_j, v in enumerate(virtual_names): 
+            # The corresponding index in the full compensation matrix
+            full_matrix_j = source_index[v]
+
+            for subspace_i, ch in enumerate(channels): 
+                # Get the virtual name associated with the channel
+                virtual_name = self._get_virtual_name(ch)
+                # For the first layer, there should be a 1:1 mapping of channel HW to the virtual gate name, so reuse the same indexing method 
+                full_matrix_i = source_index[virtual_name]
+
+                # Replace the matrix elemeent 
+                full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][subspace_j]
+
+        # Lists should be mutable, but for a sanity check, re-equate the matrix
+        vgs.layers[0].matrix = full_matrix
 
 
     def update_full_cross_compensation(self, compensation_matrix:List[List[float]], virtual_gate_set_name:str = None) -> None: 

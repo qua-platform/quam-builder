@@ -1,3 +1,5 @@
+import numpy as np
+
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
 from typing import Dict, Union, Tuple, Optional, List, Sequence
@@ -38,14 +40,13 @@ class QuantumDot(QuamComponent):
     id: Union[int, str]
     physical_channel: VoltageGate
     voltage_sequence: VoltageSequence = None
-    current_voltage: float = 0.0
     charge_number: int = 0
 
     @property
     def name(self) -> str: 
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
 
-    def step_to_voltages(self, voltage: float, duration:int = 16) -> Dict[str, float]:
+    def step_to_voltages(self, voltage: float, duration:int = 16, preserve_other_gates: bool = False) -> Dict[str, float]:
         """
         Applies self.voltage_sequence.step_to_voltages({self.id: voltage})
 
@@ -55,10 +56,27 @@ class QuantumDot(QuamComponent):
         if self.voltage_sequence is None: 
             raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
                                " relevant QUAM voltage_sequence.")
-        self.current_voltage = voltage
-        return self.voltage_sequence.step_to_voltages({self.id: voltage}, duration = duration)
+        target_voltages = {}
+        if preserve_other_gates:
+            for layer in self.voltage_sequence.gate_set.layers: 
+                if self.id in layer.source_gates: 
+                    physical_voltages = [
+                        self.voltage_sequence.state_trackers[target_gate].current_level 
+                        for target_gate in layer.target_gates
+                    ]
+                    matrix = np.array(layer.matrix)
+
+                    virtual_voltages = matrix @ physical_voltages
+
+                    for i, source_gate in enumerate(layer.source_gates):
+                        target_voltages[source_gate] = virtual_voltages[i]
+                    break
+
+        target_voltages[self.id] = voltage
+
+        return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
     
-    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16) -> Dict[str, float]:
+    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16, preserve_other_gates: bool = False) -> Dict[str, float]:
         """
         Applies self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration)
 
@@ -68,8 +86,24 @@ class QuantumDot(QuamComponent):
         if self.voltage_sequence is None: 
             raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
                                " relevant QUAM voltage_sequence.")
-        self.current_voltage = voltage
-        return self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration, duration = duration)
+        target_voltages = {}
+        if preserve_other_gates:
+            for layer in self.voltage_sequence.gate_set.layers: 
+                if self.id in layer.source_gates: 
+                    physical_voltages = [
+                        self.voltage_sequence.state_trackers[target_gate].current_level 
+                        for target_gate in layer.target_gates
+                    ]
+                    matrix = np.array(layer.matrix)
+
+                    virtual_voltages = matrix @ physical_voltages
+
+                    for i, source_gate in enumerate(layer.source_gates):
+                        target_voltages[source_gate] = virtual_voltages[i]
+                    break
+
+        target_voltages[self.id] = voltage
+        return self.voltage_sequence.ramp_to_voltages(target_voltages, ramp_duration = ramp_duration, duration = duration)
     
     def get_offset(self): 
         v = getattr(self.physical_channel, "offset_parameter", None)
