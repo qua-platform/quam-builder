@@ -90,7 +90,15 @@ class LDQubit(Qubit):
     def ramp_to_voltages(self, voltage:float, ramp_duration: int): 
         return self.quantum_dot.step_to_voltages(voltage, ramp_duration)
     
-    
+    @property
+    def voltage_sequence(self): 
+        return self.quantum_dot.voltage_sequence
+
+    def initialisation(self): 
+        # self.voltage_sequence.step_to_voltages("Qubit1_Idle")
+        # self.voltage_sequence.step_to_voltages("Qubit1_Idle2")
+        # self.voltage_sequence.step_to_voltages("Qubit1_Idle3")
+        pass
 
     def calibrate_octave(
         self,

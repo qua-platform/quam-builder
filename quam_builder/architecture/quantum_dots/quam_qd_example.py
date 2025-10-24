@@ -47,7 +47,7 @@ from quam_builder.architecture.quantum_dots.components import QuantumDot, Voltag
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW, ReadoutResonatorSingle
 from qm.qua import *
 
 
@@ -181,9 +181,9 @@ with program() as prog:
             machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.4)
             machine.quantum_dots["virtual_dot_2"].step_to_voltages(0.2)
 
-        with seq.simultaneous(duration = 1500): 
-            machine.quantum_dots["virtual_dot_1"].step_to_voltages(0.1)
-            machine.quantum_dots["virtual_dot_2"].step_to_voltages(-0.2)
+        with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
+            machine.quantum_dots["virtual_dot_1"].ramp_to_voltages(0.1)
+            machine.quantum_dots["virtual_dot_2"].ramp_to_voltages(-0.2)
         seq.ramp_to_zero()
 
 
