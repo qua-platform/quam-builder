@@ -284,8 +284,6 @@ class BaseQuamQD(QuamRoot):
     def register_qubit_pair(self, 
                             qubit_control_name: str, 
                             qubit_target_name: str, 
-                            detuning_matrix: List[List[float]] = [[1,0],[0,1]],
-                            detuning_axis_name: str = "epsilon",
                             qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
                             id: str = None
                             ) -> None: 
@@ -309,10 +307,6 @@ class BaseQuamQD(QuamRoot):
                 qubit_target = qubit_target.get_reference()
             )
             qubit_pair.add_quantum_dot_pair(self.quantum_dot_pairs[quantum_dot_pair])
-            qubit_pair.quantum_dot_pair.define_detuning_axis(
-                matrix = detuning_matrix, 
-                detuning_axis_name = detuning_axis_name
-            )
         
             self.qubit_pairs[id] = qubit_pair
 

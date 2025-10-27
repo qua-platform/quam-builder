@@ -46,17 +46,7 @@ class LDQubitPair(QubitPair):
     def add_quantum_dot_pair(self, quantum_dot_pair: QuantumDotPair): 
         self.quantum_dot_pair = quantum_dot_pair
 
-    def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
-        return self.quantum_dot_pair.define_detuning_axis(matrix = matrix, detuning_axis_name=detuning_axis_name)
-    
-    def go_to_detuning(self, voltage: float, duration:int = 16) -> None: 
-        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
-    
-    def step_to_detuning(self, voltage: float, duration:int = 16) -> None: 
-        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
-    
-    def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16): 
-        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
+
 
 
 

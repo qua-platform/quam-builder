@@ -164,7 +164,26 @@ machine.register_qubit(
 machine.register_quantum_dot_pair(
     id = "dot_pair_1",
     quantum_dot_ids = ["virtual_dot_1", "virtual_dot_2"], 
-    sensor_dot_ids = ["virtual_sensor_1"]
+    sensor_dot_ids = ["virtual_sensor_1"], 
+    barrier_gate_id = "virtual_barrier_2"
+)
+
+machine.register_quantum_dot_pair(
+    id = "dot_pair_2",
+    quantum_dot_ids = ["virtual_dot_3", "virtual_dot_4"], 
+    sensor_dot_ids = ["virtual_sensor_1"],
+    barrier_gate_id = "virtual_barrier_3"
+)
+
+# Define the detuning axes for both QuantumDotPairs
+machine.quantum_dot_pairs["dot_pair_1"].define_detuning_axis(
+    matrix = [[1,1],[1,-1]], 
+    detuning_axis_name = "dot1_dot2_epsilon"
+)
+
+machine.quantum_dot_pairs["dot_pair_2"].define_detuning_axis(
+    matrix = [[1,1],[1,-1]], 
+    detuning_axis_name = "dot3_dot4_epsilon"
 )
 
 ##################################
@@ -173,12 +192,18 @@ machine.register_quantum_dot_pair(
 
 # Register a Qubit Pair. Internally this checks for QuantumDotPair
 machine.register_qubit_pair(
+    id = "Q1_Q2", 
+    qubit_type = "loss_divincenzo",
     qubit_control_name = "Q1", 
     qubit_target_name = "Q2", 
-    detuning_matrix = [[1, 1], [1, -1]], 
-    detuning_axis_name = "Q1_Q2_epsilon"
 )
 
+machine.register_qubit_pair(
+    id = "Q3_Q4", 
+    qubit_type = "loss_divincenzo",
+    qubit_control_name = "Q3", 
+    qubit_target_name = "Q4", 
+)
 
 
 ###########################
@@ -253,12 +278,12 @@ with program() as prog:
         with seq.simultaneous(duration = 1000): 
             machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.4)
             machine.quantum_dots["virtual_dot_2"].go_to_voltages(0.2)
+            machine.quantum_dot_pairs["dot_pair_2"].go_to_detuning(0.2)
 
         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
             machine.quantum_dots["virtual_dot_3"].go_to_voltages(0.1)
             machine.quantum_dots["virtual_dot_4"].go_to_voltages(-0.2)
-            machine.qubit_pairs["Q1_Q2"].go_to_detuning(-0.5)
 
         # For sequential stepping, use outside of simultaneous block
         # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
