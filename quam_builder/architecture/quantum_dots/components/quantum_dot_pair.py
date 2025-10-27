@@ -3,7 +3,7 @@ from dataclasses import field
 
 from quam.core import quam_dataclass
 
-
+from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
@@ -21,50 +21,56 @@ class QuantumDotPair:
         barrier_gate (BarrierGate): The BarrierGate instance between the two QuantumDots.  
         sensor_dots (List[SensorDot]): A list of SensorDot instances coupled to this particular QuantumDot pair. 
         dot_coupling (float): A value representing the coupling strength of the QuantumDot pair.
-        couplings (Dict): A dictionary holding the coupling value of each QuantumDot instance to the BarrierGate.
-            Each couplings entry must be of the form {element_id: {dot1.id: value, dot2.id: value}}. The values default to zero at instantiation
-
-            >>> Example implementation:
-            >>> 
-            >>> dot1 = QuantumDot(id = "dot1", physical_channel = VoltageGate(...))
-            >>> dot2 = QuantumDot(id = "dot2", physical_channel = VoltageGate(...))
-            >>> sensor_dot = SensorDot(id = "sensor", physical_channel = VoltageGate(...), resonator = ...)
-            >>> barrier_gate = BarrierGate(id = "barrier", opx_output = ...)
-            >>>
-            >>> dot_pair_1 = QuantumDotPair(
-            ...     quantum_dots = [dot1, dot2], 
-            ...     dot_coupling = 0.2,
-            ...     sensor_dots = [sensor_dot], # Can include more than one sensor
-            ...     barrier_gate = barrier_gate 
-            ... )
-            >>> dot_pair_1.couplings[barrier_gate.id] = {
-            ...     dot1.id : 0.01, 
-            ...     dot2.id : 0.02
-            ... }
-            >>> dot_pair_1.couplings[sensor_dot.id] = {
-            ...     dot1.id: 0.1, 
-            ...     dot2.id: 0.15
-            ... }
     """
-
+    id: str = None
     quantum_dots: List[QuantumDot]
     sensor_dots: List[SensorDot] = field(default_factory = list)
     barrier_gate: BarrierGate = None
     dot_coupling: float = 0.0
-    couplings: Dict[str, Dict[str, float]] = field(default_factory = dict)
+
+    detuning_axis_name: str = "epsilon"
+
+    voltage_sequence: VoltageSequence = None
 
     def __post_init__(self): 
-        if len(self.sensor_dots) != 0:
-            for s_dot in self.sensor_dots:
-                if s_dot.id not in self.couplings:
-                    self.couplings[s_dot.id] = {
-                        self.quantum_dots[0].id: 0.0, 
-                        self.quantum_dots[1].id: 0.0
-                    }
+        if len(self.quantum_dots) != 2: 
+            raise ValueError(f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots")
+        if self.id is None: 
+            self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
+
+        if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence: 
+            raise ValueError("Quantum Dots not part of same VoltageSequence")
         
-        if self.barrier_gate is not None: 
-            if self.barrier_gate.id not in self.couplings: 
-                self.couplings[self.barrier_gate.id] = {
-                    self.quantum_dots[0].id: 0.0, 
-                    self.quantum_dots[1].id: 0.0
-                }
+        self.voltage_sequence = self.quantum_dots[0].voltage_sequence
+
+        
+    def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
+        
+        # If no name is given, ensure that it is the default
+        if detuning_axis_name is None: 
+            detuning_axis_name = self.detuning_axis_name
+
+        # Ensure that the detuning axis name held in object is consistent
+        self.detuning_axis_name = detuning_axis_name
+
+        virtual_gate_set = self.voltage_sequence.gate_set
+
+        # Should be the correct virtual axes in the first layer of the VirtualGateSet
+        target_gates = [qd.id for qd in self.quantum_dots]
+        source_gates = [detuning_axis_name, f"{detuning_axis_name}_companion"]
+
+        virtual_gate_set.add_layer(
+            target_gates = target_gates, 
+            source_gates = source_gates, 
+            matrix = matrix
+        )
+    
+    def go_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
+    
+    def step_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
+    
+    def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16): 
+        return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
+

@@ -61,6 +61,8 @@ class LDQubit(Qubit):
     T2echo: float = None
     thermalization_time_factor: int = 5
 
+    name: str = None
+
     def __post_init__(self): 
         if self.id is None: 
             self.id = self.quantum_dot.id

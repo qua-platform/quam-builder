@@ -23,7 +23,7 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
-from quam_builder.architecture.quantum_dots.qubit_pair import AnySpinQubitPair
+from quam_builder.architecture.quantum_dots.qubit_pair import AnySpinQubitPair, LDQubitPair
 
 __all__ = ["BaseQuamQD"]
 
@@ -65,7 +65,6 @@ class BaseQuamQD(QuamRoot):
     """
 
     physical_channels: Dict[str, Channel] = field(default_factory = dict)
-    
     
     qubits: Dict[str, AnySpinQubit] = field(default_factory = dict)
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory = dict)
@@ -203,9 +202,9 @@ class BaseQuamQD(QuamRoot):
 
     def register_quantum_dot_pair(
         self, 
-        quantum_dots: List[Channel], 
-        sensor_dots: List[Channel], 
-        barrier_gate: Channel,
+        quantum_dot_ids: List[str], 
+        sensor_dot_ids: List[str], 
+        barrier_gate_id: str = None,
         id:str = None,
         dot_coupling: float = 0.0,
     ) -> None: 
@@ -216,29 +215,34 @@ class BaseQuamQD(QuamRoot):
 
         """
 
-        if len(quantum_dots) != 2: 
-            raise ValueError(f"Must be 2 QuantumDot objects. Received {len(quantum_dots)}")
-        
-        qd_names = [self._get_virtual_name(qd) for qd in quantum_dots]
+        if len(quantum_dot_ids) != 2: 
+            raise ValueError(f"Must be 2 QuantumDot objects. Received {len(quantum_dot_ids)}")
+            
+        qd_names = quantum_dot_ids
+        name_check = self.find_quantum_dot_pair(qd_names[0], qd_names[1])
+        if name_check is not None: 
+            raise ValueError(f"Quantum Dot Pairing already exists with name {name_check}")
+
         for name in qd_names: 
-            if name not in self.quantum_dots.keys(): 
+            if name not in self.quantum_dots: 
                 raise ValueError(f"Quantum Dot {name} not registered. Please register first")
         if id is None: 
             id = f"{qd_names[0]}_{qd_names[1]}"
             
-        sensor_names = [self._get_virtual_name(qd) for qd in sensor_dots]
+        sensor_names = sensor_dot_ids
         for name in sensor_names: 
-            if name not in self.sensor_dots.keys(): 
+            if name not in self.sensor_dots: 
                 raise ValueError(f"Sensor Dot {name} not registered. Please register first")
 
-        barrier_name = self._get_virtual_name(barrier_gate)
-        if barrier_name not in self.barrier_gates.keys():
-            raise ValueError(f"Barrier Gate {barrier_name} not registered. Please register first")
+        if barrier_gate_id is not None: 
+            barrier_name = barrier_gate_id
+            if barrier_name not in self.barrier_gates:
+                raise ValueError(f"Barrier Gate {barrier_name} not registered. Please register first")
 
         quantum_dot_pair = QuantumDotPair(
             id = id,
             quantum_dots = [self.quantum_dots[m] for m in qd_names], 
-            barrier_gate = self.barrier_gates[barrier_name], 
+            barrier_gate = self.barrier_gates[barrier_name] if barrier_gate_id is not None else None, 
             sensor_dots = [self.sensor_dots[n] for n in sensor_names], 
             dot_coupling = dot_coupling
         )
@@ -264,13 +268,54 @@ class BaseQuamQD(QuamRoot):
                 id = d, 
                 quantum_dot = dot.get_reference(), 
                 drive = drive_channel, 
+                name = qubit_name
             )
         
             self.qubits[qubit_name] = qubit
+
+    def find_quantum_dot_pair(self, dot1_name: str, dot2_name: str) -> Optional[str]: 
+        target_dots = {dot1_name, dot2_name}
+        for pair_name, dot_pair in self.quantum_dot_pairs.items(): 
+            pair_dots = {dot_pair.quantum_dots[0].id, dot_pair.quantum_dots[1].id}
+            if pair_dots == target_dots: 
+                return pair_name
+        return None
             
     def register_qubit_pair(self, 
-                            qubits = []): 
-        pass
+                            qubit_control_name: str, 
+                            qubit_target_name: str, 
+                            detuning_matrix: List[List[float]] = [[1,0],[0,1]],
+                            detuning_axis_name: str = "epsilon",
+                            qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
+                            id: str = None
+                            ) -> None: 
+        
+        for name in [qubit_control_name, qubit_target_name]: 
+            if name not in self.qubits: 
+                raise ValueError(f"Qubit {name} not registered. Please register first")
+        qubit_control, qubit_target = self.qubits[qubit_control_name], self.qubits[qubit_target_name]
+
+        if id is None: 
+            id = f"{qubit_control_name}_{qubit_target_name}"
+
+        if qubit_type.lower() == "loss_divincenzo": 
+            quantum_dot_pair = self.find_quantum_dot_pair(qubit_control.quantum_dot.id, qubit_target.quantum_dot.id)
+            if quantum_dot_pair is None: 
+                raise ValueError("QuantumDotPair for associated qubits not registered. Please register first")
+            
+            qubit_pair = LDQubitPair(
+                id = id, 
+                qubit_control = qubit_control.get_reference(), 
+                qubit_target = qubit_target.get_reference()
+            )
+            qubit_pair.add_quantum_dot_pair(self.quantum_dot_pairs[quantum_dot_pair])
+            qubit_pair.quantum_dot_pair.define_detuning_axis(
+                matrix = detuning_matrix, 
+                detuning_axis_name = detuning_axis_name
+            )
+        
+            self.qubit_pairs[id] = qubit_pair
+
 
     def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int) -> None: 
         return self.virtual_gate_sets[gate_set_id].add_point(name, voltages, duration)

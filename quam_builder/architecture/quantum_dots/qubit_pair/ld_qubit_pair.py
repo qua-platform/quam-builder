@@ -22,31 +22,7 @@ class LDQubitPair(QubitPair):
         barrier_gate (BarrierGate): The BarrierGate instance between the two QuantumDots.  
         sensor_dots (List[SensorDot]): A list of SensorDot instances coupled to this particular QuantumDot pair. 
         dot_coupling (float): A value representing the coupling strength of the QuantumDot pair.
-        couplings (Dict): A dictionary holding the coupling value of each QuantumDot instance to the BarrierGate.
-            Each couplings entry must be of the form {element_id: {dot1.id: value, dot2.id: value}}. The values default to zero at instantiation
 
-            >>> Example implementation:
-            >>> 
-            >>> qubit1 = LDQubit(quantum_dot = dot1)
-            >>> qubit2 = LDQubit(quantum_dot = dot2)
-            >>> sensor_dot = SensorDot(id = "sensor", physical_channel = VoltageGate(...), resonator = ...)
-            >>> barrier_gate = BarrierGate(id = "barrier", opx_output = ...)
-            >>>
-            >>> qubit_pair_1 = LDQubitPair(
-            ...     qubit_control = qubit1, 
-            ...     qubit_target = qubit2,
-            ...     dot_coupling = 0.2,
-            ...     sensor_dots = [sensor_dot], # Can include more than one sensor
-            ...     barrier_gate = barrier_gate 
-            ... )
-            >>> qubit_pair_1.couplings[barrier_gate.id] = {
-            ...     qubit1.id : 0.01, 
-            ...     qubit2.id : 0.02
-            ... }
-            >>> qubit_pair_1.couplings[sensor_dot.id] = {
-            ...     qubit1.id: 0.1, 
-            ...     qubit2.id: 0.15
-            ... }
 
     """
 
@@ -55,27 +31,32 @@ class LDQubitPair(QubitPair):
     qubit_control: LDQubit
     qubit_target: LDQubit
 
-    dot_coupling: float = 0.0
-    barrier_gate: BarrierGate = None
-
-    sensor_dots: List[SensorDot] = field(default_factory=list)
-    couplings: Dict[str, Dict[str, float]] = field(default_factory = dict)
-
     def __post_init__(self): 
         if self.id is None:
-            self.id = f"{self.qubit_control.id}_{self.qubit_target.id}"
+            self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
+    
+    @property
+    def detuning_axis_name(self): 
+        return self.quantum_dot_pair.detuning_axis_name
+    
+    @property
+    def voltage_sequence(self): 
+        return self.quantum_dot_pair.voltage_sequence
+    
+    def add_quantum_dot_pair(self, quantum_dot_pair: QuantumDotPair): 
+        self.quantum_dot_pair = quantum_dot_pair
 
-        self.qd_pair = QuantumDotPair(
-            quantum_dots = [
-                self.qubit_control.quantum_dot, 
-                self.qubit_target.quantum_dot, 
-            ],
-            dot_coupling = self.dot_coupling,
-            barrier_gate = self.barrier_gate, 
-            sensor_dots = self.sensor_dots,
-            couplings = self.couplings.copy()
-        )
-        self.couplings = self.qd_pair.couplings
+    def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
+        return self.quantum_dot_pair.define_detuning_axis(matrix = matrix, detuning_axis_name=detuning_axis_name)
+    
+    def go_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
+    
+    def step_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
+    
+    def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16): 
+        return self.quantum_dot_pair.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
 
 
 
