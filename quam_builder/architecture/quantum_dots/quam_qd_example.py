@@ -56,8 +56,14 @@ machine = BaseQuamQD()
 lf_fem = 6
 mw_fem = 1
 
-# Instantiate physical channels
-p1 =  VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False))
+
+
+
+###########################################
+###### Instantiate Physical Channels ######
+###########################################
+
+p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False))
 p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
 p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
 p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
@@ -87,6 +93,11 @@ resonator = ReadoutResonatorMW(
     RF_frequency=2.075e9,
 )
 
+
+#####################################
+###### Create Virtual Gate Set ######
+#####################################
+
 # Create virtual gate set out of all the relevant HW channels.
 # This function adds HW channels to machine.physical_channels, so no need to independently map
 machine.create_virtual_gate_set(
@@ -104,12 +115,21 @@ machine.create_virtual_gate_set(
 )
 
 
+#########################################################
+###### Register Quantum Dots, Sensors and Barriers ######
+#########################################################
+
 # Shortcut function to register QuantumDots, SensorDots, BarrierGates
 machine.register_channel_elements(
     plunger_channels = [p1, p2, p3, p4], 
     barrier_channels = [b1, b2, b3], 
     sensor_channels_resonators = [(s1, resonator)], 
 )
+
+#############################
+###### Register Qubits ######
+#############################
+
 
 # Register qubits. For ST qubits, quantum_dots should be a tuple
 machine.register_qubit(
@@ -135,6 +155,35 @@ machine.register_qubit(
     quantum_dot_id = "virtual_dot_4", 
     qubit_name = "Q4"
 )
+
+########################################
+###### Register Quantum Dot Pairs ######
+########################################
+
+# Register the quantum dot pairs
+machine.register_quantum_dot_pair(
+    id = "dot_pair_1",
+    quantum_dot_ids = ["virtual_dot_1", "virtual_dot_2"], 
+    sensor_dot_ids = ["virtual_sensor_1"]
+)
+
+##################################
+###### Register Qubit Pairs ######
+##################################
+
+# Register a Qubit Pair. Internally this checks for QuantumDotPair
+machine.register_qubit_pair(
+    qubit_control_name = "Q1", 
+    qubit_target_name = "Q2", 
+    detuning_matrix = [[1, 1], [1, -1]], 
+    detuning_axis_name = "Q1_Q2_epsilon"
+)
+
+
+
+###########################
+###### Example Usage ######
+###########################
 
 
 # Define some example points
@@ -173,6 +222,8 @@ machine.add_point(
 )
 
 
+
+# Update Cross Capacitance matrix values
 machine.update_cross_compensation_submatrix(
     virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
     channels = [p4], 
@@ -205,8 +256,9 @@ with program() as prog:
 
         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
-            machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.1)
-            machine.quantum_dots["virtual_dot_2"].go_to_voltages(-0.2)
+            machine.quantum_dots["virtual_dot_3"].go_to_voltages(0.1)
+            machine.quantum_dots["virtual_dot_4"].go_to_voltages(-0.2)
+            machine.qubit_pairs["Q1_Q2"].go_to_detuning(-0.5)
 
         # For sequential stepping, use outside of simultaneous block
         # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
