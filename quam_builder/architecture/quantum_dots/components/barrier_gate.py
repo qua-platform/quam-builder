@@ -16,6 +16,16 @@ class BarrierGate(VoltageGate):
     """
     voltage_sequence: VoltageSequence
 
+    def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
+        """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""
+
+        if self.voltage_sequence is None: 
+            raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
+                               " relevant QUAM voltage_sequence.")
+        
+        target_voltages = {self.id : voltage}
+        return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
+
     def step_to_voltages(self, voltage: float, duration:int = 16) -> Dict[str, float]:
         """
         Applies self.voltage_sequence.step_to_voltages({self.id: voltage})

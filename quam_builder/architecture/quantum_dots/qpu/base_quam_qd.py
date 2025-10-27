@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, ClassVar, Optional, Literal
+from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
@@ -35,9 +35,13 @@ class BaseQuamQD(QuamRoot):
     Attributes: 
         octaves (Dict[str, Octave]): A dictionary of Octave components.
         mixers (Dict[str, FrequencyConverter]): A dictionary of frequency converters.
-        qubits (Dict[str, AnySpinQubit]): A dictionary of spin qubits.
-        qubit_pairs (Dict[str, AnySpinQubitPair]): A dictionary of spin qubit pairs.
-        quantum_dots (Dict[str, QuantumDot]): A dictionary of additional coupled quantum dots to be included in the VirtualGateSet.
+        qubits (Dict[str, AnySpinQubit]): A dictionary of the registered spin qubits.
+        qubit_pairs (Dict[str, AnySpinQubitPair]): A dictionary of the registered spin qubit pairs.
+        quantum_dots (Dict[str, QuantumDot]): A dictionary of registered QuantumDot objects.
+        sensor_dots (Dict[str, SensorDot]): A dictionary of the registered SensorDot objects. 
+        barrier_gates (Dict[str, BarrierGate]): A dictionary of the BarrierGate objects. 
+        virtual_gate_sets (Dict[str, VirtualGateSet]): A dictionary of the VirtualGateSet instances covering your QPU. 
+        voltage_sequences (Dict[str, VoltageSequence]): A dictionary of the VoltageSequence object associated to each VirtualGateSet. Uniquely mapped.
         b_field (float): The operating external magnetic field.
         back_gate (VoltageGate): The channel object associated with the back gate.
         wiring (dict): The wiring configuration.
@@ -67,14 +71,12 @@ class BaseQuamQD(QuamRoot):
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory = dict)
     voltage_sequences: Dict[str, VoltageSequence] = field(default_factory=dict)
 
-    capacitance_matrix: List[List[float]] = field(default_factory = list)
-
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
     quantum_dots: Dict[str, QuantumDot] = field(default_factory = dict)
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory = dict)
-    sensor_dots: dict[str, SensorDot] = field(default_factory = dict)
-    barrier_gates: dict[str, BarrierGate] = field(default_factory = dict)
+    sensor_dots: Dict[str, SensorDot] = field(default_factory = dict)
+    barrier_gates: Dict[str, BarrierGate] = field(default_factory = dict)
 
     back_gate: VoltageGate = None
     b_field: float = 0
@@ -101,7 +103,7 @@ class BaseQuamQD(QuamRoot):
             content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
         )
     
-    def _get_virtual_gate_set(self, channel: Channel): 
+    def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet: 
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
         for vgs in list(self.virtual_gate_sets.values()): 
@@ -111,7 +113,7 @@ class BaseQuamQD(QuamRoot):
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         return virtual_gate_set
     
-    def _get_virtual_name(self, channel: Channel): 
+    def _get_virtual_name(self, channel: Channel) -> str: 
         """Return the name of the virtual gate associated with e particular output channel"""
         vgs_name = None
         for name, vgs in list(self.virtual_gate_sets.items()): 
@@ -135,14 +137,14 @@ class BaseQuamQD(QuamRoot):
         virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
-    def reset_voltage_sequence(self, gate_set_id): 
+    def reset_voltage_sequence(self, gate_set_id) -> None: 
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(track_integrated_voltage=True)
         return
 
     def register_channel_elements(
         self, 
         plunger_channels: List[Channel], 
-        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+        sensor_channels_resonators:  List[Tuple[Channel, ReadoutResonatorBase]],
         barrier_channels: List[Channel]
     ) -> None:
         self.register_quantum_dots(plunger_channels)
@@ -170,10 +172,10 @@ class BaseQuamQD(QuamRoot):
 
     def register_sensor_dots(
         self,
-        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+        sensor_channels_resonators: List[Tuple[Channel, ReadoutResonatorBase]],
     ) -> None:
         
-        for ch, res in sensor_channels_resonators.items(): 
+        for (ch, res) in sensor_channels_resonators: 
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id = virtual_name, 
@@ -244,28 +246,33 @@ class BaseQuamQD(QuamRoot):
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
     def register_qubit(self, 
-                       quantum_dots: List[str],
+                       quantum_dot_id: str,
+                       qubit_name: str,
                        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
                        drive_channel: Channel = None
-                       ): 
-        """Instantiates a qubit based on the associated quantum dot and qubit type"""
+                       ) -> None: 
+        """
+        Instantiates a qubit based on the associated quantum dot and qubit type. 
+
+        For LD Qubits, the qubit_id is only stored internally in the Quam, and the Qubit ID is simply the Quantum Dot ID. 
+        """
 
         if qubit_type.lower() == "loss_divincenzo": 
-            for d in quantum_dots: 
-                dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
-                qubit = LDQubit(
-                    id = dot.id, 
-                    quantum_dot = dot.get_reference(), 
-                    drive = drive_channel, 
-                )
-            
-                self.qubits[qubit.id] = qubit
+            d = quantum_dot_id
+            dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
+            qubit = LDQubit(
+                id = d, 
+                quantum_dot = dot.get_reference(), 
+                drive = drive_channel, 
+            )
+        
+            self.qubits[qubit_name] = qubit
             
     def register_qubit_pair(self, 
                             qubits = []): 
         pass
 
-    def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int): 
+    def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int) -> None: 
         return self.virtual_gate_sets[gate_set_id].add_point(name, voltages, duration)
 
     def create_virtual_gate_set(
@@ -308,16 +315,6 @@ class BaseQuamQD(QuamRoot):
             matrix = compensation_matrix
         )
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(track_integrated_voltage=True)
-        
-    def get_matrix_index(self, channel): 
-        """ 
-        In-case the user would like to find the index of a specified gate in the VirtualGateSet
-        """
-        vgs = self._get_virtual_gate_set(channel)
-        virtual_name = self._get_virtual_name(channel)
-        index = vgs.layers[0].source_gates.index(virtual_name)
-
-        return vgs, index
 
     def update_cross_compensation_submatrix(self, virtual_names: List[str], channels: List[Channel], matrix: Union[List[List[float]], np.ndarray]) -> None: 
         """
@@ -405,6 +402,16 @@ class BaseQuamQD(QuamRoot):
                     voltages[qubit] = self.qubits[qubit].current_voltage
                     
         new_sequence.step_to_voltages(actual_voltages)
+
+    def initialise(self, qubit_name: str) -> None: 
+        if qubit_name not in self.qubits: 
+            raise ValueError(f"Qubit {qubit_name} not in registered qubits: {list[self.qubits.keys()]}")
+        
+        try: 
+            self.qubits[qubit_name].initialisation()
+        except: 
+            raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
+
 
     def connect(self) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.

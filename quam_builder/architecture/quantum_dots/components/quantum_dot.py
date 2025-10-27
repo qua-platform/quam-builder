@@ -28,12 +28,15 @@ class QuantumDot(QuamComponent):
     Quam component for a single Quantum Dot
     Attributes: 
         id (str): The id of the QuantumDot
-        physical_channel (VoltageGate): The VoltageGate instance directly coupled to the QuantumDot
+        physical_channel (VoltageGate): The VoltageGate instance directly coupled to the QuantumDot.
         current_voltage (float): The current voltage offset of the QuantumDot via the OPX. Default is zero. 
-        charge_number (int): The integer number of charges currently on the QuantumDot
+        voltage_sequence (VoltageSeqence): The VoltageSequence object of the associated VirtualGateSet.
+        charge_number (int): The integer number of charges currently on the QuantumDot.
 
     Methods: 
-        go_to_voltage: Returns a dict entry to be used via VirtualGateSet. 
+        go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
+        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.  
+        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
         get_offset: Returns the current value of the external voltage source. 
         set_offset: Sets the external voltage source to the new value.
     """
@@ -46,7 +49,18 @@ class QuantumDot(QuamComponent):
     def name(self) -> str: 
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
 
-    def step_to_voltages(self, voltage: float, duration:int = 16, preserve_other_gates: bool = False) -> Dict[str, float]:
+
+    def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
+        """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""
+
+        if self.voltage_sequence is None: 
+            raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
+                               " relevant QUAM voltage_sequence.")
+        target_voltages = {self.id : voltage}
+        return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
+        
+
+    def step_to_voltages(self, voltage: float, duration:int = 16, preserve_other_gates: bool = False) -> None:
         """
         Applies self.voltage_sequence.step_to_voltages({self.id: voltage})
 
@@ -76,7 +90,7 @@ class QuantumDot(QuamComponent):
 
         return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
     
-    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16, preserve_other_gates: bool = False) -> Dict[str, float]:
+    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16, preserve_other_gates: bool = False) -> None:
         """
         Applies self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration)
 
