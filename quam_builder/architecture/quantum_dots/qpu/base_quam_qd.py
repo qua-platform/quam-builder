@@ -376,7 +376,7 @@ class BaseQuamQD(QuamRoot):
             dot_coupling=dot_coupling,
         )
     
-    def _get_virtual_gate_set(self, channel: Channel): 
+    def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet: 
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
         for vgs in list(self.virtual_gate_sets.values()): 
@@ -386,7 +386,7 @@ class BaseQuamQD(QuamRoot):
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         return virtual_gate_set
     
-    def _get_virtual_name(self, channel: Channel): 
+    def _get_virtual_name(self, channel: Channel) -> str: 
         """Return the name of the virtual gate associated with e particular output channel"""
         vgs_name = None
         for name, vgs in list(self.virtual_gate_sets.items()): 
@@ -410,14 +410,14 @@ class BaseQuamQD(QuamRoot):
         virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
-    def reset_voltage_sequence(self, gate_set_id): 
+    def reset_voltage_sequence(self, gate_set_id) -> None: 
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(track_integrated_voltage=True)
         return
 
     def register_channel_elements(
         self, 
         plunger_channels: List[Channel], 
-        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+        sensor_channels_resonators:  List[Tuple[Channel, ReadoutResonatorBase]],
         barrier_channels: List[Channel]
     ) -> None:
         self.register_quantum_dots(plunger_channels)
@@ -445,10 +445,10 @@ class BaseQuamQD(QuamRoot):
 
     def register_sensor_dots(
         self,
-        sensor_channels_resonators: Dict[Channel, ReadoutResonatorBase],
+        sensor_channels_resonators: List[Tuple[Channel, ReadoutResonatorBase]],
     ) -> None:
         
-        for ch, res in sensor_channels_resonators.items(): 
+        for (ch, res) in sensor_channels_resonators: 
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id = virtual_name, 
@@ -519,22 +519,27 @@ class BaseQuamQD(QuamRoot):
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
     def register_qubit(self, 
-                       quantum_dots: List[str],
+                       quantum_dot_id: str,
+                       qubit_name: str,
                        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
                        drive_channel: Channel = None
-                       ): 
-        """Instantiates a qubit based on the associated quantum dot and qubit type"""
+                       ) -> None: 
+        """
+        Instantiates a qubit based on the associated quantum dot and qubit type. 
+
+        For LD Qubits, the qubit_id is only stored internally in the Quam, and the Qubit ID is simply the Quantum Dot ID. 
+        """
 
         if qubit_type.lower() == "loss_divincenzo": 
-            for d in quantum_dots: 
-                dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
-                qubit = LDQubit(
-                    id = dot.id, 
-                    quantum_dot = dot.get_reference(), 
-                    drive = drive_channel, 
-                )
-            
-                self.qubits[qubit.id] = qubit
+            d = quantum_dot_id
+            dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
+            qubit = LDQubit(
+                id = d, 
+                quantum_dot = dot.get_reference(), 
+                drive = drive_channel, 
+            )
+        
+            self.qubits[qubit_name] = qubit
             
     def register_qubit_pair(self, 
                             qubits = []): 

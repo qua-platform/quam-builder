@@ -44,7 +44,9 @@ class LDQubit(Qubit):
 
     Methods: 
         id: returns the id of the associated QuantumDot
-        go_to_voltage: returns a dict to be entered into a VirtualGateSet
+        go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
+        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.  
+        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
     """
@@ -83,16 +85,19 @@ class LDQubit(Qubit):
             return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
         else:
             return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
-
-    def step_to_voltages(self, voltage:float): 
-        return self.quantum_dot.step_to_voltages(voltage)
-    
-    def ramp_to_voltages(self, voltage:float, ramp_duration: int): 
-        return self.quantum_dot.step_to_voltages(voltage, ramp_duration)
-    
+        
     @property
     def voltage_sequence(self): 
         return self.quantum_dot.voltage_sequence
+
+    def step_to_voltages(self, voltage:float, duration:int = 16) -> None: 
+        return self.quantum_dot.step_to_voltages(voltage, duration = duration)
+    
+    def ramp_to_voltages(self, voltage:float, ramp_duration: int, duration:int = 16) -> None: 
+        return self.quantum_dot.step_to_voltages(voltage, ramp_duration = ramp_duration, duration = duration)
+    
+    def go_to_voltages(self, voltage:float, duration:int = 16) -> None: 
+        return self.quantum_dot.go_to_voltages(voltage, duration = duration)
 
     def initialisation(self): 
         # self.voltage_sequence.step_to_voltages("Qubit1_Idle")
@@ -184,7 +189,3 @@ class LDQubit(Qubit):
         """
         channel_names = [channel.name for channel in self.channels.values()]
         wait(duration, *channel_names)
-
-
-    
-
