@@ -1,7 +1,7 @@
 from typing import Dict, List, Union
 from dataclasses import field
 
-from quam.core import quam_dataclass
+from quam.core import quam_dataclass, QuamComponent
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
@@ -12,7 +12,7 @@ __all__ = ["QuantumDotPair"]
 
 
 @quam_dataclass
-class QuantumDotPair:
+class QuantumDotPair(QuamComponent):
 
     """
     Class representing a Quantum Dot Pair. 
@@ -21,6 +21,16 @@ class QuantumDotPair:
         barrier_gate (BarrierGate): The BarrierGate instance between the two QuantumDots.  
         sensor_dots (List[SensorDot]): A list of SensorDot instances coupled to this particular QuantumDot pair. 
         dot_coupling (float): A value representing the coupling strength of the QuantumDot pair.
+        points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
+
+    Methods: 
+        define_detuning_axis (args: matrix, detuning_axis_name): Adds a VirtualizationLayer onto the VirtualGateSet to define a detuning axis on the virtualized dot axes, using input matrix.
+        go_to_detuning: In a simultaneous block, registers a dict input to the VoltageSequence to step or ramp the detuning to specified voltage. 
+        step_to_detuning: Step the voltage to the specified detuning value. Can only be used after the detuning axis is defined. 
+        ramp_to_detuning: Ramp the voltage to the specified detuning value. Can only be used after the detuning axis is defined. 
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names 
+        step_to_point: Steps to a pre-defined point in the internal points dict. 
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
     id: str = None
     quantum_dots: List[QuantumDot]
@@ -31,9 +41,9 @@ class QuantumDotPair:
     detuning_axis_name: str = ""
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
-    voltage_sequence: VoltageSequence = None
-
     def __post_init__(self): 
+        if isinstance(self.quantum_dots[0], str): 
+            return 
         if len(self.quantum_dots) != 2: 
             raise ValueError(f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots")
         if self.id is None: 
@@ -42,8 +52,11 @@ class QuantumDotPair:
         if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence: 
             raise ValueError("Quantum Dots not part of same VoltageSequence")
         
-        self.voltage_sequence = self.quantum_dots[0].voltage_sequence
         self.detuning_axis_name = f"{self.id}_epsilon"
+
+    @property
+    def voltage_sequence(self) -> VoltageSequence: 
+        return self.quantum_dots[0].voltage_sequence
 
         
     def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
@@ -68,14 +81,16 @@ class QuantumDotPair:
         )
     
     def go_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        """To be used in a simultaneous block to step/ramp detuning to specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
     
     def step_to_detuning(self, voltage: float, duration:int = 16) -> None: 
+        """Steps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
     
     def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16): 
+        """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
-
 
     def add_point(self, point_name:str, voltages: Dict[str, float], duration: int = 16, replace_existing_point: bool = False) -> None: 
         """

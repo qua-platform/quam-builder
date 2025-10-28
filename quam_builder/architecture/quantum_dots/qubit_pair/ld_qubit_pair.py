@@ -19,17 +19,21 @@ class LDQubitPair(QubitPair):
     Attributes: 
         qubit_control (LDQubit): The first Loss-DiVincenzo Qubit instance
         qubit_target (LDQubit): The second Loss-DiVincenzo Qubit instance
-        barrier_gate (BarrierGate): The BarrierGate instance between the two QuantumDots.  
-        sensor_dots (List[SensorDot]): A list of SensorDot instances coupled to this particular QuantumDot pair. 
-        dot_coupling (float): A value representing the coupling strength of the QuantumDot pair.
+        points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
-
+    Methods: 
+        add_quantum_dot_pair: Adds the QuantumDotPair associated with the Qubit instances.
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names 
+        step_to_point: Steps to a pre-defined point in the internal points dict. 
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
 
     id: Union[str, int]
 
     qubit_control: LDQubit
     qubit_target: LDQubit
+
+    quantum_dot_pair: QuantumDotPair = None
 
     points: Dict[str, Dict[str, float]] = field(default_factory = dict)
 
@@ -39,14 +43,15 @@ class LDQubitPair(QubitPair):
     
     @property
     def detuning_axis_name(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.detuning_axis_name
     
     @property
     def voltage_sequence(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.voltage_sequence
-    
-    def add_quantum_dot_pair(self, quantum_dot_pair: QuantumDotPair): 
-        self.quantum_dot_pair = quantum_dot_pair
 
 
     def add_point(self, point_name:str, voltages: Dict[str, float], duration: int = 16, replace_existing_point: bool = False) -> None: 

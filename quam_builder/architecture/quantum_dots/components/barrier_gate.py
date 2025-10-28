@@ -14,7 +14,11 @@ class BarrierGate(VoltageGate):
     """
     A class for a BarrierGate channel
     """
-    voltage_sequence: VoltageSequence
+    @property
+    def voltage_sequence(self) -> VoltageSequence:
+        machine = self.parent.parent
+        virtual_gate_set_name = machine._get_virtual_gate_set(self).id
+        return machine.voltage_sequences[virtual_gate_set_name]
 
     def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
         """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""

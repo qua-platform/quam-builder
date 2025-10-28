@@ -33,6 +33,7 @@ class QuantumDot(QuamComponent):
         current_voltage (float): The current voltage offset of the QuantumDot via the OPX. Default is zero. 
         voltage_sequence (VoltageSeqence): The VoltageSequence object of the associated VirtualGateSet.
         charge_number (int): The integer number of charges currently on the QuantumDot.
+        points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods: 
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
@@ -40,11 +41,14 @@ class QuantumDot(QuamComponent):
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
         get_offset: Returns the current value of the external voltage source. 
         set_offset: Sets the external voltage source to the new value.
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can NOT accept qubit names 
+        step_to_point: Steps to a pre-defined point in the internal points dict. 
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
     id: Union[int, str]
     physical_channel: VoltageGate
-    voltage_sequence: VoltageSequence = None
     charge_number: int = 0
+    current_voltage: float = 0.0
 
     points: Dict[str, Dict[str, float]] = field(default_factory = dict)
 
@@ -52,6 +56,11 @@ class QuantumDot(QuamComponent):
     def name(self) -> str: 
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
 
+    @property
+    def voltage_sequence(self) -> VoltageSequence: 
+        machine = self.parent.parent
+        virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
+        return machine.get_voltage_sequence(virtual_gate_set_name)
 
     def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
         """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""

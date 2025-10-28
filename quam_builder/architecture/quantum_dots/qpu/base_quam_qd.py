@@ -62,13 +62,24 @@ class BaseQuamQD(QuamRoot):
         thermalization_time: Return the longest thermalization time amongst the active qubits.
         declare_qua_variables: Macro to declare the necessary QUA variables for all qubits.
         initialize_qpu: Initialize the QPU with the specified settings.
+        create_virtual_gate_set: Creates a VirtualGateSet with the input physical channels, and layers a single compensation layer on top, with a default identity matrix. 
+        register_quantum_dots: Internally create QuantumDot objects from output physical channels. 
+        register_sensor_dots: Internally create SensorDot objects from output physical channels, and their associated ReadoutResonator objects. 
+        register_barrier_gates: Internally create BarrierGate objects from the output physical channels. 
+        register_channel_elements: Shortcut to run register_quantum_dots, register_sensor_dots, and register_barrier_gates, i.e. a shortcut to register all the HW channel outputs. 
+        register_qubit: Creates an internal Qubit object out of the specified QuantumDot. Specify the qubit type in the input, default "loss_divincenzo"
+        register_qubit_pair: Creates a QubitPair object internally, given a control qubit and a target qubit. 
+        add_point: Adds a point macro to a VirtualGateSet instance held internally. 
+        update_cross_compensation_submatrix: Input a list of virtual gates and a list of HW channels, as well as the associated correction submatrix. Internally it edits the VirtualGateSet matrix stored. 
+        update_full_cross_compensation: Update the full compensation matrix of the first VirtualGateSet layer. 
+        step_to_voltage: Steps the associated VoltageSequence to a dict of voltages. 
     """
 
     physical_channels: Dict[str, Channel] = field(default_factory = dict)
     
     qubits: Dict[str, AnySpinQubit] = field(default_factory = dict)
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory = dict)
-    voltage_sequences: Dict[str, VoltageSequence] = field(default_factory=dict)
+    voltage_sequences: Dict[str, VoltageSequence] = field(default_factory=dict, metadata = {"exclude": True})
 
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
@@ -102,6 +113,19 @@ class BaseQuamQD(QuamRoot):
             content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
         )
     
+    def get_voltage_sequence(self, gate_set_id: str) -> VoltageSequence:
+        if gate_set_id not in self.voltage_sequences: 
+            gate_set = self.virtual_gate_sets[gate_set_id]
+            seq = gate_set.new_sequence()
+            
+            for qd_id, qd in self.quantum_dots.items(): 
+                if qd.voltage_sequence.gate_set.id == gate_set.id: 
+                    seq.state_trackers[qd.id].current_level = qd.current_voltage
+
+            self.voltage_sequences[gate_set_id] = seq
+        return self.voltage_sequences[gate_set_id]
+    
+
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet: 
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
@@ -165,7 +189,6 @@ class BaseQuamQD(QuamRoot):
             quantum_dot = QuantumDot(
                 id = virtual_name, # Should now be the same as the virtual gate name
                 physical_channel = ch.get_reference(), 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
             )
             self.quantum_dots[virtual_name] = quantum_dot
 
@@ -180,7 +203,6 @@ class BaseQuamQD(QuamRoot):
                 id = virtual_name, 
                 physical_channel = ch.get_reference(), 
                 readout_resonator = res,                 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
                 )
             self.sensor_dots[virtual_name] = sensor_dot
 
@@ -194,7 +216,6 @@ class BaseQuamQD(QuamRoot):
                 id = virtual_name, 
                 opx_output = ch.opx_output.get_reference(), 
                 attenuation = ch.attenuation, 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
             )
             barrier_gate.offset_parameter = ch.offset_parameter
             self.barrier_gates[virtual_name] = barrier_gate
@@ -241,9 +262,9 @@ class BaseQuamQD(QuamRoot):
 
         quantum_dot_pair = QuantumDotPair(
             id = id,
-            quantum_dots = [self.quantum_dots[m] for m in qd_names], 
-            barrier_gate = self.barrier_gates[barrier_name] if barrier_gate_id is not None else None, 
-            sensor_dots = [self.sensor_dots[n] for n in sensor_names], 
+            quantum_dots = [self.quantum_dots[m].get_reference() for m in qd_names], 
+            barrier_gate = self.barrier_gates[barrier_name].get_reference() if barrier_gate_id is not None else None, 
+            sensor_dots = [self.sensor_dots[n].get_reference() for n in sensor_names], 
             dot_coupling = dot_coupling
         )
 
@@ -304,15 +325,40 @@ class BaseQuamQD(QuamRoot):
             qubit_pair = LDQubitPair(
                 id = id, 
                 qubit_control = qubit_control.get_reference(), 
-                qubit_target = qubit_target.get_reference()
+                qubit_target = qubit_target.get_reference(), 
+                quantum_dot_pair=self.quantum_dot_pairs[quantum_dot_pair].get_reference()
             )
-            qubit_pair.add_quantum_dot_pair(self.quantum_dot_pairs[quantum_dot_pair])
         
             self.qubit_pairs[id] = qubit_pair
 
 
-    def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int) -> None: 
-        return self.virtual_gate_sets[gate_set_id].add_point(name, voltages, duration)
+    def add_point(self, gate_set_id: str, name:str, voltages: Dict, duration: int, replace_existing_point: bool = False) -> None: 
+        """
+        Method to add a point to the VirtualGateSet. 
+        Args: 
+            gate_set_id (str): The name of the associated VirtualGateSet
+            name (str): The name of the added point
+            duration (int): The duration that the point should be held
+            replace_existing_point (bool): Whether to replace points of the same name in the VirtualGateSet
+
+        Note: 
+            This method allows qubit names to be entered, and it will process the qubit names by referencing the qubit id. If the qubit id is not in the associated VirtualGateSet, 
+            this will result in an error. 
+        """
+
+        if gate_set_id not in self.virtual_gate_sets:
+            raise ValueError(f"VirtualGateSet id {gate_set_id} not found in list of VirtualGateSets: {list(self.virtual_gate_sets.keys())}")
+
+        if name in list(self.virtual_gate_sets[gate_set_id].get_macros()) and not replace_existing_point:
+            raise ValueError(f"Point already exists in VirtualGateSet {gate_set_id}. Please set replace_existing_point = True to replace")
+        
+        processed_voltages = {}
+        for gate_name, voltage in voltages.items(): 
+            if gate_name in self.qubits: 
+                gate_name = self.qubits[gate_name].id
+            processed_voltages[gate_name] = voltage
+
+        return self.virtual_gate_sets[gate_set_id].add_point(name, processed_voltages, duration)
 
     def create_virtual_gate_set(
             self, 
@@ -518,3 +564,23 @@ class BaseQuamQD(QuamRoot):
         """Initialize the QPU with the specified settings."""
         pass
 
+    def to_dict(self, follow_references = False, include_defaults = False): 
+        d = super().to_dict(follow_references = follow_references, include_defaults=include_defaults)
+
+        # We treat the voltage_sequences as a runtime helper, and not as a Quam component. That way, it does not get serialised. 
+        # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level. 
+        d.pop("voltage_sequences", None)
+        return d
+    @classmethod
+    def load(cls, filepath, *args, **kwargs):
+        """Load machine from file and recreate voltage sequences"""
+        instance = super().load(filepath, *args, **kwargs)
+        instance.voltage_sequences = {}
+        
+        # Recreate voltage sequences for each virtual gate set
+        for gate_set_id, vgs in instance.virtual_gate_sets.items():
+            instance.voltage_sequences[gate_set_id] = vgs.new_sequence(track_integrated_voltage=True)
+
+        # We can also update the state_tracker here to hold the value held by QuantumDot.current_voltage. 
+
+        return instance

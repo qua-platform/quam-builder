@@ -35,20 +35,25 @@ class LDQubit(Qubit):
     An example QUAM component for a Loss DiVincenzo Qubit
 
     Attributes:
+        id: returns the id of the associated QuantumDot
         quantum_dot (QuantumDot): The single QuantumDot instance associated with the Loss DiVincenzo qubit. 
         drive (Channel): The QUAM channel associated with the EDSR or ESR line of the qubit. 
         T1 (float): The qubit T1 in seconds. Default is None.
         T2ramsey (float): The qubit T2* in seconds.
         T2echo (float): The qubit T2 in seconds.
         thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
+        points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods: 
-        id: returns the id of the associated QuantumDot
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
         step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.  
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
+        reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time). 
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names 
+        step_to_point: Steps to a pre-defined point in the internal points dict. 
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
     id: Union[str, int] = None
 
@@ -66,6 +71,8 @@ class LDQubit(Qubit):
     name: str = None
 
     def __post_init__(self): 
+        if isinstance(self.quantum_dot, str): 
+            return
         if self.id is None: 
             self.id = self.quantum_dot.id
         if self.id != self.quantum_dot.id:
