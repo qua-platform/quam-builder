@@ -43,10 +43,8 @@ from quam.components.ports import (
     FEMDigitalOutputPort,       # Concrete implementation
 )
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW, ReadoutResonatorSingle
 from qm.qua import *
 
@@ -211,41 +209,48 @@ machine.register_qubit_pair(
 ###########################
 
 
-# Define some example points
+# Let's define some example points. 
+# In this example, we would like to initialise Q1 and Q2 simultaneously. This will be performed in a sequence.simultaneous block. 
+# Remember that if these two dictionaries hold contradicting information about the voltage of a particular gate, the last one in the QUA programme wins. 
 
-# Method 1: Add directly to VirtualGateSet
-machine.virtual_gate_sets["main_qpu"].add_point(
-    name = "Idle", 
+# In this example, we purposefully keep all the barrier and sensor voltages identical, so that they can be initialised together, and no gate should hold two voltages at once. 
+# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be entered as 0. 
+
+
+machine.qubits["Q1"].add_point(
+    point_name = "initialisation", 
     voltages = {
-        "virtual_dot_1" : 0.1, 
-        "virtual_dot_2" : 0.05, 
-        "virtual_dot_3" : 0.3, 
-        "virtual_dot_4" : 0.1, 
-        "virtual_barrier_1" : 0.3, 
-        "virtual_barrier_2" : 0.35, 
-        "virtual_barrier_3" : 0.32,
-        "virtual_sensor_1" : 0.4
-    }, 
-    duration = 1000
+        "Q1": 0.1, 
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
 )
 
-# Method 2: Add via function
-machine.add_point(
-    gate_set_id = "main_qpu",
-    name = "Operation", 
+machine.qubits["Q2"].add_point(
+    point_name = "initialisation", 
     voltages = {
-        "virtual_dot_1" : 0.2, 
-        "virtual_dot_2" : -0.02, 
-        "virtual_dot_3" : 0.4, 
-        "virtual_dot_4" : 0.3, 
-        "virtual_barrier_1" : 0.4, 
-        "virtual_barrier_2" : 0.6, 
-        "virtual_barrier_3" : 0.22,
-        "virtual_sensor_1" : 0.36
-    }, 
-    duration = 1000
+        "Q2": 0.15, 
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
 )
 
+# We can also initialise a tuning point for a qubit pair: 
+machine.qubit_pairs["Q3_Q4"].add_point(
+    point_name = "some_two_qubit_gate", 
+    voltages = {
+        "Q3": 0.2, 
+        "Q4": 0.25,
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
+)
 
 
 # Update Cross Capacitance matrix values
@@ -282,13 +287,21 @@ with program() as prog:
 
         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
-            machine.quantum_dots["virtual_dot_3"].go_to_voltages(0.1)
-            machine.quantum_dots["virtual_dot_4"].go_to_voltages(-0.2)
+            machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.1)
+            machine.quantum_dots["virtual_dot_2"].go_to_voltages(-0.2)
 
         # For sequential stepping, use outside of simultaneous block
         # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
         machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
         machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
+
+        # Can also use point macros saved in qubit and QD objects, inside a simultaneous block. 
+        # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once! 
+        with seq.simultaneous(duration = 1000): 
+            machine.qubits["Q1"].step_to_point("initialisation")
+            machine.qubits["Q2"].step_to_point("initialisation")
+            machine.qubit_pairs["Q3_Q4"].step_to_point("some_two_qubit_gate")
+            # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
 
         seq.ramp_to_zero()
 

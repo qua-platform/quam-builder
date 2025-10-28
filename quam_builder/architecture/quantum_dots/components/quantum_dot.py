@@ -1,4 +1,5 @@
 import numpy as np
+from dataclasses import field
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
@@ -44,6 +45,8 @@ class QuantumDot(QuamComponent):
     physical_channel: VoltageGate
     voltage_sequence: VoltageSequence = None
     charge_number: int = 0
+
+    points: Dict[str, Dict[str, float]] = field(default_factory = dict)
 
     @property
     def name(self) -> str: 
@@ -128,6 +131,43 @@ class QuantumDot(QuamComponent):
             self.physical_channel.offset_parameter(value)
             return 
         raise ValueError("External offset source not connected")
+    
+    def add_point(self, point_name:str, voltages: Dict[str, float], duration: int = 16, replace_existing_point: bool = False) -> None: 
+        """
+        Method to add point to the VirtualGateSet for the quantum dot.
+
+        Args: 
+            point_name (str): The name of the point in the VirtualGateSet
+            voltages (Dict[str, float]): A dictionary of the associated voltages. This will NOT be able to read qubit names. 
+            duration (int): The duration which to hold the point. 
+            replace_existing_point (bool): If the point_name is the same as a previously added point, choose whether to replace old point. Will raise an error if False. 
+        """
+
+        gate_set = self.voltage_sequence.gate_set
+        existing_points = gate_set.get_macros()
+        name_in_sequence = f"{self.id}_{point_name}"
+        if name_in_sequence in existing_points and not replace_existing_point: 
+            raise ValueError(f"Point name {point_name} already exists for quantum dot {self.id}. If you would like to replace, please set replace_existing_point = True")
+        self.points[point_name] = voltages
+        gate_set.add_point(
+            name = name_in_sequence, 
+            voltages = voltages, 
+            duration = duration
+        )
+        
+    def step_to_point(self, point_name: str, duration:int = 16) -> None: 
+        """Step to a point registered for the quantum dot"""
+        if point_name not in self.points: 
+            raise ValueError(f"Point {point_name} not in registered points: {list(self.points.keys())}")
+        name_in_sequence = f"{self.id}_{point_name}"
+        return self.voltage_sequence.step_to_point(name = name_in_sequence, duration = duration)
+    
+    def ramp_to_point(self, point_name: str, ramp_duration:int,  duration:int = 16) -> None: 
+        """Ramp to a point registered for the quantum dot"""
+        if point_name not in self.points: 
+            raise ValueError(f"Point {point_name} not in registered points: {list(self.points.keys())}")
+        name_in_sequence = f"{self.id}_{point_name}"
+        return self.voltage_sequence.ramp_to_point(name = name_in_sequence, duration = duration, ramp_duration=ramp_duration)
 
 
     def play(    
