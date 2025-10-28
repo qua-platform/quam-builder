@@ -28,6 +28,7 @@ from quam_builder.architecture.quantum_dots.components.gate_set import (
 from .sequence_state_tracker import (
     SequenceStateTracker,
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
+    KeepLevels,
 )
 from .exceptions import (
     VoltagePointError,
@@ -93,7 +94,12 @@ class VoltageSequence:
       values) in each call, or operate directly on physical gates.
     """
 
-    def __init__(self, gate_set: GateSet, track_integrated_voltage: bool = True):
+    def __init__(
+        self,
+        gate_set: GateSet,
+        track_integrated_voltage: bool = True,
+        keep_levels: bool = True,
+    ):
         """
         Initializes the VoltageSequence.
 
@@ -107,6 +113,10 @@ class VoltageSequence:
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
         self._track_integrated_voltage: bool = track_integrated_voltage
+        self._keep_levels: bool = keep_levels
+
+        if self._keep_levels:
+            self._keep_levels_tracker = KeepLevels(self.gate_set)
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -231,6 +241,13 @@ class VoltageSequence:
                     "Guidance: Using QUA variable for `ramp_duration`. "
                     "Ensure hold `duration` is sufficient."
                 )
+
+        if self._keep_levels:
+            target_voltages_dict = (
+                self._keep_levels_tracker.update_voltage_dict_with_current(
+                    target_voltages_dict
+                )
+            )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
         if ensure_align:
@@ -573,8 +590,15 @@ class VoltageSequence:
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
 
+        if self._keep_levels:
+            zero_dict = {
+                name: 0.0 for name in self._keep_levels_tracker._keep_levels_dict
+            }
+        else:
+            zero_dict = {}
+
         if go_to_zero:
-            self._common_voltages_change(target_voltages_dict={}, duration=16)
+            self._common_voltages_change(target_voltages_dict=zero_dict, duration=16)
 
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
@@ -626,7 +650,7 @@ class VoltageSequence:
         if return_to_zero:
             # ensure_align = False here to allow different duration of compensation pulses pr channel.
             self._common_voltages_change(
-                target_voltages_dict={}, duration=16, ensure_align=False
+                target_voltages_dict=zero_dict, duration=16, ensure_align=False
             )
             self.ramp_to_zero()
 

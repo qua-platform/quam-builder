@@ -6,6 +6,11 @@ from qm.qua import declare, assign, Cast, fixed
 
 from quam_builder.tools.voltage_sequence.exceptions import StateError
 from quam_builder.tools.qua_tools import is_qua_type
+from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
+    VirtualGateSet,
+)
+from typing import Dict
 
 __all__ = [
     "SequenceStateTracker",
@@ -290,3 +295,49 @@ class SequenceStateTracker:
                 )
                 # _integrated_voltage_internal is guaranteed to be an int here
                 self._integrated_voltage_internal += ramp_contribution
+
+
+class KeepLevels:
+    """
+    Keep track of physical/virtual gate levels throughout a VoltageSequence
+    Removes the need to supply voltage points for gates that are already at their desired non-zero level.
+    example:
+    seq.step_to_voltages(voltages={"ch1": 0.2}, duration=100)
+    seq.step_to_voltages(voltages={"ch2": 0.1}, duration=100) #ch1 will be held at 0.2 here
+    seq.step_to_voltages(voltages={"ch1": 0.3}, duration=100)
+    """
+
+    def __init__(self, gate_set: GateSet | VirtualGateSet):
+        self._keep_levels_dict = {}
+        # populate with lowest level channels
+        for channel in gate_set.channels:
+            self._keep_levels_dict[channel] = SequenceStateTracker(
+                channel, track_integrated_voltage=False
+            )
+        # populate with all source gates from all layers
+        if isinstance(gate_set, VirtualGateSet):
+            for layer in gate_set.layers:
+                for source_gate in layer.source_gates:
+                    self._keep_levels_dict[source_gate] = SequenceStateTracker(
+                        source_gate, track_integrated_voltage=False
+                    )
+
+    def update_voltage_dict_with_current(
+        self, voltages_dict: Dict[str, VoltageLevelType]
+    ):
+        """
+        adds points that are not supplied to the voltages_dict
+        """
+        self.update_tracking(voltages_dict=voltages_dict)
+
+        return {
+            name: tracker.current_level
+            for name, tracker in self._keep_levels_dict.items()
+        }
+
+    def update_tracking(self, voltages_dict: Dict[str, VoltageLevelType]):
+        """
+        updates the internal state for newly supplied points
+        """
+        for name, level in voltages_dict.items():
+            self._keep_levels_dict[name].current_level = level

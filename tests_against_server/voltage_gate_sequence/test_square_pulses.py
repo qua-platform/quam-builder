@@ -7,10 +7,12 @@ from validation_utils import (
     validate_program,
     validate_compensation,
     validate_durations,
+    validate_keep_levels,
 )
 from conftest import QuamGateSet, QuamVirtualGateSet
 from qm import qua
 from qualang_tools.loops import from_array
+import numpy as np
 
 ###################
 # The QUA program #
@@ -181,7 +183,7 @@ def test_qua_voltage_sequence_durations(qmm, machine: QuamGateSet):
         seq.step_to_voltages(
             voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=duration
         )
-        seq.step_to_voltages(voltages={}, duration=16)
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
     for sample in samples.con1.analog.values():
@@ -286,3 +288,27 @@ def test_python_voltage_sequence_virtual_gates_and_elements(
 
     qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
     validate_compensation(samples)
+
+
+def test_keep_levels(qmm, virtual_machine: QuamVirtualGateSet):
+    """ """
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"ch1": 0.2}, duration=100)
+        seq.step_to_voltages(voltages={"ch2": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.3}, duration=100)
+        seq.step_to_voltages(voltages={"ch2": -0.2}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.0, "ch2": 0.0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    ch1_expected = [to_float_16(0.2)] * 400 + [to_float_16(0.3)] * 400
+    ch2_expected = [to_float_16(0.1)] * 400 + [to_float_16(-0.2)] * 200
+
+    validate_keep_levels(samples.con1.analog["5-6"], ch1_expected)
+    validate_keep_levels(samples.con1.analog["5-3"], ch2_expected)
+
+
+def to_float_16(num):
+    return float(np.float16(num))

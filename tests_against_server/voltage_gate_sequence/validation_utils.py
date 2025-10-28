@@ -110,3 +110,11 @@ def validate_durations(sample, expected_durations):
     assert all(
         durations == expected_durations
     ), f"durations: {durations}, expected: {expected_durations}"
+
+
+def validate_keep_levels(sample, expected):
+    correlate_expected = np.dot(expected, expected)
+    correlated = np.correlate(sample, expected, mode="valid")
+    assert np.isclose(
+        np.max(correlated), correlate_expected
+    ), f"failed with {correlate_expected=} and {np.max(correlated)=}"
