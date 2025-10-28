@@ -43,7 +43,7 @@ from quam.components.ports import (
     FEMDigitalOutputPort,       # Concrete implementation
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, BarrierGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW, ReadoutResonatorSingle
 from qm.qua import *
@@ -65,9 +65,9 @@ p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", l
 p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
 p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
 p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
-b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
-b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
-b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
+b1 = BarrierGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
+b2 = BarrierGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
+b3 = BarrierGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
 s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
 
 
