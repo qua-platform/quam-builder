@@ -86,7 +86,7 @@ class QuantumDot(QuamComponent):
         return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
         
 
-    def step_to_voltages(self, voltage: float, duration:int = 16, preserve_other_gates: bool = False) -> None:
+    def step_to_voltages(self, voltage: float, duration:int = 16) -> None:
         """
         Applies self.voltage_sequence.step_to_voltages({self.id: voltage})
 
@@ -96,27 +96,11 @@ class QuantumDot(QuamComponent):
         if self.voltage_sequence is None: 
             raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
                                " relevant QUAM voltage_sequence.")
-        target_voltages = {}
-        if preserve_other_gates:
-            for layer in self.voltage_sequence.gate_set.layers: 
-                if self.id in layer.source_gates: 
-                    physical_voltages = [
-                        self.voltage_sequence.state_trackers[target_gate].current_level 
-                        for target_gate in layer.target_gates
-                    ]
-                    matrix = np.array(layer.matrix)
-
-                    virtual_voltages = matrix @ physical_voltages
-
-                    for i, source_gate in enumerate(layer.source_gates):
-                        target_voltages[source_gate] = virtual_voltages[i]
-                    break
-
-        target_voltages[self.id] = voltage
+        target_voltages = {self.id : voltage}
 
         return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
     
-    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16, preserve_other_gates: bool = False) -> None:
+    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16) -> None:
         """
         Applies self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration)
 
@@ -126,23 +110,7 @@ class QuantumDot(QuamComponent):
         if self.voltage_sequence is None: 
             raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
                                " relevant QUAM voltage_sequence.")
-        target_voltages = {}
-        if preserve_other_gates:
-            for layer in self.voltage_sequence.gate_set.layers: 
-                if self.id in layer.source_gates: 
-                    physical_voltages = [
-                        self.voltage_sequence.state_trackers[target_gate].current_level 
-                        for target_gate in layer.target_gates
-                    ]
-                    matrix = np.array(layer.matrix)
-
-                    virtual_voltages = matrix @ physical_voltages
-
-                    for i, source_gate in enumerate(layer.source_gates):
-                        target_voltages[source_gate] = virtual_voltages[i]
-                    break
-
-        target_voltages[self.id] = voltage
+        target_voltages = {self.id : voltage}
         return self.voltage_sequence.ramp_to_voltages(target_voltages, ramp_duration = ramp_duration, duration = duration)
     
     def get_offset(self): 
