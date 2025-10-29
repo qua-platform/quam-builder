@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Union, Literal
+from typing import List, Dict, Tuple, Union, Literal, TYPE_CHECKING
 from dataclasses import field
 
 from quam.components.quantum_components import Qubit
@@ -24,7 +24,8 @@ from qm.qua import (
 )
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot
-
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["LDQubit"]
 
@@ -82,9 +83,12 @@ class LDQubit(Qubit):
             )
     
     @property
-    def physical_channel(self): 
+    def physical_channel(self) -> Channel: 
         return self.quantum_dot.physical_channel
     
+    @property
+    def machine(self) -> "BaseQuamQD": 
+        return self.quantum_dot.machine
     
     @property
     def thermalization_time(self):
@@ -212,7 +216,7 @@ class LDQubit(Qubit):
         name_in_sequence = f"{self.name}_{point_name}"
         # In-case there are any qubit names in the input dictionary, this must be mapped to the correct quantum dot gate name in the VirtualGateSet
         processed_voltages = {}
-        qubit_mapping = self.parent
+        qubit_mapping = self.machine.qubits
         for gate_name, voltage in voltages.items(): 
             if gate_name in qubit_mapping: 
                 gate_name = qubit_mapping[gate_name].id

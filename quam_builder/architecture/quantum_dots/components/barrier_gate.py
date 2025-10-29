@@ -1,10 +1,11 @@
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
-
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["BarrierGate"]
 
@@ -15,12 +16,17 @@ class BarrierGate(VoltageGate):
     A class for a BarrierGate channel
     """
     @property
-    def voltage_sequence(self) -> VoltageSequence: 
+    def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
         while obj.parent is not None: 
             obj = obj.parent
         machine = obj
+        return machine
+
+    @property
+    def voltage_sequence(self) -> VoltageSequence: 
+        machine = self.machine
         try: 
             virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
             return machine.get_voltage_sequence(virtual_gate_set_name)

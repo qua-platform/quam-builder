@@ -1,9 +1,9 @@
 import numpy as np
 from dataclasses import field
+from typing import Dict, Union, Tuple, Optional, List, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
-from typing import Dict, Union, Tuple, Optional, List, Sequence
 from quam.utils.qua_types import (
     ChirpType,
     StreamType,
@@ -19,6 +19,8 @@ from qm import QuantumMachine
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["QuantumDot"]
 
@@ -55,14 +57,19 @@ class QuantumDot(QuamComponent):
     @property
     def name(self) -> str: 
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
-
+    
     @property
-    def voltage_sequence(self) -> VoltageSequence: 
+    def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
         while obj.parent is not None: 
             obj = obj.parent
         machine = obj
+        return machine
+
+    @property
+    def voltage_sequence(self) -> VoltageSequence: 
+        machine = self.machine
         try: 
             virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
             return machine.get_voltage_sequence(virtual_gate_set_name)

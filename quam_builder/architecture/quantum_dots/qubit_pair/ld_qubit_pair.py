@@ -1,4 +1,4 @@
-from typing import Union, List, Dict
+from typing import Union, List, Dict, TYPE_CHECKING
 from dataclasses import field
 
 from quam.core import quam_dataclass
@@ -6,6 +6,9 @@ from quam.components import QubitPair
 
 from quam_builder.architecture.quantum_dots.components import QuantumDotPair, BarrierGate, SensorDot
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
+
+if TYPE_CHECKING: 
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["LDQubitPair"]
 
@@ -52,7 +55,10 @@ class LDQubitPair(QubitPair):
         if self.quantum_dot_pair is None: 
             raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.voltage_sequence
-
+    
+    @property 
+    def machine(self) -> "BaseQuamQD":
+        return self.quantum_dot_pair.machine
 
     def add_point(self, point_name:str, voltages: Dict[str, float], duration: int = 16, replace_existing_point: bool = False) -> None: 
         """
@@ -68,7 +74,7 @@ class LDQubitPair(QubitPair):
         name_in_sequence = f"{self.id}_{point_name}"
         # In-case there are any qubit names in the input dictionary, this must be mapped to the correct quantum dot gate name in the VirtualGateSet
         processed_voltages = {}
-        qubit_mapping = self.parent.parent.qubits
+        qubit_mapping = self.machine.qubits
         for gate_name, voltage in voltages.items(): 
             if gate_name in qubit_mapping: 
                 gate_name = qubit_mapping[gate_name].id

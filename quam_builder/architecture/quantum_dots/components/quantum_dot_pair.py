@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, TYPE_CHECKING
 from dataclasses import field
 
 from quam.core import quam_dataclass, QuamComponent
@@ -7,6 +7,9 @@ from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
+
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["QuantumDotPair"]
 
@@ -57,7 +60,10 @@ class QuantumDotPair(QuamComponent):
     @property
     def voltage_sequence(self) -> VoltageSequence: 
         return self.quantum_dots[0].voltage_sequence
-
+    
+    @property 
+    def machine(self) -> "BaseQuamQD":
+        return self.quantum_dots[0].machine
         
     def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
         
