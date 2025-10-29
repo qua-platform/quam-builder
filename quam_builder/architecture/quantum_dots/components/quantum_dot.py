@@ -58,9 +58,16 @@ class QuantumDot(QuamComponent):
 
     @property
     def voltage_sequence(self) -> VoltageSequence: 
-        machine = self.parent.parent
-        virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
-        return machine.get_voltage_sequence(virtual_gate_set_name)
+        # Climb up the parent ladder in order to find the VoltageSequence in the machine
+        obj = self
+        while obj.parent is not None: 
+            obj = obj.parent
+        machine = obj
+        try: 
+            virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
+            return machine.get_voltage_sequence(virtual_gate_set_name)
+        except (AttributeError, ValueError, KeyError): 
+            return None
 
     def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
         """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""
