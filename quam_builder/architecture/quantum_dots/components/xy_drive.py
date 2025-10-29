@@ -13,6 +13,7 @@ from quam_builder.tools.power_tools import (
     get_output_power_iq_channel,
 )
 
+__all__ = ["XYDrive"]
 
 @quam_dataclass
 class XYDriveBase:

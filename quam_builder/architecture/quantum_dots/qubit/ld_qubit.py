@@ -1,8 +1,9 @@
 from typing import List, Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
+import numpy as np
 
 from quam.components.quantum_components import Qubit
-from quam.components import Channel
+from quam.components import Channel, pulses
 from quam.core import quam_dataclass
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
@@ -21,9 +22,10 @@ from qm.qua import (
     update_frequency,
     Math,
     Cast,
+    frame_rotation_2pi
 )
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot, XYDrive
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -61,7 +63,9 @@ class LDQubit(Qubit):
     id: Union[str, int] = None
 
     quantum_dot: QuantumDot
-    drive: Channel = None
+    xy_channel: XYDrive = None
+
+    larmor_frequency: float = None
 
     # Qubit Specific Features
     T1: float = None
