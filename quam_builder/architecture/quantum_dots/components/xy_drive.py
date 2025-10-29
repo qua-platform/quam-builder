@@ -19,18 +19,18 @@ class XYDrive(MWChannel):
             if "gaussian" not in self.operations: 
                 self.operations["gaussian"] = pulses.GaussianPulse(
                     length = 100, 
-                    ampltiude = 0.2, 
+                    amplitude = 0.2, 
                     sigma = 40
                 )
             if "pi" not in self.operations:
                 self.operations["pi"] = pulses.SquarePulse(
-                    length=100,
+                    length=104,
                     amplitude=0.2
                 )
             
             if "pi_half" not in self.operations:
                 self.operations["pi_half"] = pulses.SquarePulse(
-                    length=50,
+                    length=52,
                     amplitude=0.2
                 )
 
