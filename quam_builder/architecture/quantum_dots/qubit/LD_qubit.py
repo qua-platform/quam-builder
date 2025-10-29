@@ -1,8 +1,9 @@
 from typing import List, Dict, Tuple, Union, Literal
 from dataclasses import field
+import numpy as np
 
 from quam.components.quantum_components import Qubit
-from quam.components import Channel
+from quam.components import Channel, pulses
 from quam.core import quam_dataclass
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
@@ -21,9 +22,10 @@ from qm.qua import (
     update_frequency,
     Math,
     Cast,
+    frame_rotation_2pi
 )
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot, XYDrive
 
 
 __all__ = ["LDQubit"]
@@ -53,7 +55,9 @@ class LDQubit(Qubit):
     id: Union[str, int] = None
 
     quantum_dot: QuantumDot
-    drive: Channel = None
+    xy_channel: XYDrive = None
+
+    larmor_frequency: float = None
 
     # Qubit Specific Features
     T1: float = None
@@ -191,3 +195,46 @@ class LDQubit(Qubit):
         """
         channel_names = [channel.name for channel in self.channels.values()]
         wait(duration, *channel_names)
+
+    def add_xy_pulse(self, pulse_name:str, pulse: pulses.Pulse) -> None: 
+        self.xy_channel.add_pulse(name = pulse_name, pulse = pulse)
+
+    def set_xy_frequency(self, frequency: float, recenter_LO: bool = True): 
+        """
+        Configure the LO+IF of the xy_channel. Use this function to update the drive frequency to the calibrated Larmor frequency
+        """
+        if self.xy_channel is None: 
+            raise ValueError(f"No XY Channel on Qubit {self.name}")
+        
+        LO_frequency = self.xy_channel.LO_frequency
+        intermediate_frequency = frequency - LO_frequency
+
+        if abs(intermediate_frequency) > 400e6: 
+            if recenter_LO: 
+                print(f"Intermediate Frequency exceeds ±400MHz ({intermediate_frequency/1e6 : .2f}MHz). Setting LO to {frequency/1e9: .4f}GHz")
+                self.xy_channel.LO_frequency = frequency
+                self.xy_channel.intermediate_frequency = 0
+            else: 
+                raise ValueError(f"Intermediate Frequency ({intermediate_frequency/1e6 : .2f}MHz) exceeds ±400MHz")
+        else: 
+            self.xy_channel.intermediate_frequency = intermediate_frequency
+
+    def play_xy_pulse(self, pulse_name:str, pulse_duration: int, amplitude_scale:float = 1.0, **kwargs) -> None:
+        """Play a pulse from the XY channel associated with the Qubit"""
+        if self.xy_channel is None: 
+            raise ValueError(f"No XY Channel on Qubit {self.name}")
+        
+        if pulse_name not in self.xy_channel.operations: 
+            raise ValueError(f"Pulse {pulse_name} not in XY Channel operations") 
+
+        self.xy_channel.play(
+            pulse_name = pulse_name, 
+            amplitude_scale=amplitude_scale, 
+            duration = pulse_duration,
+            **kwargs
+            )
+    
+    def virtual_z(self, phase : float) -> None: 
+        """Apply a virtual Z rotation"""
+        frame_rotation_2pi(phase/(2*np.pi), self.xy_channel.name)
+    

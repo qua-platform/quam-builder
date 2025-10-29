@@ -19,7 +19,8 @@ from quam_builder.architecture.quantum_dots.components import (
     SensorDot, 
     BarrierGate,
     QuantumDotPair,
-    ReadoutResonatorBase
+    ReadoutResonatorBase, 
+    XYDrive
 )
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
@@ -253,7 +254,7 @@ class BaseQuamQD(QuamRoot):
                        quantum_dot_id: str,
                        qubit_name: str,
                        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
-                       drive_channel: Channel = None
+                       xy_channel: XYDrive = None
                        ) -> None: 
         """
         Instantiates a qubit based on the associated quantum dot and qubit type. 
@@ -267,8 +268,8 @@ class BaseQuamQD(QuamRoot):
             qubit = LDQubit(
                 id = d, 
                 quantum_dot = dot.get_reference(), 
-                drive = drive_channel, 
-                name = qubit_name
+                name = qubit_name, 
+                xy_channel = xy_channel
             )
         
             self.qubits[qubit_name] = qubit
