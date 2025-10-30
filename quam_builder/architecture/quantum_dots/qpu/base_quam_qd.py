@@ -5,6 +5,12 @@ from collections import defaultdict
 
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
+from qm.qua.type_hints import QuaVariable, StreamType
+from qm.qua import (
+    declare, 
+    fixed, 
+    declare_stream
+)
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
@@ -549,15 +555,36 @@ class BaseQuamQD(QuamRoot):
         return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
 
     def declare_qua_variables(
-        self, 
-    ): 
-        """
-        Macro to declare the necessary QUA variables for all qubits. 
+        self,
+        num_IQ_pairs: Optional[int] = None,
+    ) -> tuple[
+        list[QuaVariable],
+        list[StreamType],
+        list[QuaVariable],
+        list[StreamType],
+        QuaVariable,
+        StreamType,
+    ]:
+        """Macro to declare the necessary QUA variables for all qubits.
 
-        Args: 
-            None at the moment
+        Args:
+            num_IQ_pairs (Optional[int]): Number of IQ pairs (I and Q variables) to declare.
+                If None, it defaults to the number of qubits in `self.qubits`.
+
+        Returns:
+            tuple: A tuple containing lists of QUA variables and streams.
         """
-        pass    
+        if num_IQ_pairs is None:
+            num_IQ_pairs = len(self.qubits)
+
+        n = declare(int)
+        n_st = declare_stream()
+        I = [declare(fixed) for _ in range(num_IQ_pairs)]
+        Q = [declare(fixed) for _ in range(num_IQ_pairs)]
+        I_st = [declare_stream() for _ in range(num_IQ_pairs)]
+        Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
+        return I, I_st, Q, Q_st, n, n_st
+ 
 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the specified settings."""
