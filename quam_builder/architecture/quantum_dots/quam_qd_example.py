@@ -33,14 +33,16 @@ Workflow:
 from quam.components import (
     StickyChannelAddon, 
     InOutSingleChannel, 
-    DigitalOutputChannel
+    DigitalOutputChannel, 
+    pulses
 ) 
 from quam.components.ports import (
     FEMPortsContainer,
-    LFFEMAnalogOutputPort,      # Concrete implementation
-    MWFEMAnalogOutputPort,      # Concrete implementation
-    MWFEMAnalogInputPort,       # Concrete implementation
-    FEMDigitalOutputPort,       # Concrete implementation
+    LFFEMAnalogOutputPort, 
+    LFFEMAnalogInputPort, 
+    MWFEMAnalogOutputPort,
+    MWFEMAnalogInputPort,
+    FEMDigitalOutputPort,
 )
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate, BarrierGate
@@ -65,32 +67,22 @@ p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", l
 p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
 p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
 p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
-b1 = BarrierGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
-b2 = BarrierGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
-b3 = BarrierGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
+b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
+b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
+b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
 s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
 
 
-resonator = ReadoutResonatorMW(
-    id = "sensor_rf", 
-    opx_output = MWFEMAnalogOutputPort(
-        "con1", 
-        mw_fem, 
-        port_id = 1, 
-        band = 1, 
-        upconverter_frequency = 2e9,
-    ), 
-    opx_input = MWFEMAnalogInputPort(
-        "con1", 
-        mw_fem, 
-        port_id = 1, 
-        downconverter_frequency = 2e9,
-        band = 1
-    ), 
-    intermediate_frequency=75e6,
-    RF_frequency=2.075e9,
+readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
+resonator = ReadoutResonatorSingle(
+    id = "readout_resonator", 
+    frequency_bare=0, 
+    intermediate_frequency=500e6,
+    operations = {"readout": readout_pulse}, 
+    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1), 
+    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2),
+    sticky = StickyChannelAddon(duration = 16, digital = False), 
 )
-
 
 #####################################
 ###### Create Virtual Gate Set ######
@@ -303,6 +295,7 @@ with program() as prog:
             machine.qubit_pairs["Q3_Q4"].step_to_point("some_two_qubit_gate")
             # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
 
+        machine.sensor_dots["virtual_sensor_1"].readout_resonator.measure("readout")
         seq.ramp_to_zero()
 
 

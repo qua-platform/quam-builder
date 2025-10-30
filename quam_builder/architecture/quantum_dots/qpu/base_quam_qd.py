@@ -212,8 +212,11 @@ class BaseQuamQD(QuamRoot):
     ) -> None:
         for ch in barrier_channels: 
             virtual_name = self._get_virtual_name(ch)
-            ch.id = virtual_name
-            self.barrier_gates[virtual_name] = ch.get_reference()
+            barrier_gate = BarrierGate(
+                id = virtual_name, 
+                physical_channel = ch.get_reference(),
+            )
+            self.barrier_gates[virtual_name] = barrier_gate
 
 
     def register_quantum_dot_pair(
