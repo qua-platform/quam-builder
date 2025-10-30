@@ -32,22 +32,16 @@ Workflow:
 
 from quam.components import (
     StickyChannelAddon, 
-    InOutSingleChannel, 
-    DigitalOutputChannel, 
     pulses
 ) 
 from quam.components.ports import (
-    FEMPortsContainer,
     LFFEMAnalogOutputPort, 
     LFFEMAnalogInputPort, 
-    MWFEMAnalogOutputPort,
-    MWFEMAnalogInputPort,
-    FEMDigitalOutputPort,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate, BarrierGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW, ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
 
 
