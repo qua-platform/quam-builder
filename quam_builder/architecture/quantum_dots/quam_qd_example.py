@@ -160,26 +160,26 @@ machine.register_qubit(
 
 # Register the quantum dot pairs
 machine.register_quantum_dot_pair(
-    id = "dot_pair_1",
+    id = "dot1_dot2_pair",
     quantum_dot_ids = ["virtual_dot_1", "virtual_dot_2"], 
     sensor_dot_ids = ["virtual_sensor_1"], 
     barrier_gate_id = "virtual_barrier_2"
 )
 
 machine.register_quantum_dot_pair(
-    id = "dot_pair_2",
+    id = "dot3_dot4_pair",
     quantum_dot_ids = ["virtual_dot_3", "virtual_dot_4"], 
     sensor_dot_ids = ["virtual_sensor_1"],
     barrier_gate_id = "virtual_barrier_3"
 )
 
 # Define the detuning axes for both QuantumDotPairs
-machine.quantum_dot_pairs["dot_pair_1"].define_detuning_axis(
+machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
     matrix = [[1,1],[1,-1]], 
     detuning_axis_name = "dot1_dot2_epsilon"
 )
 
-machine.quantum_dot_pairs["dot_pair_2"].define_detuning_axis(
+machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix = [[1,1],[1,-1]], 
     detuning_axis_name = "dot3_dot4_epsilon"
 )
@@ -283,7 +283,7 @@ with program() as prog:
         with seq.simultaneous(duration = 1000): 
             machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.4)
             machine.quantum_dots["virtual_dot_2"].go_to_voltages(0.2)
-            machine.quantum_dot_pairs["dot_pair_2"].go_to_detuning(0.2)
+            machine.quantum_dot_pairs["dot3_dot4_pair"].go_to_detuning(0.2)
 
         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 

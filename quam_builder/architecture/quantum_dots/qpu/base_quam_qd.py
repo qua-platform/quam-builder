@@ -370,7 +370,8 @@ class BaseQuamQD(QuamRoot):
 
             # Store list of virtual gate names and physical gate names to ensure correct indexing for the VirtualizationLayer
             virtual_gate_names.append(virtual_name)
-            physical_name = f"{virtual_name}_physical"
+            #physical_name = f"{virtual_name}_physical"
+            physical_name = ch.id
             physical_gate_names.append(physical_name)
 
             # Add the channel to self.physical_channels if it does not already exist
