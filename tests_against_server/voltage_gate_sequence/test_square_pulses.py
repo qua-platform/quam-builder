@@ -2,8 +2,17 @@
 Squares (Python) + Ramps (None) + Compensation (max_amplitude=0.45)
 """
 
-from validation_utils import *
+from validation_utils import (
+    simulate_program,
+    validate_program,
+    validate_compensation,
+    validate_durations,
+    validate_keep_levels,
+)
+from conftest import QuamGateSet, QuamVirtualGateSet
 from qm import qua
+from qualang_tools.loops import from_array
+import numpy as np
 
 ###################
 # The QUA program #
@@ -104,3 +113,202 @@ def test_square_pulses_qua(qmm, machine):
         seq.ramp_to_zero()
     qmm, samples = simulate_program(qmm, machine, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
+
+
+def test_python_voltage_sequence(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        with qua.strict_timing_():
+            seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=100)
+            seq.step_to_voltages(voltages={"ch1": 0.2, "ch2": -0.2}, duration=100)
+            seq.step_to_voltages(voltages={"ch1": 0.3, "ch2": -0.3}, duration=100)
+
+        seq.apply_compensation_pulse(max_voltage=0.3)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_python_voltage_sequence_points(qmm, machine: QuamGateSet | QuamVirtualGateSet):
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        machine.gate_set.add_point("init", {"ch1": 0.1, "ch2": -0.2}, duration=2000)
+        machine.gate_set.add_point("init_return", {"ch1": 0, "ch2": 0}, duration=2000)
+
+        qua.align()
+        seq.step_to_point("init")
+        seq.step_to_point("init_return")
+        seq.apply_compensation_pulse(max_voltage=0.2)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(1e4))
+    validate_compensation(samples)
+
+
+def test_qua_voltage_sequence(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed, value=0.1)
+        amplitude_2 = qua.declare(qua.fixed, value=0.2)
+        amplitude_3 = qua.declare(qua.fixed, value=0.3)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_1, "ch2": -amplitude_1}, duration=100
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_2, "ch2": -amplitude_2}, duration=100
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=100
+        )
+        seq.apply_compensation_pulse(max_voltage=0.3)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples, allowed=100.0)
+
+
+def test_qua_voltage_sequence_durations(qmm, machine: QuamGateSet):
+    duration = 100
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed, value=0.1)
+        amplitude_2 = qua.declare(qua.fixed, value=0.2)
+        amplitude_3 = qua.declare(qua.fixed, value=0.3)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_1, "ch2": -amplitude_1}, duration=duration
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_2, "ch2": -amplitude_2}, duration=duration
+        )
+        seq.step_to_voltages(
+            voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=duration
+        )
+        seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    for sample in samples.con1.analog.values():
+        validate_durations(
+            sample, [duration * 2] * 3
+        )  # duration * 2 because we are validating on OPX1k with 2GS/s
+
+
+def test_qua_voltage_sequence_double_loop(
+    qmm, machine: QuamGateSet | QuamVirtualGateSet
+):
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed)
+        amplitude_2 = qua.declare(qua.fixed)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        machine.gate_set.add_point("init", {"ch1": 0.1, "ch2": -0.2}, duration=2000)
+        machine.gate_set.add_point("init_return", {"ch1": 0, "ch2": 0}, duration=2000)
+
+        with qua.for_each_(amplitude_1, [-0.1, 0.1]):
+            with qua.for_each_(amplitude_2, [-0.2, 0.2]):
+                seq.step_to_point("init")
+                seq.step_to_point("init_return")
+                seq.step_to_voltages(
+                    voltages={"ch1": amplitude_1, "ch2": amplitude_2}, duration=2000
+                )
+
+                seq.step_to_point("init_return")
+                seq.step_to_point("init")
+                seq.apply_compensation_pulse(max_voltage=0.2)
+                qua.wait(1000)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(1e5))
+    validate_compensation(samples, allowed=100.0)
+
+
+def test_qua_voltage_sequence_single_loop(
+    qmm, machine: QuamGateSet | QuamVirtualGateSet
+):
+    with qua.program() as program:
+        amplitude_1 = qua.declare(qua.fixed, value=-0.1)
+        amplitude_2 = qua.declare(qua.fixed, value=0.1)
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        machine.gate_set.add_point("init", {"ch1": 0.1, "ch2": -0.2}, duration=2000)
+        machine.gate_set.add_point("init_return", {"ch1": 0, "ch2": 0}, duration=2000)
+        with qua.for_each_(amplitude_2, [-0.2, 0.2]):
+            seq.step_to_point("init")
+            seq.step_to_point("init_return")
+            seq.step_to_voltages(
+                voltages={"ch1": amplitude_1, "ch2": amplitude_2}, duration=2000
+            )
+            seq.step_to_point("init_return")
+            seq.step_to_point("init")
+            seq.apply_compensation_pulse(max_voltage=0.2)
+            qua.wait(1000)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(5e4))
+    validate_compensation(samples, allowed=100.0)
+
+
+def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):
+
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": -0.1, "ch2": -0.1}, duration=100)
+        seq.apply_compensation_pulse(max_voltage=0.3)
+
+    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_python_voltage_sequence_virtual_gates(
+    qmm, virtual_machine: QuamVirtualGateSet
+):
+
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"detuning": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0.2}, duration=100)
+        seq.step_to_voltages(voltages={"detuning": 0.3}, duration=100)
+        seq.apply_compensation_pulse(max_voltage=0.3)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_python_voltage_sequence_virtual_gates_and_elements(
+    qmm, virtual_machine: QuamVirtualGateSet
+):
+    """test that a combination of gates from multiple layers can be combined in step_to_voltages, ramp_to_voltages e.t.c
+    example:
+    seq.step_to_voltages(voltages={"detuning": 0.1, "ch1":0.2}, duration=100)
+    """
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"detuning": 0.1, "ch1": 0.2}, duration=100)
+        seq.apply_compensation_pulse(max_voltage=0.3)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    validate_compensation(samples)
+
+
+def test_keep_levels(qmm, virtual_machine: QuamVirtualGateSet):
+    """ """
+    with qua.program() as program:
+        seq = virtual_machine.virtual_gate_set.new_sequence(
+            track_integrated_voltage=True
+        )
+        seq.step_to_voltages(voltages={"ch1": 0.2}, duration=100)
+        seq.step_to_voltages(voltages={"ch2": 0.1}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.3}, duration=100)
+        seq.step_to_voltages(voltages={"ch2": -0.2}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.0, "ch2": 0.0}, duration=16)
+
+    qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
+    ch1_expected = [to_float_16(0.2)] * 400 + [to_float_16(0.3)] * 400
+    ch2_expected = [to_float_16(0.1)] * 400 + [to_float_16(-0.2)] * 200
+
+    validate_keep_levels(samples.con1.analog["5-6"], ch1_expected)
+    validate_keep_levels(samples.con1.analog["5-3"], ch2_expected)
+
+
+def to_float_16(num):
+    return float(np.float16(num))
