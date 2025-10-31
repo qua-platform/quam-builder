@@ -309,18 +309,10 @@ class KeepLevels:
 
     def __init__(self, gate_set: GateSet | VirtualGateSet):
         self._keep_levels_dict = {}
-        # populate with lowest level channels
-        for channel in gate_set.channels:
+        for channel in gate_set.valid_channel_names:
             self._keep_levels_dict[channel] = SequenceStateTracker(
                 channel, track_integrated_voltage=False
             )
-        # populate with all source gates from all layers
-        if isinstance(gate_set, VirtualGateSet):
-            for layer in gate_set.layers:
-                for source_gate in layer.source_gates:
-                    self._keep_levels_dict[source_gate] = SequenceStateTracker(
-                        source_gate, track_integrated_voltage=False
-                    )
 
     def update_voltage_dict_with_current(
         self, voltages_dict: Dict[str, VoltageLevelType]
