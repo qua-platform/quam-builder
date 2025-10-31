@@ -3,6 +3,7 @@ from quam.core import quam_dataclass
 
 __all__ = ["VoltageGate"]
 
+
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """
@@ -17,11 +18,11 @@ class VoltageGate(SingleChannel):
         >>>
         >>> # Create VoltageGate
         >>> gate = VoltageGate(
-        ...     opx_output = (...), 
-        ...     operations = {...}, 
+        ...     opx_output = (...),
+        ...     operations = {...},
         ...     sticky = ...
         ...     )
-        >>> 
+        >>>
         >>> # Attach e.g. a QCoDeS driver channel to VoltageGate; example shows a QCoDeS driver for QDAC-II
         >>> gate.offset_parameter = QDAC.ch17.dc_constant_V
         >>>
@@ -37,8 +38,8 @@ class VoltageGate(SingleChannel):
 
     @property
     def offset_parameter(self):
-        return self._offset_parameter
+        return self._offset_parameter()
 
     @offset_parameter.setter
     def offset_parameter(self, value):
-        self._offset_parameter = value
+        self._offset_parameter(value)
