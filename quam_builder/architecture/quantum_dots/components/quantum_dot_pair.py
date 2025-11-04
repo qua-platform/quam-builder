@@ -1,7 +1,7 @@
 from typing import Dict, List, TYPE_CHECKING
 from dataclasses import field
 
-from quam.core import quam_dataclass
+from quam.core import quam_dataclass, QuamComponent
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from .quantum_dot import QuantumDot
@@ -9,6 +9,9 @@ from .sensor_dot import SensorDot
 from .barrier_gate import BarrierGate
 from .mixins import VoltageMacroMixin
 from .voltage_gate import VoltageGate
+
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

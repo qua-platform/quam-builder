@@ -376,6 +376,19 @@ class BaseQuamQD(QuamRoot):
             dot_coupling=dot_coupling,
         )
     
+    def get_voltage_sequence(self, gate_set_id: str) -> VoltageSequence:
+        if gate_set_id not in self.voltage_sequences: 
+            gate_set = self.virtual_gate_sets[gate_set_id]
+            seq = gate_set.new_sequence()
+            
+            for qd_id, qd in self.quantum_dots.items(): 
+                if qd.voltage_sequence.gate_set.id == gate_set.id: 
+                    seq.state_trackers[qd.id].current_level = qd.current_voltage
+
+            self.voltage_sequences[gate_set_id] = seq
+        return self.voltage_sequences[gate_set_id]
+    
+
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet: 
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
@@ -439,7 +452,6 @@ class BaseQuamQD(QuamRoot):
             quantum_dot = QuantumDot(
                 id = virtual_name, # Should now be the same as the virtual gate name
                 physical_channel = ch.get_reference(), 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
             )
             self.quantum_dots[virtual_name] = quantum_dot
 
@@ -454,7 +466,6 @@ class BaseQuamQD(QuamRoot):
                 id = virtual_name, 
                 physical_channel = ch.get_reference(), 
                 readout_resonator = res,                 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
                 )
             self.sensor_dots[virtual_name] = sensor_dot
 
@@ -466,11 +477,8 @@ class BaseQuamQD(QuamRoot):
             virtual_name = self._get_virtual_name(ch)
             barrier_gate = BarrierGate(
                 id = virtual_name, 
-                opx_output = ch.opx_output.get_reference(), 
-                attenuation = ch.attenuation, 
-                voltage_sequence = self.voltage_sequences[self._get_virtual_gate_set(ch).id]
+                physical_channel = ch.get_reference(),
             )
-            barrier_gate.offset_parameter = ch.offset_parameter
             self.barrier_gates[virtual_name] = barrier_gate
 
 
@@ -515,9 +523,9 @@ class BaseQuamQD(QuamRoot):
 
         quantum_dot_pair = QuantumDotPair(
             id = id,
-            quantum_dots = [self.quantum_dots[m] for m in qd_names], 
-            barrier_gate = self.barrier_gates[barrier_name] if barrier_gate_id is not None else None, 
-            sensor_dots = [self.sensor_dots[n] for n in sensor_names], 
+            quantum_dots = [self.quantum_dots[m].get_reference() for m in qd_names], 
+            barrier_gate = self.barrier_gates[barrier_name].get_reference() if barrier_gate_id is not None else None, 
+            sensor_dots = [self.sensor_dots[n].get_reference() for n in sensor_names], 
             dot_coupling = dot_coupling
         )
 
@@ -578,9 +586,9 @@ class BaseQuamQD(QuamRoot):
             qubit_pair = LDQubitPair(
                 id = id, 
                 qubit_control = qubit_control.get_reference(), 
-                qubit_target = qubit_target.get_reference()
+                qubit_target = qubit_target.get_reference(), 
+                quantum_dot_pair=self.quantum_dot_pairs[quantum_dot_pair].get_reference()
             )
-            qubit_pair.add_quantum_dot_pair(self.quantum_dot_pairs[quantum_dot_pair])
         
             self.qubit_pairs[id] = qubit_pair
 
