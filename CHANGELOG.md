@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
+### Fixed
+- NV center - fix invalid `SPCM` component.
 
 ## [0.2.0] - 2025-10-29
 ### Added
