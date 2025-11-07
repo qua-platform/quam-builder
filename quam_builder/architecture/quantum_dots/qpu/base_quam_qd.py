@@ -142,6 +142,27 @@ class BaseQuamQD(QuamRoot):
             raise ValueError(f"Channel {channel.id} not found in any VirtualGateSet")
         return virtual_gate_set
     
+    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+        """
+        Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
+        
+        Args: 
+            name: The name of the object
+        """
+        collections = [
+            self.qubits, 
+            self.quantum_dots, 
+            self.sensor_dots, 
+            self.barrier_gates, 
+            self.quantum_dot_pairs, 
+            self.qubit_pairs
+        ]
+        for collection in collections: 
+            if name in collection: 
+                return collection[name]
+    
+        raise ValueError(f"Element {name} not found in Quam")
+    
     def _get_virtual_name(self, channel: Channel) -> str: 
         """Return the name of the virtual gate associated with e particular output channel"""
         vgs_name = None
