@@ -7,6 +7,7 @@ from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
+from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -15,7 +16,7 @@ __all__ = ["QuantumDotPair"]
 
 
 @quam_dataclass
-class QuantumDotPair(QuamComponent):
+class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
 
     """
     Class representing a Quantum Dot Pair. 
@@ -94,44 +95,9 @@ class QuantumDotPair(QuamComponent):
         """Steps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration)
     
-    def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16): 
+    def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16):
         """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
 
-    def add_point(self, point_name:str, voltages: Dict[str, float], duration: int = 16, replace_existing_point: bool = False) -> None: 
-        """
-        Method to add point to the VirtualGateSet for the quantum dot pair.
-
-        Args: 
-            point_name (str): The name of the point in the VirtualGateSet
-            voltages (Dict[str, float]): A dictionary of the associated voltages. This will NOT be able to read qubit names. 
-            duration (int): The duration which to hold the point. 
-            replace_existing_point (bool): If the point_name is the same as a previously added point, choose whether to replace old point. Will raise an error if False. 
-        """
-
-        gate_set = self.voltage_sequence.gate_set
-        existing_points = gate_set.get_macros()
-        name_in_sequence = f"{self.id}_{point_name}"
-        if name_in_sequence in existing_points and not replace_existing_point: 
-            raise ValueError(f"Point name {point_name} already exists for quantum dot pair {self.id}. If you would like to replace, please set replace_existing_point = True")
-        self.points[point_name] = voltages
-        gate_set.add_point(
-            name = name_in_sequence, 
-            voltages = voltages, 
-            duration = duration
-        )
-        
-    def step_to_point(self, point_name: str, duration:int = 16) -> None: 
-        """Step to a point registered for the quantum dot pair"""
-        if point_name not in self.points: 
-            raise ValueError(f"Point {point_name} not in registered points: {list(self.points.keys())}")
-        name_in_sequence = f"{self.id}_{point_name}"
-        return self.voltage_sequence.step_to_point(name = name_in_sequence, duration = duration)
-    
-    def ramp_to_point(self, point_name: str, ramp_duration:int,  duration:int = 16) -> None: 
-        """Ramp to a point registered for the quantum dot pair"""
-        if point_name not in self.points: 
-            raise ValueError(f"Point {point_name} not in registered points: {list(self.points.keys())}")
-        name_in_sequence = f"{self.id}_{point_name}"
-        return self.voltage_sequence.ramp_to_point(name = name_in_sequence, duration = duration, ramp_duration=ramp_duration)
+    # Voltage point macro methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 

@@ -83,7 +83,7 @@ class TestBarrierGateVoltageMethods:
         )
 
         with pytest.raises(
-            RuntimeError, match="QuantumDot.*has no VoltageSequence"
+            RuntimeError, match="BarrierGate.*has no VoltageSequence"
         ):
             with qua.program() as prog:
                 standalone_barrier.step_to_voltages(0.1)
