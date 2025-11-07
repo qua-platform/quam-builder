@@ -20,6 +20,7 @@ from .virtual_gate_set import *
 from .virtual_dc_set import *
 from .global_gate import *
 from .gate_set import *
+from .macros import *
 
 from .quantum_dot import *
 from .readout_resonator import *

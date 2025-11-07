@@ -65,7 +65,6 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
         if self.quantum_dot_pair is None:
             raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.voltage_sequence
-
     @property
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
