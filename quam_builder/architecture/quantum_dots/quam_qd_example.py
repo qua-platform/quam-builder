@@ -57,14 +57,14 @@ mw_fem = 1
 ###### Instantiate Physical Channels ######
 ###########################################
 
-p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False))
-p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
-p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
-p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
-b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
-b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
-b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
-s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
+p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
+s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8, shareable=True), sticky = StickyChannelAddon(duration = 16, digital = False))
 
 
 readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
@@ -73,8 +73,8 @@ resonator = ReadoutResonatorSingle(
     frequency_bare=0, 
     intermediate_frequency=500e6,
     operations = {"readout": readout_pulse}, 
-    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1), 
-    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2),
+    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1, shareable=True), 
+    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2, shareable=True),
     sticky = StickyChannelAddon(duration = 16, digital = False), 
 )
 
