@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
+  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 ### Fixed
 - NV center - fix invalid `SPCM` component.
 
