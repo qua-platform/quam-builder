@@ -85,25 +85,36 @@ class BaseQuam(QuamRoot):
                 octave_config = octave.get_octave_config()
         return octave_config
 
-    def _get_connection_settings(self, qmm_class: type) -> dict:
-        """Prepare connection settings for the QMM.
+    def _is_custom_qmm(self, qmm_class: type) -> bool:
+        """Check if the QMM class is a custom QMM.
+
+        Checks if the QMM class is not the default QuantumMachinesManager.
 
         Args:
-            qmm_class: The QMM class being used for connection.
+            qmm_class: The QMM class to check.
 
         Returns:
-            dict: Connection settings dictionary.
+            bool: True if using custom QMM, False if using default
+                QuantumMachinesManager.
+        """
+        return qmm_class is not QuantumMachinesManager
+
+    def _get_default_qmm_settings(self) -> dict:
+        """Build connection settings for the default QuantumMachinesManager.
+
+        This method only uses the standard fields (host, cluster_name,
+        octave config, port) and completely ignores any `qmm_settings` that
+        may be present in the network config.
+
+        Returns:
+            dict: Connection settings dictionary with host, cluster_name,
+                octave (if available), and port (if specified).
 
         Raises:
-            ValueError: If required network fields are missing.
+            ValueError: If required network fields (host, cluster_name)
+                are missing.
         """
-        if "qmm_settings" in self.network:
-            settings = dict(self.network["qmm_settings"])
-            logger.debug("Using custom qmm_settings for connection")
-
-            return settings
-
-        # Build default settings from network configuration
+        # Validate required fields
         required_fields = ["host", "cluster_name"]
         for field_name in required_fields:
             if field_name not in self.network:
@@ -123,25 +134,71 @@ class BaseQuam(QuamRoot):
         if "port" in self.network:
             settings["port"] = self.network["port"]
 
-        logger.debug(f"Using default settings for {qmm_class.__name__}")
+        logger.debug("Using default QuantumMachinesManager settings")
+
+        return settings
+
+    def _get_custom_qmm_settings(self) -> dict:
+        """Get connection settings for a custom QMM class.
+
+        This method requires `qmm_settings` to be present in the network configuration
+        and returns it directly without merging with any default fields.
+
+        Returns:
+            dict: Connection settings dictionary from `qmm_settings`.
+
+        Raises:
+            ValueError: If `qmm_settings` is not present in network configuration.
+        """
+        if "qmm_settings" not in self.network:
+            raise ValueError(
+                "qmm_settings is required for custom QMM but is not "
+                "specified in network configuration"
+            )
+
+        settings = dict(self.network["qmm_settings"])
+        logger.debug("Using custom qmm_settings for connection")
 
         return settings
 
     def _get_qmm_class(self) -> type:
         """Resolve and return the QMM class to use for connection.
 
+        The method checks the `use_custom_qmm` flag in the network configuration:
+        - If `use_custom_qmm` is True: requires `qmm_class` to be present
+        - If `use_custom_qmm` is False: always returns default QuantumMachinesManager
+        - If `use_custom_qmm` is undefined: checks if `qmm_class` exists
+          - If `qmm_class` exists: uses the custom QMM class
+          - If `qmm_class` doesn't exist: uses default QuantumMachinesManager
+
         Returns:
             type: The QMM class to instantiate.
 
         Raises:
-            ValueError: If qmm_class specification is invalid.
+            ValueError: If qmm_class specification is invalid or missing when required.
             ImportError: If the specified QMM module cannot be imported.
             AttributeError: If the specified QMM class doesn't exist.
         """
-        # Use default QMM class if no custom class specified
+        use_custom_qmm = self.network.get("use_custom_qmm")
+
+        # If flag is explicitly False, always use default QMM
+        if use_custom_qmm is False:
+            return QuantumMachinesManager
+
+        # If flag is True, require qmm_class to be present
+        if use_custom_qmm is True:
+            if "qmm_class" not in self.network:
+                raise ValueError(
+                    "use_custom_qmm is True but qmm_class is not specified "
+                    "in network configuration"
+                )
+
+        # If flag is undefined, check if qmm_class exists
+        # If no qmm_class, use default QMM
         if "qmm_class" not in self.network:
             return QuantumMachinesManager
 
+        # Import and return custom QMM class
         qmm_path = self.network["qmm_class"]
         if not isinstance(qmm_path, str) or not qmm_path.strip():
             raise ValueError(f"Invalid qmm_class specification: {qmm_path}")
@@ -175,15 +232,23 @@ class BaseQuam(QuamRoot):
         """Open a Quantum Machine Manager with credentials from network config.
 
         The method supports both standard QuantumMachinesManager and custom QMM
-        classes (e.g., CloudQuantumMachinesManager). Connection parameters can be
-        specified either through 'qmm_settings' for full control or through
-        individual fields.
+        classes (e.g., CloudQuantumMachinesManager). The QMM class selection is
+        controlled by the `use_custom_qmm` flag in the network configuration:
+
+        - If `use_custom_qmm` is True: requires both `qmm_class` and `qmm_settings`
+        - If `use_custom_qmm` is False: always uses default QuantumMachinesManager
+        - If `use_custom_qmm` is undefined: checks for `qmm_class` presence
+          - If `qmm_class` exists: uses custom QMM with `qmm_settings`
+          - If `qmm_class` doesn't exist: uses default QuantumMachinesManager
 
         For the standard QuantumMachinesManager, the following fields are needed:
         - host: The host of the Quantum Machine Manager, e.g. "192.168.1.1"
         - cluster_name: The cluster name of the QM system, e.g. "Cluster_1"
         - port (optional): The port of the Quantum Machine Manager, e.g. 50000
           This is typically not needed.
+
+        For custom QMM classes, `qmm_settings` must be provided with all required
+        connection parameters.
 
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
@@ -203,7 +268,13 @@ class BaseQuam(QuamRoot):
         # Resolve QMM class and prepare connection settings
         try:
             qmm_class = self._get_qmm_class()
-            settings = self._get_connection_settings(qmm_class)
+            is_custom = self._is_custom_qmm(qmm_class)
+
+            # Get settings based on QMM type
+            if is_custom:
+                settings = self._get_custom_qmm_settings()
+            else:
+                settings = self._get_default_qmm_settings()
 
             # Attempt to create and connect QMM
             host = settings.get("host", "unknown host")
