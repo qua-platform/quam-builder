@@ -8,7 +8,7 @@ from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pair_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
-    add_transmon_drive_component,
+    add_transmon_drive_component, add_transmon_reset_component
 )
 from quam_builder.builder.superconducting.add_transmon_flux_component import (
     add_transmon_flux_component,
@@ -105,6 +105,8 @@ def add_transmons(machine: AnyQuam):
                         add_transmon_resonator_component(transmon, wiring_path, ports)
                     elif line_type == WiringLineType.DRIVE.value:
                         add_transmon_drive_component(transmon, wiring_path, ports)
+                    elif line_type == WiringLineType.RESET.value:
+                        add_transmon_reset_component(transmon, wiring_path, ports)
                     elif line_type == WiringLineType.FLUX.value:
                         add_transmon_flux_component(transmon, wiring_path, ports)
                     else:

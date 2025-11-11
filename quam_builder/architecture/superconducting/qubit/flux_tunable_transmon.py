@@ -1,9 +1,10 @@
-from quam.core import quam_dataclass
+from typing import Union
 
-from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
-    FixedFrequencyTransmon,
-)
 from quam_builder.architecture.superconducting.components.flux_line import FluxLine
+from quam_builder.architecture.superconducting.components.reset_drive import ResetIQ, ResetMW
+from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import FixedFrequencyTransmon
+
+from quam.core import quam_dataclass
 
 __all__ = ["FluxTunableTransmon"]
 
@@ -25,3 +26,12 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
     freq_vs_flux_01_quad_term: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
+
+
+@quam_dataclass
+class FluxTunableTransmonReset(FluxTunableTransmon):
+    """
+    Example QUAM component for a flux tunable transmon qubit with reset capabilities.
+    """
+
+    f0g1: Union[ResetIQ, ResetMW] = None

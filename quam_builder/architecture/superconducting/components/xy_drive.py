@@ -1,16 +1,15 @@
 from typing import Optional
 
-from quam.core import quam_dataclass
-from quam.components.channels import IQChannel, MWChannel
-
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
-    set_output_power_mw_channel,
+    get_output_power_iq_channel,
     get_output_power_mw_channel,
     set_output_power_iq_channel,
-    get_output_power_iq_channel,
+    set_output_power_mw_channel,
 )
 
+from quam.components.channels import IQChannel, MWChannel
+from quam.core import quam_dataclass
 
 __all__ = ["XYDriveIQ", "XYDriveMW"]
 
@@ -22,9 +21,7 @@ class XYDriveBase:
     """
 
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -92,9 +89,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass
@@ -104,7 +99,11 @@ class XYDriveMW(MWChannel, XYDriveBase):
     @property
     def upconverter_frequency(self):
         """Returns the up-converter/LO frequency in Hz."""
-        return self.opx_output.upconverter_frequency
+        return (
+            self.opx_output.upconverter_frequency
+            if self.opx_output.upconverter_frequency is not None
+            else super().upconverter_frequency
+        )
 
     def get_output_power(self, operation, Z=50) -> float:
         """
@@ -140,6 +139,4 @@ class XYDriveMW(MWChannel, XYDriveBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(
-            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
-        )
+        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)

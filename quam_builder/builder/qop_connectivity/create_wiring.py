@@ -37,6 +37,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.FLUX,
                 WiringLineType.LASER,
                 WiringLineType.SPCM,
+                WiringLineType.RESET,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
                     set_nested_value_with_path(

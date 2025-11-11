@@ -3,6 +3,7 @@ from qualang_tools.units import unit
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
     FluxTunableTransmon,
+    FluxTunableTransmonReset,
 )
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
@@ -262,7 +263,7 @@ def add_Square_pulses(
 
 
 def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
+    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon, FluxTunableTransmonReset]
 ):
     """Adds default pulses to a transmon qubit:
         * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
@@ -275,6 +276,11 @@ def add_default_transmon_pulses(
     if hasattr(transmon, "xy"):
         if transmon.xy is not None:
             transmon.xy.operations["saturation"] = pulses.SquarePulse(
+                amplitude=0.25, length=20 * u.us, axis_angle=0
+            )
+    if hasattr(transmon, "f0g1"):
+        if transmon.f0g1 is not None:
+            transmon.f0g1.operations["saturation"] = pulses.SquarePulse(
                 amplitude=0.25, length=20 * u.us, axis_angle=0
             )
 
