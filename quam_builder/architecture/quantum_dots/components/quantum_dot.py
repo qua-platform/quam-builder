@@ -57,8 +57,6 @@ class QuantumDot(VoltageMacroMixin):
     charge_number: int = 0
     current_voltage: float = 0.0
 
-    points: Dict[str, Dict[str, float]] = field(default_factory = dict)
-
     @property
     def name(self) -> str:
         return self.id if isinstance(self.id, str) else f"dot{self.id}"

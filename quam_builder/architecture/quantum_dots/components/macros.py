@@ -8,6 +8,8 @@ to reduce code duplication across quantum dot components.
 from typing import Dict, TYPE_CHECKING
 from dataclasses import field
 
+from quam.core import quam_dataclass
+
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
 __all__ = ["VoltagePointMacroMixin"]
 
 
+@quam_dataclass
 class VoltagePointMacroMixin:
     """
     Mixin class providing voltage point macro methods for quantum dot components.
@@ -25,7 +28,6 @@ class VoltagePointMacroMixin:
     Classes using this mixin must provide:
         - voltage_sequence: Property returning the VoltageSequence instance
         - id: Attribute identifying the component (used for naming points)
-        - points: Dict attribute to store point definitions (Dict[str, Dict[str, float]])
 
     Optional attributes/methods for customization:
         - _get_point_name_prefix(): Method to customize the prefix for point names
@@ -49,9 +51,9 @@ class VoltagePointMacroMixin:
                 ...
     """
 
-    # This will be provided by the class using the mixin
+    # Attributes that must be provided by the class using the mixin
     id: str
-    points: Dict[str, Dict[str, float]]
+    points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     @property
     def voltage_sequence(self) -> "VoltageSequence":
@@ -107,6 +109,30 @@ class VoltagePointMacroMixin:
                 "Ensure that the VoltageSequence is mapped to the relevant QUAM voltage_sequence."
             )
 
+    def _validate_component_id_in_gate_set(self, component_id: str) -> None:
+        """
+        Validate that the component_id exists in the voltage sequence's gate set.
+
+        For pairs (QuantumDotPair, LDQubitPair), this checks if the detuning axis
+        has been defined before voltage operations are attempted.
+
+        Args:
+            component_id: The gate/component id to validate
+
+        Raises:
+            ValueError: If the component_id is not found in the gate set
+        """
+        gate_set = self.voltage_sequence.gate_set
+        valid_channel_names = gate_set.valid_channel_names
+
+        if component_id not in valid_channel_names:
+            component_name = self.__class__.__name__
+
+            raise ValueError(
+                f"{component_name} {self.id}: Component id '{component_id}' not found in gate set. "
+                f"Valid channel names: {list(valid_channel_names)}"
+            )
+
     def _process_voltages_for_gate_set(
         self, voltages: Dict[str, float]
     ) -> Dict[str, float]:
@@ -140,6 +166,16 @@ class VoltagePointMacroMixin:
     # Direct Voltage Methods
     # ========================================================================
 
+    def _go_to_voltages(self, voltage: float) -> dict[str, float]:
+        self._validate_voltage_sequence()
+        component_id = self._get_component_id_for_voltages()
+        self._validate_component_id_in_gate_set(component_id)
+
+        # Allow subclasses to track current voltage if needed
+        if hasattr(self, "_update_current_voltage"):
+            self._update_current_voltage(voltage)
+        return {component_id: voltage}
+
     def go_to_voltages(self, voltage: float, duration: int = 16) -> None:
         """
         Agnostic function to set voltage in a sequence.simultaneous block.
@@ -151,9 +187,8 @@ class VoltagePointMacroMixin:
             voltage: Target voltage in volts
             duration: Duration to hold the voltage in nanoseconds (default: 16)
         """
-        self._validate_voltage_sequence()
-        component_id = self._get_component_id_for_voltages()
-        target_voltages = {component_id: voltage}
+
+        target_voltages = self._go_to_voltages(voltage)
         return self.voltage_sequence.step_to_voltages(
             target_voltages, duration=duration
         )
@@ -166,13 +201,7 @@ class VoltagePointMacroMixin:
             voltage: Target voltage in volts
             duration: Duration to hold the voltage in nanoseconds (default: 16)
         """
-        self._validate_voltage_sequence()
-        component_id = self._get_component_id_for_voltages()
-        target_voltages = {component_id: voltage}
-
-        # Allow subclasses to track current voltage if needed
-        if hasattr(self, "_update_current_voltage"):
-            self._update_current_voltage(voltage)
+        target_voltages = self._go_to_voltages(voltage)
 
         return self.voltage_sequence.step_to_voltages(
             target_voltages, duration=duration
@@ -189,13 +218,7 @@ class VoltagePointMacroMixin:
             ramp_duration: Duration of the ramp in nanoseconds
             duration: Duration to hold the final voltage in nanoseconds (default: 16)
         """
-        self._validate_voltage_sequence()
-        component_id = self._get_component_id_for_voltages()
-        target_voltages = {component_id: voltage}
-
-        # Allow subclasses to track current voltage if needed
-        if hasattr(self, "_update_current_voltage"):
-            self._update_current_voltage(voltage)
+        target_voltages = self._go_to_voltages(voltage)
 
         return self.voltage_sequence.ramp_to_voltages(
             target_voltages, ramp_duration=ramp_duration, duration=duration
@@ -253,6 +276,19 @@ class VoltagePointMacroMixin:
             name=name_in_sequence, voltages=processed_voltages, duration=duration
         )
 
+    def _validate_point_name(self, point_name: str) -> str:
+        if point_name not in self.points:
+            component_type = self.__class__.__name__
+            name_prefix = self._get_point_name_prefix()
+            raise ValueError(
+                f"Point {point_name} not in registered points for {component_type} {name_prefix}: "
+                f"{list(self.points.keys())}"
+            )
+
+        name_in_sequence = f"{self._get_point_name_prefix()}_{point_name}"
+
+        return name_in_sequence
+
     def step_to_point(self, point_name: str, duration: int = 16) -> None:
         """
         Step to a pre-defined voltage point.
@@ -264,15 +300,7 @@ class VoltagePointMacroMixin:
         Raises:
             ValueError: If the point has not been registered
         """
-        if point_name not in self.points:
-            component_type = self.__class__.__name__
-            name_prefix = self._get_point_name_prefix()
-            raise ValueError(
-                f"Point {point_name} not in registered points for {component_type} {name_prefix}: "
-                f"{list(self.points.keys())}"
-            )
-
-        name_in_sequence = f"{self._get_point_name_prefix()}_{point_name}"
+        name_in_sequence = self._validate_point_name(point_name)
         return self.voltage_sequence.step_to_point(
             name=name_in_sequence, duration=duration
         )
@@ -291,15 +319,8 @@ class VoltagePointMacroMixin:
         Raises:
             ValueError: If the point has not been registered
         """
-        if point_name not in self.points:
-            component_type = self.__class__.__name__
-            name_prefix = self._get_point_name_prefix()
-            raise ValueError(
-                f"Point {point_name} not in registered points for {component_type} {name_prefix}: "
-                f"{list(self.points.keys())}"
-            )
 
-        name_in_sequence = f"{self._get_point_name_prefix()}_{point_name}"
+        name_in_sequence = self._validate_point_name(point_name)
         return self.voltage_sequence.ramp_to_point(
             name=name_in_sequence, duration=duration, ramp_duration=ramp_duration
         )
