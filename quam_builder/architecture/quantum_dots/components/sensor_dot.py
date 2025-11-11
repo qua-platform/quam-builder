@@ -5,6 +5,7 @@ from qm import QuantumMachine
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 
+from pygments.lexer import default
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
