@@ -43,7 +43,6 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
     dot_coupling: float = 0.0
 
     detuning_axis_name: str = ""
-    points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     def __post_init__(self): 
         if isinstance(self.quantum_dots[0], str): 
@@ -98,6 +97,15 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
     def ramp_to_detuning(self, voltage:float, ramp_duration: int, duration:int = 16):
         """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages({self.detuning_axis_name: voltage}, duration = duration, ramp_duration = ramp_duration)
+
+    def _get_component_id_for_voltages(self) -> str:
+        """
+        Override to use the detuning axis for voltage operations on the pair.
+
+        Returns:
+            str: The detuning axis name to use for voltage operations
+        """
+        return self.detuning_axis_name
 
     # Voltage point macro methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 

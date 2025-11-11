@@ -1,5 +1,4 @@
 import numpy as np
-from dataclasses import field
 from typing import Dict, Union, Tuple, Optional, List, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
@@ -52,8 +51,6 @@ class QuantumDot(QuamComponent, VoltagePointMacroMixin):
     physical_channel: VoltageGate
     charge_number: int = 0
     current_voltage: float = 0.0
-
-    points: Dict[str, Dict[str, float]] = field(default_factory = dict)
 
     @property
     def name(self) -> str: 

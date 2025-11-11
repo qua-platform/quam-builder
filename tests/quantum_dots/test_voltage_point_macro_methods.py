@@ -88,6 +88,97 @@ class TestBarrierGateVoltageMethods:
             with qua.program() as prog:
                 standalone_barrier.step_to_voltages(0.1)
 
+    def test_barrier_gate_add_point(self, machine):
+        """Test BarrierGate.add_point method."""
+        barrier = machine.barrier_gates["virtual_barrier_1"]
+
+        voltages = {
+            "virtual_barrier_1": 0.4,
+            "virtual_dot_1": 0.1,
+            "virtual_dot_2": 0.15,
+        }
+        barrier.add_point(point_name="barrier_point", voltages=voltages, duration=100)
+
+        # Verify point is stored internally
+        assert "barrier_point" in barrier.points
+        assert barrier.points["barrier_point"] == voltages
+
+        # Verify point is added to gate_set
+        gate_set = barrier.voltage_sequence.gate_set
+        expected_name = f"{barrier.id}_barrier_point"
+        assert expected_name in gate_set.macros
+
+    def test_barrier_gate_add_point_duplicate_error(self, machine):
+        """Test that adding a duplicate point raises an error for BarrierGate."""
+        barrier = machine.barrier_gates["virtual_barrier_2"]
+
+        voltages = {"virtual_barrier_2": 0.45}
+        barrier.add_point(point_name="duplicate_barrier", voltages=voltages, duration=100)
+
+        with pytest.raises(ValueError, match="already exists"):
+            barrier.add_point(point_name="duplicate_barrier", voltages=voltages, duration=100)
+
+    def test_barrier_gate_add_point_replace_existing(self, machine):
+        """Test replacing an existing point for BarrierGate."""
+        barrier = machine.barrier_gates["virtual_barrier_3"]
+
+        voltages_old = {"virtual_barrier_3": 0.3}
+        voltages_new = {"virtual_barrier_3": 0.5}
+
+        barrier.add_point(point_name="replaceable_barrier", voltages=voltages_old, duration=100)
+        barrier.add_point(
+            point_name="replaceable_barrier",
+            voltages=voltages_new,
+            duration=200,
+            replace_existing_point=True,
+        )
+
+        assert barrier.points["replaceable_barrier"] == voltages_new
+
+    def test_barrier_gate_step_to_point(self, machine):
+        """Test BarrierGate.step_to_point method."""
+        barrier = machine.barrier_gates["virtual_barrier_1"]
+
+        voltages = {"virtual_barrier_1": 0.35, "virtual_dot_1": 0.2}
+        barrier.add_point(point_name="barrier_step_point", voltages=voltages, duration=100)
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            barrier.step_to_point("barrier_step_point", duration=100)
+
+        # Verify no errors
+
+    def test_barrier_gate_step_to_point_not_found(self, machine):
+        """Test that stepping to a non-existent point raises an error for BarrierGate."""
+        barrier = machine.barrier_gates["virtual_barrier_2"]
+
+        with pytest.raises(ValueError, match="not in registered points"):
+            with qua.program() as prog:
+                seq = machine.voltage_sequences["main_qpu"]
+                barrier.step_to_point("nonexistent_barrier", duration=100)
+
+    def test_barrier_gate_ramp_to_point(self, machine):
+        """Test BarrierGate.ramp_to_point method."""
+        barrier = machine.barrier_gates["virtual_barrier_3"]
+
+        voltages = {"virtual_barrier_3": 0.42, "virtual_dot_3": 0.25}
+        barrier.add_point(point_name="barrier_ramp_point", voltages=voltages, duration=100)
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            barrier.ramp_to_point("barrier_ramp_point", ramp_duration=500, duration=16)
+
+        # Verify no errors
+
+    def test_barrier_gate_ramp_to_point_not_found(self, machine):
+        """Test that ramping to a non-existent point raises an error for BarrierGate."""
+        barrier = machine.barrier_gates["virtual_barrier_1"]
+
+        with pytest.raises(ValueError, match="not in registered points"):
+            with qua.program() as prog:
+                seq = machine.voltage_sequences["main_qpu"]
+                barrier.ramp_to_point("nonexistent_barrier", ramp_duration=500, duration=16)
+
 
 # ============================================================================
 # QuantumDot Tests
@@ -228,6 +319,55 @@ class TestQuantumDotVoltageMethods:
 class TestQuantumDotPairVoltageMethods:
     """Tests for QuantumDotPair voltage point methods."""
 
+    def test_quantum_dot_pair_go_to_voltages(self, machine):
+        """Test QuantumDotPair.go_to_voltages method."""
+        pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+        seq = machine.voltage_sequences["main_qpu"]
+
+        # Define detuning axis for the pair if not already defined
+        try:
+            pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            with seq.simultaneous(duration=100):
+                pair.go_to_voltages(0.2, duration=16)
+
+        assert pair is not None
+
+    def test_quantum_dot_pair_step_to_voltages(self, machine):
+        """Test QuantumDotPair.step_to_voltages method."""
+        pair = machine.quantum_dot_pairs["dot3_dot4_pair"]
+
+        # Define detuning axis for the pair if not already defined
+        try:
+            pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            pair.step_to_voltages(0.25, duration=100)
+
+        assert pair is not None
+
+    def test_quantum_dot_pair_ramp_to_voltages(self, machine):
+        """Test QuantumDotPair.ramp_to_voltages method."""
+        pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+
+        # Define detuning axis for the pair if not already defined
+        try:
+            pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            pair.ramp_to_voltages(0.3, ramp_duration=500, duration=16)
+
+        assert pair is not None
+
     def test_quantum_dot_pair_add_point(self, machine):
         """Test QuantumDotPair.add_point method."""
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
@@ -257,6 +397,23 @@ class TestQuantumDotPairVoltageMethods:
 
         with pytest.raises(ValueError, match="already exists"):
             pair.add_point(point_name="duplicate_pair", voltages=voltages, duration=100)
+
+    def test_quantum_dot_pair_add_point_replace_existing(self, machine):
+        """Test replacing an existing point for QuantumDotPair."""
+        pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+
+        voltages_old = {"virtual_dot_1": 0.1, "virtual_dot_2": 0.1}
+        voltages_new = {"virtual_dot_1": 0.2, "virtual_dot_2": 0.2}
+
+        pair.add_point(point_name="replaceable_pair", voltages=voltages_old, duration=100)
+        pair.add_point(
+            point_name="replaceable_pair",
+            voltages=voltages_new,
+            duration=200,
+            replace_existing_point=True,
+        )
+
+        assert pair.points["replaceable_pair"] == voltages_new
 
     def test_quantum_dot_pair_step_to_point(self, machine):
         """Test QuantumDotPair.step_to_point method."""
@@ -375,6 +532,23 @@ class TestLDQubitVoltageMethods:
                 point_name="duplicate_qubit", voltages=voltages, duration=100
             )
 
+    def test_ld_qubit_add_point_replace_existing(self, machine):
+        """Test replacing an existing point for LDQubit."""
+        qubit = machine.qubits["Q3"]
+
+        voltages_old = {"Q3": 0.1}
+        voltages_new = {"Q3": 0.3}
+
+        qubit.add_point(point_name="replaceable_qubit", voltages=voltages_old, duration=100)
+        qubit.add_point(
+            point_name="replaceable_qubit",
+            voltages=voltages_new,
+            duration=200,
+            replace_existing_point=True,
+        )
+
+        assert qubit.points["replaceable_qubit"] == voltages_new
+
     def test_ld_qubit_step_to_point(self, machine):
         """Test LDQubit.step_to_point method."""
         qubit = machine.qubits["Q1"]
@@ -428,6 +602,55 @@ class TestLDQubitVoltageMethods:
 class TestLDQubitPairVoltageMethods:
     """Tests for LDQubitPair voltage point methods."""
 
+    def test_ld_qubit_pair_go_to_voltages(self, machine):
+        """Test LDQubitPair.go_to_voltages method (delegates to quantum_dot_pair)."""
+        qubit_pair = machine.qubit_pairs["Q1_Q2"]
+        seq = machine.voltage_sequences["main_qpu"]
+
+        # Define detuning axis for the pair via the quantum_dot_pair if not already defined
+        try:
+            qubit_pair.quantum_dot_pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            with seq.simultaneous(duration=100):
+                qubit_pair.go_to_voltages(0.3, duration=16)
+
+        assert qubit_pair is not None
+
+    def test_ld_qubit_pair_step_to_voltages(self, machine):
+        """Test LDQubitPair.step_to_voltages method (delegates to quantum_dot_pair)."""
+        qubit_pair = machine.qubit_pairs["Q3_Q4"]
+
+        # Define detuning axis for the pair via the quantum_dot_pair if not already defined
+        try:
+            qubit_pair.quantum_dot_pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            qubit_pair.step_to_voltages(0.25, duration=100)
+
+        assert qubit_pair is not None
+
+    def test_ld_qubit_pair_ramp_to_voltages(self, machine):
+        """Test LDQubitPair.ramp_to_voltages method (delegates to quantum_dot_pair)."""
+        qubit_pair = machine.qubit_pairs["Q1_Q2"]
+
+        # Define detuning axis for the pair via the quantum_dot_pair if not already defined
+        try:
+            qubit_pair.quantum_dot_pair.define_detuning_axis(matrix=[[1, 1], [1, -1]])
+        except ValueError:
+            pass  # Already defined
+
+        with qua.program() as prog:
+            seq = machine.voltage_sequences["main_qpu"]
+            qubit_pair.ramp_to_voltages(0.35, ramp_duration=500, duration=16)
+
+        assert qubit_pair is not None
+
     def test_ld_qubit_pair_add_point_with_qubit_names(self, machine):
         """Test LDQubitPair.add_point with qubit names in voltages dict."""
         qubit_pair = machine.qubit_pairs["Q1_Q2"]
@@ -464,6 +687,23 @@ class TestLDQubitPairVoltageMethods:
             qubit_pair.add_point(
                 point_name="duplicate_qubit_pair", voltages=voltages, duration=100
             )
+
+    def test_ld_qubit_pair_add_point_replace_existing(self, machine):
+        """Test replacing an existing point for LDQubitPair."""
+        qubit_pair = machine.qubit_pairs["Q1_Q2"]
+
+        voltages_old = {"Q1": 0.1, "Q2": 0.1}
+        voltages_new = {"Q1": 0.3, "Q2": 0.3}
+
+        qubit_pair.add_point(point_name="replaceable_qubit_pair", voltages=voltages_old, duration=100)
+        qubit_pair.add_point(
+            point_name="replaceable_qubit_pair",
+            voltages=voltages_new,
+            duration=200,
+            replace_existing_point=True,
+        )
+
+        assert qubit_pair.points["replaceable_qubit_pair"] == voltages_new
 
     def test_ld_qubit_pair_step_to_point(self, machine):
         """Test LDQubitPair.step_to_point method."""

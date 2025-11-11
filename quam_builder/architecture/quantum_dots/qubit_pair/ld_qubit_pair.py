@@ -4,11 +4,17 @@ from dataclasses import field
 from quam.core import quam_dataclass
 from quam.components import QubitPair
 
-from quam_builder.architecture.quantum_dots.components import QuantumDotPair, BarrierGate, SensorDot
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components import (
+    QuantumDotPair,
+    BarrierGate,
+    SensorDot,
+)
+from quam_builder.architecture.quantum_dots.components.macros import (
+    VoltagePointMacroMixin,
+)
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
-if TYPE_CHECKING: 
+if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["LDQubitPair"]
@@ -17,19 +23,19 @@ __all__ = ["LDQubitPair"]
 @quam_dataclass
 class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     """
-    Class representing a Loss-DiVincenzo Qubit Pair. 
+    Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.
 
-    Attributes: 
+    Attributes:
         qubit_control (LDQubit): The first Loss-DiVincenzo Qubit instance
         qubit_target (LDQubit): The second Loss-DiVincenzo Qubit instance
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
-    Methods: 
+    Methods:
         add_quantum_dot_pair: Adds the QuantumDotPair associated with the Qubit instances.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names 
-        step_to_point: Steps to a pre-defined point in the internal points dict. 
-        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        step_to_point: Steps to a pre-defined point in the internal points dict.
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
 
     id: Union[str, int]
@@ -39,24 +45,22 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     quantum_dot_pair: QuantumDotPair = None
 
-    points: Dict[str, Dict[str, float]] = field(default_factory = dict)
-
-    def __post_init__(self): 
+    def __post_init__(self):
         if self.id is None:
             self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
-    
+
     @property
-    def detuning_axis_name(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def detuning_axis_name(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.detuning_axis_name
-    
+
     @property
-    def voltage_sequence(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def voltage_sequence(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.voltage_sequence
-    
+
     @property
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
@@ -64,5 +68,14 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     def _should_map_qubit_names(self) -> bool:
         """Enable qubit name mapping for LDQubitPair."""
         return True
+
+    def _get_component_id_for_voltages(self) -> str:
+        """
+        Override to use the detuning axis for voltage operations on the qubit pair.
+
+        Returns:
+            str: The detuning axis name to use for voltage operations
+        """
+        return self.detuning_axis_name
 
     # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
