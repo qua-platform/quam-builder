@@ -32,22 +32,18 @@ Workflow:
 
 from quam.components import (
     StickyChannelAddon, 
-    InOutSingleChannel, 
-    DigitalOutputChannel
+    pulses
 ) 
 from quam.components.ports import (
-    FEMPortsContainer,
-    LFFEMAnalogOutputPort,      # Concrete implementation
-    MWFEMAnalogOutputPort,      # Concrete implementation
-    MWFEMAnalogInputPort,       # Concrete implementation
-    FEMDigitalOutputPort,       # Concrete implementation
+    LFFEMAnalogOutputPort, 
+    LFFEMAnalogInputPort, 
 )
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorMW, ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
 
 
@@ -78,26 +74,16 @@ xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem
 xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6)
 
 
-resonator = ReadoutResonatorMW(
-    id = "sensor_rf", 
-    opx_output = MWFEMAnalogOutputPort(
-        "con1", 
-        mw_fem, 
-        port_id = 1, 
-        band = 1, 
-        upconverter_frequency = 2e9,
-    ), 
-    opx_input = MWFEMAnalogInputPort(
-        "con1", 
-        mw_fem, 
-        port_id = 1, 
-        downconverter_frequency = 2e9,
-        band = 1
-    ), 
-    intermediate_frequency=75e6,
-    RF_frequency=2.075e9,
+readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
+resonator = ReadoutResonatorSingle(
+    id = "readout_resonator", 
+    frequency_bare=0, 
+    intermediate_frequency=500e6,
+    operations = {"readout": readout_pulse}, 
+    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1), 
+    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2),
+    sticky = StickyChannelAddon(duration = 16, digital = False), 
 )
-
 
 #####################################
 ###### Create Virtual Gate Set ######
@@ -171,26 +157,26 @@ machine.register_qubit(
 
 # Register the quantum dot pairs
 machine.register_quantum_dot_pair(
-    id = "dot_pair_1",
+    id = "dot1_dot2_pair",
     quantum_dot_ids = ["virtual_dot_1", "virtual_dot_2"], 
     sensor_dot_ids = ["virtual_sensor_1"], 
     barrier_gate_id = "virtual_barrier_2"
 )
 
 machine.register_quantum_dot_pair(
-    id = "dot_pair_2",
+    id = "dot3_dot4_pair",
     quantum_dot_ids = ["virtual_dot_3", "virtual_dot_4"], 
     sensor_dot_ids = ["virtual_sensor_1"],
     barrier_gate_id = "virtual_barrier_3"
 )
 
 # Define the detuning axes for both QuantumDotPairs
-machine.quantum_dot_pairs["dot_pair_1"].define_detuning_axis(
+machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
     matrix = [[1,1],[1,-1]], 
     detuning_axis_name = "dot1_dot2_epsilon"
 )
 
-machine.quantum_dot_pairs["dot_pair_2"].define_detuning_axis(
+machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix = [[1,1],[1,-1]], 
     detuning_axis_name = "dot3_dot4_epsilon"
 )
@@ -220,41 +206,48 @@ machine.register_qubit_pair(
 ###########################
 
 
-# Define some example points
+# Let's define some example points. 
+# In this example, we would like to initialise Q1 and Q2 simultaneously. This will be performed in a sequence.simultaneous block. 
+# Remember that if these two dictionaries hold contradicting information about the voltage of a particular gate, the last one in the QUA programme wins. 
 
-# Method 1: Add directly to VirtualGateSet
-machine.virtual_gate_sets["main_qpu"].add_point(
-    name = "Idle", 
+# In this example, we purposefully keep all the barrier and sensor voltages identical, so that they can be initialised together, and no gate should hold two voltages at once. 
+# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be entered as 0. 
+
+
+machine.qubits["Q1"].add_point(
+    point_name = "initialisation", 
     voltages = {
-        "virtual_dot_1" : 0.1, 
-        "virtual_dot_2" : 0.05, 
-        "virtual_dot_3" : 0.3, 
-        "virtual_dot_4" : 0.1, 
-        "virtual_barrier_1" : 0.3, 
-        "virtual_barrier_2" : 0.35, 
-        "virtual_barrier_3" : 0.32,
-        "virtual_sensor_1" : 0.4
-    }, 
-    duration = 1000
+        "Q1": 0.1, 
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
 )
 
-# Method 2: Add via function
-machine.add_point(
-    gate_set_id = "main_qpu",
-    name = "Operation", 
+machine.qubits["Q2"].add_point(
+    point_name = "initialisation", 
     voltages = {
-        "virtual_dot_1" : 0.2, 
-        "virtual_dot_2" : -0.02, 
-        "virtual_dot_3" : 0.4, 
-        "virtual_dot_4" : 0.3, 
-        "virtual_barrier_1" : 0.4, 
-        "virtual_barrier_2" : 0.6, 
-        "virtual_barrier_3" : 0.22,
-        "virtual_sensor_1" : 0.36
-    }, 
-    duration = 1000
+        "Q2": 0.15, 
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
 )
 
+# We can also initialise a tuning point for a qubit pair: 
+machine.qubit_pairs["Q3_Q4"].add_point(
+    point_name = "some_two_qubit_gate", 
+    voltages = {
+        "Q3": 0.2, 
+        "Q4": 0.25,
+        "virtual_barrier_1": 0.4, 
+        "virtual_barrier_2": 0.45, 
+        "virtual_barrier_3": 0.42, 
+        "virtual_sensor_1": 0.15
+    }
+)
 
 
 # Update Cross Capacitance matrix values
@@ -288,18 +281,27 @@ with program() as prog:
         with seq.simultaneous(duration = 1000): 
             machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.4)
             machine.quantum_dots["virtual_dot_2"].go_to_voltages(0.2)
-            machine.quantum_dot_pairs["dot_pair_2"].go_to_detuning(0.2)
+            machine.quantum_dot_pairs["dot3_dot4_pair"].go_to_detuning(0.2)
 
         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
-            machine.quantum_dots["virtual_dot_3"].go_to_voltages(0.1)
-            machine.quantum_dots["virtual_dot_4"].go_to_voltages(-0.2)
+            machine.quantum_dots["virtual_dot_1"].go_to_voltages(0.1)
+            machine.quantum_dots["virtual_dot_2"].go_to_voltages(-0.2)
 
         # For sequential stepping, use outside of simultaneous block
         # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
         machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
         machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
 
+        # Can also use point macros saved in qubit and QD objects, inside a simultaneous block. 
+        # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once! 
+        with seq.simultaneous(duration = 1000): 
+            machine.qubits["Q1"].step_to_point("initialisation")
+            machine.qubits["Q2"].step_to_point("initialisation")
+            machine.qubit_pairs["Q3_Q4"].step_to_point("some_two_qubit_gate")
+            # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
+
+        machine.sensor_dots["virtual_sensor_1"].readout_resonator.measure("readout")
         seq.ramp_to_zero()
 
 
