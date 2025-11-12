@@ -132,7 +132,7 @@ class QuantumDotPair(QuamComponent):
 
         sensor_dot.measure(pulse_name, qua_vars=(I, Q))
 
-        assign(x, I * projector["wI"] + Q * projector["wQ"] + projector["offset"])
+        assign(x, I  * projector["wI"] + Q * projector["wQ"] + projector["offset"])
 
         assign(state, Cast.to_int(x > threshold))
 

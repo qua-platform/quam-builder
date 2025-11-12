@@ -1,7 +1,6 @@
 from typing import Union
-from dataclasses import field
+from dataclasses import field, asdict
 
-from pygments.lexer import default
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
@@ -11,8 +10,13 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.architecture.quantum_dots.components import QuantumDot
 
-__all__ = ["SensorDot"]
+__all__ = ["SensorDot", "Projector"]
 
+@quam_dataclass
+class Projector:
+    wI: float = 1.0
+    wQ: float = 0.0
+    offset: float = 0.0
 
 @quam_dataclass
 class SensorDot(QuantumDot):
@@ -25,8 +29,13 @@ class SensorDot(QuantumDot):
     readout_projectors: dict = field(default_factory=dict[str, dict[str, float]])
 
     def _add_readout_params(
-        self, quantum_dot_pair_id: str, threshold: float, projector: dict
+        self,
+        quantum_dot_pair_id: str,
+        threshold: float,
+        projector: Union[dict, Projector] = None
     ) -> None:
+        if projector is None:
+            projector = Projector()
         self._add_readout_threshold(quantum_dot_pair_id, threshold)
         self._add_readout_projector(quantum_dot_pair_id, projector)
 
@@ -36,8 +45,10 @@ class SensorDot(QuantumDot):
         self.readout_thresholds[quantum_dot_pair_id] = threshold
 
     def _add_readout_projector(
-        self, quantum_dot_pair_id: str, projector: float
+        self, quantum_dot_pair_id: str, projector: Union[dict, Projector]
     ) -> None:
+        if isinstance(projector, Projector):
+            projector = asdict(projector)
         self.readout_projectors[quantum_dot_pair_id] = projector
 
     def _readout_params(
