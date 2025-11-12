@@ -3,6 +3,7 @@ from typing import Dict, TYPE_CHECKING
 from quam.core import quam_dataclass, QuamComponent
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -11,7 +12,7 @@ __all__ = ["BarrierGate"]
 
 
 @quam_dataclass
-class BarrierGate(QuamComponent):
+class BarrierGate(QuamComponent, VoltagePointMacroMixin):
     """
     A class for a BarrierGate channel
     """
@@ -29,48 +30,16 @@ class BarrierGate(QuamComponent):
         return machine
 
     @property
-    def voltage_sequence(self) -> VoltageSequence: 
+    def voltage_sequence(self) -> VoltageSequence:
         machine = self.machine
-        try: 
+        try:
             virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
             return machine.get_voltage_sequence(virtual_gate_set_name)
-        except (AttributeError, ValueError, KeyError): 
+        except (AttributeError, ValueError, KeyError):
             return None
 
-    def go_to_voltages(self, voltage:float, duration:int = 16) -> None:
-        """Agnostic function to be used in sequence.simultaneous block. Whether it is a step or a ramp should be determined by the context manager"""
-
-        if self.voltage_sequence is None: 
-            raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
-                               " relevant QUAM voltage_sequence.")
-        
-        target_voltages = {self.id : voltage}
-        return self.voltage_sequence.step_to_voltages(target_voltages, duration = duration)
-
-    def step_to_voltages(self, voltage: float, duration:int = 16) -> Dict[str, float]:
-        """
-        Applies self.voltage_sequence.step_to_voltages({self.id: voltage})
-
-        The VoltageSequence forms part of the VirtualGateSet, and so feeding the votlage_sequence the name of the 
-        BarrierGate id (internally == the VirtualGateSet axis name), should internally resolve this dictionary. 
-
-        Arbitrary duration, since elements should be sticky
-        """
-        if self.voltage_sequence is None: 
-            raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
-                               " relevant QUAM voltage_sequence.")
+    def _update_current_voltage(self, voltage: float):
+        """Update the tracked current voltage."""
         self.current_voltage = voltage
-        return self.voltage_sequence.step_to_voltages({self.id: voltage}, duration = duration)
-    
-    def ramp_to_voltages(self, voltage: float, ramp_duration: int, duration:int = 16) -> Dict[str, float]:
-        """
-        Applies self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration)
 
-        The VoltageSequence forms part of the VirtualGateSet, and so feeding the votlage_sequence the name of the 
-        BarrierGate id (internally == the VirtualGateSet axis name), should internally resolve this dictionary. 
-        """
-        if self.voltage_sequence is None: 
-            raise RuntimeError(f"QuantumDot {self.id} has no VoltageSequence. Ensure that the VoltageSequence is mapped to the" + 
-                               " relevant QUAM voltage_sequence.")
-        self.current_voltage = voltage
-        return self.voltage_sequence.ramp_to_voltages({self.id: voltage}, ramp_duration = ramp_duration, duration = duration)
+    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltagePointMacroMixin
