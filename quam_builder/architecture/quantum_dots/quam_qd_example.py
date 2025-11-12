@@ -39,6 +39,8 @@ from quam.components.ports import (
     LFFEMAnalogInputPort, 
 )
 
+from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
@@ -65,6 +67,11 @@ b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", l
 b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
 b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
 s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
+
+xy_q1 = XYDrive(id = "Q1_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 5, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=10e6)
+xy_q2 = XYDrive(id = "Q2_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 6, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=12e6)
+xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 7, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=13e6)
+xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6)
 
 
 readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
@@ -119,25 +126,29 @@ machine.register_channel_elements(
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_1", 
-    qubit_name = "Q1"
+    qubit_name = "Q1", 
+    xy_channel = xy_q1
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_2", 
-    qubit_name = "Q2"
+    qubit_name = "Q2", 
+    xy_channel = xy_q2
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_3", 
-    qubit_name = "Q3"
+    qubit_name = "Q3", 
+    xy_channel = xy_q3
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_4", 
-    qubit_name = "Q4"
+    qubit_name = "Q4", 
+    xy_channel = xy_q4
 )
 
 ########################################
@@ -264,6 +275,7 @@ with program() as prog:
 
         # Option 1 for simultaneous stepping
         seq.step_to_voltages({"virtual_dot_1": -0.4, "virtual_dot_2": -0.2}, duration = 1000)
+        machine.qubits["Q1"].play_xy_pulse("gaussian", 152)
 
         # Option 2 for simultaneous stepping: May be easier for the user
         with seq.simultaneous(duration = 1000): 

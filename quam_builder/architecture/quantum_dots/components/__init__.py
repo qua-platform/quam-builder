@@ -8,6 +8,7 @@ from .readout_resonator import *
 from .sensor_dot import *
 
 from .quantum_dot_pair import *
+from .xy_drive import *
 
 __all__ = [
     *voltage_gate.__all__,
@@ -18,4 +19,5 @@ __all__ = [
     *readout_resonator.__all__,
     *barrier_gate.__all__, 
     *quantum_dot_pair.__all__,
+    *xy_drive.__all__,
 ]
