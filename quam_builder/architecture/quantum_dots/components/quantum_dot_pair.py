@@ -13,6 +13,22 @@ from .voltage_gate import VoltageGate
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
+from qm.qua.type_hints import QuaVariable
+from qm.qua import (
+    save,
+    declare,
+    fixed,
+    assign,
+    wait,
+    while_,
+    StreamType,
+    if_,
+    update_frequency,
+    Math,
+    Cast,
+)
+
+
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
