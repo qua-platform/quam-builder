@@ -21,8 +21,8 @@ class SensorDot(QuantumDot):
     """
 
     readout_resonator: Union[ReadoutResonatorMW, ReadoutResonatorIQ]
-    state_thresholds: dict = field(default_factory=dict[str, float])
-    state_projectors: dict = field(default_factory=dict[str, dict[str, float]])
+    readout_thresholds: dict = field(default_factory=dict[str, float])
+    readout_projectors: dict = field(default_factory=dict[str, dict[str, float]])
 
     def _add_readout_params(
         self, quantum_dot_pair_id: str, threshold: float, projector: dict
@@ -33,19 +33,19 @@ class SensorDot(QuantumDot):
     def _add_readout_threshold(
         self, quantum_dot_pair_id: str, threshold: float
     ) -> None:
-        self.state_thresholds[quantum_dot_pair_id] = threshold
+        self.readout_thresholds[quantum_dot_pair_id] = threshold
 
     def _add_readout_projector(
-        self, quantum_dot_pair_id: str, threshold: float
+        self, quantum_dot_pair_id: str, projector: float
     ) -> None:
-        self.state_projectors[quantum_dot_pair_id] = threshold
+        self.readout_projectors[quantum_dot_pair_id] = projector
 
     def _readout_params(
         self, quantum_dot_pair_id: str
     ) -> Union[float, dict[str, float]]:
         return (
-            self.state_thresholds[quantum_dot_pair_id],
-            self.state_projectors[quantum_dot_pair_id],
+            self.readout_thresholds[quantum_dot_pair_id],
+            self.readout_projectors[quantum_dot_pair_id],
         )
 
     def measure(self, *args, **kwargs):
