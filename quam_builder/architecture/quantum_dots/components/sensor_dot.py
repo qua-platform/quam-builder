@@ -5,7 +5,6 @@ from qm import QuantumMachine
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 
-from pygments.lexer import default
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
@@ -21,6 +20,11 @@ class Projector:
     wQ: float = 0.0
     offset: float = 0.0
 
+@quam_dataclass
+class Projector:
+    wI: float = 1.0
+    wQ: float = 0.0
+    offset: float = 0.0
 
 @quam_dataclass
 class SensorDot(QuantumDot):
