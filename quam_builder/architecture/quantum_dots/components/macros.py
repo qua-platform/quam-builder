@@ -56,6 +56,15 @@ class VoltagePointMacroMixin:
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     @property
+    def machine(self) -> "BaseQuamQD":
+        # Climb up the parent ladder in order to find the VoltageSequence in the machine
+        obj = self
+        while obj.parent is not None:
+            obj = obj.parent
+        machine = obj
+        return machine
+
+    @property
     def voltage_sequence(self) -> "VoltageSequence":
         """Return the VoltageSequence instance. Must be implemented by subclass."""
         raise NotImplementedError(
