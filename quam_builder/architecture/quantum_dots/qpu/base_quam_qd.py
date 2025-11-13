@@ -6,7 +6,11 @@ from collections import defaultdict
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import declare, fixed, declare_stream
+from qm.qua import (
+    declare, 
+    fixed, 
+    declare_stream
+)
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
@@ -22,6 +26,7 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
+    XYDrive
 )
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
@@ -290,31 +295,26 @@ class BaseQuamQD(QuamRoot):
 
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
-    def register_qubit(
-        self,
-        quantum_dot_ids: Union[str, List[str]],
-        qubit_name: str,
-        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo",
-        drive_channel: Channel = None,
-    ) -> None:
+    def register_qubit(self, 
+                       quantum_dot_id: str,
+                       qubit_name: str,
+                       qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
+                       xy_channel: XYDrive = None
+                       ) -> None: 
         """
         Instantiates a qubit based on the associated quantum dot and qubit type.
 
         For LD Qubits, the qubit_id is only stored internally in the Quam, and the Qubit ID is simply the Quantum Dot ID.
         """
 
-        if qubit_type.lower() == "loss_divincenzo":
-            d = (
-                quantum_dot_ids
-                if isinstance(quantum_dot_ids, str)
-                else quantum_dot_ids[0]
-            )
-            dot = self.quantum_dots[d]  # Assume a single quantum dot for a LD Qubit
+        if qubit_type.lower() == "loss_divincenzo": 
+            d = quantum_dot_id
+            dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
             qubit = LDQubit(
-                id=d,
-                quantum_dot=dot.get_reference(),
-                drive=drive_channel,
-                name=qubit_name,
+                id = d, 
+                quantum_dot = dot.get_reference(), 
+                name = qubit_name,
+                xy_channel = xy_channel
             )
 
             self.qubits[qubit_name] = qubit
@@ -437,6 +437,7 @@ class BaseQuamQD(QuamRoot):
 
             # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
             channel_mapping[physical_name] = ch.get_reference()
+        
 
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(
             id=gate_set_id, channels=channel_mapping

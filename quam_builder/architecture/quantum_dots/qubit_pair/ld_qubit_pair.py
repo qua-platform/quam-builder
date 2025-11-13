@@ -9,8 +9,10 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     SensorDot,
 )
+from quam_builder.architecture.quantum_dots.components.macros import (
+    VoltagePointMacroMixin,
+)
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -19,7 +21,7 @@ __all__ = ["LDQubitPair"]
 
 
 @quam_dataclass
-class LDQubitPair(QubitPair):
+class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     """
     Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.
@@ -43,93 +45,37 @@ class LDQubitPair(QubitPair):
 
     quantum_dot_pair: QuantumDotPair = None
 
-    points: Dict[str, Dict[str, float]] = field(default_factory=dict)
-
     def __post_init__(self):
         if self.id is None:
             self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
-
+    
     @property
-    def detuning_axis_name(self):
-        if self.quantum_dot_pair is None:
-            raise ValueError("No QuantumDotPair in LDQubitPair")
+    def detuning_axis_name(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.detuning_axis_name
-
+    
     @property
-    def voltage_sequence(self):
-        if self.quantum_dot_pair is None:
-            raise ValueError("No QuantumDotPair in LDQubitPair")
+    def voltage_sequence(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.voltage_sequence
-
-    @property
+    
+    @property 
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
 
-    def readout_state(
-        self,
-        state,
-        pulse_name: str = "readout",
-    ):
-        self.quantum_dot_pair.readout_state(state, pulse_name)
+    def _should_map_qubit_names(self) -> bool:
+        """Enable qubit name mapping for LDQubitPair."""
+        return True
 
-    def add_point(
-        self,
-        point_name: str,
-        voltages: Dict[str, float],
-        duration: int = 16,
-        replace_existing_point: bool = False,
-    ) -> None:
+    def _get_component_id_for_voltages(self) -> str:
         """
-        Add a point macro to the VirtualGateSet associated with the qubit pair.
+        Override to use the detuning axis for voltage operations on the qubit pair.
 
-        Args:
-            point_name (str): The name of the point macro
-            voltages (Dict[str, float]): A dictionary of voltages to enter into the VirtualGateSet. This can include qubit names and QD names, as well as
-                                            any virtualised axis in the VirtualGateSet. Internally, qubit names are converted to the names of the associated quantum dots.
-            duration (int): The duration which to hold the point.
-            replace_existing_point (bool): If the point_name is the same as a previously added point, choose whether to replace old point. Will raise an error if False.
+        Returns:
+            str: The detuning axis name to use for voltage operations
         """
-        name_in_sequence = f"{self.id}_{point_name}"
-        # In-case there are any qubit names in the input dictionary, this must be mapped to the correct quantum dot gate name in the VirtualGateSet
-        processed_voltages = {}
-        qubit_mapping = self.machine.qubits
-        for gate_name, voltage in voltages.items():
-            if gate_name in qubit_mapping:
-                gate_name = qubit_mapping[gate_name].id
-            processed_voltages[gate_name] = voltage
+        return self.detuning_axis_name
 
-        gate_set = self.voltage_sequence.gate_set
-        existing_points = gate_set.get_macros()
-
-        if name_in_sequence in existing_points and not replace_existing_point:
-            raise ValueError(
-                f"Point name {point_name} already exists for qubit {self.id}. If you would like to replace, please set replace_existing_point = True"
-            )
-        self.points[point_name] = voltages
-        gate_set.add_point(
-            name=name_in_sequence, voltages=processed_voltages, duration=duration
-        )
-
-    def step_to_point(self, point_name: str, duration: int = 16) -> None:
-        """Step to a point registered for the qubit"""
-        if point_name not in self.points:
-            raise ValueError(
-                f"Point {point_name} not in registered points: {list(self.points.keys())}"
-            )
-        name_in_sequence = f"{self.id}_{point_name}"
-        return self.voltage_sequence.step_to_point(
-            name=name_in_sequence, duration=duration
-        )
-
-    def ramp_to_point(
-        self, point_name: str, ramp_duration: int, duration: int = 16
-    ) -> None:
-        """Ramp to a point registered for the qubit"""
-        if point_name not in self.points:
-            raise ValueError(
-                f"Point {point_name} not in registered points: {list(self.points.keys())}"
-            )
-        name_in_sequence = f"{self.id}_{point_name}"
-        return self.voltage_sequence.ramp_to_point(
-            name=name_in_sequence, duration=duration, ramp_duration=ramp_duration
-        )
+    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
