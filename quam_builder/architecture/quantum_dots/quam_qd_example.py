@@ -126,29 +126,25 @@ machine.register_channel_elements(
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_1", 
-    qubit_name = "Q1", 
-    xy_channel = xy_q1
+    qubit_name = "Q1"
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_2", 
-    qubit_name = "Q2", 
-    xy_channel = xy_q2
+    qubit_name = "Q2"
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_3", 
-    qubit_name = "Q3", 
-    xy_channel = xy_q3
+    qubit_name = "Q3"
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_4", 
-    qubit_name = "Q4", 
-    xy_channel = xy_q4
+    qubit_name = "Q4"
 )
 
 ########################################

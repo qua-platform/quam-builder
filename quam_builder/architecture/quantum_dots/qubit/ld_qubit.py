@@ -3,7 +3,7 @@ from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
-from quam.components import Channel, pulses
+from quam.components import Channel
 from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
 
@@ -51,18 +51,17 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
-    Methods:
+    Methods: 
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
-        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.
-        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
+        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.  
+        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
-        reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time).
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
-        step_to_point: Steps to a pre-defined point in the internal points dict.
-        ramp_to_point: Ramps to a pre-defined point in the internal points dict.
+        reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time). 
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names 
+        step_to_point: Steps to a pre-defined point in the internal points dict. 
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
-
     id: Union[str, int] = None
 
     quantum_dot: QuantumDot
@@ -80,25 +79,25 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     name: str = None
 
-    def __post_init__(self):
-        if isinstance(self.quantum_dot, str):
+    def __post_init__(self): 
+        if isinstance(self.quantum_dot, str): 
             return
-        if self.id is None:
+        if self.id is None: 
             self.id = self.quantum_dot.id
         if self.id != self.quantum_dot.id:
             raise ValueError(
                 f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
                 f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
             )
-
+    
     @property
-    def physical_channel(self) -> Channel:
+    def physical_channel(self) -> Channel: 
         return self.quantum_dot.physical_channel
-
+    
     @property
-    def machine(self) -> "BaseQuamQD":
+    def machine(self) -> "BaseQuamQD": 
         return self.quantum_dot.machine
-
+    
     @property
     def thermalization_time(self):
         """The transmon thermalization time in ns."""
@@ -106,9 +105,9 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
             return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
         else:
             return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
-
+        
     @property
-    def voltage_sequence(self):
+    def voltage_sequence(self): 
         return self.quantum_dot.voltage_sequence
 
     def _should_map_qubit_names(self) -> bool:
@@ -122,7 +121,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
     # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 
-    def initialisation(self):
+    def initialisation(self): 
         # self.voltage_sequence.step_to_voltages("Qubit1_Idle")
         # self.voltage_sequence.step_to_voltages("Qubit1_Idle2")
         # self.voltage_sequence.step_to_voltages("Qubit1_Idle3")
@@ -185,16 +184,16 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         else:
             drive_calibration_output = None
         return drive_calibration_output
-
+    
     def reset(
-        self,
-        reset_type: Literal["thermal"] = "thermal",
-    ):
+        self, 
+        reset_type: Literal["thermal"] = "thermal", 
+        ):
 
-        if reset_type == "thermal":
+        if reset_type == "thermal": 
             self.reset_qubit_thermal()
 
-    def reset_qubit_thermal(self):
+    def reset_qubit_thermal(self): 
         """
         Perform a thermal reset of the qubit.
 
@@ -204,7 +203,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         """
         self.wait(self.thermalization_time // 4)
 
-    def wait(self, duration: int):
+    def wait(self, duration:int): 
         """Wait for a given duration on all channels of the qubit.
 
         Args:

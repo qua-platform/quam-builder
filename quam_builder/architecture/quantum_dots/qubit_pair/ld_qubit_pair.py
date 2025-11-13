@@ -48,20 +48,20 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     def __post_init__(self):
         if self.id is None:
             self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
-
+    
     @property
-    def detuning_axis_name(self):
-        if self.quantum_dot_pair is None:
-            raise ValueError("No QuantumDotPair in LDQubitPair")
+    def detuning_axis_name(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.detuning_axis_name
-
+    
     @property
-    def voltage_sequence(self):
-        if self.quantum_dot_pair is None:
-            raise ValueError("No QuantumDotPair in LDQubitPair")
+    def voltage_sequence(self): 
+        if self.quantum_dot_pair is None: 
+            raise ValueError("No QuantumDotPair in LDQubitPair") 
         return self.quantum_dot_pair.voltage_sequence
-
-    @property
+    
+    @property 
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
 
