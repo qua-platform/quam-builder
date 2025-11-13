@@ -36,7 +36,9 @@ from quam.components import (
 ) 
 from quam.components.ports import (
     LFFEMAnalogOutputPort, 
-    LFFEMAnalogInputPort, 
+    LFFEMAnalogInputPort,
+    MWFEMAnalogOutputPort,
+    MWFEMAnalogInputPort
 )
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
@@ -126,25 +128,29 @@ machine.register_channel_elements(
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_1", 
-    qubit_name = "Q1"
+    qubit_name = "Q1",
+    xy_channel = xy_q1
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_2", 
-    qubit_name = "Q2"
+    qubit_name = "Q2",
+    xy_channel = xy_q2
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_3", 
-    qubit_name = "Q3"
+    qubit_name = "Q3",
+    xy_channel = xy_q3
 )
 
 machine.register_qubit(
     qubit_type = "loss_divincenzo",
     quantum_dot_id = "virtual_dot_4", 
-    qubit_name = "Q4"
+    qubit_name = "Q4",
+    xy_channel = xy_q4
 )
 
 ########################################

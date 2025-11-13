@@ -212,7 +212,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         channel_names = [channel.name for channel in self.channels.values()]
         wait(duration, *channel_names)
 
-    def add_xy_pulse(self, pulse_name:str, pulse: pulses.Pulse) -> None:
+    def add_xy_pulse(self, pulse_name:str, pulse) -> None:
         self.xy_channel.add_pulse(name = pulse_name, pulse = pulse)
 
     def set_xy_frequency(self, frequency: float, recenter_LO: bool = True):
