@@ -83,9 +83,9 @@ class QuantumDotPair(VoltagePointMacroMixin):
 
         # Should be the correct virtual axes in the first layer of the VirtualGateSet
         target_gates = [qd.id for qd in self.quantum_dots]
-        source_gates = [detuning_axis_name, f"{detuning_axis_name}_companion"]
+        source_gates = [detuning_axis_name]
 
-        virtual_gate_set.add_layer(
+        virtual_gate_set.add_to_layer(
             target_gates = target_gates, 
             source_gates = source_gates, 
             matrix = matrix

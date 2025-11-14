@@ -1,5 +1,6 @@
 from dataclasses import field
 from typing import List, Dict, Any
+import warnings
 import numpy as np
 
 from quam.core import QuamComponent, quam_dataclass
@@ -28,15 +29,25 @@ class VirtualizationLayer(QuamComponent):
     source_gates: List[str]
     target_gates: List[str]
     matrix: List[List[float]]
+    use_pseudoinverse: bool = False
+
+    def _as_matrix_array(self) -> np.ndarray:
+        return np.asarray(self.matrix, dtype=float)
 
     def calculate_inverse_matrix(self) -> np.ndarray:
-        """Calculates the inverse of the virtualization matrix."""
+        """Calculates the inverse (or pseudo-inverse) of the virtualization matrix."""
+        matrix_array = self._as_matrix_array()
+        expected_shape = (len(self.target_gates), len(self.source_gates))
         try:
-            inv_matrix = np.linalg.inv(self.matrix)
-            if not inv_matrix.shape == (len(self.source_gates), len(self.target_gates)):
+            matrix_is_square = matrix_array.shape[0] == matrix_array.shape[1]
+            if matrix_is_square and not self.use_pseudoinverse:
+                inv_matrix = np.linalg.inv(matrix_array)
+            else:
+                inv_matrix = np.linalg.pinv(matrix_array)
+            if inv_matrix.shape != expected_shape:
                 raise ValueError(
                     "Inverse matrix has incorrect dimensions. "
-                    f"Expected {len(self.source_gates)}x{len(self.target_gates)}, "
+                    f"Expected {expected_shape[0]}x{expected_shape[1]}, "
                     f"got {inv_matrix.shape}."
                 )
             return inv_matrix
@@ -114,7 +125,7 @@ class VirtualGateSet(GateSet):
     including subclasses like `VoltageGate`) and provides all the functionalities
     of a GateSet, plus functionality to:
     - Add any number of virtualization layers onto any subset of physical or virtual gates,
-      using square, invertible, user-defined matrices
+      using user-defined matrices (square by default, or rectangular when enabled)
     - Define named voltage tuning points (macros), which can consist of any combination of
       physical and virtual gates, that can be reused across sequences
     - Resolve voltages for all gates, even if the input voltages contain both physical
@@ -126,6 +137,8 @@ class VirtualGateSet(GateSet):
 
     Attributes:
         layers: A list of `VirtualizationLayer` objects, applied sequentially.
+        allow_rectangular_matrices: Enables pseudo-inverse based resolution so layers
+            may use non-square matrices.
         channels: Inherited from `GateSet`. Physical channels are `SingleChannel`
             instances (and may be `VoltageGate` objects) that the virtual gates
             ultimately resolve to.
@@ -160,6 +173,7 @@ class VirtualGateSet(GateSet):
     """
 
     layers: List[VirtualizationLayer] = field(default_factory=list)
+    allow_rectangular_matrices: bool = False
 
     @property
     def valid_channel_names(self) -> list[str]:
@@ -186,8 +200,8 @@ class VirtualGateSet(GateSet):
         - Each target gate must not be a target gate in any previous layer
         - Each source gate must not be a source gate in any previous layer
         - Each source gate must not be a target gate in any previous layer
-        - Matrix is square (equal number of rows and columns)
-        - Matrix is invertible (non-zero determinant)
+        - Matrix dimensions match the number of source/target gates
+        - Matrix is square and invertible unless ``allow_rectangular_matrices`` is True
 
         Args:
             source_gates: A list of names for the virtual gates in this layer.
@@ -256,18 +270,31 @@ class VirtualGateSet(GateSet):
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
 
-        # Check 5: Matrix must be square
-        matrix_array = np.array(matrix)
-        if matrix_array.shape[0] != matrix_array.shape[1]:
-            raise ValueError(f"Matrix must be square. Got shape {matrix_array.shape}")
+        matrix_array = np.array(matrix, dtype=float)
+        expected_shape = (len(source_gates), len(target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
+            )
 
-        # Check 6: Matrix must be invertible (non-zero determinant)
-        try:
-            det = np.linalg.det(matrix_array)
-            if abs(det) < 1e-10:  # Use small tolerance for floating point
-                raise ValueError(f"Matrix is not invertible (determinant ≈ 0): {det}")
-        except np.linalg.LinAlgError as e:
-            raise ValueError(f"Matrix inversion failed: {e}")
+        is_square = matrix_array.shape[0] == matrix_array.shape[1]
+        if not is_square and not self.allow_rectangular_matrices:
+            raise ValueError(
+                f"Matrix must be square when allow_rectangular_matrices is False. "
+                f"Got shape {matrix_array.shape}"
+            )
+
+        if is_square:
+            # Check 6: Matrix must be invertible (non-zero determinant)
+            try:
+                det = np.linalg.det(matrix_array)
+                if abs(det) < 1e-10:  # Use small tolerance for floating point
+                    raise ValueError(
+                        f"Matrix is not invertible (determinant ≈ 0): {det}"
+                    )
+            except np.linalg.LinAlgError as e:
+                raise ValueError(f"Matrix inversion failed: {e}")
 
     def add_layer(
         self,
@@ -289,8 +316,14 @@ class VirtualGateSet(GateSet):
         """
         self._validate_new_layer(source_gates, target_gates, matrix)
 
+        matrix_array = np.array(matrix, dtype=float)
+        use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
+
         virtualization_layer = VirtualizationLayer(
-            source_gates=source_gates, target_gates=target_gates, matrix=matrix
+            source_gates=source_gates,
+            target_gates=target_gates,
+            matrix=matrix,
+            use_pseudoinverse=use_pseudoinverse,
         )
         self.layers.append(virtualization_layer)
         return virtualization_layer
@@ -301,7 +334,93 @@ class VirtualGateSet(GateSet):
         target_gates: List[str],
         matrix: List[List[float]],
     ) -> VirtualizationLayer:
-        pass
+        if not self.allow_rectangular_matrices:
+            raise ValueError(
+                "add_to_layer requires allow_rectangular_matrices=True to enable "
+                "non-square virtual gate layers."
+            )
+
+        if not self.layers:
+            raise ValueError("No layers exist to extend. Call add_layer first.")
+
+        matrix_array = np.array(matrix, dtype=float)
+        expected_shape = (len(source_gates), len(target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
+            )
+
+        target_overlap_layer = None
+        for lyr in self.layers:
+            layer_targets = set(lyr.target_gates)
+            if layer_targets.intersection(set(target_gates)):
+                target_overlap_layer = lyr
+                break
+
+        if target_overlap_layer is None:
+            return self.add_layer(
+                source_gates=source_gates,
+                target_gates=target_gates,
+                matrix=matrix,
+            )
+
+        layer = target_overlap_layer
+        existing_targets = list(layer.target_gates)
+        existing_sources = list(layer.source_gates)
+
+        new_targets = []
+        for target in target_gates:
+            if target not in existing_targets:
+                existing_targets.append(target)
+                new_targets.append(target)
+
+        full_matrix = np.asarray(layer.matrix, dtype=float)
+
+        if new_targets:
+            zeros_to_add = np.zeros((full_matrix.shape[0], len(new_targets)))
+            full_matrix = np.hstack([full_matrix, zeros_to_add])
+
+        source_rows: list[tuple[str, np.ndarray, list[tuple[str, float]]]] = []
+        for idx, source in enumerate(source_gates):
+            source_row = np.zeros((len(existing_targets),), dtype=float)
+            target_value_pairs = []
+            for col_idx, target in enumerate(target_gates):
+                target_position = existing_targets.index(target)
+                value = matrix_array[idx][col_idx]
+                source_row[target_position] = value
+                target_value_pairs.append((target, value))
+            source_rows.append((source, source_row, target_value_pairs))
+
+        rows_to_append = []
+        sources_to_append = []
+        for source, row_vector, target_pairs in source_rows:
+            if source in existing_sources:
+                row_idx = existing_sources.index(source)
+                for target, value in target_pairs:
+                    target_position = existing_targets.index(target)
+                    old_value = full_matrix[row_idx, target_position]
+                    if not np.isclose(old_value, value):
+                        warnings.warn(
+                            f"Overwriting virtualization matrix element for source '{source}' "
+                            f"and target '{target}' in layer "
+                            f"'{layer.id if hasattr(layer, 'id') else 'unnamed'}'.",
+                            UserWarning,
+                        )
+                    full_matrix[row_idx, target_position] = value
+            else:
+                rows_to_append.append(row_vector)
+                sources_to_append.append(source)
+
+        if rows_to_append:
+            full_matrix = np.vstack([full_matrix] + rows_to_append)
+            existing_sources.extend(sources_to_append)
+
+        layer.source_gates = existing_sources
+        layer.target_gates = existing_targets
+        layer.matrix = full_matrix.tolist()
+        layer.use_pseudoinverse = True
+        return layer
 
     def resolve_voltages(
         self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
