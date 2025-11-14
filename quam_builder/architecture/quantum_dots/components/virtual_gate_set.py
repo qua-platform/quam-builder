@@ -454,6 +454,7 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
+
         return layer
 
     def resolve_voltages(
