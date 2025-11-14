@@ -447,7 +447,7 @@ class BaseQuamQD(QuamRoot):
         if compensation_matrix is None:
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
-        self.virtual_gate_sets[gate_set_id].add_layer(
+        self.virtual_gate_sets[gate_set_id].add_to_layer(
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,
