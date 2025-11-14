@@ -341,7 +341,11 @@ class VirtualGateSet(GateSet):
             )
 
         if not self.layers:
-            raise ValueError("No layers exist to extend. Call add_layer first.")
+            return self.add_layer(
+                source_gates=source_gates,
+                target_gates=target_gates,
+                matrix=matrix,
+            )
 
         matrix_array = np.array(matrix, dtype=float)
         expected_shape = (len(source_gates), len(target_gates))
@@ -420,6 +424,7 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
+
         return layer
 
     def resolve_voltages(
