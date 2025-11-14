@@ -373,6 +373,7 @@ A `VirtualGateSet` allows users to define and operate with virtual gates, abstra
   - `source_gates`: Names of the new virtual gates defined by this layer.
   - `target_gates`: Names of the gates (physical or virtual from a previous layer) that this layer maps onto.
   - `matrix`: The transformation matrix (list of lists of floats).
+- **Rectangular Matrices (Opt-In):** Set `allow_rectangular_matrices=True` on a `VirtualGateSet` to enable virtualization layers whose matrices are not square. These layers are resolved with the Moore–Penrose pseudo-inverse, allowing over- or under-complete virtual controls while keeping square layers unchanged.
 - **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualization matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualization by processing layers from the outermost to the innermost.
 
 ### 6.1 Important Behavior: Unspecified Virtual Gates Are Zeroed Per Operation
@@ -507,13 +508,14 @@ P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
          = 0.1 + 0.2 + 0.1 = 0.4V
 ```
 
-### 7.5 Matrix Constraints
+### 7.5 Matrix Constraints and Rectangular Support
 
 For a valid virtualization layer:
 
-- Matrix must be square: `len(source_gates) == len(target_gates)`
-- Matrix must be invertible (non-singular): `det(M) ≠ 0`
-- The inverse matrix is calculated using `numpy.linalg.inv(matrix)`
+- The matrix dimensions must match the number of source and target gates: `matrix.shape == (len(source_gates), len(target_gates))`.
+- By default, the matrix must be square and invertible (`det(M) ≠ 0`), and the layer uses `numpy.linalg.inv(matrix)` during resolution.
+- If `VirtualGateSet.allow_rectangular_matrices` is set to `True`, non-square matrices are permitted. These layers store `use_pseudoinverse=True` and are resolved with `numpy.linalg.pinv(matrix)`, yielding the least-squares solution for tall matrices and the minimum-norm solution for wide matrices.
+- Square matrices continue to use the true inverse even when rectangular layers are enabled, so existing behaviour and calibrations remain unchanged.
 
 ### 7.6 Core Allocation and Performance
 
@@ -543,6 +545,26 @@ When you set `v_FineTune1 = 0.1V`, the system:
 2. Applies inverse of matrix_1: `P1 = 1.0V * 1.0 + 0V * 0.5 = 1.0V`, `P2 = 1.0V * 0.5 + 0V * 1.0 = 0.5V`
 
 This transformation happens at compile time, so the QUA program only sees the final physical gate voltages.
+
+### 7.8 Verifying Rectangular Layers (Round Trip & Plotting)
+
+To validate a rectangular virtualization layer:
+
+1. Enable pseudo-inverse support:
+
+   ```python
+   vgs = VirtualGateSet(id="plunger_set", channels=channels)
+   vgs.allow_rectangular_matrices = True
+   vgs.add_layer(
+       source_gates=["V_bias", "V_sym"],
+       target_gates=["P1", "P2", "P3"],
+       matrix=[[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]],
+   )
+   ```
+
+2. Generate a set of virtual voltage samples, convert them to the “expected” physical voltages using the pseudo-inverse (`physical_expected = M_pinv @ source`), then resolve the same virtual voltages through the `VirtualGateSet`. The resolved physical voltages should match `physical_expected` within numerical tolerance.
+
+3. Optional visualisation: plot the original vs. resolved physical voltages to confirm they fall on the identity line. The automated regression `tests/architecture/quantum_dots/components/test_rectangular_virtual_gate_set.py::test_rectangular_roundtrip_visualisation` performs exactly this procedure (using Matplotlib’s Agg backend) so you can run `pytest` and inspect the generated scatter data if deeper debugging is needed.
 
 ## 8. Full End to End Example
 
@@ -630,5 +652,3 @@ with program() as prog:
 - In `op`, the input dict is comprised of virtual gates `{"V1": 0.2, "V2": 0.1}`. `ch3` is absent, and since `V1` and `V2` map only to `ch1` and `ch2`, `ch3` is interpreted as having an input 0.0, to produce a dict of `{"V1": 0.2, "V2": 0.1, "ch3": 0.0}`. Internally, the physical gate voltages are calculated using the inverse of the virtual gate matrix, to a physical gate dict of `{"ch1": 0.05, "ch2": 0.1, "ch3": 0.0}`. Bear in mind that these voltages are absolute, not relative, despite the sticky elements.
 
 - In `meas`, the input dict is simply `{"ch3": -0.12}`, which is interpreted as `{"ch1": 0.0, "ch2": 0.0, "ch3": -0.12}`. 
-
-
