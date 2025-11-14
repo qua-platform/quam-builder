@@ -330,6 +330,9 @@ class VirtualGateSet(GateSet):
         matrix_array = np.array(matrix, dtype=float)
         use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
 
+        matrix_array = np.array(matrix, dtype=float)
+        use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
+
         virtualization_layer = VirtualizationLayer(
             id=layer_id,
             source_gates=source_gates,
@@ -451,7 +454,6 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
-
         return layer
 
     def resolve_voltages(

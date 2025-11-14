@@ -41,6 +41,7 @@ from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
 
+import numpy as np
 
 # Instantiate Quam
 machine = BaseQuamQD()
@@ -128,6 +129,7 @@ machine.create_virtual_gate_set(
         **{f"virtual_sensor_{i}": s for i, s in enumerate(ss)},
     },
     gate_set_id="main_qpu",
+    allow_rectangular_matrices=True,
 )
 
 
@@ -151,7 +153,7 @@ machine.register_channel_elements(
 for i in range(plunger_gates):
     machine.register_qubit(
         qubit_type="loss_divincenzo",
-        quantum_dot_ids=f"virtual_dot_{i}",
+        quantum_dot_id=f"virtual_dot_{i}",
         qubit_name=f"Q{i}",
     )
 
@@ -169,7 +171,7 @@ for i in range(barrier_gates):
         barrier_gate_id=f"virtual_barrier_{i}",
     )
 
-    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, 1], [1, -1]])
+    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]])
 
     ##################################
     ###### Register Qubit Pairs ######
