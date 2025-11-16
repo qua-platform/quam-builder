@@ -48,6 +48,12 @@ class CZGate(QubitPairMacro):
     phase_shift_target : float
          Default frame rotation (in units of 2π) applied to the target qubit after flux interaction
          if not overridden and |value| > 1e-6.
+    spectator_qubits: list[str]
+         Optional list of spectator qubit names.
+    spectator_qubits_control: dict[str, Pulse]
+         Optional dictionary of spectator qubit control pulses and their parameters.
+    spectator_qubits_phase_shift: dict[str, float]
+         Optional dictionary of spectator qubit phase shifts and their parameters.
     fidelity: Dict[str, Any]
          Collection of gate fidelity (e.g. fidelity["RB"]=xx, fidelity["XEB"]=xx).
     extras: Dict[str, Any]
@@ -103,6 +109,10 @@ class CZGate(QubitPairMacro):
     phase_shift_control: float = 0.0
     phase_shift_target: float = 0.0
 
+    spectator_qubits: list[str] = field(default_factory=list)
+    spectator_qubits_control: dict[str, Pulse] = field(default_factory=dict)
+    spectatot_qubits_phase_shift: dict[str, float] = field(default_factory=dict)
+    
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -132,12 +142,22 @@ class CZGate(QubitPairMacro):
         phase_shift_control=None,
         phase_shift_target=None,
         **kwargs,
+        
     ) -> None:
+        
+        # control qubit flux
         self.qubit_pair.qubit_control.z.play(
             self.flux_pulse_control_label,
             amplitude_scale=amplitude_scale_control,
         )
 
+        # spectator qubits flux
+        for qubit_name, pulse in self.spectator_qubits_control.items():
+            self.spectator_qubits[qubit_name].z.play(
+                get_pulse_name(pulse)
+            )
+
+        # coupler flux
         if self.coupler_flux_pulse is not None:
             self.qubit_pair.coupler.play(
                 self.coupler_flux_pulse_label,
@@ -145,7 +165,7 @@ class CZGate(QubitPairMacro):
                 amplitude_scale=amplitude_scale_coupler,
             )
 
-        self.qubit_pair.align()
+        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + list(self.spectator_qubits.values()))
         if phase_shift_control is not None:
             self.qubit_pair.qubit_control.xy.frame_rotation_2pi(phase_shift_control)
         elif np.abs(self.phase_shift_control) > 1e-6:
@@ -157,4 +177,8 @@ class CZGate(QubitPairMacro):
         elif np.abs(self.phase_shift_target) > 1e-6:
             self.qubit_pair.qubit_target.xy.frame_rotation_2pi(self.phase_shift_target)
 
-        self.qubit_pair.align()
+        for qubit_name, phase_shift in self.spectatot_qubits_phase_shift.items():
+            self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
+
+        # final alignment
+        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + list(self.spectator_qubits.values()))
