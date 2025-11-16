@@ -178,7 +178,8 @@ class CZGate(QubitPairMacro):
             self.qubit_pair.qubit_target.xy.frame_rotation_2pi(self.phase_shift_target)
 
         for qubit_name, phase_shift in self.spectator_qubits_phase_shift.items():
-            self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
+            if np.abs(phase_shift) > 1e-6:
+                self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
 
         # final alignment
         self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + list(self.spectator_qubits.values()))
