@@ -111,7 +111,7 @@ class CZGate(QubitPairMacro):
 
     spectator_qubits: list[str] = field(default_factory=list)
     spectator_qubits_control: dict[str, Pulse] = field(default_factory=dict)
-    spectatot_qubits_phase_shift: dict[str, float] = field(default_factory=dict)
+    spectator_qubits_phase_shift: dict[str, float] = field(default_factory=dict)
     
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
@@ -177,7 +177,7 @@ class CZGate(QubitPairMacro):
         elif np.abs(self.phase_shift_target) > 1e-6:
             self.qubit_pair.qubit_target.xy.frame_rotation_2pi(self.phase_shift_target)
 
-        for qubit_name, phase_shift in self.spectatot_qubits_phase_shift.items():
+        for qubit_name, phase_shift in self.spectator_qubits_phase_shift.items():
             self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
 
         # final alignment
