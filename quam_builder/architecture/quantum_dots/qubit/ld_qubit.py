@@ -63,6 +63,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
     id: Union[str, int] = None
+    grid_location: str = None
 
     quantum_dot: QuantumDot
     xy_channel: XYDrive = None
