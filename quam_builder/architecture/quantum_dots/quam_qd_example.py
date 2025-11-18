@@ -213,7 +213,7 @@ machine.register_qubit_pair(
 # Remember that if these two dictionaries hold contradicting information about the voltage of a particular gate, the last one in the QUA programme wins. 
 
 # In this example, we purposefully keep all the barrier and sensor voltages identical, so that they can be initialised together, and no gate should hold two voltages at once. 
-# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be entered as 0. 
+# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be kept constant. 
 
 
 machine.qubits["Q1"].add_point(
