@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Union, Literal, TYPE_CHECKING
+from typing import List, Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
 import numpy as np
 
@@ -236,7 +236,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         else:
             self.xy_channel.intermediate_frequency = intermediate_frequency
 
-    def play_xy_pulse(self, pulse_name:str, pulse_duration: int, amplitude_scale:float = 1.0, **kwargs) -> None:
+    def play_xy_pulse(self, pulse_name:str, pulse_duration: Optional[int] = None, amplitude_scale:float = None, **kwargs) -> None:
         """Play a pulse from the XY channel associated with the Qubit"""
         if self.xy_channel is None:
             raise ValueError(f"No XY Channel on Qubit {self.name}")
