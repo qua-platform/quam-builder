@@ -25,7 +25,7 @@ class VirtualizationLayer(QuamComponent):
             defining the transformation.
             - NOTE: Matrix elements must be python literals, not QUA variables
     """
-
+    id: str = None
     source_gates: List[str]
     target_gates: List[str]
     matrix: List[List[float]]
@@ -187,6 +187,7 @@ class VirtualGateSet(GateSet):
 
     def _validate_new_layer(
         self,
+        layer_id: str, 
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -212,11 +213,13 @@ class VirtualGateSet(GateSet):
         Raises:
             ValueError: If any of the checks fail.
         """
+        existing_layer_names = set()
         existing_source_gates = set()
         existing_target_gates = set()
         for lyr in self.layers:
             existing_source_gates.update(lyr.source_gates)
             existing_target_gates.update(lyr.target_gates)
+            existing_layer_names.update(lyr.id)
 
         # Check 1: Each target gate must correspond to a lower layer source gate or
         # physical channel.
@@ -269,6 +272,13 @@ class VirtualGateSet(GateSet):
                     f"Source gate '{sg}' in new layer is already a target gate in a "
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
+            
+        # Check 5: The layer name must be unique
+        for lyr in self.layers: 
+            if layer_id == lyr.id: 
+                raise ValueError(
+                f"Layer name '{layer_id}' is already used in a previous layer."
+                )
 
         matrix_array = np.array(matrix, dtype=float)
         expected_shape = (len(source_gates), len(target_gates))
@@ -298,6 +308,7 @@ class VirtualGateSet(GateSet):
 
     def add_layer(
         self,
+        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -314,12 +325,13 @@ class VirtualGateSet(GateSet):
         Returns:
             The created VirtualizationLayer object.
         """
-        self._validate_new_layer(source_gates, target_gates, matrix)
+        self._validate_new_layer(layer_id, source_gates, target_gates, matrix)
 
         matrix_array = np.array(matrix, dtype=float)
         use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
 
         virtualization_layer = VirtualizationLayer(
+            id = layer_id,
             source_gates=source_gates,
             target_gates=target_gates,
             matrix=matrix,
@@ -330,6 +342,7 @@ class VirtualGateSet(GateSet):
 
     def add_to_layer(
         self,
+        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -342,11 +355,24 @@ class VirtualGateSet(GateSet):
 
         if not self.layers:
             return self.add_layer(
+                layer_id = layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
             )
+        
+        # Check: target gates should not exist in any other layers
+        for lyr in self.layers: 
+            # Skip current layer
+            if lyr.id == layer_id: 
+                continue
+            conflicts = set(target_gates) & set(lyr.target_gates)
+            if conflicts: 
+                raise ValueError(
+                    f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
+                )
 
+        # Check: matrix shape validation
         matrix_array = np.array(matrix, dtype=float)
         expected_shape = (len(source_gates), len(target_gates))
         if matrix_array.shape != expected_shape:
@@ -355,15 +381,12 @@ class VirtualGateSet(GateSet):
                 f"Expected {expected_shape}, got {matrix_array.shape}"
             )
 
-        target_overlap_layer = None
-        for lyr in self.layers:
-            layer_targets = set(lyr.target_gates)
-            if layer_targets.intersection(set(target_gates)):
-                target_overlap_layer = lyr
-                break
+        target_overlap_layer = next((lyr for lyr in self.layers if lyr.id == layer_id), None)
+
 
         if target_overlap_layer is None:
             return self.add_layer(
+                layer_id = layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
