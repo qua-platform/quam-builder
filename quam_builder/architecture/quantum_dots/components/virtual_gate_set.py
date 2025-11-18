@@ -30,7 +30,6 @@ class VirtualizationLayer(QuamComponent):
             defining the transformation.
             - NOTE: Matrix elements must be python literals, not QUA variables
     """
-
     id: str = None
     source_gates: List[str]
     target_gates: List[str]
@@ -275,6 +274,13 @@ class VirtualGateSet(GateSet):
                     f"Source gate '{sg}' in new layer is already a target gate in a "
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
+            
+        # Check 5: The layer name must be unique
+        for lyr in self.layers: 
+            if layer_id == lyr.id: 
+                raise ValueError(
+                f"Layer name '{layer_id}' is already used in a previous layer."
+                )
 
         # Check 5: The layer name must be unique
         for lyr in self.layers:
@@ -308,6 +314,7 @@ class VirtualGateSet(GateSet):
 
     def add_layer(
         self,
+        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -345,6 +352,7 @@ class VirtualGateSet(GateSet):
 
     def add_to_layer(
         self,
+        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -368,6 +376,17 @@ class VirtualGateSet(GateSet):
                 target_gates=target_gates,
                 matrix=matrix,
             )
+        
+        # Check: target gates should not exist in any other layers
+        for lyr in self.layers: 
+            # Skip current layer
+            if lyr.id == layer_id: 
+                continue
+            conflicts = set(target_gates) & set(lyr.target_gates)
+            if conflicts: 
+                raise ValueError(
+                    f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
+                )
 
         # Check: target gates should not exist in any other layers
         for lyr in self.layers:
