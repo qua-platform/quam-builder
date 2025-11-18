@@ -417,7 +417,7 @@ class BaseQuamQD(QuamRoot):
         virtual_channel_mapping: Dict[str, Channel],
         gate_set_id: str = None,
         compensation_matrix: List[List[float]] = None,
-        allow_rectangular_matrices: bool = False,
+        allow_rectangular_matrices: bool = True,
     ) -> None:
         if gate_set_id is None:
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
@@ -448,6 +448,7 @@ class BaseQuamQD(QuamRoot):
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
         self.virtual_gate_sets[gate_set_id].add_to_layer(
+            layer_id = "compensation_layer",
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,

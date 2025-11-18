@@ -28,7 +28,7 @@ class QuantumDotPair(VoltagePointMacroMixin):
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods: 
-        define_detuning_axis (args: matrix, detuning_axis_name): Adds a VirtualizationLayer onto the VirtualGateSet to define a detuning axis on the virtualized dot axes, using input matrix.
+        define_detuning_axis (args: matrix, detuning_axis_name): Adds to the QuantumDotPair Detuning VirtualizationLayer in the VirtualGateSet, expanding the matrix with the input submatrix.
         go_to_detuning: In a simultaneous block, registers a dict input to the VoltageSequence to step or ramp the detuning to specified voltage. 
         step_to_detuning: Step the voltage to the specified detuning value. Can only be used after the detuning axis is defined. 
         ramp_to_detuning: Ramp the voltage to the specified detuning value. Can only be used after the detuning axis is defined. 
@@ -85,7 +85,15 @@ class QuantumDotPair(VoltagePointMacroMixin):
         target_gates = [qd.id for qd in self.quantum_dots]
         source_gates = [detuning_axis_name]
 
+        # Shape check: if all target gates are properly virtualised, the shape sohuld be 2 x 1
+        if len(matrix) != 1: 
+            raise ValueError(f"Matrix must have 1 row. Received {len(matrix)}")
+        
+        if len(matrix[0]) != 2: 
+            raise ValueError(f"Matrix must have 2 columns. Received {len(matrix[0])}")
+
         virtual_gate_set.add_to_layer(
+            layer_id = "quantum_dot_pair_detuning_matrix", 
             target_gates = target_gates, 
             source_gates = source_gates, 
             matrix = matrix
