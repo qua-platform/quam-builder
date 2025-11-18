@@ -314,7 +314,6 @@ class VirtualGateSet(GateSet):
 
     def add_layer(
         self,
-        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
