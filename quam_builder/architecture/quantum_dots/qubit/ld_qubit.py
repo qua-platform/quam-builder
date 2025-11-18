@@ -144,26 +144,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         Return:
             The Octave calibration results as (drive)
         """
-        ### HASHING OUT FOR NOW. We must think about the resonator architecture
-
-        # if calibrate_resonator and self.resonator is not None:
-        #     if hasattr(self.resonator, "frequency_converter_up"):
-        #         logger.info(f"Calibrating {self.resonator.name}")
-        #         resonator_calibration_output = QM.calibrate_element(
-        #             self.resonator.name,
-        #             {
-        #                 self.resonator.frequency_converter_up.LO_frequency: (
-        #                     self.resonator.intermediate_frequency,
-        #                 )
-        #             },
-        #         )
-        #     else:
-        #         raise RuntimeError(
-        #             f"{self.resonator.name} doesn't have a 'frequency_converter_up' attribute, it is thus most likely "
-        #             "not connected to an Octave."
-        #         )
-        # else:
-        #     resonator_calibration_output = None
 
         if calibrate_drive and self.drive is not None:
             if hasattr(self.drive, "frequency_converter_up"):
