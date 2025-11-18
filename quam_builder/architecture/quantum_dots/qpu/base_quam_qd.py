@@ -174,6 +174,27 @@ class BaseQuamQD(QuamRoot):
             vgs.layers[0].target_gates.index(physical_name)
         ]
         return virtual_name
+    
+    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+        """
+        Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
+        
+        Args: 
+            name: The name of the object
+        """
+        collections = [
+            self.qubits, 
+            self.quantum_dots, 
+            self.sensor_dots, 
+            self.barrier_gates, 
+            self.quantum_dot_pairs, 
+            self.qubit_pairs
+        ]
+        for collection in collections: 
+            if name in collection: 
+                return collection[name]
+
+        raise ValueError(f"Element {name} not found in Quam")
 
     def reset_voltage_sequence(self, gate_set_id) -> None:
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
