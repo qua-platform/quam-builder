@@ -73,6 +73,7 @@ class XYDrive(MWChannel):
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""
         self.operations[name] = pulse
+
 class XYDriveIQ(IQChannel, XYDriveBase):
     """
     QUAM component for a XY drive line through an IQ channel.

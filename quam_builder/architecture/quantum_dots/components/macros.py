@@ -5,17 +5,115 @@ This module provides mixin classes that implement common voltage point macro met
 to reduce code duplication across quantum dot components.
 """
 
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING, Optional, List
 from dataclasses import field
 
-from quam.core import quam_dataclass
+from quam.core import quam_dataclass, QuamComponent
 
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
-__all__ = ["VoltagePointMacroMixin"]
+__all__ = ["VoltagePointMacroMixin", "SequenceMacro"]
 
+
+@quam_dataclass
+class SequenceMacro(QuamComponent):
+    """
+    A callable macro for executing voltage point operations in sequences.
+
+    SequenceMacro encapsulates the parameters needed to perform a voltage operation
+    (ramp or step) to a pre-defined voltage point. It can be stored in sequences and
+    called later to execute the voltage operation on a quantum dot component.
+
+    Attributes:
+        macro_type: Type of macro operation ('ramp' or 'step')
+        point_name: Name of the voltage point to target
+        duration: Duration to hold the final voltage in nanoseconds (default: 16)
+        ramp_duration: Duration of the ramp in nanoseconds, used only for 'ramp' type (default: 16)
+
+    Example:
+        >>> # Create a macro for ramping to a point
+        >>> macro = SequenceMacro(
+        ...     macro_type='ramp',
+        ...     point_name='loading_point',
+        ...     duration=100,
+        ...     ramp_duration=500
+        ... )
+        >>> # Execute the macro on a quantum dot
+        >>> macro(quantum_dot)
+    """
+
+    macro_type: str
+    point_name: str
+    duration: Optional[int] = 16
+    ramp_duration: Optional[int] = 16
+
+    # Mapping of macro types to their corresponding method names
+    MACRO_TYPE_TO_METHOD = {
+        "ramp": "ramp_to_point",
+        "step": "step_to_point",
+    }
+
+    def __call__(
+        self,
+        obj,
+        macro_type: str = None,
+        duration: int = None,
+        ramp_duration: int = None,
+    ):
+        """
+        Execute the voltage macro operation on a quantum dot component.
+
+        This method allows the SequenceMacro to be called as a function, executing
+        the stored voltage operation on the provided object. Parameters can be
+        overridden at call time if needed.
+
+        Args:
+            obj: The quantum dot component to execute the macro on (must have
+                ramp_to_point or step_to_point methods)
+            macro_type: Optional override for the macro type ('ramp' or 'step')
+            duration: Optional override for the duration to hold the final voltage (ns)
+            ramp_duration: Optional override for the ramp duration (ns), used only for 'ramp' type
+
+        Raises:
+            NotImplementedError: If the macro_type is not 'ramp' or 'step'
+
+        Example:
+            >>> macro = SequenceMacro(macro_type='ramp', point_name='point1', duration=100)
+            >>> macro(quantum_dot)  # Execute with stored parameters
+            >>> macro(quantum_dot, duration=200)  # Override duration at call time
+        """
+        # Allow runtime parameter overrides
+        if macro_type is not None:
+            self.macro_type = macro_type
+        if duration is not None:
+            self.duration = duration
+        if ramp_duration is not None:
+            self.ramp_duration = ramp_duration
+
+        # Validate macro_type before accessing dictionary
+        if self.macro_type not in self.MACRO_TYPE_TO_METHOD:
+            raise NotImplementedError(
+                f"Type {self.macro_type} not implemented. "
+                f"Supported types: {list(self.MACRO_TYPE_TO_METHOD.keys())}"
+            )
+
+        # Get the appropriate method from the object
+        fn = getattr(obj, self.MACRO_TYPE_TO_METHOD[self.macro_type])
+
+        # Execute the appropriate macro type
+        if self.macro_type == "ramp":
+            fn(
+                self.point_name,
+                self.ramp_duration,
+                duration=self.duration,
+            )
+        elif self.macro_type == "step":
+            fn(
+                self.point_name,
+                self.duration,
+            )
 
 @quam_dataclass
 class VoltagePointMacroMixin:
@@ -54,10 +152,19 @@ class VoltagePointMacroMixin:
     # Attributes that must be provided by the class using the mixin
     id: str
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    sequences: Dict[str, List[SequenceMacro]] = field(default_factory=dict)
 
     @property
     def machine(self) -> "BaseQuamQD":
-        # Climb up the parent ladder in order to find the VoltageSequence in the machine
+        """
+        Get the root machine instance by traversing up the parent hierarchy.
+
+        This property climbs up the parent ladder to find the top-level machine
+        object (BaseQuamQD instance) that contains this component.
+
+        Returns:
+            BaseQuamQD: The root machine instance
+        """
         obj = self
         while obj.parent is not None:
             obj = obj.parent
@@ -175,7 +282,24 @@ class VoltagePointMacroMixin:
     # Direct Voltage Methods
     # ========================================================================
 
-    def _go_to_voltages(self, voltage: float) -> dict[str, float]:
+    def _go_to_voltages(self, voltage: float) -> Dict[str, float]:
+        """
+        Prepare a voltage dictionary for the component.
+
+        This helper method validates the voltage sequence and component ID,
+        optionally updates current voltage tracking, and returns a voltage
+        dictionary ready for use with voltage sequence methods.
+
+        Args:
+            voltage: Target voltage in volts
+
+        Returns:
+            Dictionary mapping component ID to voltage value
+
+        Raises:
+            RuntimeError: If voltage_sequence is not available
+            ValueError: If the component ID is not found in the gate set
+        """
         self._validate_voltage_sequence()
         component_id = self._get_component_id_for_voltages()
         self._validate_component_id_in_gate_set(component_id)
@@ -237,6 +361,138 @@ class VoltagePointMacroMixin:
     # Point Macro Methods
     # ========================================================================
 
+    def add_sequence(
+        self,
+        name: str,
+        macro_types: List[str],
+        voltages: List[Dict[str, float]],
+        durations: List[int],
+        ramp_durations: Optional[List[int]] = None,
+    ):
+        """
+        Create a sequence of voltage macros with multiple points.
+
+        This convenience method creates a named sequence by adding multiple voltage
+        points and their corresponding macros. Each point is automatically named as
+        '{name}_macro_{i}' where i is the index in the list.
+
+        Args:
+            name: Name of the sequence to create
+            macro_types: List of macro types ('ramp' or 'step') for each point
+            voltages: List of voltage dictionaries, one for each point
+            durations: List of hold durations (ns) for each point
+            ramp_durations: Optional list of ramp durations (ns) for ramp-type macros.
+                If None, defaults to [None] for all points.
+
+        Raises:
+            AssertionError: If the lengths of the input lists don't match
+
+        Example:
+            >>> qd.add_sequence(
+            ...     name='loading_sequence',
+            ...     macro_types=['ramp', 'step', 'ramp'],
+            ...     voltages=[{...}, {...}, {...}],
+            ...     durations=[100, 200, 100],
+            ...     ramp_durations=[500, None, 300]
+            ... )
+        """
+        if ramp_durations is None:
+            ramp_durations = [None] * len(macro_types)
+
+        assert (
+            len(durations) == len(ramp_durations) == len(voltages) == len(macro_types)
+        ), "All input lists must have the same length"
+
+        for i, (macro_type, duration, ramp_duration, voltage) in enumerate(
+            zip(macro_types, durations, ramp_durations, voltages)
+        ):
+            self.add_point_to_sequence(
+                sequence_name=name,
+                point_name=f"{name}_macro_{i}",
+                macro_type=macro_type,
+                duration=duration,
+                ramp_duration=ramp_duration,
+                voltages=voltage,
+            )
+
+    def add_point_to_sequence(
+        self,
+        sequence_name: str,
+        point_name: str,
+        macro_type: str,
+        duration: int,
+        ramp_duration: Optional[int] = None,
+        voltages: Optional[Dict[str, float]] = None,
+    ):
+        """
+        Add a single voltage point and macro to a named sequence.
+
+        This method adds a voltage point to the gate set (if voltages are provided)
+        and appends a corresponding SequenceMacro to the named sequence. If the
+        sequence doesn't exist yet, it will be created.
+
+        Args:
+            sequence_name: Name of the sequence to add the point to
+            point_name: Name of the voltage point
+            macro_type: Type of macro operation ('ramp' or 'step')
+            duration: Duration to hold the final voltage in nanoseconds
+            ramp_duration: Duration of the ramp in nanoseconds (for 'ramp' type).
+                Defaults to 16 if None.
+            voltages: Optional voltage dictionary for the point. If provided,
+                the point will be added/updated in the gate set.
+
+        Example:
+            >>> qd.add_point_to_sequence(
+            ...     sequence_name='my_sequence',
+            ...     point_name='point1',
+            ...     macro_type='ramp',
+            ...     duration=100,
+            ...     ramp_duration=500,
+            ...     voltages={'virtual_dot_1': 0.5}
+            ... )
+        """
+        if voltages is not None:
+            self.add_point(
+                point_name=point_name,
+                voltages=voltages,
+                replace_existing_point=True,
+            )
+
+        if sequence_name not in self.sequences:
+            self.sequences[sequence_name] = []
+
+        self.sequences[sequence_name].append(
+            SequenceMacro(
+                macro_type=macro_type,
+                point_name=point_name,
+                duration=duration,
+                ramp_duration=ramp_duration if ramp_duration is not None else 16,
+            )
+        )
+
+    def run_sequence(self, name: str):
+        """
+        Execute all macros in a named sequence.
+
+        This method iterates through all SequenceMacros in the specified sequence
+        and executes them in order on the current component.
+
+        Args:
+            name: Name of the sequence to execute
+
+        Raises:
+            KeyError: If the sequence name doesn't exist
+
+        Example:
+            >>> # First create a sequence
+            >>> qd.add_sequence(...)
+            >>> # Then execute it
+            >>> with qua.program() as prog:
+            ...     qd.run_sequence('my_sequence')
+        """
+        for fn in self.sequences[name]:
+            fn(self)
+
     def add_point(
         self,
         point_name: str,
@@ -286,6 +542,18 @@ class VoltagePointMacroMixin:
         )
 
     def _validate_point_name(self, point_name: str) -> str:
+        """
+        Validate that a point name exists and return its full name in the gate set.
+
+        Args:
+            point_name: The point name to validate (without prefix)
+
+        Returns:
+            The full point name in the gate set (with prefix)
+
+        Raises:
+            ValueError: If the point name has not been registered with add_point
+        """
         if point_name not in self.points:
             component_type = self.__class__.__name__
             name_prefix = self._get_point_name_prefix()

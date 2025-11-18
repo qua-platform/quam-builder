@@ -107,5 +107,37 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
         """
         return self.detuning_axis_name
 
+    def measure(self):
+        pass
+
+    def readout_state(
+        self,
+        state,
+        pulse_name: str = "readout",
+    ):
+
+        if self.sensor_dots.__len__() == 0:
+            raise ValueError("No sensor dots")
+        elif self.sensor_dots.__len__() == 1:
+            pass
+        else:
+            raise NotImplementedError(
+                f"self.sensor_dots.__len__() is {len(self.sensor_dots)}"
+            )
+
+        I = declare(fixed)
+        Q = declare(fixed)
+        x = declare(fixed)  # projected value
+
+        sensor_dot = self.sensor_dots[0]
+
+        threshold, projector = sensor_dot._readout_threshold(self.id)
+
+        sensor_dot.measure(pulse_name, qua_vars=(I, Q))
+
+        assign(x, I * projector["wI"] + Q * projector["wQ"] + projector["offset"])
+
+        assign(state, Cast.to_int(x > threshold))
+
     # Voltage point macro methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 

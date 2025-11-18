@@ -52,7 +52,6 @@ DEFAULT_PULSE_NAME = "half_max_square"
 # QUA_COMPENSATION_GAP_NS = 96 # Not used if Channel methods handle timing
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 
-
 class VoltageSequence:
     """
     Manages the generation of a QUA sequence for setting and adjusting DC voltages
