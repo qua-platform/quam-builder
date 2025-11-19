@@ -1,0 +1,226 @@
+from pathlib import Path
+from typing import Union, Optional
+from numpy import sqrt, ceil
+from quam.components import Octave, LocalOscillator, FrequencyConverter
+from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
+from quam_builder.builder.quantum_dots.add_esr_drive_component import add_esr_drive_component
+from quam_builder.builder.quantum_dots.add_gate_voltage_component import add_gate_voltage_component
+from quam_builder.builder.quantum_dots.add_rf_resonator_component import add_rf_resonator_component
+
+from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam_builder.architecture.superconducting.qpu import AnyQuam
+
+
+def build_quam(
+    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuam:
+    """Builds the QuAM by adding various components and saving the machine configuration.
+
+    Args:
+        machine (AnyQuam): The QuAM to be built.
+        calibration_db_path (Optional[Union[Path, str]]): The path to the Octave calibration database.
+
+    Returns:
+        AnyQuam: The built QuAM.
+    """
+    add_octaves(machine, calibration_db_path=calibration_db_path)
+    add_external_mixers(machine)
+    add_ports(machine)
+    add_quantum_dots(machine)
+    add_pulses(machine)
+
+    machine.save()
+
+    return machine
+
+
+def add_ports(machine: AnyQuam):
+    """Creates and stores all input/output ports according to what has been allocated to each element in the machine's wiring.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the ports will be added.
+    """
+    for wiring_by_element in machine.wiring.values():
+        for wiring_by_line_type in wiring_by_element.values():
+            for ports in wiring_by_line_type.values():
+                for port in ports:
+                    if "ports" in ports.get_unreferenced_value(port):
+                        machine.ports.reference_to_port(
+                            ports.get_unreferenced_value(port), create=True
+                        )
+
+
+def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -> str:
+    """Sets the default grid location for a qubit based on its number and the total number of qubits.
+
+    Args:
+        qubit_number (int): The number of the qubit.
+        total_number_of_qubits (int): The total number of qubits.
+
+    Returns:
+        str: The grid location in the format "x,y".
+    """
+    number_of_rows = int(ceil(sqrt(total_number_of_qubits)))
+    y = qubit_number % number_of_rows
+    x = qubit_number // number_of_rows
+    return f"{x},{y}"
+
+
+def add_qpu(machine: AnyQuam):
+    """Adds global_gates, qubits, qubit_pairs, and sensor dots to the machine based on the wiring configuration.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the ldv qubits will be added.
+    """
+    for element_type, wiring_by_element in machine.wiring.items():
+        if element_type == "global_gates":
+            machine.active_global_gate_names = []
+            number_of_global_gates = len(wiring_by_element.items())
+            global_gate_number = 0
+            for global_gate_id, wiring_by_line_type in wiring_by_element.items():
+                global_gate_class = machine.global_gate_type[global_gate_id]
+                global_gate = global_gate_class(id=global_gate_id)
+                machine.global_gates[global_gate_id] = global_gate
+                machine.global_gates[global_gate_id].grid_location = _set_default_grid_location(
+                    global_gate_number, number_of_global_gates
+                )
+                global_gate_number += 1
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{global_gate_id}/{line_type}"
+                    if line_type == WiringLineType.FLUX.value:
+                        add_gate_voltage_component(global_gate, wiring_path, ports)
+                    else:
+                        raise  ValueError(f"Unknown line type: {line_type}")
+                machine.active_global_gate_names.append(global_gate.name)
+
+        elif element_type == "sensor_dots":
+            machine.active_sensor_dot_names = []
+            pass
+        elif element_type == "qubits":
+            machine.active_qubit_names = []
+            number_of_qubits = len(wiring_by_element.items())
+            qubit_number = 0
+            for qubit_id, wiring_by_line_type in wiring_by_element.items():
+                qubit_class = machine.qubit_type
+                ldv_qubit = qubit_class(id=qubit_id)
+                machine.qubits[qubit_id] = ldv_qubit
+                machine.qubits[qubit_id].grid_location = _set_default_grid_location(
+                    qubit_number, number_of_qubits
+                )
+                qubit_number += 1
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
+                    if line_type == WiringLineType.DRIVE.value:
+                        add_esr_drive_component(ldv_qubit, wiring_path, ports)
+                    elif line_type == WiringLineType.FLUX.value:
+                        add_gate_voltage_component(ldv_qubit, wiring_path, ports)
+                    else:
+                        raise ValueError(f"Unknown line type: {line_type}")
+
+                machine.active_qubit_names.append(ldv_qubit.name)
+
+        elif element_type == "qubit_pairs":
+            machine.active_qubit_pair_names = []
+            for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
+                qc, qt = qubit_pair_id.split("-")
+                qt = f"q{qt}"
+                ldv_qubit_pair = machine.qubit_pair_type(
+                    id=qubit_pair_id,
+                    qubit_control=f"#/qubits/{qc}",
+                    qubit_target=f"#/qubits/{qt}",
+                )
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{qubit_pair_id}/{line_type}"
+                    if line_type == WiringLineType.COUPLER.value:
+                        add_gate_voltage_component(
+                            ldv_qubit_pair, wiring_path, ports
+                        )
+                    else:
+                        raise ValueError(f"Unknown line type: {line_type}")
+
+                    machine.qubit_pairs[ldv_qubit_pair.name] = ldv_qubit_pair
+                    machine.active_qubit_pair_names.append(ldv_qubit_pair.name)
+
+
+def add_pulses(machine: AnyQuam):
+    """Adds default pulses to the ldv_qubit qubits and qubit pairs in the machine.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the pulses will be added.
+    """
+    if hasattr(machine, "qubits"):
+        for ldv_qubit in machine.qubits.values():
+            add_default_ldv_qubit_pulses(ldv_qubit)
+
+    if hasattr(machine, "qubit_pairs"):
+        for qubit_pair in machine.qubit_pairs.values():
+            add_default_ldv_qubit_pair_pulses(qubit_pair)
+
+
+def add_octaves(
+    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuam:
+    """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the octaves will be added.
+        calibration_db_path (Optional[Union[Path, str]]): The path to the calibration database.
+
+    Returns:
+        AnyQuam: The QuAM with the added octaves.
+    """
+    if calibration_db_path is None:
+        serializer = machine.get_serialiser()
+        calibration_db_path = serializer._get_state_path().parent
+
+    if isinstance(calibration_db_path, str):
+        calibration_db_path = Path(calibration_db_path)
+
+    for wiring_by_element in machine.wiring.values():
+        for qubit, wiring_by_line_type in wiring_by_element.items():
+            for line_type, references in wiring_by_line_type.items():
+                for reference in references:
+                    if "octaves" in references.get_unreferenced_value(reference):
+                        octave_name = references.get_unreferenced_value(
+                            reference
+                        ).split("/")[2]
+                        octave = Octave(
+                            name=octave_name,
+                            calibration_db_path=str(calibration_db_path),
+                        )
+                        machine.octaves[octave_name] = octave
+                        octave.initialize_frequency_converters()
+
+    return machine
+
+
+def add_external_mixers(machine: AnyQuam) -> AnyQuam:
+    """Adds external mixers to the machine based on the wiring configuration.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the external mixers will be added.
+
+    Returns:
+        AnyQuam: The QuAM with the added external mixers.
+    """
+    for wiring_by_element in machine.wiring.values():
+        for qubit, wiring_by_line_type in wiring_by_element.items():
+            for line_type, references in wiring_by_line_type.items():
+                for reference in references:
+                    if "mixers" in references.get_unreferenced_value(reference):
+                        mixer_name = references.get_unreferenced_value(reference).split(
+                            "/"
+                        )[2]
+                        ldv_qubit_channel = {
+                            WiringLineType.DRIVE.value: "xy",
+                            WiringLineType.RESONATOR.value: "resonator",
+                        }
+                        frequency_converter = FrequencyConverter(
+                            local_oscillator=LocalOscillator(),
+                            mixer=StandaloneMixer(
+                                intermediate_frequency=f"#/qubits/{qubit}/{ldv_qubit_channel[line_type]}/intermediate_frequency",
+                            ),
+                        )
+                        machine.mixers[mixer_name] = frequency_converter
+
+    return machine
