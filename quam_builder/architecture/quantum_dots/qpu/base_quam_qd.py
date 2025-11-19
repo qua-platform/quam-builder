@@ -57,6 +57,8 @@ class BaseQuamQD(QuamRoot):
         global_gates (VoltageGate): The channel objects associated with global gates such as the back gate, reservoirs, or splitter gates.
         wiring (dict): The wiring configuration.
         network (dict): The network configuration.
+        active_global_gate_names (List[str]): The names of the active global gates.
+        active_sensor_dot_names (List[str]): The names of the active sensor dots.
         active_qubit_names (List[str]): A list of active qubit names.
         active_qubit_pair_names (List[str]): A list of active qubit pair names.
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
@@ -103,6 +105,8 @@ class BaseQuamQD(QuamRoot):
     qubits: Dict[str, AnySpinQubit] = field(default_factory=dict)
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
+    active_global_gate_names: List[str] = field(default_factory=list)
+    active_sensor_dot_names: List[str] = field(default_factory=list)
     active_qubit_names: List[str] = field(default_factory=list)
     active_qubit_pair_names: List[str] = field(default_factory=list)
 
