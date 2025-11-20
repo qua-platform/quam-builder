@@ -643,16 +643,6 @@ class VoltageSequence:
                     delta_v, 
                     py_comp_dur,
                 )
-                # if is_qua_type(delta_v):
-                #     scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
-                # else:
-                #     scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
-                # channel_obj.play(
-                #     DEFAULT_PULSE_NAME,
-                #     amplitude_scale=scaled_amp,
-                #     duration=py_comp_dur >> 2,
-                #     validate=False,  # Do not validate as pulse may not exist yet
-                # )
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
             else:
                 q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
@@ -665,14 +655,6 @@ class VoltageSequence:
                         delta_v_q, 
                         q_comp_dur_4ns,
                     )
-                # scaled_amp_q = delta_v_q << DEFAULT_AMPLITUDE_BITSHIFT
-                # with if_(q_comp_dur_4ns > 0):
-                #     channel_obj.play(
-                #         DEFAULT_PULSE_NAME,
-                #         amplitude_scale=scaled_amp_q,
-                #         duration=q_comp_dur_4ns >> 2,
-                #         validate=False,  # Do not validate as pulse may not exist yet
-                #     )
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
 
             tracker.current_level = comp_amp_val
