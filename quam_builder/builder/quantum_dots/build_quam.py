@@ -95,15 +95,32 @@ def add_qpu(machine: AnyQuam):
 
         elif element_type == "sensor_dots":
             machine.active_sensor_dot_names = []
-            pass
+            number_of_sensor_dots = len(wiring_by_element.items())
+            sensor_dot_number = 0
+            for sensor_dot_id, wiring_by_line_type in wiring_by_element.items():
+                global_gate_class = machine.global_gate_type[sensor_dot_id]
+                sensor_dot = global_gate_class(id=sensor_dot_id)
+                machine.global_gates[sensor_dot_id] = sensor_dot
+                machine.global_gates[sensor_dot_id].grid_location = _set_default_grid_location(
+                    sensor_dot_number, number_of_sensor_dots
+                )
+                number_of_sensor_dots += 1
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{sensor_dot_id}/{line_type}"
+                    if line_type == WiringLineType.FLUX.value:
+                        add_gate_voltage_component(sensor_dot, wiring_path, ports)
+                    else:
+                        raise ValueError(f"Unknown line type: {line_type}")
+                machine.active_global_gate_names.append(sensor_dot.name)
+
         elif element_type == "qubits":
             machine.active_qubit_names = []
             number_of_qubits = len(wiring_by_element.items())
             qubit_number = 0
             for qubit_id, wiring_by_line_type in wiring_by_element.items():
                 qubit_class = machine.qubit_type
-                ldv_qubit = qubit_class(id=qubit_id)
-                machine.qubits[qubit_id] = ldv_qubit
+                qubit = qubit_class(id=qubit_id)
+                machine.qubits[qubit_id] = qubit
                 machine.qubits[qubit_id].grid_location = _set_default_grid_location(
                     qubit_number, number_of_qubits
                 )
@@ -111,20 +128,20 @@ def add_qpu(machine: AnyQuam):
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
                     if line_type == WiringLineType.DRIVE.value:
-                        add_esr_drive_component(ldv_qubit, wiring_path, ports)
+                        add_esr_drive_component(qubit, wiring_path, ports)
                     elif line_type == WiringLineType.FLUX.value:
-                        add_gate_voltage_component(ldv_qubit, wiring_path, ports)
+                        add_gate_voltage_component(qubit, wiring_path, ports)
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
 
-                machine.active_qubit_names.append(ldv_qubit.name)
+                machine.active_qubit_names.append(qubit.name)
 
         elif element_type == "qubit_pairs":
             machine.active_qubit_pair_names = []
             for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
-                qc, qt = qubit_pair_id.split("-")
-                qt = f"q{qt}"
-                ldv_qubit_pair = machine.qubit_pair_type(
+                qc, qt = qubit_pair_id.split("_")
+
+                qubit_pair = machine.qubit_pair_type(
                     id=qubit_pair_id,
                     qubit_control=f"#/qubits/{qc}",
                     qubit_target=f"#/qubits/{qt}",
@@ -133,13 +150,13 @@ def add_qpu(machine: AnyQuam):
                     wiring_path = f"#/wiring/{element_type}/{qubit_pair_id}/{line_type}"
                     if line_type == WiringLineType.COUPLER.value:
                         add_gate_voltage_component(
-                            ldv_qubit_pair, wiring_path, ports
+                            qubit_pair, wiring_path, ports
                         )
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
 
-                    machine.qubit_pairs[ldv_qubit_pair.name] = ldv_qubit_pair
-                    machine.active_qubit_pair_names.append(ldv_qubit_pair.name)
+                    machine.qubit_pairs[qubit_pair.name] = qubit_pair
+                    machine.active_qubit_pair_names.append(qubit_pair.name)
 
 
 def add_pulses(machine: AnyQuam):
