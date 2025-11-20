@@ -18,7 +18,6 @@ from quam_builder.tools.qua_tools import (
 )
 
 DEFAULT_PULSE_NAME = "half_max_square"
-BITSHIFT_FACTOR = 2
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
