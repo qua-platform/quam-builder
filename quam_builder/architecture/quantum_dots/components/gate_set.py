@@ -15,7 +15,6 @@ from quam_builder.tools.qua_tools import (
     VoltageLevelType,
     CLOCK_CYCLE_NS,
     MIN_PULSE_DURATION_NS,
-    is_qua_type
 )
 
 DEFAULT_PULSE_NAME = "half_max_square"

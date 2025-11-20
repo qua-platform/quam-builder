@@ -199,10 +199,8 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
-
         if self.gate_set.adjust_for_attenuation: 
             unattenuated_delta_v = self._adjust_for_attenuation(channel, delta_v)
-
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
             py_ramp_duration = int(float(str(ramp_duration)))
