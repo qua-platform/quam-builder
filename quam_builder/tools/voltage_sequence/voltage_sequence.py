@@ -137,9 +137,7 @@ class VoltageSequence:
             unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
         else: 
             unattenuated_delta_v = delta_v * DEFAULT_ATTENUATION_SCALE
-
         return unattenuated_delta_v
-
 
     def _play_step_on_channel(
         self,

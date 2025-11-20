@@ -11,8 +11,6 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
-from qm.qua import declare, assign, fixed
-
 from quam_builder.tools.qua_tools import (
     VoltageLevelType,
     CLOCK_CYCLE_NS,
