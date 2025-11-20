@@ -55,6 +55,7 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 VOLTAGE_BITSHIFT = 12
+ATTENUATION_BITSHIFT = 6
 
 
 def round_amplitude(level):
@@ -137,6 +138,16 @@ class VoltageSequence:
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
+        DEFAULT_ATTENUATION_SCALE = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
+
+        if is_qua_type(delta_v): 
+            # Same temp variable reused across gates, just redefined
+            attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
+            assign(attenuation_factor, DEFAULT_ATTENUATION_SCALE / 2**ATTENUATION_BITSHIFT)
+            unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
+        else: 
+            unattenuated_delta_v = delta_v * DEFAULT_ATTENUATION_SCALE
+
         py_duration = 0
         if not is_qua_type(duration):
             py_duration = int(float(str(duration)))
@@ -144,10 +155,10 @@ class VoltageSequence:
         if py_duration == 0 and not is_qua_type(duration):
             return
 
-        if is_qua_type(delta_v):
-            scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
+        if is_qua_type(unattenuated_delta_v):
+            scaled_amp = unattenuated_delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
-            scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
+            scaled_amp = np.round(unattenuated_delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10) 
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -183,6 +194,17 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
+
+        DEFAULT_ATTENUATION_SCALE = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
+
+        if is_qua_type(delta_v): 
+            # Same temp variable reused across gates, just redefined
+            attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
+            assign(attenuation_factor, DEFAULT_ATTENUATION_SCALE / 2**ATTENUATION_BITSHIFT)
+            unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
+        else: 
+            unattenuated_delta_v = delta_v * DEFAULT_ATTENUATION_SCALE
+
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
             py_ramp_duration = int(float(str(ramp_duration)))
@@ -191,18 +213,18 @@ class VoltageSequence:
             ramp_duration >> 2 if is_qua_type(ramp_duration) else py_ramp_duration >> 2
         )
 
-        if is_qua_type(delta_v) or is_qua_type(ramp_duration):
+        if is_qua_type(unattenuated_delta_v) or is_qua_type(ramp_duration):
             ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
             inv_ramp_dur = self._get_temp_qua_var(f"{channel.name}_inv_ramp_dur", fixed)
             assign(inv_ramp_dur, Math.div(1, ramp_duration))
-            assign(ramp_rate, delta_v * inv_ramp_dur)
+            assign(ramp_rate, unattenuated_delta_v * inv_ramp_dur)
             channel.play(
                 ramp(ramp_rate),
                 duration=ramp_duration_cycles,
                 validate=False,
             )
         else:
-            py_delta_v = float(str(delta_v))
+            py_delta_v = float(str(unattenuated_delta_v))
             if py_ramp_duration > 0:
                 ramp_rate_val = py_delta_v / py_ramp_duration
                 channel.play(

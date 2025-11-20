@@ -11,13 +11,17 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
+from qm.qua import declare, assign, fixed
+
 from quam_builder.tools.qua_tools import (
     VoltageLevelType,
     CLOCK_CYCLE_NS,
     MIN_PULSE_DURATION_NS,
+    is_qua_type
 )
 
 DEFAULT_PULSE_NAME = "half_max_square"
+BITSHIFT_FACTOR = 2
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
@@ -95,6 +99,23 @@ class GateSet(QuantumComponent):
     """
 
     channels: Dict[str, SingleChannel]
+    adjust_for_attenuation: bool = False
+
+    def __post_init__(self): 
+        for ch in self.channels.values():
+            if hasattr(ch.opx_output, "output_mode"):
+                if ch.opx_output.output_mode == "amplified":
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
+                    )
+                else:
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                    )
+            else:
+                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                )
 
     @property
     def name(self) -> str:
