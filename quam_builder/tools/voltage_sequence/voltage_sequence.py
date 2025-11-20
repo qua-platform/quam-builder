@@ -129,14 +129,14 @@ class VoltageSequence:
         return self._temp_qua_vars[internal_name]
     
     def _adjust_for_attenuation(self, channel, delta_v): 
-        DEFAULT_ATTENUATION_SCALE = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
+        default_attenuation_scale = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
         if is_qua_type(delta_v): 
             # Same temp variable reused across gates, just redefined
             attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
-            assign(attenuation_factor, DEFAULT_ATTENUATION_SCALE / (1 << ATTENUATION_BITSHIFT))
+            assign(attenuation_factor, default_attenuation_scale / (1 << ATTENUATION_BITSHIFT))
             unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
         else: 
-            unattenuated_delta_v = delta_v * DEFAULT_ATTENUATION_SCALE
+            unattenuated_delta_v = delta_v * default_attenuation_scale
         return unattenuated_delta_v
 
     def _play_step_on_channel(
