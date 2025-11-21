@@ -564,7 +564,7 @@ class VoltageSequence:
 
     def apply_compensation_pulse(
         self,
-        max_voltage: float = 0.49,
+        max_voltage: float = 0.05,
         go_to_zero: bool = True,
         return_to_zero: bool = True,
     ):
@@ -622,6 +622,12 @@ class VoltageSequence:
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
 
+            attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
+            opx_voltage_limit = 0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5 
+            if max_voltage * attenuation_scale > opx_voltage_limit: 
+                raise ValueError(
+                    f"Channel '{ch_name}' max_voltage of {max_voltage:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                )
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
