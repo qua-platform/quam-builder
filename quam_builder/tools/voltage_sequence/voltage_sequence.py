@@ -627,7 +627,7 @@ class VoltageSequence:
                 attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
                 if max_voltage * attenuation_scale > opx_voltage_limit: 
                     raise ValueError(
-                        f"Channel '{ch_name}' max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                        f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
                     )
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
