@@ -190,11 +190,6 @@ def test_qua_voltage_sequence_durations(qmm, machine: QuamGateSet):
         seq.step_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16)
 
     qmm, samples = simulate_program(qmm, machine, program, int(2e3))
-    import matplotlib.pyplot as plt
-
-    plt.figure()
-    samples.con1.plot()
-    plt.show()
     for sample in samples.con1.analog.values():
         validate_durations(
             sample, [duration * 2] * 3, steps=3
