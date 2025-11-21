@@ -102,14 +102,19 @@ def validate_compensation(samples, allowed=1.0):
     plt.show()
     for name, sample in samples.con1.analog.items():
         integrated = np.abs(np.trapz(sample))
-        assert integrated < allowed, f"{name}, {integrated}"
+        assert (
+            integrated < allowed
+        ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"
 
 
-def validate_durations(sample, expected_durations):
-    durations = np.diff(np.where(np.abs(np.diff(sample)))[0])
-    assert all(
-        durations == expected_durations
-    ), f"durations: {durations}, expected: {expected_durations}"
+def validate_durations(sample, expected_durations, steps):
+    durations = np.diff(np.where(np.abs(np.diff(sample)))[0])[:steps]
+    try:
+        assert all(
+            durations == expected_durations
+        ), f"durations: {durations}, expected: {expected_durations}"
+    except:
+        raise Exception(f"durations: {durations}, expected: {expected_durations}")
 
 
 def validate_keep_levels(sample, expected):

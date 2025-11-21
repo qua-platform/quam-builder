@@ -55,6 +55,7 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 VOLTAGE_BITSHIFT = 12
+ATTENUATION_BITSHIFT = 8
 
 
 def round_amplitude(level):
@@ -126,6 +127,17 @@ class VoltageSequence:
         if internal_name not in self._temp_qua_vars:
             self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
+    
+    def _adjust_for_attenuation(self, channel, delta_v): 
+        default_attenuation_scale = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
+        if is_qua_type(delta_v): 
+            # Same temp variable reused across gates, just redefined
+            attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
+            assign(attenuation_factor, default_attenuation_scale / (1 << ATTENUATION_BITSHIFT))
+            unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
+        else: 
+            unattenuated_delta_v = delta_v * default_attenuation_scale
+        return unattenuated_delta_v
 
     def _play_step_on_channel(
         self,
@@ -137,6 +149,10 @@ class VoltageSequence:
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
+
+        if self.gate_set.adjust_for_attenuation: 
+            delta_v = self._adjust_for_attenuation(channel, delta_v)
+
         py_duration = 0
         if not is_qua_type(duration):
             py_duration = int(float(str(duration)))
@@ -147,7 +163,7 @@ class VoltageSequence:
         if is_qua_type(delta_v):
             scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
-            scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
+            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10) 
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -183,6 +199,8 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
+        if self.gate_set.adjust_for_attenuation: 
+            delta_v = self._adjust_for_attenuation(channel, delta_v)
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
             py_ramp_duration = int(float(str(ramp_duration)))
@@ -546,7 +564,7 @@ class VoltageSequence:
 
     def apply_compensation_pulse(
         self,
-        max_voltage: float = 0.49,
+        max_voltage: float = 0.05,
         go_to_zero: bool = True,
         return_to_zero: bool = True,
     ):
@@ -603,7 +621,14 @@ class VoltageSequence:
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
+            opx_voltage_limit = 0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5 
 
+            if self.gate_set.adjust_for_attenuation:
+                attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
+                if max_voltage * attenuation_scale > opx_voltage_limit: 
+                    raise ValueError(
+                        f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                    )
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
@@ -620,15 +645,10 @@ class VoltageSequence:
                     continue
 
                 delta_v = py_comp_amp - float(str(current_v))
-                if is_qua_type(delta_v):
-                    scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
-                else:
-                    scaled_amp = np.round(delta_v * (1.0 / DEFAULT_WF_AMPLITUDE), 10)
-                channel_obj.play(
-                    DEFAULT_PULSE_NAME,
-                    amplitude_scale=scaled_amp,
-                    duration=py_comp_dur >> 2,
-                    validate=False,  # Do not validate as pulse may not exist yet
+                self._play_step_on_channel(
+                    channel_obj, 
+                    delta_v, 
+                    py_comp_dur,
                 )
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
             else:
@@ -636,13 +656,11 @@ class VoltageSequence:
                     tracker, max_voltage, channel_obj.name
                 )
                 delta_v_q = q_comp_amp - current_v
-                scaled_amp_q = delta_v_q << DEFAULT_AMPLITUDE_BITSHIFT
                 with if_(q_comp_dur_4ns > 0):
-                    channel_obj.play(
-                        DEFAULT_PULSE_NAME,
-                        amplitude_scale=scaled_amp_q,
-                        duration=q_comp_dur_4ns >> 2,
-                        validate=False,  # Do not validate as pulse may not exist yet
+                    self._play_step_on_channel(
+                        channel_obj, 
+                        delta_v_q, 
+                        q_comp_dur_4ns,
                     )
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
 
