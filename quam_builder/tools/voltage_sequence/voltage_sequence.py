@@ -93,6 +93,7 @@ class VoltageSequence:
       virtual gates from the resulting physical voltages. To preserve a prior
       virtual configuration, include all relevant virtual gates (and their
       values) in each call, or operate directly on physical gates.
+    - the keep_levels argument can be used to modify this behavior
     """
 
     def __init__(
@@ -100,16 +101,29 @@ class VoltageSequence:
         gate_set: GateSet,
         track_integrated_voltage: bool = True,
         keep_levels: bool = True,
+        enforce_qua_calcs: bool = False,
     ):
         """
         Initializes the VoltageSequence.
 
         Args:
             gate_set: The GateSet instance this sequence will operate on.
+            track_integrated_voltage: Whether to track integrated voltage
+            or only current level. Defaults to True
+            keep_levels: without keep_levels, the default behaviour for resolving voltages
+            will be that any unspecified voltages will be treated as 0,
+            with keep_levels, unspecified voltages instead use the latest value
+            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
+            track the current level for certain programs, defaults to False.
+
         """
         self.gate_set: GateSet = gate_set
         self.state_trackers: Dict[str, SequenceStateTracker] = {
-            ch_name: SequenceStateTracker(ch_name)
+            ch_name: SequenceStateTracker(
+                ch_name,
+                track_integrated_voltage=track_integrated_voltage,
+                enforce_qua_calcs=enforce_qua_calcs,
+            )
             for ch_name in self.gate_set.channels.keys()
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
@@ -127,15 +141,22 @@ class VoltageSequence:
         if internal_name not in self._temp_qua_vars:
             self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
-    
-    def _adjust_for_attenuation(self, channel, delta_v): 
-        default_attenuation_scale = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
-        if is_qua_type(delta_v): 
+
+    def _adjust_for_attenuation(self, channel, delta_v):
+        default_attenuation_scale = (
+            10 ** (channel.attenuation / 20) if hasattr(channel, "attenuation") else 1
+        )
+        if is_qua_type(delta_v):
             # Same temp variable reused across gates, just redefined
-            attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
-            assign(attenuation_factor, default_attenuation_scale / (1 << ATTENUATION_BITSHIFT))
-            unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
-        else: 
+            attenuation_factor = self._get_temp_qua_var(name_suffix="attenuation")
+            assign(
+                attenuation_factor,
+                default_attenuation_scale / (1 << ATTENUATION_BITSHIFT),
+            )
+            unattenuated_delta_v = (
+                delta_v * attenuation_factor
+            ) << ATTENUATION_BITSHIFT
+        else:
             unattenuated_delta_v = delta_v * default_attenuation_scale
         return unattenuated_delta_v
 
@@ -150,7 +171,7 @@ class VoltageSequence:
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
 
-        if self.gate_set.adjust_for_attenuation: 
+        if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
 
         py_duration = 0
@@ -163,7 +184,7 @@ class VoltageSequence:
         if is_qua_type(delta_v):
             scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
-            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10) 
+            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10)
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -199,7 +220,7 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
-        if self.gate_set.adjust_for_attenuation: 
+        if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
@@ -569,8 +590,6 @@ class VoltageSequence:
         return_to_zero: bool = True,
     ):
         """
-        To be included in future release: Use with caution
-
         Apply compensation pulse to each channel to counteract integrated voltage drift.
 
         When integrated voltage tracking is enabled, this method calculates and applies
@@ -639,8 +658,8 @@ class VoltageSequence:
 
                 delta_v = py_comp_amp - float(str(current_v))
                 self._play_step_on_channel(
-                    channel_obj, 
-                    delta_v, 
+                    channel_obj,
+                    delta_v,
                     py_comp_dur,
                 )
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
@@ -651,8 +670,8 @@ class VoltageSequence:
                 delta_v_q = q_comp_amp - current_v
                 with if_(q_comp_dur_4ns > 0):
                     self._play_step_on_channel(
-                        channel_obj, 
-                        delta_v_q, 
+                        channel_obj,
+                        delta_v_q,
                         q_comp_dur_4ns,
                     )
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
