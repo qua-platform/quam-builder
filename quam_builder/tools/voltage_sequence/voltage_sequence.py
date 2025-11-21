@@ -621,13 +621,14 @@ class VoltageSequence:
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
-
-            attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
             opx_voltage_limit = 0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5 
-            if max_voltage * attenuation_scale > opx_voltage_limit: 
-                raise ValueError(
-                    f"Channel '{ch_name}' max_voltage of {max_voltage:.2f} exceeds OPX output limit of {opx_voltage_limit}"
-                )
+
+            if self.gate_set.adjust_for_attenuation:
+                attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
+                if max_voltage * attenuation_scale > opx_voltage_limit: 
+                    raise ValueError(
+                        f"Channel '{ch_name}' max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                    )
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
