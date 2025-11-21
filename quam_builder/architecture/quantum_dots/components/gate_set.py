@@ -60,6 +60,8 @@ class GateSet(QuantumComponent):
       sequences
     - Resolve voltages for all channels with default fallbacks
     - Create voltage sequences with proper channel configuration
+    - Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
+        their output mode (amplified vs direct) before creating the sequence.
 
     The GateSet acts as a logical grouping of related channels (e.g., gates
     controlling a specific quantum dot) and enables high-level voltage control
@@ -215,9 +217,6 @@ class GateSet(QuantumComponent):
         """
         Creates a new VoltageSequence instance associated with this GateSet.
 
-        Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
-        their output mode (amplified vs direct) before creating the sequence.
-
         Args:
             track_integrated_voltage: Whether to track integrated voltage.
                 If False, the sequence will not track integrated voltage, and
@@ -231,19 +230,4 @@ class GateSet(QuantumComponent):
         from quam_builder.tools.voltage_sequence import (
             VoltageSequence,
         )
-
-        for ch in self.channels.values():
-            if hasattr(ch.opx_output, "output_mode"):
-                if ch.opx_output.output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
-                    )
-                else:
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                    )
-            else:
-                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                )
         return VoltageSequence(self, track_integrated_voltage)

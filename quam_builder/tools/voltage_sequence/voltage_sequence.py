@@ -55,7 +55,7 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 VOLTAGE_BITSHIFT = 12
-ATTENUATION_BITSHIFT = 6
+ATTENUATION_BITSHIFT = 8
 
 
 def round_amplitude(level):
