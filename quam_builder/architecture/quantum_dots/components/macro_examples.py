@@ -1,19 +1,17 @@
 """
-Comprehensive examples demonstrating voltage point and sequence macro functionality.
+Essential examples demonstrating voltage point and sequence macro functionality.
 
-This module showcases all the ways to create, compose, and execute voltage point macros
-in the quantum dot architecture, including:
+This module showcases the 5 most important features of the macro system:
 
-1. **Point Macros**: StepPointMacro and RampPointMacro for voltage operations
-2. **Sequence Macros**: Composing multiple macros into reusable sequences
-3. **Fluent API**: Method chaining for clean macro definition
-4. **Dynamic Method Calling**: Using __getattr__ to call macros as methods
-5. **Parameter Overrides**: Runtime customization of macro parameters
-6. **Serialization**: All approaches are QuAM-serialization compatible
+1. **Fluent API**: Modern method chaining for clean macro definition
+2. **Dynamic Method Calling**: Call macros as methods via __getattr__
+3. **Parameter Overrides**: Runtime customization of macro parameters
+4. **Nested Sequences**: Hierarchical composition of complex protocols
+5. **Mixed Macros**: Combining pulse macros and point macros in sequences
 
 Key Features:
+- Clean, modern API with method chaining
 - Flexibility: Define macros dynamically during calibration
-- Clean API: Call macros as methods like @register_macro decorated functions
 - Composability: Build complex sequences from simple primitives
 - Serializable: All state stored in self.macros dict
 """
@@ -59,91 +57,10 @@ class ExampleQuantumDot(VoltagePointMacroMixin):
 
 
 # ============================================================================
-# Example 1: Traditional API (Backward Compatible)
+# Example 1: Fluent API (Recommended)
 # ============================================================================
 
-def example_01_traditional_api(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Traditional approach: Manual point and macro creation.
-
-    This is the original API, still fully supported for backward compatibility.
-    Useful when you need fine-grained control over each step.
-    """
-    # Step 1: Add voltage point to gate set
-    quantum_dot.add_point(
-        point_name="idle",
-        voltages={"virtual_dot_0": 0.1},
-        duration=16
-    )
-
-    # Step 2: Get reference to the point
-    point = quantum_dot.voltage_sequence.gate_set.macros[f"{quantum_dot.id}_idle"]
-    point_ref = point.get_reference()
-
-    # Step 3: Create macro with reference
-    idle_macro = StepPointMacro(
-        point_ref=point_ref,
-        hold_duration=100
-    )
-
-    # Step 4: Store macro and set parent
-    quantum_dot.macros["idle"] = idle_macro
-    idle_macro.parent = quantum_dot
-
-    # Execute: Traditional dictionary access
-    quantum_dot.macros["idle"]()
-
-    # Or with parameter override
-    quantum_dot.macros["idle"](hold_duration=200)
-
-
-# ============================================================================
-# Example 2: Helper Methods (Recommended Traditional Approach)
-# ============================================================================
-
-def example_02_helper_methods(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Using convenience helper methods that combine point and macro creation.
-
-    This is the recommended approach when not using the fluent API.
-    Automatically handles point creation, reference setup, and parent linking.
-    """
-    # Create point + step macro in one call
-    quantum_dot.add_point_with_step_macro(
-        macro_name="idle",
-        voltages={"virtual_dot_0": 0.1},
-        hold_duration=100,
-        point_duration=16
-    )
-
-    # Create point + ramp macro in one call
-    quantum_dot.add_point_with_ramp_macro(
-        macro_name="load",
-        voltages={"virtual_dot_0": 0.3},
-        hold_duration=200,
-        ramp_duration=500,
-        point_duration=16
-    )
-
-    # Execute via dictionary access
-    quantum_dot.macros["idle"]()
-    quantum_dot.macros["load"]()
-
-    # Create a sequence macro manually
-    sequence = SequenceMacro(name="init_sequence")
-    sequence = sequence.with_macros(quantum_dot, ["idle", "load"])
-    quantum_dot.macros["init_sequence"] = sequence
-    sequence.parent = quantum_dot
-
-    # Execute the sequence
-    quantum_dot.macros["init_sequence"]()
-
-
-# ============================================================================
-# Example 3: Fluent API (Recommended Modern Approach)
-# ============================================================================
-
-def example_03_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_01_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Modern fluent API with method chaining.
 
@@ -170,10 +87,10 @@ def example_03_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
 
 
 # ============================================================================
-# Example 4: Dynamic Method Calling via __getattr__
+# Example 2: Dynamic Method Calling
 # ============================================================================
 
-def example_04_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Calling macros as methods using __getattr__ magic.
 
@@ -208,55 +125,10 @@ def example_04_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
 
 
 # ============================================================================
-# Example 5: Complex Calibration Workflow
+# Example 3: Parameter Overrides
 # ============================================================================
 
-def example_05_calibration_workflow(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Realistic calibration workflow demonstrating dynamic macro definition.
-
-    Shows how macros can be defined, tested, and refined during calibration
-    based on measurement results, while maintaining clean calling syntax.
-    """
-    # Stage 1: Define initial voltage points for calibration
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_step_point("load", {"virtual_dot_0": 0.3}, hold_duration=200))
-
-    # Stage 2: Test and measure (simulated)
-    with qua.program() as test_prog:
-        quantum_dot.idle()
-        quantum_dot.load()
-        # ... measurement code ...
-
-    # Stage 3: Based on results, add optimized ramp macro
-    quantum_dot.with_ramp_point(
-        "optimized_load",
-        {"virtual_dot_0": 0.32},  # Adjusted voltage from calibration
-        hold_duration=180,
-        ramp_duration=450
-    )
-
-    # Stage 4: Create calibration sequence
-    quantum_dot.with_sequence("calibrated_init", ["idle", "optimized_load"])
-
-    # Stage 5: Test new sequence
-    with qua.program() as final_prog:
-        quantum_dot.calibrated_init()
-        # ... proceed with experiment ...
-
-    # Stage 6: Add more complex sequences based on calibration
-    quantum_dot.with_step_point("measure_point", {"virtual_dot_0": 0.15},
-                               hold_duration=1000)
-    quantum_dot.with_sequence("full_protocol",
-                             ["calibrated_init", "measure_point"])
-
-
-# ============================================================================
-# Example 6: Parameter Overrides
-# ============================================================================
-
-def example_06_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Runtime parameter overrides for macro customization.
 
@@ -285,10 +157,10 @@ def example_06_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
 
 
 # ============================================================================
-# Example 7: Nested Sequences
+# Example 4: Nested Sequences
 # ============================================================================
 
-def example_07_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Creating nested sequences by composing sequence macros.
 
@@ -308,261 +180,105 @@ def example_07_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
     quantum_dot.with_sequence("readout_seq", ["manipulate", "readout"])
 
     # Compose higher-level sequence from sub-sequences
-    # Note: You need to store init and readout_seq as macros first
+    # The init and readout_seq are already stored as macros, so they can be referenced
     quantum_dot.with_sequence("full_experiment", ["init", "readout_seq"])
 
     # Execute nested sequence
+    # Each SequenceMacro uses self.parent to resolve its macro references
     with qua.program() as prog:
         quantum_dot.full_experiment()  # Executes all 4 primitive operations
 
 
 # ============================================================================
-# Example 8: Multi-Dot Coordination
+# Example 5: Mixed Pulse and Point Sequence Macros
 # ============================================================================
 
-def example_08_multi_dot_coordination(
-    dot1: VoltagePointMacroMixin,
-    dot2: VoltagePointMacroMixin
-) -> None:
+def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     """
-    Coordinating macros across multiple quantum dots.
+    Combining pulse macros and point macros in a single sequence.
 
-    Shows how to define and execute macros on multiple quantum dot components
-    simultaneously, useful for two-qubit operations.
+    This example demonstrates a realistic quantum dot experiment workflow where
+    you need to coordinate voltage point operations (moving between charge states)
+    with microwave pulse operations (rotating qubit state).
+
+    This is particularly relevant for:
+    - Loss-DiVincenzo qubits where voltage tunes frequency and pulses drive transitions
+    - Experiments requiring precise timing of charge and spin operations
+    - Complex sequences like dynamical decoupling with voltage modulation
+
+    Prerequisites:
+    - The qubit must inherit from both VoltagePointMacroMixin and have pulse capabilities
+    - Example: LDQubit has both voltage_sequence (for points) and xy_channel (for pulses)
     """
-    # Define macros for dot 1
-    (dot1
+    from quam.components.macro.qubit_macros import PulseMacro
+
+    # === STAGE 1: Define Voltage Point Macros ===
+    # These control the charge state / detuning of the quantum dot
+    (qubit
         .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("couple", {"virtual_dot_0": 0.25},
-                        hold_duration=200, ramp_duration=400))
-
-    # Define macros for dot 2
-    (dot2
-        .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-        .with_ramp_point("couple", {"virtual_dot_1": 0.22},
-                        hold_duration=200, ramp_duration=400))
-
-    # Execute coordinated sequence
-    with qua.program() as prog:
-        # Initialize both dots
-        dot1.idle()
-        dot2.idle()
-
-        # Couple them together (could be in parallel in real QUA)
-        dot1.couple()
-        dot2.couple()
-
-        # Return to idle
-        dot1.idle()
-        dot2.idle()
-
-
-# ============================================================================
-# Example 9: Replacing and Updating Macros
-# ============================================================================
-
-def example_09_updating_macros(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Replacing and updating macro definitions during calibration.
-
-    Shows how to replace existing macros with updated versions based on
-    calibration results, maintaining the same macro name.
-    """
-    # Initial definition
-    quantum_dot.with_step_point("load", {"virtual_dot_0": 0.3}, hold_duration=200)
-
-    # Test the macro
-    with qua.program() as test1:
-        quantum_dot.load()
-
-    # Based on measurements, update the voltage and timing
-    quantum_dot.with_step_point(
-        "load",
-        {"virtual_dot_0": 0.32},  # Updated voltage
-        hold_duration=180,         # Updated timing
-        replace_existing_point=True
-    )
-
-    # Test updated macro (same name, new behavior)
-    with qua.program() as test2:
-        quantum_dot.load()  # Now uses updated parameters
-
-    # Can also change macro type (step -> ramp)
-    quantum_dot.with_ramp_point(
-        "load",
-        {"virtual_dot_0": 0.32},
-        hold_duration=180,
-        ramp_duration=500,
-        replace_existing_point=True
-    )
-
-    # Same call, now uses ramp instead of step
-    with qua.program() as test3:
-        quantum_dot.load()
-
-
-# ============================================================================
-# Example 10: Serialization and Loading
-# ============================================================================
-
-def example_10_serialization(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Serialization compatibility demonstration.
-
-    All macro definitions are fully serializable through QuAM's standard
-    serialization mechanism. Macros are stored in the self.macros dict
-    and can be saved/loaded with the rest of the QuAM state.
-    """
-    # Define macros using any method
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=500)
-        .with_sequence("init", ["idle", "load"]))
-
-    # Macros are in self.macros dict (serializable)
-    print("Defined macros:", list(quantum_dot.macros.keys()))
-    # Output: ['idle', 'load', 'init']
-
-    # After serialization/deserialization, macros remain callable as methods
-    # (Assuming quantum_dot is saved and loaded via QuAM's save/load)
-
-    # The __getattr__ mechanism works immediately after loading
-    with qua.program() as prog:
-        quantum_dot.idle()  # Works after deserialization
-        quantum_dot.load()
-        quantum_dot.init()
-
-    # All references are preserved through serialization
-    assert "idle" in quantum_dot.macros
-    assert "load" in quantum_dot.macros
-    assert "init" in quantum_dot.macros
-
-
-# ============================================================================
-# Example 11: Error Handling and Validation
-# ============================================================================
-
-def example_11_error_handling(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Proper error handling when working with macros.
-
-    Shows common errors and how to handle them gracefully.
-    """
-    # Define some macros
-    quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-
-    # Error 1: Trying to create sequence with non-existent macro
-    try:
-        quantum_dot.with_sequence("bad_seq", ["idle", "nonexistent"])
-    except KeyError as e:
-        print(f"Error: {e}")
-        # Output: Cannot create sequence 'bad_seq': macro 'nonexistent' not found
-
-    # Error 2: Accessing undefined macro as method
-    try:
-        quantum_dot.undefined_macro()
-    except AttributeError as e:
-        print(f"Error: {e}")
-        # Output: 'ExampleQuantumDot' object has no attribute or macro 'undefined_macro'
-
-    # Correct approach: Check if macro exists
-    if "idle" in quantum_dot.macros:
-        quantum_dot.idle()
-
-    # Error 3: Duplicate point without replace flag
-    try:
-        quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.2}, hold_duration=150)
-    except ValueError as e:
-        print(f"Error: {e}")
-        # Output: Point 'idle' already exists as 'quantum_dot_0_idle'
-
-    # Correct approach: Use replace flag
-    quantum_dot.with_step_point(
-        "idle",
-        {"virtual_dot_0": 0.2},
-        hold_duration=150,
-        replace_existing_point=True
-    )
-
-
-# ============================================================================
-# Example 12: Complete Real-World Workflow
-# ============================================================================
-
-def example_12_complete_workflow(quantum_dot: VoltagePointMacroMixin) -> None:
-    """
-    Complete real-world workflow from calibration to experiment.
-
-    This example shows a realistic end-to-end workflow:
-    1. Define basic voltage points
-    2. Create calibration sequences
-    3. Run calibration measurements
-    4. Refine based on results
-    5. Create final experiment sequence
-    6. Execute experiment
-    """
-    # === STAGE 1: Initial Voltage Point Definition ===
-    (quantum_dot
-        .with_step_point("empty", {"virtual_dot_0": 0.05}, hold_duration=100)
-        .with_step_point("load", {"virtual_dot_0": 0.3}, hold_duration=200)
-        .with_step_point("manip", {"virtual_dot_0": 0.25}, hold_duration=150)
+        .with_ramp_point("sweetspot", {"virtual_dot_0": 0.22},
+                        hold_duration=200, ramp_duration=400)
         .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000))
 
-    # === STAGE 2: Create Calibration Sequences ===
-    quantum_dot.with_sequence("cal_load", ["empty", "load", "empty"])
-    quantum_dot.with_sequence("cal_readout", ["empty", "readout", "empty"])
+    # === STAGE 2: Define Pulse Macros ===
+    # These drive microwave transitions (assuming pulses are already added to xy_channel)
+    # Note: Pulses must be added first via qubit.add_xy_pulse(name, pulse_obj)
 
-    # === STAGE 3: Run Calibration (simulated) ===
-    with qua.program() as calibration_prog:
-        # Calibrate loading
-        quantum_dot.cal_load()
-        # ... measurement code ...
+    x180_macro = PulseMacro(pulse="x180")
+    qubit.macros["x180"] = x180_macro
 
-        # Calibrate readout
-        quantum_dot.cal_readout()
-        # ... measurement code ...
+    y90_macro = PulseMacro(pulse="y90")
+    qubit.macros["y90"] = y90_macro
 
-    # === STAGE 4: Refine Based on Calibration Results ===
-    # Suppose calibration showed we need slower loading
-    quantum_dot.with_ramp_point(
-        "optimized_load",
-        {"virtual_dot_0": 0.31},  # Adjusted voltage
-        hold_duration=180,
-        ramp_duration=600,  # Slower ramp for adiabaticity
+    x90_macro = PulseMacro(pulse="x90")
+    qubit.macros["x90"] = x90_macro
+
+    # === STAGE 3: Create Mixed Sequences ===
+
+    # Simple Rabi sequence: Move to sweetspot, apply X rotation, readout
+    qubit.with_sequence("rabi_experiment", ["sweetspot", "x180", "readout"])
+
+    # Ramsey sequence: Move to sweetspot, apply Y90, wait, apply Y90, readout
+    qubit.with_sequence("ramsey_sequence", ["sweetspot", "y90", "idle", "y90", "readout"])
+
+    # Complex sequence mixing multiple operations
+    qubit.with_sequence(
+        "complex_protocol",
+        ["idle", "sweetspot", "x90", "idle", "y90", "sweetspot", "x180", "readout"]
     )
 
-    # Add wait time macro if needed
-    quantum_dot.with_step_point(
-        "wait",
-        {"virtual_dot_0": 0.25},
-        hold_duration=500
+    # === STAGE 4: Execute Mixed Sequences ===
+    with qua.program() as prog:
+        # Execute simple Rabi experiment
+        # This will: ramp to sweetspot voltage → play X180 pulse → step to readout voltage
+        qubit.rabi_experiment()
+
+        # Execute Ramsey sequence
+        # This will: ramp to sweetspot → Y90 pulse → step to idle → Y90 pulse → step to readout
+        qubit.ramsey_sequence()
+
+        # Execute complex protocol
+        qubit.complex_protocol()
+
+        # Can still override parameters for individual calls
+        qubit.rabi_experiment()  # Use default durations
+        # Note: pulse macros don't support duration override by default,
+        # but point macros do: qubit.sweetspot(hold_duration=300)
+
+    # === STAGE 5: Nested Mixed Sequences ===
+    # You can also create sequences that reference other mixed sequences
+
+    # Define a calibration sub-sequence
+    qubit.with_sequence("calibrate_pi_pulse", ["sweetspot", "x180", "readout", "idle"])
+
+    # Define a main experiment that uses the calibration
+    qubit.with_sequence(
+        "full_experiment_with_calibration",
+        ["calibrate_pi_pulse", "ramsey_sequence", "calibrate_pi_pulse"]
     )
 
-    # === STAGE 5: Create Final Experiment Sequence ===
-    quantum_dot.with_sequence(
-        "experiment",
-        ["empty", "optimized_load", "manip", "wait", "readout", "empty"]
-    )
-
-    # === STAGE 6: Run Experiment ===
-    with qua.program() as experiment_prog:
-        # Simple one-line execution of full protocol
-        quantum_dot.experiment()
-
-        # Can still override parameters if needed for specific runs
-        quantum_dot.experiment()  # Run 1 with default parameters
-
-        # Or call individual steps for debugging
-        quantum_dot.empty()
-        quantum_dot.optimized_load(hold_duration=200)  # Override for testing
-        quantum_dot.manip()
-        quantum_dot.wait(hold_duration=1000)  # Longer wait for this run
-        quantum_dot.readout()
-        quantum_dot.empty()
-
-    print("Experiment sequence defined and ready!")
-    print(f"Available macros: {list(quantum_dot.macros.keys())}")
+    with qua.program() as prog:
+        qubit.full_experiment_with_calibration()
 
 
 # ============================================================================
@@ -577,15 +293,15 @@ BEST PRACTICES SUMMARY:
    - Automatically handles references and parent linking
    - Example: .with_step_point().with_ramp_point().with_sequence()
 
-2. **Call Macros as Methods**
+2. **Macros Use self.parent Internally**
+   - Macros access their component via self.parent (set automatically by QuAM)
+   - All apply() methods use self.parent.voltage_sequence, not passed parameters
+   - Follows QuAM convention where apply(*args, **kwargs) doesn't receive component
+
+3. **Call Macros as Methods**
    - Use dot notation: quantum_dot.idle() instead of quantum_dot.macros["idle"]()
    - Provides @register_macro-like API while maintaining flexibility
    - Works automatically via __getattr__
-
-3. **Define Macros During Calibration**
-   - Don't hard-code all macros in class definition
-   - Create and refine macros based on measurement results
-   - Use replace_existing_point=True to update definitions
 
 4. **Compose Complex Sequences**
    - Build simple primitive macros first
@@ -597,46 +313,46 @@ BEST PRACTICES SUMMARY:
    - Use overrides for testing and optimization
    - Example: quantum_dot.load(hold_duration=300)
 
-6. **Everything is Serializable**
+6. **Mix Pulse and Point Macros**
+   - Both types follow the same apply() interface
+   - Can be freely combined in sequence macros
+   - SequenceMacro resolves references through self.parent
+
+7. **Everything is Serializable**
    - All state stored in self.macros dict
    - No special serialization handling needed
    - Macros work immediately after deserialization
 
-7. **Traditional API Still Works**
-   - Backward compatible with existing code
-   - Use helper methods for gradual migration
-   - Full control when needed
-
 MIGRATION GUIDE:
 
-From:
+From (Old API with point_name):
     quantum_dot.add_point("idle", {"virtual_dot_0": 0.1}, duration=100)
-    macro = StepPointMacro(point_name="idle", hold_duration=100)
+    macro = StepPointMacro(point_name="idle", hold_duration=100)  # Old: used point_name
     quantum_dot.macros["idle"] = macro
 
-To:
+To (New API with point_ref):
+    # Fluent API (recommended)
     quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
 
-From:
+From (Dictionary access):
     quantum_dot.macros["idle"]()
 
-To:
+To (Method call):
     quantum_dot.idle()
+
+KEY CHANGES IN NEW SYSTEM:
+- Macros use point_ref (reference string) instead of point_name
+- apply() methods use self.parent to access component, not passed as parameter
+- Parent is set automatically by QuAM when macro is assigned to macros dict
+- SequenceMacro.apply() uses self.parent to resolve macro references
 """
 
 
 __all__ = [
     "ExampleQuantumDot",
-    "example_01_traditional_api",
-    "example_02_helper_methods",
-    "example_03_fluent_api",
-    "example_04_method_calling",
-    "example_05_calibration_workflow",
-    "example_06_parameter_overrides",
-    "example_07_nested_sequences",
-    "example_08_multi_dot_coordination",
-    "example_09_updating_macros",
-    "example_10_serialization",
-    "example_11_error_handling",
-    "example_12_complete_workflow",
+    "example_01_fluent_api",
+    "example_02_method_calling",
+    "example_03_parameter_overrides",
+    "example_04_nested_sequences",
+    "example_05_mixed_pulse_and_point_sequence",
 ]

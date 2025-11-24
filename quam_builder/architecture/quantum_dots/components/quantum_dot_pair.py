@@ -65,7 +65,11 @@ class QuantumDotPair(VoltagePointMacroMixin):
     @property 
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dots[0].machine
-        
+
+    @property
+    def name(self) -> str:
+        return self.id
+
     def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
         
         # If no name is given, ensure that it is the default

@@ -10,7 +10,14 @@ class ReservoirBase(VoltageGate):
     """
     Base class for a reservoir in a quantum dot device. 
     """
-    pass
+
+    @property
+    def machine(self) -> "BaseQuamQD":
+        return self.quantum_dots[0].machine
+
+    @property
+    def name(self) -> str:
+        return self.id
 
 
 

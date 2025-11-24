@@ -34,28 +34,42 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
+    MWFEMAnalogOutputPort
 )
+import numpy as np
+from quam.components.pulses import GaussianPulse
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
 
+# Import gate-level operations for cleaner QUA code
+from quam_builder.architecture.quantum_dots.operations import (
+    idle,
+    sweetspot,
+    readout,
+    x180,
+    y180,
+    x90,
+    y90,
+    rabi,
+)
 
 # Instantiate Quam
 machine = BaseQuamQD()
-lf_fem_dots = 6
+lf_fem_dots = 3
 lf_fem_resonators = 5
 mw_fem = 1
-plunger_gates = 6
+plunger_gates = 3
 barrier_gates = plunger_gates - 1
-sensor_gates = 2
-resonators = 2
+sensor_gates = 1
+resonators = 1
 
 ###########################################
 ###### Instantiate Physical Channels ######
 ###########################################
-next_port_id = 0
+next_port_id = 1
 
 ps = [
     VoltageGate(
@@ -90,7 +104,7 @@ ss = [
 
 next_port_id += sensor_gates
 
-next_port_id = 0
+next_port_id = 1
 
 rs = [
     ReadoutResonatorSingle(
@@ -153,6 +167,12 @@ for i in range(plunger_gates):
         qubit_type="loss_divincenzo",
         quantum_dot_id=f"virtual_dot_{i}",
         id=f"Q{i}",
+        xy_channel=XYDrive(
+            id=f"Q{i}_xy",
+            opx_output=MWFEMAnalogOutputPort("con1", mw_fem, port_id=5 + i, upconverter_frequency=5e9, band=2,
+                                             full_scale_power_dbm=10),
+            intermediate_frequency=10e6
+        )
     )
 
 ########################################
@@ -183,12 +203,90 @@ for i in [0]:
         qubit_target_id=f"Q{i+1}",
     )
 
+quantum_dot_pair_id = 'dot{0}_dot{1}_pair'.format(i, i + 1)
+quantum_dot_pair = machine.quantum_dot_pairs[quantum_dot_pair_id]
+qubit_id = 'Q0'
+qubit = machine.qubits[qubit_id]
+from quam_builder.architecture.quantum_dots.components.macros import StepPointMacro, RampPointMacro, SequenceMacro
+from quam.components.macro.qubit_macros import PulseMacro
+
+#############################################################
+###### Gate-Level Operations Examples (NEW FEATURE) ######
+#############################################################
+
+print("\n" + "=" * 70)
+print("Gate-Level Operations Examples")
+print("=" * 70)
+
+# Add more pulse macros for complete examples
+print("\nSetting up pulse macros...")
+qubit2 = machine.qubits["Q1"]
+for q in [qubit, qubit2]:
+    q.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
+    q.macros["x180"] = PulseMacro(pulse=q.xy_channel.operations["x180"].get_reference())
+    q.xy_channel.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+    q.macros["y90"] = PulseMacro(pulse=q.xy_channel.operations["y90"].get_reference())
+
+    (q
+     .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+     .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
+     .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
+     .with_ramp_point("readout", {"virtual_dot_0": 0.15, "virtual_dot_1": 0.33}, hold_duration=200)
+     .with_sequence("init", ["load", "sweetspot"])
+     )
+
+    # Define mixed sequences (voltage + pulse)
+    print("Defining mixed sequences...")
+    q.with_sequence("rabi", ["init", "x180", "readout"])
+
+# Example 1: Using gate-level operations (RECOMMENDED)
+print("\n" + "=" * 70)
+print("Example 1: Gate-level operations (recommended)")
+print("=" * 70)
+
+with program() as prog_operations:
+    print("\n--- Rabi Experiment ---")
+    # Clean, readable syntax!
+    rabi(qubit)  # Executes: sweetspot → x180 → readout → idle
+    rabi(qubit2)
+    print("  rabi(qubit) - executes full sequence")
+
+    print("\n--- Custom Sequence ---")
+    # Individual operations with parameter overrides
+    idle(qubit)
+    sweetspot(qubit, hold_duration=300)  # Override duration
+    x180(qubit)
+    readout(qubit)
+    print("  idle → sweetspot(300ns) → x180 → readout")
+
+#############################################################
+###### Save and Load ######
+#############################################################
+
 config = machine.generate_config()
 
+config_path = 'config'
+machine.save(
+    config_path,
+)
+print(f"\n✓ Machine saved to {config_path}")
 
-from qm import QuantumMachinesManager, SimulationConfig
-qmm = QuantumMachinesManager(host = "192.168.88.11", cluster_name="CS_1")
+machine.load(config_path)
+print(f"✓ Machine loaded from {config_path}")
 
-qm = qmm.open_qm(config)
-# Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
+# Operations work after loading!
+qubit_loaded = machine.qubits["Q0"]
+with program() as prog_after_load:
+    rabi(qubit_loaded)
+print("✓ Operations work with serialization!")
+
+config = machine.generate_config()
+
+# from qm import QuantumMachinesManager, SimulationConfig
+# qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
+#
+# qm = qmm.open_qm(config)
+#
+
+# # Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
 # job = qm.execute(prog)

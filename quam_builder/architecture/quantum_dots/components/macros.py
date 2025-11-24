@@ -9,6 +9,7 @@ from typing import Dict, TYPE_CHECKING, Optional, List
 from dataclasses import dataclass, field
 
 from quam.core import quam_dataclass, QuamComponent
+from quam.components import QuantumComponent
 from quam.utils import string_reference
 from quam.utils.exceptions import InvalidReferenceError
 
@@ -122,7 +123,7 @@ class BasePointMacro(QuamMacro):
 
         return point
 
-    def _get_point_name(self, component: QuamComponent) -> str:
+    def _get_point_name(self) -> str:
         """
         Get the full point name from the reference.
 
@@ -135,20 +136,20 @@ class BasePointMacro(QuamMacro):
         Returns:
             str: The full point name (e.g., "quantum_dot_0_idle")
         """
-        if self.point_ref is None:
+        # Access raw attribute value to avoid QUAM's automatic reference resolution
+        point_ref_raw = object.__getattribute__(self, '__dict__').get('point_ref')
+        if point_ref_raw is None:
             raise ValueError("point_ref is not set on this macro")
 
         # Extract the last segment from reference path
         # E.g., "#./voltage_sequence/gate_set/macros/quantum_dot_0_idle" -> "quantum_dot_0_idle"
-        return self.point_ref.split('/')[-1]
+        return point_ref_raw.split('/')[-1]
 
-    def __call__(self, obj=None, **overrides):
+    def __call__(self, **overrides):
         """
         Allow macros to be invoked as callables (quam convention).
 
         Args:
-            obj: Component to execute the macro on (must have voltage point methods).
-                If None, uses self.parent (the component this macro is attached to).
             **overrides: Optional parameter overrides (hold_duration, ramp_duration, etc.)
                         'duration' is accepted as alias for 'hold_duration' for compatibility.
 
@@ -156,19 +157,20 @@ class BasePointMacro(QuamMacro):
             Result of apply() method
 
         Raises:
-            ValueError: If obj is None and self.parent is not set
+            ValueError: If self.parent is not set (macro must be attached to a component)
         """
-        if obj is None:
-            if not hasattr(self, 'parent') or self.parent is None:
-                raise ValueError(
-                    f"Cannot execute macro: obj parameter is None and macro has no parent. "
-                    f"Either pass obj explicitly or ensure the macro is attached to a component."
-                )
-            obj = self.parent
+        # Ensure macro is attached to a component
+        if not hasattr(self, 'parent') or self.parent is None:
+            raise ValueError(
+                f"Cannot execute macro: macro has no parent. "
+                f"Ensure the macro is attached to a component via component.macros['name'] = macro"
+            )
 
+        # Support 'duration' as alias for 'hold_duration' for compatibility
         if "duration" in overrides and "hold_duration" not in overrides:
             overrides["hold_duration"] = overrides.pop("duration")
-        return self.apply(obj, **overrides)
+
+        return self.apply(**overrides)
 
 
 @quam_dataclass
@@ -223,19 +225,18 @@ class StepPointMacro(BasePointMacro):
         """Return total duration of the step operation in seconds."""
         return self.hold_duration * 1e-9 if self.hold_duration is not None else None
 
-    def apply(self, obj, hold_duration: Optional[int] = None):
+    def apply(self, hold_duration: Optional[int] = None):
         """
-        Execute the step operation on the provided component.
+        Execute the step operation on the component this macro is attached to.
 
         Args:
-            obj: Component with voltage point methods (VoltagePointMacroMixin)
             hold_duration: Optional override for hold duration (nanoseconds)
         """
         duration = hold_duration if hold_duration is not None else self.hold_duration
         # Get the full point name from the reference
-        point_name = self._get_point_name(obj)
-        # Call voltage_sequence directly with the full gate_set name
-        obj.voltage_sequence.step_to_point(point_name, duration=duration)
+        point_name = self._get_point_name()
+        # Access voltage_sequence via parent (the component this macro is attached to)
+        self.parent.parent.voltage_sequence.step_to_point(point_name, duration=duration)
 
 
 @quam_dataclass
@@ -298,24 +299,22 @@ class RampPointMacro(BasePointMacro):
 
     def apply(
         self,
-        obj,
         hold_duration: Optional[int] = None,
         ramp_duration: Optional[int] = None,
     ):
         """
-        Execute the ramp operation on the provided component.
+        Execute the ramp operation on the component this macro is attached to.
 
         Args:
-            obj: Component with voltage point methods (VoltagePointMacroMixin)
             hold_duration: Optional override for hold duration (nanoseconds)
             ramp_duration: Optional override for ramp duration (nanoseconds)
         """
         ramp_ns = ramp_duration if ramp_duration is not None else self.ramp_duration
         hold_ns = hold_duration if hold_duration is not None else self.hold_duration
         # Get the full point name from the reference
-        point_name = self._get_point_name(obj)
-        # Call voltage_sequence directly with the full gate_set name
-        obj.voltage_sequence.ramp_to_point(
+        point_name = self._get_point_name()
+        # Access voltage_sequence via parent (the component this macro is attached to)
+        self.parent.parent.voltage_sequence.ramp_to_point(
             point_name,
             ramp_duration=ramp_ns,
             duration=hold_ns,
@@ -344,6 +343,9 @@ class SequenceMacro(QuamMacro):
     name: str
     macro_refs: tuple[str, ...] = field(default_factory=tuple)
     description: Optional[str] = None
+
+    def __call__(self, *args, **kwargs):
+        self.apply(*args, **kwargs)
 
     def with_reference(self, reference: str) -> "SequenceMacro":
         """Return a new SequenceMacro with the provided reference appended."""
@@ -411,10 +413,11 @@ class SequenceMacro(QuamMacro):
             resolved.append(resolved_macro)
         return resolved
 
-    def apply(self, obj, **kwargs):
+    def apply(self, **kwargs):
         """Execute each referenced macro sequentially on the provided component."""
-        for macro in self.resolved_macros(obj):
-            macro(obj, **kwargs)
+        # Resolve macros using self.parent (the component that owns this sequence)
+        for macro in self.resolved_macros(self.parent.parent):
+            macro.apply(**kwargs)
 
     def register_operation(
         self,
@@ -450,7 +453,7 @@ class SequenceMacro(QuamMacro):
 
 
 @quam_dataclass
-class VoltagePointMacroMixin(QuamComponent):
+class VoltagePointMacroMixin(QuantumComponent):
     """
     Mixin class providing voltage point macro methods for quantum dot components.
 
@@ -540,8 +543,9 @@ class VoltagePointMacroMixin(QuamComponent):
                 macros_dict = object.__getattribute__(self, '__dict__').get('macros', {})
                 if macros_dict and name in macros_dict:
                     # Return a bound method-like callable
+                    # Note: apply() uses self.parent internally, no need to pass component
                     def macro_method(**kwargs):
-                        return macros_dict[name](self, **kwargs)
+                        return macros_dict[name].apply(**kwargs)
                     macro_method.__name__ = name
                     macro_method.__doc__ = getattr(macros_dict[name], '__doc__', f'Execute {name} macro')
                     return macro_method
@@ -885,8 +889,9 @@ class VoltagePointMacroMixin(QuamComponent):
         self.macros[macro_name] = macro
 
         # Set parent for proper reference resolution
-        if hasattr(macro, "parent"):
-            macro.parent = self
+        # if hasattr(macro, "parent"):
+        #     macro.parent = None
+        #     macro.parent = self
 
         return macro
 
@@ -964,9 +969,10 @@ class VoltagePointMacroMixin(QuamComponent):
         # Store in macros dict
         self.macros[macro_name] = macro
 
-        # Set parent for proper reference resolution
-        if hasattr(macro, "parent"):
-            macro.parent = self
+        # # Set parent for proper reference resolution
+        # if hasattr(macro, "parent"):
+        #     macro.parent = None
+        #     macro.parent = self
 
         return macro
 
@@ -1125,6 +1131,10 @@ class VoltagePointMacroMixin(QuamComponent):
             self, macro_names
         )
         self.macros[name] = sequence
-        sequence.parent = self
+
+        # Set parent for proper reference resolution (must set to None first per QUAM rules)
+        # if hasattr(sequence, "parent"):
+        #     sequence.parent = None
+        #     sequence.parent = self
 
         return self
