@@ -12,7 +12,7 @@ __all__ = ["BarrierGate"]
 
 
 @quam_dataclass
-class BarrierGate(QuamComponent, VoltagePointMacroMixin):
+class BarrierGate(VoltagePointMacroMixin):
     """
     A class for a BarrierGate channel
     """

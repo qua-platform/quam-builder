@@ -8,9 +8,7 @@ This file tests the following methods:
 - go_to_voltages: Agnostic voltage setting (for use in simultaneous blocks)
 - step_to_voltages: Stepping to specific voltages
 - ramp_to_voltages: Ramping to specific voltages
-- add_sequence: Adding a sequence of voltage macro operations
-- add_point_to_sequence: Adding individual points to a sequence
-- run_sequence: Executing a pre-defined sequence
+- SequenceMacro composition via references and operations
 
 Tested classes:
 - BarrierGate
@@ -23,6 +21,23 @@ Tested classes:
 
 import pytest
 from qm import qua
+from unittest.mock import MagicMock
+
+from quam_builder.architecture.quantum_dots.components.macros import (
+    SequenceMacro,
+    StepPointMacro,
+    voltage_operations_registry,
+)
+
+
+def _sequence_definition(component, name: str):
+    """Convenience helper to access compiled voltage sequence definitions."""
+    return component.sequences[name]
+
+
+def _sequence_macros(component, name: str):
+    """Return the stored macros for a sequence."""
+    return _sequence_definition(component, name).resolved_macros(component)
 
 
 # ============================================================================
@@ -852,40 +867,46 @@ class TestSequenceMacro:
 
     def test_sequence_macro_initialization(self):
         """Test that SequenceMacro can be initialized correctly."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
         from dataclasses import is_dataclass
 
         # Verify it's a dataclass
-        assert is_dataclass(SequenceMacro), "SequenceMacro should be a dataclass"
+        assert is_dataclass(PointMacro), "SequenceMacro should be a dataclass"
 
-        # Test initialization
-        macro = SequenceMacro(
+        # Test initialization with hold_duration
+        macro = PointMacro(
             macro_type="step",
             point_name="test_point",
-            duration=100,
+            hold_duration=100,
             ramp_duration=200
         )
 
         assert macro.macro_type == "step"
         assert macro.point_name == "test_point"
-        assert macro.duration == 100
+        assert macro.hold_duration == 100
         assert macro.ramp_duration == 200
+        # duration is calculated for step: hold_duration only
+        assert macro.duration == 100 * 1e-9  # 100 ns in seconds
 
     def test_sequence_macro_default_values(self):
         """Test that SequenceMacro has correct default values."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
 
-        macro = SequenceMacro(
+        macro = PointMacro(
             macro_type="ramp",
             point_name="test_point"
         )
 
-        assert macro.duration == 16
+        # Check individual duration fields
+        assert macro.hold_duration == 16
         assert macro.ramp_duration == 16
+
+        # Check inferred total duration (ramp + hold) in seconds
+        assert macro.duration == (16 + 16) * 1e-9  # 32 ns in seconds
 
     def test_sequence_macro_call_step(self, machine):
         """Test that SequenceMacro can be called with step macro_type."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
 
         qd = machine.quantum_dots["virtual_dot_1"]
 
@@ -894,10 +915,10 @@ class TestSequenceMacro:
         qd.add_point(point_name="test_step", voltages=voltages, duration=100)
 
         # Create a SequenceMacro
-        macro = SequenceMacro(
+        macro = PointMacro(
             macro_type="step",
             point_name="test_step",
-            duration=100
+            hold_duration=100
         )
 
         # Call the macro within a QUA program
@@ -909,7 +930,7 @@ class TestSequenceMacro:
 
     def test_sequence_macro_call_ramp(self, machine):
         """Test that SequenceMacro can be called with ramp macro_type."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
 
         qd = machine.quantum_dots["virtual_dot_2"]
 
@@ -918,10 +939,10 @@ class TestSequenceMacro:
         qd.add_point(point_name="test_ramp", voltages=voltages, duration=100)
 
         # Create a SequenceMacro
-        macro = SequenceMacro(
+        macro = PointMacro(
             macro_type="ramp",
             point_name="test_ramp",
-            duration=100,
+            hold_duration=100,
             ramp_duration=500
         )
 
@@ -934,7 +955,7 @@ class TestSequenceMacro:
 
     def test_sequence_macro_call_with_override(self, machine):
         """Test that SequenceMacro parameters can be overridden when called."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
 
         qd = machine.quantum_dots["virtual_dot_3"]
 
@@ -943,10 +964,10 @@ class TestSequenceMacro:
         qd.add_point(point_name="test_override", voltages=voltages, duration=100)
 
         # Create a SequenceMacro
-        macro = SequenceMacro(
+        macro = PointMacro(
             macro_type="step",
             point_name="test_override",
-            duration=100
+            hold_duration=100
         )
 
         # Call with overridden parameters
@@ -954,12 +975,17 @@ class TestSequenceMacro:
             seq = machine.voltage_sequences["main_qpu"]
             macro(qd, duration=200)
 
-        # Verify the duration was updated
-        assert macro.duration == 200
+        # Verify the original macro state is unchanged (immutable behavior)
+        # This follows QUAM best practices where apply() doesn't mutate state
+        # The macro was created with duration=100 which becomes hold_duration=100
+        # (backward compatibility in __call__)
+        # Since it's a step macro, the total calculated duration is 100 * 1e-9 seconds
+        assert macro.hold_duration == 100
+        assert macro.duration == 100 * 1e-9  # derived duration remains unchanged
 
     def test_sequence_macro_invalid_type(self, machine):
         """Test that SequenceMacro raises error for invalid macro_type."""
-        from quam_builder.architecture.quantum_dots.components.macros import SequenceMacro
+        from quam_builder.architecture.quantum_dots.components.macros import PointMacro
 
         qd = machine.quantum_dots["virtual_dot_1"]
 
@@ -968,10 +994,10 @@ class TestSequenceMacro:
         qd.add_point(point_name="test_invalid", voltages=voltages, duration=100)
 
         # Create a SequenceMacro with invalid type
-        macro = SequenceMacro(
+        macro = PointMacro(
             macro_type="invalid_type",
             point_name="test_invalid",
-            duration=100
+            hold_duration=100
         )
 
         # Should raise NotImplementedError
@@ -980,82 +1006,6 @@ class TestSequenceMacro:
                 seq = machine.voltage_sequences["main_qpu"]
                 macro(qd)
 
-
-class TestAddPointToSequence:
-    """Tests for add_point_to_sequence method."""
-
-    def test_add_point_to_sequence_with_voltages(self, machine):
-        """Test adding a point to a sequence with voltage values."""
-        qd = machine.quantum_dots["virtual_dot_1"]
-
-        voltages = {"virtual_dot_1": 0.15}
-        qd.add_point_to_sequence(
-            sequence_name="test_seq",
-            point_name="point1",
-            macro_type="step",
-            duration=100,
-            voltages=voltages
-        )
-
-        # Verify the sequence was created
-        assert "test_seq" in qd.sequences
-
-        # Verify the sequence has one macro
-        assert len(qd.sequences["test_seq"]) == 1
-
-        # Verify the macro has correct properties
-        macro = qd.sequences["test_seq"][0]
-        assert macro.macro_type == "step"
-        assert macro.point_name == "point1"
-        assert macro.duration == 100
-
-        # Verify the point was added to the points dict
-        assert "point1" in qd.points
-        assert qd.points["point1"] == voltages
-
-    def test_add_point_to_sequence_without_voltages(self, machine):
-        """Test adding a point to a sequence without voltage values."""
-        qd = machine.quantum_dots["virtual_dot_2"]
-
-        # Add a point first
-        voltages = {"virtual_dot_2": 0.2}
-        qd.add_point(point_name="existing_point", voltages=voltages, duration=100)
-
-        # Add to sequence without providing voltages again
-        qd.add_point_to_sequence(
-            sequence_name="test_seq2",
-            point_name="existing_point",
-            macro_type="ramp",
-            duration=152,
-            ramp_duration=500
-        )
-
-        # Verify the sequence was created
-        assert "test_seq2" in qd.sequences
-
-        # Verify the macro has correct properties
-        macro = qd.sequences["test_seq2"][0]
-        assert macro.macro_type == "ramp"
-        assert macro.point_name == "existing_point"
-        assert macro.duration == 152
-        assert macro.ramp_duration == 500
-
-    def test_add_point_to_sequence_default_ramp_duration(self, machine):
-        """Test that ramp_duration defaults to 16 when None."""
-        qd = machine.quantum_dots["virtual_dot_3"]
-
-        voltages = {"virtual_dot_3": 0.25}
-        qd.add_point_to_sequence(
-            sequence_name="test_seq3",
-            point_name="point_with_default",
-            macro_type="ramp",
-            duration=100,
-            voltages=voltages
-        )
-
-        # Verify the ramp_duration defaults to 16
-        macro = qd.sequences["test_seq3"][0]
-        assert macro.ramp_duration == 16
 
     def test_add_multiple_points_to_same_sequence(self, machine):
         """Test adding multiple points to the same sequence."""
@@ -1089,12 +1039,13 @@ class TestAddPointToSequence:
         )
 
         # Verify the sequence has three macros
-        assert len(barrier.sequences["multi_point_seq"]) == 3
+        macros = _sequence_macros(barrier, "multi_point_seq")
+        assert len(macros) == 3
 
         # Verify each macro
-        assert barrier.sequences["multi_point_seq"][0].point_name == "point1"
-        assert barrier.sequences["multi_point_seq"][1].point_name == "point2"
-        assert barrier.sequences["multi_point_seq"][2].point_name == "point3"
+        assert macros[0].point_name == "point1"
+        assert macros[1].point_name == "point2"
+        assert macros[2].point_name == "point3"
 
 
 class TestAddSequence:
@@ -1125,16 +1076,20 @@ class TestAddSequence:
         assert "basic_seq" in qd.sequences
 
         # Verify sequence has correct number of macros
-        assert len(qd.sequences["basic_seq"]) == 3
+        macros = _sequence_macros(qd, "basic_seq")
+        assert len(macros) == 3
 
         # Verify each macro
-        assert qd.sequences["basic_seq"][0].macro_type == "step"
-        assert qd.sequences["basic_seq"][0].duration == 100
-        assert qd.sequences["basic_seq"][1].macro_type == "ramp"
-        assert qd.sequences["basic_seq"][1].duration == 152
-        assert qd.sequences["basic_seq"][1].ramp_duration == 500
-        assert qd.sequences["basic_seq"][2].macro_type == "step"
-        assert qd.sequences["basic_seq"][2].duration == 200
+        assert macros[0].macro_type == "step"
+        assert macros[0].hold_duration == 100  # hold_duration in nanoseconds
+        assert macros[0].duration == 100 * 1e-9  # calculated duration in seconds
+        assert macros[1].macro_type == "ramp"
+        assert macros[1].hold_duration == 152  # hold_duration in nanoseconds
+        assert macros[1].duration == (152 + 500) * 1e-9  # calculated duration in seconds (ramp + hold)
+        assert macros[1].ramp_duration == 500
+        assert macros[2].macro_type == "step"
+        assert macros[2].hold_duration == 200  # hold_duration in nanoseconds
+        assert macros[2].duration == 200 * 1e-9  # calculated duration in seconds
 
     def test_add_sequence_without_ramp_durations(self, machine):
         """Test adding a sequence without specifying ramp_durations."""
@@ -1158,8 +1113,9 @@ class TestAddSequence:
         assert "no_ramp_seq" in barrier.sequences
 
         # Verify ramp_durations default to 16
-        assert barrier.sequences["no_ramp_seq"][0].ramp_duration == 16
-        assert barrier.sequences["no_ramp_seq"][1].ramp_duration == 16
+        macros = _sequence_macros(barrier, "no_ramp_seq")
+        assert macros[0].ramp_duration == 16
+        assert macros[1].ramp_duration == 16
 
     def test_add_sequence_auto_naming(self, machine):
         """Test that points are automatically named in sequence."""
@@ -1180,8 +1136,9 @@ class TestAddSequence:
         )
 
         # Verify point names follow pattern
-        assert qd.sequences["auto_name_seq"][0].point_name == "auto_name_seq_macro_0"
-        assert qd.sequences["auto_name_seq"][1].point_name == "auto_name_seq_macro_1"
+        macros = _sequence_macros(qd, "auto_name_seq")
+        assert macros[0].point_name == "auto_name_seq_point_0"
+        assert macros[1].point_name == "auto_name_seq_point_1"
 
         # Verify points were added
         assert "auto_name_seq_macro_0" in qd.points
@@ -1210,7 +1167,7 @@ class TestAddSequence:
 
         # Verify sequence was created
         assert "qubit_seq" in qubit.sequences
-        assert len(qubit.sequences["qubit_seq"]) == 3
+        assert len(_sequence_macros(qubit, "qubit_seq")) == 3
 
 
 class TestRunSequence:

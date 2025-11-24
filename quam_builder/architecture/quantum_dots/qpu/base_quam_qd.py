@@ -297,7 +297,7 @@ class BaseQuamQD(QuamRoot):
 
     def register_qubit(self, 
                        quantum_dot_id: str,
-                       qubit_name: str,
+                       id: str,
                        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
                        xy_channel: XYDrive = None
                        ) -> None: 
@@ -311,13 +311,13 @@ class BaseQuamQD(QuamRoot):
             d = quantum_dot_id
             dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
             qubit = LDQubit(
-                id = d, 
+                id = id,
                 quantum_dot = dot.get_reference(), 
-                name = qubit_name,
+                # name = qubit_name,
                 xy_channel = xy_channel
             )
 
-            self.qubits[qubit_name] = qubit
+            self.qubits[id] = qubit
         else:
             raise NotImplementedError(f"Qubit type {qubit_type} not implemented.")
 
@@ -331,22 +331,22 @@ class BaseQuamQD(QuamRoot):
 
     def register_qubit_pair(
         self,
-        qubit_control_name: str,
-        qubit_target_name: str,
+        qubit_control_id: str,
+        qubit_target_id: str,
         qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo",
         id: str = None,
     ) -> None:
 
-        for name in [qubit_control_name, qubit_target_name]:
+        for name in [qubit_control_id, qubit_target_id]:
             if name not in self.qubits:
                 raise ValueError(f"Qubit {name} not registered. Please register first")
         qubit_control, qubit_target = (
-            self.qubits[qubit_control_name],
-            self.qubits[qubit_target_name],
+            self.qubits[qubit_control_id],
+            self.qubits[qubit_target_id],
         )
 
         if id is None:
-            id = f"{qubit_control_name}_{qubit_target_name}"
+            id = f"{qubit_control_id}_{qubit_target_id}"
 
         if qubit_type.lower() == "loss_divincenzo":
             quantum_dot_pair = self.find_quantum_dot_pair(

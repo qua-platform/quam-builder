@@ -78,19 +78,18 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
-    name: str = None
-
     def __post_init__(self): 
         if isinstance(self.quantum_dot, str): 
             return
-        if self.id is None: 
+        if self.id is None:
             self.id = self.quantum_dot.id
-        if self.id != self.quantum_dot.id:
-            raise ValueError(
-                f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
-                f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
-            )
-    
+        # if self.id != self.quantum_dot.id:
+        #     raise ValueError(
+        #         f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
+        #         f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
+        #     )
+        self.gate_id = self.quantum_dot.id
+
     @property
     def physical_channel(self) -> Channel: 
         return self.quantum_dot.physical_channel
@@ -110,10 +109,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     @property
     def voltage_sequence(self): 
         return self.quantum_dot.voltage_sequence
-
-    def _should_map_qubit_names(self) -> bool:
-        """Enable qubit name mapping for LDQubit."""
-        return True
 
     def _get_component_id_for_voltages(self) -> str:
         """Target the quantum_dot for voltage operations."""
@@ -221,7 +216,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         Configure the LO+IF of the xy_channel. Use this function to update the drive frequency to the calibrated Larmor frequency
         """
         if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.name}")
+            raise ValueError(f"No XY Channel on Qubit {self.id}")
 
         LO_frequency = self.xy_channel.LO_frequency
         intermediate_frequency = frequency - LO_frequency
@@ -239,7 +234,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     def play_xy_pulse(self, pulse_name:str, pulse_duration: Optional[int] = None, amplitude_scale:float = None, **kwargs) -> None:
         """Play a pulse from the XY channel associated with the Qubit"""
         if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.name}")
+            raise ValueError(f"No XY Channel on Qubit {self.id}")
 
         if pulse_name not in self.xy_channel.operations:
             raise ValueError(f"Pulse {pulse_name} not in XY Channel operations")

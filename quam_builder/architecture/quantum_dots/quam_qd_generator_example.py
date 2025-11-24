@@ -151,8 +151,8 @@ machine.register_channel_elements(
 for i in range(plunger_gates):
     machine.register_qubit(
         qubit_type="loss_divincenzo",
-        quantum_dot_ids=f"virtual_dot_{i}",
-        qubit_name=f"Q{i}",
+        quantum_dot_id=f"virtual_dot_{i}",
+        id=f"Q{i}",
     )
 
 ########################################
@@ -160,7 +160,7 @@ for i in range(plunger_gates):
 ########################################
 
 # Register the quantum dot pairs
-for i in range(barrier_gates):
+for i in [0]:
     dot_id = f"dot{i}_dot{i+1}_pair"
     machine.register_quantum_dot_pair(
         id=dot_id,
@@ -179,8 +179,16 @@ for i in range(barrier_gates):
     machine.register_qubit_pair(
         id=qubit_id,
         qubit_type="loss_divincenzo",
-        qubit_control_name=f"Q{i}",
-        qubit_target_name=f"Q{i+1}",
+        qubit_control_id=f"Q{i}",
+        qubit_target_id=f"Q{i+1}",
     )
 
 config = machine.generate_config()
+
+
+from qm import QuantumMachinesManager, SimulationConfig
+qmm = QuantumMachinesManager(host = "192.168.88.11", cluster_name="CS_1")
+
+qm = qmm.open_qm(config)
+# Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
+# job = qm.execute(prog)

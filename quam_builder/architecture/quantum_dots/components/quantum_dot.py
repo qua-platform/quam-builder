@@ -26,7 +26,7 @@ __all__ = ["QuantumDot"]
 
 
 @quam_dataclass
-class QuantumDot(QuamComponent, VoltagePointMacroMixin):
+class QuantumDot(VoltagePointMacroMixin):
     """
     Quam component for a single Quantum Dot
     Attributes: 
