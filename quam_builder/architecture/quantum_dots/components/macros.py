@@ -6,15 +6,13 @@ to reduce code duplication across quantum dot components.
 """
 
 from typing import Dict, TYPE_CHECKING, Optional, List
-from dataclasses import field
+from dataclasses import dataclass, field
 
 from quam.core import quam_dataclass, QuamComponent
-from quam.components import QuantumComponent
 from quam.utils import string_reference
 from quam.utils.exceptions import InvalidReferenceError
 
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
-
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -24,12 +22,10 @@ __all__ = [
     "SequenceMacro",
     "StepPointMacro",
     "RampPointMacro",
-    "ConditionalMacro",
 ]
 
 from quam.core.macro.quam_macro import QuamMacro
 from quam.core.operation.operations_registry import OperationsRegistry
-
 
 @quam_dataclass
 class BasePointMacro(QuamMacro):
@@ -84,7 +80,7 @@ class BasePointMacro(QuamMacro):
     """
 
     point_ref: Optional[str] = None
-    hold_duration: Optional[int] = None
+    hold_duration: int = None
     macro_type: str = "base"
 
     def _resolve_point(self, component: QuamComponent):
@@ -102,9 +98,7 @@ class BasePointMacro(QuamMacro):
             TypeError: If reference doesn't resolve to VoltageTuningPoint
             InvalidReferenceError: If reference cannot be resolved
         """
-        from quam_builder.architecture.quantum_dots.components.gate_set import (
-            VoltageTuningPoint,
-        )
+        from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTuningPoint
 
         if self.point_ref is None:
             raise ValueError("point_ref is not set on this macro")
@@ -123,12 +117,12 @@ class BasePointMacro(QuamMacro):
         if not isinstance(point, VoltageTuningPoint):
             raise TypeError(
                 f"Reference '{self.point_ref}' resolved to {type(point).__name__}, "
-                "expected VoltageTuningPoint"
+                f"expected VoltageTuningPoint"
             )
 
         return point
 
-    def _get_point_name(self) -> str:
+    def _get_point_name(self, component: QuamComponent) -> str:
         """
         Get the full point name from the reference.
 
@@ -141,23 +135,20 @@ class BasePointMacro(QuamMacro):
         Returns:
             str: The full point name (e.g., "quantum_dot_0_idle")
         """
-        # Access raw attribute value to avoid QUAM's automatic reference resolution
-        point_ref_raw = object.__getattribute__(self, "__dict__").get("point_ref")
-        if point_ref_raw is None:
+        if self.point_ref is None:
             raise ValueError("point_ref is not set on this macro")
 
         # Extract the last segment from reference path
         # E.g., "#./voltage_sequence/gate_set/macros/quantum_dot_0_idle" -> "quantum_dot_0_idle"
-        parts = point_ref_raw.split("/")
-        if not parts or parts[-1] == "":
-            raise ValueError(f"Invalid point reference format: '{point_ref_raw}'")
-        return parts[-1]
+        return self.point_ref.split('/')[-1]
 
-    def __call__(self, **overrides):
+    def __call__(self, obj=None, **overrides):
         """
         Allow macros to be invoked as callables (quam convention).
 
         Args:
+            obj: Component to execute the macro on (must have voltage point methods).
+                If None, uses self.parent (the component this macro is attached to).
             **overrides: Optional parameter overrides (hold_duration, ramp_duration, etc.)
                         'duration' is accepted as alias for 'hold_duration' for compatibility.
 
@@ -165,20 +156,19 @@ class BasePointMacro(QuamMacro):
             Result of apply() method
 
         Raises:
-            ValueError: If self.parent is not set (macro must be attached to a component)
+            ValueError: If obj is None and self.parent is not set
         """
-        # Ensure macro is attached to a component
-        if not hasattr(self, "parent") or self.parent is None:
-            raise ValueError(
-                "Cannot execute macro: macro has no parent. "
-                "Ensure the macro is attached to a component via component.macros['name'] = macro"
-            )
+        if obj is None:
+            if not hasattr(self, 'parent') or self.parent is None:
+                raise ValueError(
+                    f"Cannot execute macro: obj parameter is None and macro has no parent. "
+                    f"Either pass obj explicitly or ensure the macro is attached to a component."
+                )
+            obj = self.parent
 
-        # Support 'duration' as alias for 'hold_duration' for compatibility
         if "duration" in overrides and "hold_duration" not in overrides:
             overrides["hold_duration"] = overrides.pop("duration")
-
-        return self.apply(**overrides)
+        return self.apply(obj, **overrides)
 
 
 @quam_dataclass
@@ -233,19 +223,19 @@ class StepPointMacro(BasePointMacro):
         """Return total duration of the step operation in seconds."""
         return self.hold_duration * 1e-9 if self.hold_duration is not None else None
 
-    def apply(self, hold_duration: Optional[int] = None):
+    def apply(self, obj, hold_duration: Optional[int] = None):
         """
-        Execute the step operation on the component this macro is attached to.
+        Execute the step operation on the provided component.
 
         Args:
+            obj: Component with voltage point methods (VoltagePointMacroMixin)
             hold_duration: Optional override for hold duration (nanoseconds)
         """
         duration = hold_duration if hold_duration is not None else self.hold_duration
         # Get the full point name from the reference
-        point_name = self._get_point_name()
-        # Access voltage_sequence via parent.parent (the component this macro is attached to)
-        # self.parent is the macros dict, self.parent.parent is the component
-        self.parent.parent.voltage_sequence.step_to_point(point_name, duration=duration)
+        point_name = self._get_point_name(obj)
+        # Call voltage_sequence directly with the full gate_set name
+        obj.voltage_sequence.step_to_point(point_name, duration=duration)
 
 
 @quam_dataclass
@@ -308,202 +298,28 @@ class RampPointMacro(BasePointMacro):
 
     def apply(
         self,
+        obj,
         hold_duration: Optional[int] = None,
         ramp_duration: Optional[int] = None,
     ):
         """
-        Execute the ramp operation on the component this macro is attached to.
+        Execute the ramp operation on the provided component.
 
         Args:
+            obj: Component with voltage point methods (VoltagePointMacroMixin)
             hold_duration: Optional override for hold duration (nanoseconds)
             ramp_duration: Optional override for ramp duration (nanoseconds)
         """
         ramp_ns = ramp_duration if ramp_duration is not None else self.ramp_duration
         hold_ns = hold_duration if hold_duration is not None else self.hold_duration
         # Get the full point name from the reference
-        point_name = self._get_point_name()
-        # Access voltage_sequence via parent.parent (the component this macro is attached to)
-        # self.parent is the macros dict, self.parent.parent is the component
-        self.parent.parent.voltage_sequence.ramp_to_point(
+        point_name = self._get_point_name(obj)
+        # Call voltage_sequence directly with the full gate_set name
+        obj.voltage_sequence.ramp_to_point(
             point_name,
             ramp_duration=ramp_ns,
             duration=hold_ns,
         )
-
-
-@quam_dataclass
-class ConditionalMacro(QuamMacro):
-    """
-    Macro for conditional execution: measure and conditionally apply an operation.
-
-    This macro performs conditional logic by:
-    1. Executing a measurement macro
-    2. Conditionally applying another macro based on the measurement result
-    3. Returning the measured state for further conditional logic
-
-    This is useful for active reset, state preparation, and conditional operations
-    where you need to branch based on a measurement outcome.
-
-    Attributes:
-        measurement_macro: Reference to the measurement macro (string reference).
-                          Must return a boolean QUA variable when executed.
-        conditional_macro: Reference to the macro to apply conditionally (string reference).
-                          Applied when condition is met.
-        invert_condition: If False (default), macro is applied when measurement is True.
-                         If True, macro is applied when measurement is False.
-                         Use cases:
-                         - False: Standard (apply if measurement=True, e.g., excited)
-                         - True: Inverted (apply if measurement=False, e.g., ground)
-
-    Example:
-        .. code-block:: python
-
-            # Assume qubit_pair has measurement and x180 macros defined
-
-            # Standard conditional: apply x180 if measurement is True (excited)
-            qubit_pair.macros['reset'] = ConditionalMacro(
-                measurement_macro='#./macros/measure',
-                conditional_macro='#./qubit_target/macros/x180',
-                invert_condition=False
-            )
-
-            # Inverted conditional: apply x180 if measurement is False (ground)
-            qubit_pair.macros['prep_excited'] = ConditionalMacro(
-                measurement_macro='#./macros/measure',
-                conditional_macro='#./qubit_target/macros/x180',
-                invert_condition=True
-            )
-
-            # Execute in QUA program
-            with program() as prog:
-                was_excited = qubit_pair.reset()  # Resets to ground
-                qubit_pair.prep_excited()  # Prepares in excited state
-    """
-    measurement_macro: str  # Reference to measurement macro
-    conditional_macro: str  # Reference to the macro to apply conditionally
-    invert_condition: bool = False  # If True, inverts the conditional logic
-
-    def __call__(self, **overrides):
-        """
-        Allow macro to be invoked as callable (quam convention).
-
-        Args:
-            **overrides: Optional parameter overrides passed to the conditional macro
-
-        Returns:
-            Result of apply() method (the measured state)
-        """
-        if not hasattr(self, "parent") or self.parent is None:
-            raise ValueError(
-                "Cannot execute macro: macro has no parent. "
-                "Ensure the macro is attached to a component via component.macros['name'] = macro"
-            )
-        return self.apply(**overrides)
-
-    def _resolve_macro(self, reference: str) -> QuamMacro:
-        """
-        Resolve a macro reference to get the actual macro object.
-
-        Args:
-            reference: Reference string to the macro
-
-        Returns:
-            QuamMacro: The resolved macro
-
-        Raises:
-            InvalidReferenceError: If reference cannot be resolved
-        """
-        try:
-            if isinstance(reference, str):
-                macro = string_reference.get_referenced_value(
-                    self.parent.parent,  # Component that owns this macro
-                    reference,
-                    root=self.parent.parent.get_root(),
-                )
-            elif isinstance(reference, QuamMacro):
-                macro = reference
-
-        except (InvalidReferenceError, AttributeError) as e:
-            raise InvalidReferenceError(
-                f"Could not resolve macro reference '{reference}': {e}"
-            )
-
-        if not isinstance(macro, QuamMacro):
-            raise TypeError(
-                f"Reference '{reference}' resolved to {type(macro).__name__}, "
-                "expected QuamMacro"
-            )
-
-        return macro
-
-    @property
-    def inferred_duration(self) -> Optional[float]:
-        """
-        Calculate the total duration of the conditional operation.
-
-        Returns:
-            float: Duration in seconds (measurement + conditional macro).
-                  Returns None if any duration cannot be inferred.
-        """
-        try:
-            measurement = self._resolve_macro(self.measurement_macro)
-            conditional = self._resolve_macro(self.conditional_macro)
-
-            measurement_duration = getattr(measurement, 'inferred_duration', None)
-            conditional_duration = getattr(conditional, 'inferred_duration', None)
-
-            if measurement_duration is None or conditional_duration is None:
-                return None
-
-            return measurement_duration + conditional_duration
-        except (InvalidReferenceError, AttributeError):
-            return None
-
-    def apply(self, invert_condition: Optional[bool] = None, **kwargs):
-        """
-        Execute the conditional operation.
-
-        Args:
-            invert_condition: Optional override for the condition inversion.
-                            If None, uses the instance's invert_condition value.
-                            If True, macro applied when measurement is False.
-                            If False, macro applied when measurement is True.
-            **kwargs: Additional parameters passed to the conditional macro.
-
-        Returns:
-            The measured state (typically a QUA boolean variable).
-
-        Example:
-            # >>> # Use instance default
-            # >>> state = qubit_pair.reset()
-            #
-            # >>> # Override condition at runtime
-            # >>> state = qubit_pair.reset(invert_condition=True)
-        """
-        from qm import qua
-
-        # Resolve the macros
-        measurement = self._resolve_macro(self.measurement_macro)
-        conditional = self._resolve_macro(self.conditional_macro)
-
-        # Execute measurement
-        state = measurement.apply()
-
-        # Determine which condition to use (runtime override or instance default)
-        use_inverted = invert_condition if invert_condition is not None else self.invert_condition
-
-        # Apply conditional macro based on invert_condition
-        if use_inverted:
-            # Inverted: apply macro when state is False
-            with qua.if_(~state):
-                conditional.apply(**kwargs)
-        else:
-            # Standard: apply macro when state is True
-            with qua.if_(state):
-                conditional.apply(**kwargs)
-
-        return state
-
 
 @quam_dataclass
 class SequenceMacro(QuamMacro):
@@ -528,9 +344,6 @@ class SequenceMacro(QuamMacro):
     name: str
     macro_refs: tuple[str, ...] = field(default_factory=tuple)
     description: Optional[str] = None
-
-    def __call__(self, *args, **kwargs):
-        self.apply(*args, **kwargs)
 
     def with_reference(self, reference: str) -> "SequenceMacro":
         """Return a new SequenceMacro with the provided reference appended."""
@@ -598,12 +411,10 @@ class SequenceMacro(QuamMacro):
             resolved.append(resolved_macro)
         return resolved
 
-    def apply(self, **kwargs):
+    def apply(self, obj, **kwargs):
         """Execute each referenced macro sequentially on the provided component."""
-        # Resolve macros using self.parent.parent (the component that owns this sequence)
-        # self.parent is the macros dict, self.parent.parent is the component
-        for macro in self.resolved_macros(self.parent.parent):
-            macro.apply(**kwargs)
+        for macro in self.resolved_macros(obj):
+            macro(obj, **kwargs)
 
     def register_operation(
         self,
@@ -619,13 +430,13 @@ class SequenceMacro(QuamMacro):
             sequence = component.sequences[self.name]
             sequence(component)
 
-        operation_fn.__doc__ = (
-            description or self.description or f"Execute '{self.name}' sequence."
-        )
+        operation_fn.__doc__ = description or self.description or f"Execute '{self.name}' sequence."
         operation_fn.__name__ = op_name
         registry.register_operation(op_name)(operation_fn)
 
-    def total_duration_seconds(self, component: QuamComponent) -> Optional[float]:
+    def total_duration_seconds(
+        self, component: QuamComponent
+    ) -> Optional[float]:
         """Return the summed duration of all referenced macros if available."""
         durations: List[Optional[float]] = []
         for macro in self.resolved_macros(component):
@@ -639,7 +450,7 @@ class SequenceMacro(QuamMacro):
 
 
 @quam_dataclass
-class VoltagePointMacroMixin(QuantumComponent):
+class VoltagePointMacroMixin(QuamComponent):
     """
     Mixin class providing voltage point macro methods for quantum dot components.
 
@@ -726,19 +537,13 @@ class VoltagePointMacroMixin(QuantumComponent):
         except AttributeError:
             # Check if it's a registered macro
             try:
-                macros_dict = object.__getattribute__(self, "__dict__").get(
-                    "macros", {}
-                )
+                macros_dict = object.__getattribute__(self, '__dict__').get('macros', {})
                 if macros_dict and name in macros_dict:
                     # Return a bound method-like callable
-                    # Note: apply() uses self.parent internally, no need to pass component
                     def macro_method(**kwargs):
-                        return macros_dict[name].apply(**kwargs)
-
+                        return macros_dict[name](self, **kwargs)
                     macro_method.__name__ = name
-                    macro_method.__doc__ = getattr(
-                        macros_dict[name], "__doc__", f"Execute {name} macro"
-                    )
+                    macro_method.__doc__ = getattr(macros_dict[name], '__doc__', f'Execute {name} macro')
                     return macro_method
             except (AttributeError, KeyError):
                 pass
@@ -806,9 +611,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                 f"Valid channel names: {list(valid_channel_names)}"
             )
 
-    def go_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ) -> None:
+    def go_to_voltages(self, voltages : Dict[str, VoltageLevelType], duration: DurationType) -> None:
         """
         Agnostic function to set voltage in a sequence.simultaneous block.
 
@@ -816,45 +619,46 @@ class VoltagePointMacroMixin(QuantumComponent):
         This method is intended for use within a simultaneous block.
 
         Args:
-            voltages: Target voltages (key: gate/qubit name, value: voltage)
-            duration: Duration to hold the voltage in nanoseconds
+            voltage: Target voltage in volts
+            duration: Duration to hold the voltage in nanoseconds (default: 16)
         """
-        self.voltage_sequence.step_to_voltages(voltages, duration=duration)
+        self.voltage_sequence.step_to_voltages(
+            voltages, duration=duration
+        )
 
-    def step_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ) -> None:
+    def step_to_voltages(self, voltages : Dict[str, VoltageLevelType], duration: DurationType) -> None:
         """
         Step to a specified voltage.
 
         Args:
-            voltages: Target voltages (key: gate/qubit name, value: voltage)
-            duration: Duration to hold the voltage in nanoseconds
+            voltage: Target voltage in volts
+            duration: Duration to hold the voltage in nanoseconds (default: 16)
         """
-        self.voltage_sequence.step_to_voltages(voltages, duration=duration)
+        self.voltage_sequence.step_to_voltages(
+            voltages, duration=duration
+        )
 
     def ramp_to_voltages(
-        self,
-        voltages: Dict[str, VoltageLevelType],
-        duration: DurationType,
-        ramp_duration: DurationType,
+        self, voltages : Dict[str, VoltageLevelType], duration: DurationType, ramp_duration: DurationType
     ) -> None:
         """
         Ramp to a specified voltage.
 
         Args:
-            voltages: Target voltages (key: gate/qubit name, value: voltage)
+            voltage: Target voltage in volts
             ramp_duration: Duration of the ramp in nanoseconds
-            duration: Duration to hold the final voltage in nanoseconds
+            duration: Duration to hold the final voltage in nanoseconds (default: 16)
         """
-        self.voltage_sequence.ramp_to_voltages(voltages, duration, ramp_duration)
+        self.voltage_sequence.ramp_to_voltages(
+            voltages, duration, ramp_duration
+        )
 
     def add_point(
         self,
         point_name: str,
         voltages: Dict[str, float],
         duration: int = 16,
-        replace_existing_point: bool = True,
+        replace_existing_point: bool = False,
     ) -> str:
         """
         Define a voltage point in the gate set for later use by macros.
@@ -876,8 +680,8 @@ class VoltagePointMacroMixin(QuantumComponent):
                        mapped to quantum dot IDs if _should_map_qubit_names() returns True
             duration: Default hold duration for this point (nanoseconds, default: 16).
                      Can be overridden when creating macros or during execution.
-            replace_existing_point: If True (default), overwrites existing point with same name.
-                                   If False, raises ValueError if point exists.
+            replace_existing_point: If True, overwrites existing point with same name.
+                                   If False (default), raises ValueError if point exists.
 
         Returns:
             str: The full gate_set name ("{component.id}_{point_name}")
@@ -914,17 +718,18 @@ class VoltagePointMacroMixin(QuantumComponent):
 
         # Check if point already exists
         if full_name in existing_points and not replace_existing_point:
+            component_type = self.__class__.__name__
             raise ValueError(
                 f"Point '{point_name}' already exists as '{full_name}'. "
                 "Set replace_existing_point=True to overwrite."
             )
 
-        # Validate voltage keys
-        for channel_name in voltages.keys():
-            self._validate_component_id_in_gate_set(channel_name)
-
         # Register in gate set
-        gate_set.add_point(name=full_name, voltages=voltages, duration=duration)
+        gate_set.add_point(
+            name=full_name,
+            voltages=voltages,
+            duration=duration
+        )
 
         return full_name
 
@@ -940,7 +745,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         """
         return f"{self.id}_{point_name}"
 
-    def step_to_point(self, point_name: str, duration: Optional[int] = None) -> None:
+    def step_to_point(self, point_name: str, duration: int = None) -> None:
         """
         Step instantly to a pre-defined voltage point (convenience method).
 
@@ -972,7 +777,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         self.voltage_sequence.step_to_point(name=full_name, duration=duration)
 
     def ramp_to_point(
-        self, point_name: str, ramp_duration: int, duration: Optional[int] = None
+        self, point_name: str, ramp_duration: int, duration: int = None
     ) -> None:
         """
         Ramp gradually to a pre-defined voltage point (convenience method).
@@ -1004,27 +809,24 @@ class VoltagePointMacroMixin(QuantumComponent):
         """
         full_name = self._create_point_name(point_name)
         self.voltage_sequence.ramp_to_point(
-            name=full_name, duration=duration, ramp_duration=ramp_duration
+            name=full_name,
+            duration=duration,
+            ramp_duration=ramp_duration
         )
 
-    def add_point_with_step_macro(
+    def _add_point_with_step_macro(
         self,
         macro_name: str,
-        voltages: Optional[Dict[str, float]] = None,
-        hold_duration: int = 100,
+        voltages: Dict[str, float],
+        hold_duration: int,
         point_duration: int = 16,
-        replace_existing_point: bool = True,
+        replace_existing_point: bool = False,
     ) -> StepPointMacro:
         """
-        Convenience method: Create a voltage point and StepPointMacro with reference in one step,
-        or create a macro for an existing point.
-
-        This method supports two use cases:
-        1. Creating a new point with voltages (voltages provided)
-        2. Creating a macro for an existing point (voltages=None)
+        Convenience method: Create a voltage point and StepPointMacro with reference in one step.
 
         This method follows quam's Pulse → Macro → Operation pattern by:
-        1. Creating a VoltageTuningPoint in gate_set.macros (or using existing one)
+        1. Creating a VoltageTuningPoint in gate_set.macros
         2. Creating a StepPointMacro with a reference to that point
         3. Storing the macro in self.macros[macro_name]
 
@@ -1033,65 +835,41 @@ class VoltagePointMacroMixin(QuantumComponent):
 
         Args:
             macro_name: Name for the macro (stored in self.macros[macro_name])
-            voltages: Optional voltage values for each gate. If None, looks up existing point.
-                     (see add_point() for format details)
-            hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
+            voltages: Voltage values for each gate (see add_point() for format details)
+            hold_duration: Duration to hold the target voltage (nanoseconds)
             point_duration: Default duration stored in the VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: True)
+            replace_existing_point: If True, overwrites existing point (default: False)
 
         Returns:
             StepPointMacro: The created macro instance
-
-        Raises:
-            KeyError: If voltages is None and the point doesn't exist in the gate set
 
         Example:
             .. code-block:: python
 
                 # Assume quantum_dot is a component with VoltagePointMacroMixin
 
-                # Use case 1: Create new point and macro together
+                # Create point and macro together (recommended)
                 quantum_dot.add_point_with_step_macro(
                     'idle',
                     voltages={'virtual_dot_0': 0.1},
                     hold_duration=100
                 )
 
-                # Use case 2: Create macro for existing point
-                quantum_dot.add_point('readout', voltages={'virtual_dot_0': 0.2})
-                quantum_dot.add_point_with_step_macro('readout', hold_duration=200)
-
-                # Execute the macros
+                # Execute the macro
                 quantum_dot.macros['idle']()
-                quantum_dot.macros['readout']()
 
                 # Use in a sequence
                 seq = SequenceMacro(name='init', macro_refs=())
                 seq = seq.with_macro(quantum_dot, 'idle')
                 seq(quantum_dot)
         """
-        # Determine the full point name
-        full_name = self._create_point_name(macro_name)
-
-        if voltages is not None:
-            # Case 1: Create new point
-            full_name = self.add_point(
-                point_name=macro_name,
-                voltages=voltages,
-                duration=point_duration,
-                replace_existing_point=replace_existing_point,
-            )
-        else:
-            # Case 2: Use existing point
-            gate_set = self.voltage_sequence.gate_set
-            existing_points = gate_set.get_macros()
-
-            if full_name not in existing_points:
-                raise KeyError(
-                    f"Point '{macro_name}' (full name: '{full_name}') does not exist. "
-                    f"Available points: {list(existing_points.keys())}. "
-                    f"To create a new point, provide the 'voltages' parameter."
-                )
+        # Create the voltage point
+        full_name = self.add_point(
+            point_name=macro_name,
+            voltages=voltages,
+            duration=point_duration,
+            replace_existing_point=replace_existing_point,
+        )
 
         # Get reference to the point using quam's reference system
         point = self.voltage_sequence.gate_set.macros[full_name]
@@ -1106,27 +884,26 @@ class VoltagePointMacroMixin(QuantumComponent):
         # Store in macros dict
         self.macros[macro_name] = macro
 
+        # Set parent for proper reference resolution
+        if hasattr(macro, "parent"):
+            macro.parent = self
+
         return macro
 
-    def add_point_with_ramp_macro(
+    def _add_point_with_ramp_macro(
         self,
         macro_name: str,
-        voltages: Optional[Dict[str, float]] = None,
-        hold_duration: int = 100,
-        ramp_duration: int = 16,
+        voltages: Dict[str, float],
+        hold_duration: int,
+        ramp_duration: int,
         point_duration: int = 16,
-        replace_existing_point: bool = True,
+        replace_existing_point: bool = False,
     ) -> RampPointMacro:
         """
-        Convenience method: Create a voltage point and RampPointMacro with reference in one step,
-        or create a macro for an existing point.
-
-        This method supports two use cases:
-        1. Creating a new point with voltages (voltages provided)
-        2. Creating a macro for an existing point (voltages=None)
+        Convenience method: Create a voltage point and RampPointMacro with reference in one step.
 
         This method follows quam's Pulse → Macro → Operation pattern by:
-        1. Creating a VoltageTuningPoint in gate_set.macros (or using existing one)
+        1. Creating a VoltageTuningPoint in gate_set.macros
         2. Creating a RampPointMacro with a reference to that point
         3. Storing the macro in self.macros[macro_name]
 
@@ -1135,25 +912,21 @@ class VoltagePointMacroMixin(QuantumComponent):
 
         Args:
             macro_name: Name for the macro (stored in self.macros[macro_name])
-            voltages: Optional voltage values for each gate. If None, looks up existing point.
-                     (see add_point() for format details)
-            hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
-            ramp_duration: Time for gradual voltage transition (nanoseconds, default: 16)
+            voltages: Voltage values for each gate (see add_point() for format details)
+            hold_duration: Duration to hold the target voltage (nanoseconds)
+            ramp_duration: Time for gradual voltage transition (nanoseconds)
             point_duration: Default duration stored in the VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: True)
+            replace_existing_point: If True, overwrites existing point (default: False)
 
         Returns:
             RampPointMacro: The created macro instance
-
-        Raises:
-            KeyError: If voltages is None and the point doesn't exist in the gate set
 
         Example:
             .. code-block:: python
 
                 # Assume quantum_dot is a component with VoltagePointMacroMixin
 
-                # Use case 1: Create new point and macro together
+                # Create point and macro together (recommended)
                 quantum_dot.add_point_with_ramp_macro(
                     'load',
                     voltages={'virtual_dot_0': 0.3},
@@ -1161,41 +934,21 @@ class VoltagePointMacroMixin(QuantumComponent):
                     ramp_duration=500
                 )
 
-                # Use case 2: Create macro for existing point
-                quantum_dot.add_point('measure', voltages={'virtual_dot_0': 0.25})
-                quantum_dot.add_point_with_ramp_macro('measure', hold_duration=300, ramp_duration=400)
-
-                # Execute the macros: ramps over specified duration, holds for specified duration
+                # Execute the macro: ramps over 500ns, holds for 200ns
                 quantum_dot.macros['load']()
-                quantum_dot.macros['measure']()
 
                 # Use in a sequence
                 seq = SequenceMacro(name='init', macro_refs=())
                 seq = seq.with_macro(quantum_dot, 'load')
                 seq(quantum_dot)
         """
-        # Determine the full point name
-        full_name = self._create_point_name(macro_name)
-
-        if voltages is not None:
-            # Case 1: Create new point
-            full_name = self.add_point(
-                point_name=macro_name,
-                voltages=voltages,
-                duration=point_duration,
-                replace_existing_point=replace_existing_point,
-            )
-        else:
-            # Case 2: Use existing point
-            gate_set = self.voltage_sequence.gate_set
-            existing_points = gate_set.get_macros()
-
-            if full_name not in existing_points:
-                raise KeyError(
-                    f"Point '{macro_name}' (full name: '{full_name}') does not exist. "
-                    f"Available points: {list(existing_points.keys())}. "
-                    f"To create a new point, provide the 'voltages' parameter."
-                )
+        # Create the voltage point
+        full_name = self.add_point(
+            point_name=macro_name,
+            voltages=voltages,
+            duration=point_duration,
+            replace_existing_point=replace_existing_point,
+        )
 
         # Get reference to the point using quam's reference system
         point = self.voltage_sequence.gate_set.macros[full_name]
@@ -1211,61 +964,52 @@ class VoltagePointMacroMixin(QuantumComponent):
         # Store in macros dict
         self.macros[macro_name] = macro
 
+        # Set parent for proper reference resolution
+        if hasattr(macro, "parent"):
+            macro.parent = self
+
         return macro
 
     def with_step_point(
         self,
         name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: Dict[str, float],
         hold_duration: int = 100,
         point_duration: int = 16,
-        replace_existing_point: bool = True,
+        replace_existing_point: bool = False,
     ) -> "VoltagePointMacroMixin":
         """
-        Fluent API: Add a voltage point with step macro and return self for chaining,
-        or create a macro for an existing point.
+        Fluent API: Add a voltage point with step macro and return self for chaining.
 
         This is a convenience wrapper around add_point_with_step_macro() that
         returns self to enable method chaining for defining multiple macros.
 
-        Supports two use cases:
-        1. Creating a new point with voltages (voltages provided)
-        2. Creating a macro for an existing point (voltages=None)
-
         Args:
             name: Name for both the point and the macro
-            voltages: Optional voltage values for each gate. If None, looks up existing point.
+            voltages: Voltage values for each gate
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             point_duration: Default duration stored in VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: True)
+            replace_existing_point: If True, overwrites existing point (default: False)
 
         Returns:
             self: The component instance for method chaining
 
-        Raises:
-            KeyError: If voltages is None and the point doesn't exist
-
         Example:
             .. code-block:: python
 
-                # Use case 1: Create new points with macros
+                # Chain multiple macro definitions
                 (component
                     .with_step_point("idle", {"gate": 0.1}, hold_duration=100)
                     .with_step_point("measure", {"gate": 0.2}, hold_duration=200)
                     .with_sequence("init", ["idle", "measure"]))
 
-                # Use case 2: Create macro for existing point
-                component.add_point("readout", {"gate": 0.15})
-                component.with_step_point("readout", hold_duration=300)
-
                 # Use in QUA program
                 with program() as prog:
                     component.idle()
                     component.measure()
-                    component.readout()
                     component.init()
         """
-        self.add_point_with_step_macro(
+        self._add_point_with_step_macro(
             macro_name=name,
             voltages=voltages,
             hold_duration=hold_duration,
@@ -1277,58 +1021,45 @@ class VoltagePointMacroMixin(QuantumComponent):
     def with_ramp_point(
         self,
         name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: Dict[str, float],
         hold_duration: int = 100,
         ramp_duration: int = 16,
         point_duration: int = 16,
-        replace_existing_point: bool = True,
+        replace_existing_point: bool = False,
     ) -> "VoltagePointMacroMixin":
         """
-        Fluent API: Add a voltage point with ramp macro and return self for chaining,
-        or create a macro for an existing point.
+        Fluent API: Add a voltage point with ramp macro and return self for chaining.
 
         This is a convenience wrapper around add_point_with_ramp_macro() that
         returns self to enable method chaining for defining multiple macros.
 
-        Supports two use cases:
-        1. Creating a new point with voltages (voltages provided)
-        2. Creating a macro for an existing point (voltages=None)
-
         Args:
             name: Name for both the point and the macro
-            voltages: Optional voltage values for each gate. If None, looks up existing point.
+            voltages: Voltage values for each gate
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             ramp_duration: Time for gradual voltage transition (nanoseconds, default: 16)
             point_duration: Default duration stored in VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: True)
+            replace_existing_point: If True, overwrites existing point (default: False)
 
         Returns:
             self: The component instance for method chaining
 
-        Raises:
-            KeyError: If voltages is None and the point doesn't exist
-
         Example:
             .. code-block:: python
 
-                # Use case 1: Create new points with macros
+                # Chain multiple macro definitions
                 (component
                     .with_ramp_point("load", {"gate": 0.3}, hold_duration=200, ramp_duration=500)
                     .with_step_point("readout", {"gate": 0.15}, hold_duration=1000)
                     .with_sequence("load_and_read", ["load", "readout"]))
 
-                # Use case 2: Create macro for existing point
-                component.add_point("measure", {"gate": 0.25})
-                component.with_ramp_point("measure", hold_duration=300, ramp_duration=400)
-
                 # Use in QUA program
                 with program() as prog:
                     component.load()
                     component.readout()
-                    component.measure()
                     component.load_and_read()
         """
-        self.add_point_with_ramp_macro(
+        self._add_point_with_ramp_macro(
             macro_name=name,
             voltages=voltages,
             hold_duration=hold_duration,
@@ -1394,105 +1125,6 @@ class VoltagePointMacroMixin(QuantumComponent):
             self, macro_names
         )
         self.macros[name] = sequence
-
-        return self
-
-    def with_conditional_macro(
-        self,
-        name: str,
-        measurement_macro: str,
-        conditional_macro: str,
-        invert_condition: bool = False,
-    ) -> "VoltagePointMacroMixin":
-        """
-        Fluent API: Add a conditional macro and return self for chaining.
-
-        This creates a ConditionalMacro that executes a measurement and conditionally
-        applies another macro based on the result.
-
-        Args:
-            name: Name for the conditional macro
-            measurement_macro: Name of measurement macro in self.macros, or a reference string
-            conditional_macro: Name of macro in self.macros, or a reference string (e.g., from get_reference())
-            invert_condition: If False (default), apply when measurement is True.
-                             If True, apply when measurement is False.
-
-        Returns:
-            self: The component instance for method chaining
-
-        Raises:
-            KeyError: If macro names don't exist (when not using references)
-
-        Example:
-            .. code-block:: python
-
-                # Option 1: Use macro names (must exist in self.macros)
-                component.with_conditional_macro(
-                    name='reset',
-                    measurement_macro='measure',
-                    conditional_macro='x180',
-                    invert_condition=False
-                )
-
-                # Option 2: Use reference strings (can reference macros from other components)
-                component.with_conditional_macro(
-                    name='reset',
-                    measurement_macro='measure',  # Local macro
-                    conditional_macro=component.qubit_target.macros["x180"].get_reference(),
-                    invert_condition=False
-                )
-
-                # Option 3: Chain with other operations
-                (component
-                    .with_step_point("idle", {"gate": 0.1}, hold_duration=100)
-                    .with_conditional_macro(
-                        name='reset',
-                        measurement_macro='measure',
-                        conditional_macro='x180'
-                    )
-                    .with_sequence("init_with_reset", ["idle", "reset"]))
-
-                # Execute in QUA program
-                with program() as prog:
-                    was_excited = component.reset()  # Conditional reset
-                    component.init_with_reset()  # Full sequence
-        """
-        # Handle measurement_macro: check if it's a reference or macro name
-        if measurement_macro.startswith('#'):
-            # Already a reference string
-            measurement_ref = measurement_macro
-        else:
-            # It's a macro name, validate and create reference
-            if measurement_macro not in self.macros:
-                raise KeyError(
-                    f"Measurement macro '{measurement_macro}' not found in macros. "
-                    f"Available macros: {list(self.macros.keys())}"
-                )
-            # Use #../ to reference sibling macros (go up from this macro to parent macros dict)
-            measurement_ref = f"#../{measurement_macro}"
-
-        # Handle conditional_macro: check if it's a reference or macro name
-        if conditional_macro.startswith('#'):
-            # Already a reference string
-            conditional_ref = conditional_macro
-        else:
-            # It's a macro name, validate and create reference
-            if conditional_macro not in self.macros:
-                raise KeyError(
-                    f"Conditional macro '{conditional_macro}' not found in macros. "
-                    f"Available macros: {list(self.macros.keys())}"
-                )
-            # Use #../ to reference sibling macros (go up from this macro to parent macros dict)
-            conditional_ref = f"#../{conditional_macro}"
-
-        # Create the conditional macro
-        macro = ConditionalMacro(
-            measurement_macro=measurement_ref,
-            conditional_macro=conditional_ref,
-            invert_condition=invert_condition
-        )
-
-        # Store in macros dict
-        self.macros[name] = macro
+        sequence.parent = self
 
         return self
