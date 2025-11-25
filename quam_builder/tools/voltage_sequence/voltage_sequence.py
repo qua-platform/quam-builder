@@ -119,6 +119,18 @@ class VoltageSequence:
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
 
+        self.attenuation_qua_variables = {
+            ch_name: (
+                declare(
+                    fixed,
+                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
+                )
+                if hasattr(ch, "attenuation")
+                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+            )
+            for (ch_name, ch) in self.gate_set.channels.items()
+        }
+
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
         # Use a prefix related to the VoltageSequence instance if multiple exist
@@ -127,16 +139,20 @@ class VoltageSequence:
         if internal_name not in self._temp_qua_vars:
             self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
-    
-    def _adjust_for_attenuation(self, channel, delta_v): 
-        default_attenuation_scale = 10**(channel.attenuation/20) if hasattr(channel, "attenuation") else 1
-        if is_qua_type(delta_v): 
-            # Same temp variable reused across gates, just redefined
-            attenuation_factor = self._get_temp_qua_var(name_suffix = "attenuation")
-            assign(attenuation_factor, default_attenuation_scale / (1 << ATTENUATION_BITSHIFT))
-            unattenuated_delta_v = (delta_v * attenuation_factor) << ATTENUATION_BITSHIFT
-        else: 
-            unattenuated_delta_v = delta_v * default_attenuation_scale
+
+    def _adjust_for_attenuation(self, channel, delta_v):
+        ch_name = next(
+            name for name, ch in self.gate_set.channels.items() if ch is channel
+        )
+        attenuation_scale = self.attenuation_qua_variables[ch_name]
+        if is_qua_type(delta_v):
+            unattenuated_delta_v = (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT
+        else:
+            unattenuated_delta_v = delta_v * (
+                10 ** (channel.attenuation / 20)
+                if hasattr(channel, "attenuation")
+                else 1
+            )
         return unattenuated_delta_v
 
     def _play_step_on_channel(
@@ -150,7 +166,7 @@ class VoltageSequence:
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
 
-        if self.gate_set.adjust_for_attenuation: 
+        if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
 
         py_duration = 0
@@ -163,7 +179,7 @@ class VoltageSequence:
         if is_qua_type(delta_v):
             scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
-            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10) 
+            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10)
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -199,7 +215,7 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
-        if self.gate_set.adjust_for_attenuation: 
+        if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
@@ -621,11 +637,17 @@ class VoltageSequence:
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
-            opx_voltage_limit = 0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5 
+            opx_voltage_limit = (
+                0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5
+            )
 
             if self.gate_set.adjust_for_attenuation:
-                attenuation_scale = 10**(channel_obj.attenuation/20) if hasattr(channel_obj, "attenuation") else 1
-                if max_voltage * attenuation_scale > opx_voltage_limit: 
+                attenuation_scale = (
+                    10 ** (channel_obj.attenuation / 20)
+                    if hasattr(channel_obj, "attenuation")
+                    else 1
+                )
+                if max_voltage * attenuation_scale > opx_voltage_limit:
                     raise ValueError(
                         f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
                     )
@@ -646,8 +668,8 @@ class VoltageSequence:
 
                 delta_v = py_comp_amp - float(str(current_v))
                 self._play_step_on_channel(
-                    channel_obj, 
-                    delta_v, 
+                    channel_obj,
+                    delta_v,
                     py_comp_dur,
                 )
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
@@ -658,8 +680,8 @@ class VoltageSequence:
                 delta_v_q = q_comp_amp - current_v
                 with if_(q_comp_dur_4ns > 0):
                     self._play_step_on_channel(
-                        channel_obj, 
-                        delta_v_q, 
+                        channel_obj,
+                        delta_v_q,
                         q_comp_dur_4ns,
                     )
                 comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
