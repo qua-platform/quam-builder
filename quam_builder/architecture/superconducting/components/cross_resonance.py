@@ -15,8 +15,7 @@ class CrossResonanceBase:
         bell_state_fidelity (float): an arbitrary coupler flux bias.
     """
 
-    target_qubit_LO_frequency: float = None
-    target_qubit_IF_frequency: float = None
+    target_qubit_RF_frequency: float = None
     bell_state_fidelity: float = None
 
 
@@ -30,8 +29,7 @@ class CrossResonanceIQ(IQChannel, CrossResonanceBase):
     @property
     def inferred_intermediate_frequency(self):
         return (
-            self.target_qubit_LO_frequency
-            + self.target_qubit_IF_frequency
+            self.target_qubit_RF_frequency
             - self.LO_frequency
         )
 
@@ -41,8 +39,7 @@ class CrossResonanceMW(MWChannel, CrossResonanceBase):
     @property
     def inferred_intermediate_frequency(self):
         return (
-            self.target_qubit_LO_frequency
-            + self.target_qubit_IF_frequency
+            self.target_qubit_RF_frequency
             - self.LO_frequency
         )
 
