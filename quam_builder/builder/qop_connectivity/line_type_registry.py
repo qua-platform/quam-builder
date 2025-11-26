@@ -37,9 +37,9 @@ class LineTypeRegistry:
     line types and strategies to be registered.
 
     Example:
-        >>> registry = LineTypeRegistry()
-        >>> category = registry.get_category(WiringLineType.DRIVE)
-        >>> strategy_class = registry.get_strategy_class(category)
+        # >>> registry = LineTypeRegistry()
+        # >>> category = registry.get_category(WiringLineType.DRIVE)
+        # >>> strategy_class = registry.get_strategy_class(category)
     """
 
     def __init__(self):
@@ -169,13 +169,13 @@ class LineTypeRegistry:
             strategy_class: The strategy class to use for this category
 
         Example:
-            >>> class CustomStrategy(WiringStrategy):
-            ...     # Custom implementation
-            ...     pass
-            >>> registry.register_custom_strategy(
-            ...     ElementCategory.QUBIT,
-            ...     CustomStrategy
-            ... )
+            # >>> class CustomStrategy(WiringStrategy):
+            # ...     # Custom implementation
+            # ...     pass
+            # >>> registry.register_custom_strategy(
+            # ...     ElementCategory.QUBIT,
+            # ...     CustomStrategy
+            # ... )
         """
         self._strategy_map[category] = strategy_class
 
@@ -186,7 +186,7 @@ class LineTypeRegistry:
             Dictionary mapping categories to lists of line type string values
 
         Example:
-            >>> registry.get_all_line_types()
+            # >>> registry.get_all_line_types()
             {
                 ElementCategory.QUBIT: ['drive', 'flux', ...],
                 ElementCategory.QUBIT_PAIR: ['coupler', ...],

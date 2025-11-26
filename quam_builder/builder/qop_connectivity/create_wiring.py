@@ -66,18 +66,18 @@ def create_wiring(
         ValueError: If an unknown line type is encountered
 
     Example:
-        >>> connectivity = Connectivity(...)
-        >>> wiring = create_wiring(connectivity)
-        >>> # Result:
-        >>> # {
-        >>> #     "qubits": {
-        >>> #         "q0": {
-        >>> #             "drive": {"opx_output": "#/ports/port1"},
-        >>> #             "flux": {...}
-        >>> #         }
-        >>> #     },
-        >>> #     ...
-        >>> # }
+        # >>> connectivity = Connectivity(...)
+        # >>> wiring = create_wiring(connectivity)
+        # >>> # Result:
+        # >>> # {
+        # >>> #     "qubits": {
+        # >>> #         "q0": {
+        # >>> #             "drive": {"opx_output": "#/ports/port1"},
+        # >>> #             "flux": {...}
+        # >>> #         }
+        # >>> #     },
+        # >>> #     ...
+        # >>> # }
     """
     if use_legacy:
         # Use legacy implementation for backward compatibility testing
