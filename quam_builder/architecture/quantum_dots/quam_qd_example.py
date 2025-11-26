@@ -174,12 +174,12 @@ machine.register_quantum_dot_pair(
 
 # Define the detuning axes for both QuantumDotPairs
 machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
-    matrix = [[1,1],[1,-1]], 
+    matrix = [[1,-1]], 
     detuning_axis_name = "dot1_dot2_epsilon"
 )
 
 machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
-    matrix = [[1,1],[1,-1]], 
+    matrix = [[1,-1]], 
     detuning_axis_name = "dot3_dot4_epsilon"
 )
 
@@ -213,7 +213,7 @@ machine.register_qubit_pair(
 # Remember that if these two dictionaries hold contradicting information about the voltage of a particular gate, the last one in the QUA programme wins. 
 
 # In this example, we purposefully keep all the barrier and sensor voltages identical, so that they can be initialised together, and no gate should hold two voltages at once. 
-# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be entered as 0. 
+# Notice that we have not identified any points for Q3 or Q4. The associated QDs will be kept constant. 
 
 
 machine.qubits["Q1"].add_point(

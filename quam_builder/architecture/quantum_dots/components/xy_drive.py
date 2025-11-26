@@ -14,7 +14,7 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["XYDriveIQ", "XYDriveMW"]
+__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
 
 
 @quam_dataclass
