@@ -34,9 +34,10 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
+    MWFEMAnalogOutputPort
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive, XYDriveIQ
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
