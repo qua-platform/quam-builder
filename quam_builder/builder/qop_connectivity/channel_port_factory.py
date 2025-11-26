@@ -35,9 +35,9 @@ class ChannelPortFactory:
     types and can be extended with custom creators.
 
     Example:
-        >>> factory = ChannelPortFactory()
-        >>> key, ref = factory.create_port_reference(channel, context)
-        >>> # key = "opx_output", ref = "#/ports/port1"
+        # >>> factory = ChannelPortFactory()
+        # >>> key, ref = factory.create_port_reference(channel, context)
+        # >>> # key = "opx_output", ref = "#/ports/port1"
     """
 
     def __init__(self):
@@ -83,9 +83,9 @@ class ChannelPortFactory:
             ValueError: If the instrument type is unknown
 
         Example:
-            >>> channel = Mock(instrument_id="octave", signal_type="analog")
-            >>> context = WiringContext(...)
-            >>> key, ref = factory.create_port_reference(channel, context)
+            # >>> channel = Mock(instrument_id="octave", signal_type="analog")
+            # >>> context = WiringContext(...)
+            # >>> key, ref = factory.create_port_reference(channel, context)
         """
         # Handle special instruments first (need element_id and line_type)
         if channel.instrument_id in self._special_creators:
@@ -147,13 +147,13 @@ class ChannelPortFactory:
             needs_channel_list: Whether this creator needs the full channel list
 
         Example:
-            >>> def create_custom_port(channel, channels=None):
-            ...     return ("custom_port", f"#/ports/{channel.port}")
-            >>> factory.register_instrument(
-            ...     "custom-awg",
-            ...     create_custom_port,
-            ...     needs_channel_list=True
-            ... )
+            # >>> def create_custom_port(channel, channels=None):
+            # ...     return ("custom_port", f"#/ports/{channel.port}")
+            # >>> factory.register_instrument(
+            # ...     "custom-awg",
+            # ...     create_custom_port,
+            # ...     needs_channel_list=True
+            # ... )
         """
         self._analog_creators[instrument_id] = creator
         if needs_channel_list:
@@ -175,12 +175,12 @@ class ChannelPortFactory:
                      (channel, element_id, line_type) -> (key, reference)
 
         Example:
-            >>> def create_special_port(channel, element_id, line_type):
-            ...     return ("special_port", f"#/special/{element_id}")
-            >>> factory.register_special_instrument(
-            ...     "special-instrument",
-            ...     create_special_port
-            ... )
+            # >>> def create_special_port(channel, element_id, line_type):
+            # ...     return ("special_port", f"#/special/{element_id}")
+            # >>> factory.register_special_instrument(
+            # ...     "special-instrument",
+            # ...     create_special_port
+            # ... )
         """
         self._special_creators[instrument_id] = creator
 
@@ -194,7 +194,7 @@ class ChannelPortFactory:
                 - needs_channel_list: Instruments that need full channel list
 
         Example:
-            >>> factory.get_supported_instruments()
+            # >>> factory.get_supported_instruments()
             {
                 'analog': ['octave', 'mw-fem', 'lf-fem', 'opx+'],
                 'special': ['external-mixer'],

@@ -27,9 +27,9 @@ class WiringGenerator:
     4. Assembling the complete wiring dictionary
 
     Example:
-        >>> generator = WiringGenerator()
-        >>> wiring = generator.generate(connectivity)
-        >>> # Returns complete wiring dictionary
+        # >>> generator = WiringGenerator()
+        # >>> wiring = generator.generate(connectivity)
+        # >>> # Returns complete wiring dictionary
     """
 
     def __init__(
@@ -65,20 +65,20 @@ class WiringGenerator:
             by element type, element ID, and line type
 
         Example:
-            >>> connectivity = Connectivity(...)
-            >>> wiring = generator.generate(connectivity)
-            >>> # Result structure:
-            >>> # {
-            >>> #     "qubits": {
-            >>> #         "q0": {
-            >>> #             "drive": {"opx_output": "#/ports/port1", ...},
-            >>> #             "flux": {...},
-            >>> #         },
-            >>> #         ...
-            >>> #     },
-            >>> #     "qubit_pairs": {...},
-            >>> #     ...
-            >>> # }
+            # >>> connectivity = Connectivity(...)
+            # >>> wiring = generator.generate(connectivity)
+            # >>> # Result structure:
+            # >>> # {
+            # >>> #     "qubits": {
+            # >>> #         "q0": {
+            # >>> #             "drive": {"opx_output": "#/ports/port1", ...},
+            # >>> #             "flux": {...},
+            # >>> #         },
+            # >>> #         ...
+            # >>> #     },
+            # >>> #     "qubit_pairs": {...},
+            # >>> #     ...
+            # >>> # }
         """
         wiring = {}
 
@@ -138,8 +138,8 @@ class WiringGenerator:
             Dictionary mapping categories to cached strategy instances
 
         Example:
-            >>> strategies = generator.get_cached_strategies()
-            >>> for category, strategy in strategies.items():
-            ...     print(f"{category}: {type(strategy).__name__}")
+            # >>> strategies = generator.get_cached_strategies()
+            # >>> for category, strategy in strategies.items():
+            # ...     print(f"{category}: {type(strategy).__name__}")
         """
         return self._strategy_cache.copy()
