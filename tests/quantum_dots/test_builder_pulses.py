@@ -17,7 +17,7 @@ class TestAddDefaultLDVQubitPulses:
         """Test that XY pulses are added when qubit has xy channel."""
         # Create a mock qubit with xy channel
         qubit = MagicMock()
-        qubit.xy = XYDrive(id="xy_drive")
+        qubit.xy = XYDrive(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy.operations = {}
 
         # Add default pulses
@@ -45,7 +45,7 @@ class TestAddDefaultLDVQubitPulses:
     def test_add_pulses_to_qubit_with_both_xy_and_resonator(self):
         """Test adding pulses when qubit has both xy and resonator."""
         qubit = MagicMock()
-        qubit.xy = XYDrive(id="xy_drive")
+        qubit.xy = XYDrive(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy.operations = {}
         qubit.resonator = MagicMock(spec=ReadoutResonatorSingle)
         qubit.resonator.operations = {}
@@ -68,7 +68,7 @@ class TestAddDefaultLDVQubitPulses:
     def test_xy_pulse_properties(self):
         """Test that XY pulses have correct properties."""
         qubit = MagicMock()
-        qubit.xy = XYDrive(id="xy_drive")
+        qubit.xy = XYDrive(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy.operations = {}
 
         add_default_ldv_qubit_pulses(qubit)
