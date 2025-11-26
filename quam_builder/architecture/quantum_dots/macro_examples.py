@@ -310,7 +310,7 @@ def example_06_operations_registry(machine) -> None:
     from quam_builder.architecture.quantum_dots.operations import (
         operations_registry,
         # Import individual operations for type safety
-        idle, load, readout, sweetspot,
+        idle, load, readout,
         x180, y90, x90,
         rabi
     )
@@ -346,7 +346,7 @@ def example_06_operations_registry(machine) -> None:
         q.with_sequence("rabis", ["init", "x180", "readout"])
 
     @operations_registry.register_operation
-    def sweetspot(qubit) -> None:
+    def sweetspot(component: VoltagePointMacroMixin, **kwargs):
         pass
 
     # === EXAMPLE 1: Using gate-level operations (RECOMMENDED) ===

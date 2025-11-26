@@ -41,7 +41,7 @@ from quam.components.pulses import GaussianPulse
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, VoltagePointMacroMixin
 from qm.qua import *
 
 # Import gate-level operations for cleaner QUA code
@@ -244,7 +244,7 @@ print("Example 1: Gate-level operations (recommended)")
 print("=" * 70)
 
 @operations_registry.register_operation
-def sweetspot(qubit) -> None:
+def sweetspot(component: VoltagePointMacroMixin, **kwargs):
     pass
 
 with program() as prog_operations:
