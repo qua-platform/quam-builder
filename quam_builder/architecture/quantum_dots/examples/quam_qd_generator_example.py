@@ -48,7 +48,8 @@ machine = BaseQuamQD()
 lf_fem_dots = 6
 lf_fem_resonators = 5
 mw_fem = 1
-plunger_gates = 6
+global_gates = 2
+plunger_gates = 2
 barrier_gates = plunger_gates - 1
 sensor_gates = 2
 resonators = 2
@@ -56,7 +57,17 @@ resonators = 2
 ###########################################
 ###### Instantiate Physical Channels ######
 ###########################################
-next_port_id = 0
+next_port_id = 1
+
+gs = [
+    VoltageGate(
+        id=f"global_{i+next_port_id}",
+        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_dots, port_id=i + next_port_id),
+    )
+    for i in range(global_gates)
+]
+
+next_port_id += global_gates
 
 ps = [
     VoltageGate(
@@ -141,9 +152,9 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels=ps,
     barrier_channels=bs,
-    sensor_channels_resonators=[(s, r) for s, r in zip(ss, rs)],
+    sensor_resonator_mappings={s: r for s, r in zip(ss, rs)},
+    global_gates=gs
 )
-
 
 ########################################
 ###### Register Quantum Dot Pairs ######

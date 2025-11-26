@@ -17,6 +17,7 @@ def build_quam_wiring(
     cluster_name: str,
     quam_instance: AnyQuam,
     port: Optional[int] = None,
+    path: Optional[str] = None,
 ):
     """Builds the QUAM wiring configuration and saves the machine setup.
 
@@ -31,7 +32,8 @@ def build_quam_wiring(
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
     machine.wiring = create_wiring(connectivity)
-    machine.save()
+    machine.save(path=path)
+    return machine
 
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):

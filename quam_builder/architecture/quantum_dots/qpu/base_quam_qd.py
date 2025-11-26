@@ -241,19 +241,32 @@ class BaseQuamQD(QuamRoot):
         ].new_sequence(track_integrated_voltage=True)
         return
 
+    def register_global_gates(
+        self,
+        global_channels: Union[List[VoltageGate], VoltageGate],
+    ):
+        if isinstance(global_channels, VoltageGate):
+            global_channels = [global_channels]
+        for ch in global_channels:
+            self.global_gates[ch.id] = ch
+
     def register_channel_elements(
         self,
         plunger_channels: List[Channel],
-        sensor_channels_resonators: List[Tuple[Channel, ReadoutResonatorBase]],
+        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
         barrier_channels: List[Channel],
+        global_gates: Optional[List[VoltageGate]] = None,
     ) -> None:
         self.register_quantum_dots(plunger_channels)
         self.register_barrier_gates(barrier_channels)
-        self.register_sensor_dots(sensor_channels_resonators)
+        self.register_sensor_dots(sensor_resonator_mappings)
+
+        if global_gates is not None:
+            self.register_global_gates(global_gates)
 
     def register_quantum_dots(
         self,
-        plunger_channels: List[Channel],
+        plunger_channels: Union[List[Channel], Channel],
     ) -> None:
         """
         Creates QuantumDot objects from a list of plunger_channels Channel objects.
@@ -261,6 +274,8 @@ class BaseQuamQD(QuamRoot):
         The name of the QuantumDot will be found in the first layer of the corresponding VirtualGateSet.
 
         """
+        if isinstance(plunger_channels, Channel):
+            plunger_channels = [plunger_channels]
         for ch in plunger_channels:
             virtual_name = self._get_virtual_name(ch)
             quantum_dot = QuantumDot(
@@ -271,10 +286,17 @@ class BaseQuamQD(QuamRoot):
 
     def register_sensor_dots(
         self,
-        sensor_channels_resonators: List[Tuple[Channel, ReadoutResonatorBase]],
+        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
     ) -> None:
+        """
+        Creates SensorDot objects from a dictionary mapping sensor channels to their resonators.
 
-        for ch, res in sensor_channels_resonators:
+        Args:
+            sensor_resonator_mappings (Dict[Channel, ReadoutResonatorBase]):
+                Dictionary where keys are sensor channels and values are their associated resonators.
+
+        """
+        for ch, res in sensor_resonator_mappings.items():
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id=virtual_name,
