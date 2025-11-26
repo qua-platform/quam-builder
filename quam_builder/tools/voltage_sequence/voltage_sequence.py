@@ -130,6 +130,11 @@ class VoltageSequence:
             )
             for (ch_name, ch) in self.gate_set.channels.items()
         }
+        if self.gate_set.adjust_for_attenuation:
+            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
+                ch_name: declare(fixed)
+                for ch_name in self.gate_set.channels.keys()
+            }
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -146,7 +151,8 @@ class VoltageSequence:
         )
         attenuation_scale = self.attenuation_qua_variables[ch_name]
         if is_qua_type(delta_v):
-            unattenuated_delta_v = (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT
+            unattenuated_delta_v = self._attenuated_delta_v_vars[ch_name]
+            assign(unattenuated_delta_v, (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT)
         else:
             unattenuated_delta_v = delta_v * (
                 10 ** (channel.attenuation / 20)
