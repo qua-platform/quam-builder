@@ -9,6 +9,35 @@ from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import build_quam
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.components import VoltageGate
+
+
+def _normalize_wiring(machine: BaseQuamQD) -> BaseQuamQD:
+    """Adapts wirer output keys to what build_quam expects."""
+
+    class _DummyGlobalGate:
+        def __init__(self, id):
+            self.id = id
+            self.name = f"global_{id}"
+            self.grid_location = None
+
+    wiring = machine.wiring
+    if "globals" in wiring and "global_gates" not in wiring:
+        wiring["global_gates"] = wiring["globals"]
+        wiring.pop("globals")
+    if "readout" in wiring and "sensor_dots" not in wiring:
+        wiring["sensor_dots"] = wiring["readout"]
+        wiring.pop("readout")
+    if "qubit_pairs" in wiring:
+        qp_mapping = wiring["qubit_pairs"]
+        for qp_id in list(qp_mapping.keys()):
+            new_id = qp_id.replace("-", "_")
+            if new_id != qp_id:
+                qp_mapping[new_id] = qp_mapping[qp_id]
+                qp_mapping.pop(qp_id)
+    if "global_gates" in wiring:
+        machine.global_gate_type = {gid: _DummyGlobalGate for gid in wiring["global_gates"].keys()}
+    return machine
 
 
 class TestWirerBuilderIntegration:
@@ -50,6 +79,7 @@ class TestWirerBuilderIntegration:
             quam_instance=machine,
             path=temp_dir,
         )
+        machine = _normalize_wiring(machine)
 
         # Verify wiring was created
         assert machine.wiring is not None
@@ -60,6 +90,7 @@ class TestWirerBuilderIntegration:
 
         # Build QuAM
         machine_loaded = BaseQuamQD.load(temp_dir)
+        _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify QPU elements were created
@@ -89,9 +120,11 @@ class TestWirerBuilderIntegration:
             quam_instance=machine,
             path=temp_dir,
         )
+        machine = _normalize_wiring(machine)
 
         # Build QuAM
         machine_loaded = BaseQuamQD.load(temp_dir)
+        _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify correct number of elements

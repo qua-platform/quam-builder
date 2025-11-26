@@ -105,7 +105,7 @@ def machine():
     machine.register_channel_elements(
         plunger_channels=[p1, p2, p3, p4],
         barrier_channels=[b1, b2, b3],
-        sensor_resonator_mapping={s1: resonator},
+        sensor_resonator_mappings={s1: resonator},
     )
 
     # Register Qubits
