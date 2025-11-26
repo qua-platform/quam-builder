@@ -24,7 +24,7 @@ from dataclasses import field
 from quam.core import quam_dataclass, QuamComponent
 from qm import qua
 
-from .components.macros import (
+from quam_builder.architecture.quantum_dots.components.macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,
@@ -150,17 +150,17 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
 
     with qua.program() as prog:
         # Use default parameters
-        quantum_dot.idle()  # hold_duration=100
+        quantum_dot.idle()
 
         # Override hold duration
-        quantum_dot.idle(hold_duration=150)
+        quantum_dot.idle(hold_duration=152)
 
         # Override both ramp and hold duration
-        quantum_dot.load(ramp_duration=600, hold_duration=250)
+        quantum_dot.load(ramp_duration=580, hold_duration=240)
 
-    # Overrides work with dictionary access too
-    quantum_dot.macros["idle"].apply(hold_duration=300)
-    quantum_dot.macros["load"].apply(ramp_duration=400)
+        # Overrides work with dictionary access too
+        quantum_dot.macros["idle"].apply(hold_duration=400)
+        quantum_dot.macros["load"].apply(ramp_duration=400)
 
 
 # ============================================================================
@@ -178,8 +178,8 @@ def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
     (quantum_dot
         .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
         .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=500)
-        .with_step_point("manipulate", {"virtual_dot_0": 0.25}, hold_duration=150)
+                        hold_duration=200, ramp_duration=400)
+        .with_step_point("manipulate", {"virtual_dot_0": 0.25}, hold_duration=152)
         .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000))
 
     # Build sub-sequences
@@ -251,7 +251,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     # Complex sequence mixing multiple operations
     qubit.with_sequence(
         "complex_protocol",
-        ["idle", "sweetspot", "x90", "idle", "y90", "sweetspot", "x180", "readout"]
+        ["idle", "sweetspot", "y90", "idle", "y90", "sweetspot", "x180", "readout"]
     )
 
     # === STAGE 4: Execute Mixed Sequences ===
@@ -343,7 +343,11 @@ def example_06_operations_registry(machine) -> None:
          )
 
         # Define mixed sequences (voltage + pulse)
-        q.with_sequence("rabi", ["init", "x180", "readout"])
+        q.with_sequence("rabis", ["init", "x180", "readout"])
+
+    @operations_registry.register_operation
+    def sweetspot(qubit) -> None:
+        pass
 
     # === EXAMPLE 1: Using gate-level operations (RECOMMENDED) ===
     print("\n" + "=" * 70)
@@ -366,9 +370,32 @@ def example_06_operations_registry(machine) -> None:
 
         print("\n--- With Parameter Overrides ---")
         # Override parameters for voltage operations
-        idle(qubit, hold_duration=150)
-        load(qubit, hold_duration=250, ramp_duration=600)
+        idle(qubit, hold_duration=152)
+        load(qubit, hold_duration=240, ramp_duration=600)
 
+if __name__ == "__main__":
+    from quam_qd_generator_example import machine
+    qubit = machine.qubits["Q0"]
+    quantum_dot = qubit.quantum_dot
+
+    example_01_fluent_api(
+        quantum_dot
+    )
+    example_02_method_calling(
+        quantum_dot
+    )
+    example_03_parameter_overrides(
+        quantum_dot
+    )
+    example_04_nested_sequences(
+        quantum_dot
+    )
+    example_05_mixed_pulse_and_point_sequence(
+        qubit
+    )
+    example_06_operations_registry(
+        machine
+    )
 
 # ============================================================================
 # Summary and Best Practices

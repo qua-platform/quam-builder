@@ -27,7 +27,6 @@ __all__ = [
     "idle",
     "load",
     "readout",
-    "sweetspot",
     # Pulse operations
     "x180",
     "y180",
@@ -101,18 +100,6 @@ def readout(component: VoltagePointMacroMixin, **kwargs):
     pass
 
 
-@operations_registry.register_operation
-def sweetspot(component: VoltagePointMacroMixin, **kwargs):
-    """
-    Move qubit to sweetspot voltage (for Loss-DiVincenzo qubits).
-
-    Args:
-        component: LDQubit or similar
-        **kwargs: Optional parameter overrides
-    """
-    pass
-
-
 # ============================================================================
 # Pulse Operations
 # ============================================================================
@@ -177,7 +164,7 @@ def rabi(qubit: VoltagePointMacroMixin, **kwargs):
     Execute Rabi experiment sequence (voltage + pulse).
 
     Example macro definition:
-        qubit.with_sequence("rabi", ["init", "sweetspot", "x180", "readout"])
+        qubit.with_sequence("rabi", ["init", "x180", "readout"])
 
     Args:
         qubit: LDQubit with both voltage and pulse macros

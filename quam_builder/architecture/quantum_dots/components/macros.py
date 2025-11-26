@@ -679,7 +679,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         point_name: str,
         voltages: Dict[str, float],
         duration: int = 16,
-        replace_existing_point: bool = False,
+        replace_existing_point: bool = True,
     ) -> str:
         """
         Define a voltage point in the gate set for later use by macros.
@@ -701,8 +701,8 @@ class VoltagePointMacroMixin(QuantumComponent):
                        mapped to quantum dot IDs if _should_map_qubit_names() returns True
             duration: Default hold duration for this point (nanoseconds, default: 16).
                      Can be overridden when creating macros or during execution.
-            replace_existing_point: If True, overwrites existing point with same name.
-                                   If False (default), raises ValueError if point exists.
+            replace_existing_point: If True (default), overwrites existing point with same name.
+                                   If False, raises ValueError if point exists.
 
         Returns:
             str: The full gate_set name ("{component.id}_{point_name}")
@@ -838,7 +838,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         voltages: Optional[Dict[str, float]] = None,
         hold_duration: int = 100,
         point_duration: int = 16,
-        replace_existing_point: bool = False,
+        replace_existing_point: bool = True,
     ) -> StepPointMacro:
         """
         Convenience method: Create a voltage point and StepPointMacro with reference in one step,
@@ -862,7 +862,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                      (see add_point() for format details)
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             point_duration: Default duration stored in the VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: False)
+            replace_existing_point: If True, overwrites existing point (default: True)
 
         Returns:
             StepPointMacro: The created macro instance
@@ -940,7 +940,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         hold_duration: int = 100,
         ramp_duration: int = 16,
         point_duration: int = 16,
-        replace_existing_point: bool = False,
+        replace_existing_point: bool = True,
     ) -> RampPointMacro:
         """
         Convenience method: Create a voltage point and RampPointMacro with reference in one step,
@@ -965,7 +965,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             ramp_duration: Time for gradual voltage transition (nanoseconds, default: 16)
             point_duration: Default duration stored in the VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: False)
+            replace_existing_point: If True, overwrites existing point (default: True)
 
         Returns:
             RampPointMacro: The created macro instance
@@ -1044,7 +1044,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         voltages: Optional[Dict[str, float]] = None,
         hold_duration: int = 100,
         point_duration: int = 16,
-        replace_existing_point: bool = False,
+        replace_existing_point: bool = True,
     ) -> "VoltagePointMacroMixin":
         """
         Fluent API: Add a voltage point with step macro and return self for chaining,
@@ -1062,7 +1062,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             voltages: Optional voltage values for each gate. If None, looks up existing point.
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             point_duration: Default duration stored in VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: False)
+            replace_existing_point: If True, overwrites existing point (default: True)
 
         Returns:
             self: The component instance for method chaining
@@ -1106,7 +1106,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         hold_duration: int = 100,
         ramp_duration: int = 16,
         point_duration: int = 16,
-        replace_existing_point: bool = False,
+        replace_existing_point: bool = True,
     ) -> "VoltagePointMacroMixin":
         """
         Fluent API: Add a voltage point with ramp macro and return self for chaining,
@@ -1125,7 +1125,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             hold_duration: Duration to hold the target voltage (nanoseconds, default: 100)
             ramp_duration: Time for gradual voltage transition (nanoseconds, default: 16)
             point_duration: Default duration stored in VoltageTuningPoint (nanoseconds, default: 16)
-            replace_existing_point: If True, overwrites existing point (default: False)
+            replace_existing_point: If True, overwrites existing point (default: True)
 
         Returns:
             self: The component instance for method chaining

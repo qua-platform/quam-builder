@@ -47,13 +47,12 @@ from qm.qua import *
 # Import gate-level operations for cleaner QUA code
 from quam_builder.architecture.quantum_dots.operations import (
     idle,
-    sweetspot,
     readout,
     x180,
     y180,
     x90,
     y90,
-    rabi,
+    rabi, operations_registry,
 )
 
 # Instantiate Quam
@@ -243,6 +242,10 @@ for q in [qubit, qubit2]:
 print("\n" + "=" * 70)
 print("Example 1: Gate-level operations (recommended)")
 print("=" * 70)
+
+@operations_registry.register_operation
+def sweetspot(qubit) -> None:
+    pass
 
 with program() as prog_operations:
     print("\n--- Rabi Experiment ---")
