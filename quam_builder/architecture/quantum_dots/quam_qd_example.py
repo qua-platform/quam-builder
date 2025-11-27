@@ -76,7 +76,6 @@ xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem
 xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6)
 
 
-
 readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
 resonator = ReadoutResonatorSingle(
     id = "readout_resonator", 
