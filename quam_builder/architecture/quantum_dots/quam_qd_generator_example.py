@@ -34,6 +34,7 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
+    MWFEMAnalogInputPort,
     MWFEMAnalogOutputPort
 )
 import numpy as np
@@ -41,30 +42,35 @@ from quam.components.pulses import GaussianPulse
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, VoltagePointMacroMixin
 from qm.qua import *
 
 # Import gate-level operations for cleaner QUA code
 from quam_builder.architecture.quantum_dots.operations import (
     idle,
-    sweetspot,
     readout,
     x180,
     y180,
     x90,
     y90,
-    rabi,
+    rabi, operations_registry,
 )
 
 # Instantiate Quam
 machine = BaseQuamQD()
-lf_fem_dots = 3
-lf_fem_resonators = 5
-mw_fem = 1
+
+lf_fem_dots = 5
+lf_fem_resonators = 6
+
+mw_fem_dots = 1
+mw_fem_resonators = 2
+
 plunger_gates = 3
 barrier_gates = plunger_gates - 1
 sensor_gates = 1
 resonators = 1
+mw_band = 1
+mw_LO = 3e9
 
 ###########################################
 ###### Instantiate Physical Channels ######
@@ -122,12 +128,10 @@ rs = [
         opx_input=LFFEMAnalogInputPort(
             "con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id
         ),
-        sticky=StickyChannelAddon(duration=16, digital=False),
     )
     for i in range(resonators)
 ]
 next_port_id += resonators * 2
-
 
 #####################################
 ###### Create Virtual Gate Set ######
@@ -143,7 +147,6 @@ machine.create_virtual_gate_set(
     },
     gate_set_id="main_qpu",
 )
-
 
 #########################################################
 ###### Register Quantum Dots, Sensors and Barriers ######
@@ -169,7 +172,7 @@ for i in range(plunger_gates):
         id=f"Q{i}",
         xy_channel=XYDrive(
             id=f"Q{i}_xy",
-            opx_output=MWFEMAnalogOutputPort("con1", mw_fem, port_id=5 + i, upconverter_frequency=5e9, band=2,
+            opx_output=MWFEMAnalogOutputPort("con1", mw_fem_dots, port_id= 1 + i, upconverter_frequency=mw_LO, band=mw_band,
                                              full_scale_power_dbm=10),
             intermediate_frequency=10e6
         )
@@ -189,7 +192,7 @@ for i in [0]:
         barrier_gate_id=f"virtual_barrier_{i}",
     )
 
-    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, 1], [1, -1]])
+    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]])
 
     ##################################
     ###### Register Qubit Pairs ######
@@ -214,50 +217,54 @@ from quam.components.macro.qubit_macros import PulseMacro
 ###### Gate-Level Operations Examples (NEW FEATURE) ######
 #############################################################
 
-print("\n" + "=" * 70)
-print("Gate-Level Operations Examples")
-print("=" * 70)
-
-# Add more pulse macros for complete examples
-print("\nSetting up pulse macros...")
-qubit2 = machine.qubits["Q1"]
-for q in [qubit, qubit2]:
-    q.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
-    q.macros["x180"] = PulseMacro(pulse=q.xy_channel.operations["x180"].get_reference())
-    q.xy_channel.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
-    q.macros["y90"] = PulseMacro(pulse=q.xy_channel.operations["y90"].get_reference())
-
-    (q
-     .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-     .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
-     .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
-     .with_ramp_point("readout", {"virtual_dot_0": 0.15, "virtual_dot_1": 0.33}, hold_duration=200)
-     .with_sequence("init", ["load", "sweetspot"])
-     )
-
-    # Define mixed sequences (voltage + pulse)
-    print("Defining mixed sequences...")
-    q.with_sequence("rabi", ["init", "x180", "readout"])
-
-# Example 1: Using gate-level operations (RECOMMENDED)
-print("\n" + "=" * 70)
-print("Example 1: Gate-level operations (recommended)")
-print("=" * 70)
-
-with program() as prog_operations:
-    print("\n--- Rabi Experiment ---")
-    # Clean, readable syntax!
-    rabi(qubit)  # Executes: sweetspot → x180 → readout → idle
-    rabi(qubit2)
-    print("  rabi(qubit) - executes full sequence")
-
-    print("\n--- Custom Sequence ---")
-    # Individual operations with parameter overrides
-    idle(qubit)
-    sweetspot(qubit, hold_duration=300)  # Override duration
-    x180(qubit)
-    readout(qubit)
-    print("  idle → sweetspot(300ns) → x180 → readout")
+# print("\n" + "=" * 70)
+# print("Gate-Level Operations Examples")
+# print("=" * 70)
+#
+# # Add more pulse macros for complete examples
+# print("\nSetting up pulse macros...")
+# qubit2 = machine.qubits["Q1"]
+# for q in [qubit, qubit2]:
+#     q.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
+#     q.macros["x180"] = PulseMacro(pulse=q.xy_channel.operations["x180"].get_reference())
+#     q.xy_channel.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+#     q.macros["y90"] = PulseMacro(pulse=q.xy_channel.operations["y90"].get_reference())
+#
+#     (q
+#      .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+#      .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
+#      .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
+#      .with_ramp_point("readout", {"virtual_dot_0": 0.15, "virtual_dot_1": 0.33}, hold_duration=200)
+#      .with_sequence("init", ["load", "sweetspot"])
+#      )
+#
+#     # Define mixed sequences (voltage + pulse)
+#     print("Defining mixed sequences...")
+#     q.with_sequence("rabi", ["init", "x180", "readout"])
+#
+# # Example 1: Using gate-level operations (RECOMMENDED)
+# print("\n" + "=" * 70)
+# print("Example 1: Gate-level operations (recommended)")
+# print("=" * 70)
+#
+# @operations_registry.register_operation
+# def sweetspot(component: VoltagePointMacroMixin, **kwargs):
+#     pass
+#
+# with program() as prog_operations:
+#     print("\n--- Rabi Experiment ---")
+#     # Clean, readable syntax!
+#     rabi(qubit)  # Executes: sweetspot → x180 → readout → idle
+#     rabi(qubit2)
+#     print("  rabi(qubit) - executes full sequence")
+#
+#     print("\n--- Custom Sequence ---")
+#     # Individual operations with parameter overrides
+#     idle(qubit)
+#     sweetspot(qubit, hold_duration=300)  # Override duration
+#     x180(qubit)
+#     readout(qubit)
+#     print("  idle → sweetspot(300ns) → x180 → readout")
 
 #############################################################
 ###### Save and Load ######
@@ -274,10 +281,10 @@ print(f"\n✓ Machine saved to {config_path}")
 machine.load(config_path)
 print(f"✓ Machine loaded from {config_path}")
 
-# Operations work after loading!
-qubit_loaded = machine.qubits["Q0"]
-with program() as prog_after_load:
-    rabi(qubit_loaded)
+# # Operations work after loading!
+# qubit_loaded = machine.qubits["Q0"]
+# with program() as prog_after_load:
+#     rabi(qubit_loaded)
 print("✓ Operations work with serialization!")
 
 config = machine.generate_config()

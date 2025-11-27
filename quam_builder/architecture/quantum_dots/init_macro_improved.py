@@ -8,6 +8,7 @@ for quantum dot systems.
 Key Features:
 - Uses ConditionalMacro from macros.py (unified with QUAM patterns)
 - Invertible condition: apply pulse when excited OR when ground
+- Optional element alignment between measurement and conditional operations
 - Fluent API via with_conditional_macro() method
 - Support for both method-based and function-based execution patterns
 - Comprehensive validation and error messages
@@ -18,7 +19,8 @@ Example Usage:
         name='reset',
         measurement_macro='measure',
         conditional_macro='x180',
-        invert_condition=False
+        invert_condition=False,
+        align_elements=['resonator_element', 'xy_element']  # Optional alignment
     )
 
     # Inverted condition (pulse if ground state)
@@ -41,115 +43,26 @@ Example Usage:
         reset(qubit_pair)
         reset_sequence(qubit_pair)
 
-        # Runtime condition override
+        # Runtime overrides
         qubit_pair.reset(invert_condition=True)
+        qubit_pair.reset(align_elements=['element1', 'element2'])
 """
-
+from quam import QuamComponent
 from quam.components import pulses
 from qm.qua import *
+from quam.core.macro import QuamMacro
 
 from typing import Optional
 from quam_builder.architecture.quantum_dots.operations import operations_registry
-from quam_builder.architecture.quantum_dots.components.macros import ConditionalMacro
+from quam_builder.architecture.quantum_dots.components.macros import ConditionalMacro, AlignMacro, WaitMacro
+from qm import SimulationConfig
 
 from quam_qd_generator_example import machine
 
-config = machine.generate_config()
-
 from quam.components.macro import QubitPairMacro, PulseMacro
 from quam.components.quantum_components import Qubit, QubitPair
-
+from quam_builder.architecture.quantum_dots.components.macros import MeasureMacro
 from quam.utils.qua_types import QuaVariableBool
-from quam import quam_dataclass, QuamComponent
-from qm import qua
-
-
-@quam_dataclass
-class MeasureMacro(QubitPairMacro):
-    """
-    Macro for measuring qubit state and returning boolean result.
-
-    Performs I/Q measurement on the readout resonator and thresholds
-    the I value to determine if the qubit is in excited state.
-
-    Attributes:
-        threshold: The threshold value for determining qubit state.
-                  I > threshold means excited state (True).
-
-    Returns:
-        QuaVariableBool: True if qubit is in excited state, False otherwise.
-
-    """
-    threshold: float
-    component: QuamComponent
-
-    def apply(self, **kwargs) -> QuaVariableBool:
-        """
-        Execute the measurement and return the qubit state.
-
-        Returns:
-            QuaVariableBool: Boolean QUA variable indicating qubit state.
-        """
-        # Read I/Q data from the resonator channel
-        I, Q = self.component.measure("readout")
-
-        # Declare QUA variable to store boolean result
-        qubit_state = qua.declare(bool)
-        qua.assign(qubit_state, I > self.threshold)
-
-        return qubit_state
-
-
-# ============================================================================
-# Setup Example Configuration
-# ============================================================================
-
-# Get qubit pair from machine
-qubit_pair_id = 'Q0_Q1'
-qubit_pair = machine.qubit_pairs[qubit_pair_id]
-
-# Configure voltage points and sequences
-(qubit_pair
-    .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
-    .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
-    .with_sequence("init_ramp", ["load", "sweetspot"])
-)
-
-# Configure readout pulse
-qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.operations["readout"] = pulses.SquareReadoutPulse(
-    length=1000, amplitude=0.1, threshold=0.215
-)
-
-# Configure measurement macro
-qubit_pair.macros["measure"] = MeasureMacro(
-    threshold=0.215,
-    component=qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
-)
-
-# Configure x180 pulse on target qubit
-qubit_pair.qubit_target.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
-qubit_pair.qubit_target.macros["x180"] = PulseMacro(
-    pulse=qubit_pair.qubit_target.xy_channel.operations["x180"].get_reference()
-)
-
-# ============================================================================
-# IMPROVED: Use with_conditional_macro() from VoltagePointMacroMixin!
-# ============================================================================
-
-# Standard reset: pulse if excited (brings qubit to ground state)
-# Uses ConditionalMacro from macros.py via the fluent API
-qubit_pair.with_conditional_macro(
-    name='reset',
-    measurement_macro='measure',
-    conditional_macro=qubit_pair.qubit_target.macros["x180"].get_reference(),
-    invert_condition=False
-)
-
-qubit_pair.with_sequence(
-    'reset_sequence',
-    ["init_ramp", "reset"]
-)
-
 # ============================================================================
 # Register operations for function-based execution pattern
 # ============================================================================
@@ -170,97 +83,145 @@ def reset(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     pass
 
 @operations_registry.register_operation
-def reset_sequence(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
+def init_sequence(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute full reset sequence (init_ramp + reset)."""
     pass
 
 
 # ============================================================================
-# Usage Examples (Both Execution Patterns)
+# Setup Example Configuration
 # ============================================================================
+# Get qubit pair from machine
+qubit_pair_id = 'Q0_Q1'
+qubit_pair = machine.qubit_pairs[qubit_pair_id]
 
-def example_method_based_execution():
-    """
-    Example: Method-based execution pattern.
+# Configure voltage points and sequences
+qubit_pair.add_point(
+    "measure_point",
+    {"virtual_dot_0": -0.3, "virtual_dot_1": -0.5, "virtual_barrier_1":-0.4}
+)
+qubit_pair.add_point(
+    "load_point",
+    {"virtual_dot_0": 0.3, "virtual_dot_1": 0.5, "virtual_barrier_1":0.4}
+)
+qubit_pair.add_point(
+    "operate",
+    {"virtual_dot_0": 0.6, "virtual_dot_1": 0.8, "virtual_barrier_1":0.8}
+)
 
-    This is the recommended pattern for most use cases as it reads
-    naturally and makes the quantum object relationships clear.
-    """
-    with program() as prog:
-        # Method-based calls (recommended)
-        state = qubit_pair.measure()
-        qubit_pair.qubit_target.x180()
-        qubit_pair.reset()
-        qubit_pair.reset_sequence()
+(qubit_pair
+    .with_step_point("measure_point", hold_duration=100) #, ramp_duration=100)
+    .with_step_point("load_point", hold_duration=100) #, ramp_duration=100)
+)
+qubit_pair.macros["align"] = AlignMacro()
 
-        # You can also use the state for further conditional logic
-        with if_(state):
-            # Qubit was in excited state before reset
-            qubit_pair.qubit_target.x180()  # Apply another pulse
+# Configure readout pulse
+qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
 
-    return prog
+qubit_pair.resonator.operations["readout"] = pulses.SquareReadoutPulse(
+    length=100, amplitude=0.1
+)
 
+# Configure measurement macro
+qubit_pair.macros["measure"] = MeasureMacro(
+    threshold=0.,
+    component=qubit_pair.resonator.get_reference()
+)
 
-def example_function_based_execution():
-    """
-    Example: Function-based execution pattern.
+qubit_pair.with_sequence(
+    'measure_init',
+    ['measure_point', "align", 'measure', 'align', 'load_point', 'align'],
+    return_index=2
+)
 
-    This pattern is useful when you want to dynamically dispatch
-    operations or when working with lists of qubits.
-    """
-    with program() as prog:
-        # Function-based calls (good for dynamic dispatch)
-        state = measure(qubit_pair)
-        x180(qubit_pair.qubit_target)
-        reset(qubit_pair)
-        reset_sequence(qubit_pair)
+# Configure x180 pulse on target qubit
+qubit_pair.qubit_target.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
+qubit_pair.qubit_target.macros["x180"] = PulseMacro(
+    pulse=qubit_pair.qubit_target.xy_channel.operations["x180"].get_reference()
+)
+qubit_pair.macros['target_x180'] = qubit_pair.qubit_target.macros["x180"].get_reference()
 
-        # Useful for iterating over multiple qubits
-        # for qp in qubit_pairs:
-        #     reset(qp)
+qubit_pair.with_conditional_macro(
+    name='reset',
+    measurement_macro='measure_init',
+    conditional_macro=qubit_pair.qubit_target.macros["x180"].get_reference(), # need referencing as this is not in the namespace of the qubit_pair macros
+    invert_condition=True
+)
 
-    return prog
+qubit_pair.with_sequence(
+    'psb',
+    ['measure_point', "align", 'measure'],
+)
+
+qubit_pair.macros['long_wait'] = WaitMacro(duration=200)
+qubit_pair.with_sequence(
+    'init_sequence',
+    ["load_point", 'align', 'reset', 'align', 'long_wait', 'align', 'measure_init'],
+    return_index=-1
+)
+
+# qubit_pair.with_sequence(
+#     'init_sequence',
+#     ["measure"],
+#     return_index=0
+# )
+
+# ======================================================================
+# Generate config AFTER all operations are configured
+# ============================================================================
+config = machine.generate_config()
 
 
 # ============================================================================
 # Main Execution Block
 # ============================================================================
-
+from qm import qua
 if __name__ == "__main__":
     # Example of running the program
     with program() as prog:
-        # Method-based execution (recommended)
+        n_st = declare_stream()  # Stream for the averaging iteration 'n'
+        # with infinite_loop_():
         print("Executing conditional reset sequence...")
-
-        # Measure initial state
-        initial_state = qubit_pair.measure()
-
-        qubit_pair.qubit_target.x180()
-
-        # Apply conditional reset
-        was_excited = qubit_pair.reset()
+        # Run full reset sequence
+        # state = measure(qubit_pair)
+        # state = qubit_pair.reset()
 
         # Run full reset sequence
-        qubit_pair.reset_sequence()
+        state = init_sequence(qubit_pair)
 
-        # Verify reset worked
-        final_state = qubit_pair.measure()
+        qua.align()
+        qua.wait(100)
+
+        qubit_pair.voltage_sequence.ramp_to_zero()
+
+        save(state, n_st)
+
+        with stream_processing():
+            n_st.save("state")
+
+        # Apply compensation and zero voltages
+        # qubit_pair.voltage_sequence.apply_compensation_pulse()
 
     # Connect to QM and execute
     from qm import QuantumMachinesManager
-
-    qmm = QuantumMachinesManager(host="172.16.33.115", cluster_name="CS_3")
+    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
     qm = qmm.open_qm(config)
 
-    # Execute the program
-    job = qm.execute(prog)
+    import matplotlib
+    import matplotlib.pyplot as plt
+    matplotlib.use('TkAgg')
 
-    print("\nProgram executed successfully!")
-    print("\nKey Features:")
-    print("1. ✓ Uses ConditionalMacro from macros.py (unified QUAM patterns)")
-    print("2. ✓ Fluent API via with_conditional_macro() from VoltagePointMacroMixin")
-    print("3. ✓ Supports invert_condition for flexible conditional logic")
-    print("4. ✓ Runtime override of condition inversion")
-    print("5. ✓ Comprehensive docstrings and validation")
-    print("6. ✓ Support for both method-based and function-based execution")
-    print("7. ✓ Clean integration with voltage point macros and sequences")
+    qmm.clear_all_job_results()
+    # simulate
+    simulation_config = SimulationConfig(duration=800)  # in clock cycles
+    job = qmm.simulate(config, prog, simulation_config)
+    job.get_simulated_samples().con1.plot()
+    plt.show()
+    # # Execute the program
+    # job = qm.execute(prog)
+    #
+    # print(job.get_status())
+
+    res = job.result_handles
+    out = res.fetch_results()
+    print(f'results = {out}')
