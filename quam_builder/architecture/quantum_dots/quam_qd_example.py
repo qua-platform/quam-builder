@@ -76,6 +76,7 @@ xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem
 xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6)
 
 
+
 readout_pulse = pulses.SquareReadoutPulse(length = 200, id = "readout", amplitude = 0.01)
 resonator = ReadoutResonatorSingle(
     id = "readout_resonator", 
@@ -118,6 +119,28 @@ machine.register_channel_elements(
     barrier_channels = [b1, b2, b3], 
     sensor_channels_resonators = [(s1, resonator)], 
 )
+
+##################################################################
+###### Connect the physical channels to the external source ######
+##################################################################
+
+qdac_connect = True
+if qdac_connect: 
+    qdac_ip = "172.16.33.101"
+    from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+    qdac = QDAC2.QDac2('QDAC', visalib='@py', address=f'TCPIP::{qdac_ip}::5025::SOCKET')
+    external_voltage_mapping = {
+        machine.quantum_dots["virtual_dot_1"].physical_channel: qdac.ch01.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_2"].physical_channel: qdac.ch02.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_3"].physical_channel: qdac.ch03.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_4"].physical_channel: qdac.ch04.dc_constant_V, 
+        machine.barrier_gates["virtual_barrier_1"].physical_channel: qdac.ch05.dc_constant_V, 
+        machine.barrier_gates["virtual_barrier_2"].physical_channel: qdac.ch06.dc_constant_V,
+        machine.barrier_gates["virtual_barrier_3"].physical_channel: qdac.ch07.dc_constant_V, 
+        machine.sensor_dots["virtual_sensor_1"].physical_channel: qdac.ch08.dc_constant_V
+    }
+    machine.connect_to_external_source(external_voltage_mapping)
+
 
 #############################
 ###### Register Qubits ######
