@@ -1,5 +1,4 @@
 from typing import Optional
-from dataclasses import field
 
 from quam.components import SingleChannel
 from quam.core import quam_dataclass
