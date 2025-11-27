@@ -2,8 +2,6 @@ import warnings
 from dataclasses import field
 from typing import Dict, Union, ClassVar, Type
 
-from qm.qua import update_frequency
-
 from quam.core import quam_dataclass
 
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
@@ -128,13 +126,7 @@ class FluxTunableQuam(BaseQuam):
     def initialize_twpas(self):
         """Initialize the TWPA components."""
         for twpa in self.twpas.values():
-            f_p = twpa.pump_frequency
-            p_p = twpa.pump_amplitude
-            update_frequency(
-                twpa.pump.name,
-                f_p+ twpa.pump.intermediate_frequency,
-            )
-            twpa.pump.play("pump", amplitude_scale=p_p)
+            twpa.initialize()
 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the specified flux point and target.

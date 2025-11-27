@@ -4,6 +4,7 @@ from quam import QuamComponent
 from typing import Union
 from qm.qua import align, wait
 import numpy as np
+from qm.qua import update_frequency
 
 __all__ = ["TWPA"]
 
@@ -39,7 +40,9 @@ class TWPA(QuamComponent):
 
     dispersive_feature: float = None
     qubits: list = None
-  
+    
+    initialize: bool = True
+    
     def get_output_power(self, operation, Z=50) -> float:
         power = self.xy.opx_output.full_scale_power_dbm
         amplitude = self.xy.operations[operation].amplitude
@@ -65,5 +68,20 @@ class TWPA(QuamComponent):
     def wait(self, duration):
         wait(duration, self.xy.name, self.z.name, self.resonator.name)
 
-
+    def initialize(self):
+        
+        if not self.initialize:
+            return
+        
+        else:
+        
+            f_p = self.pump_frequency
+            p_p = self.pump_amplitude
+            update_frequency(
+                self.pump.name,
+                f_p+ self.pump.intermediate_frequency,
+            )
+            self.pump.play("pump", amplitude_scale=p_p)
+            
+            self.initialize = False
 
