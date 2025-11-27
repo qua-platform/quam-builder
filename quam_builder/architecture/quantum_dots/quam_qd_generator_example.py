@@ -60,8 +60,8 @@ machine = BaseQuamQD()
 lf_fem_dots = 3
 lf_fem_resonators = 5
 mw_fem = 1
-plunger_gates = 3
-barrier_gates = plunger_gates - 1
+plunger_gates = 5
+barrier_gates = plunger_gates - 4
 sensor_gates = 1
 resonators = 1
 

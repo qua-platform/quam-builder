@@ -143,6 +143,7 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
     reuse the same macro definition with different timing parameters.
     """
     # Define base macros
+    
     (quantum_dot
         .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
         .with_ramp_point("load", {"virtual_dot_0": 0.3},

@@ -24,6 +24,7 @@ __all__ = [
     "SequenceMacro",
     "StepPointMacro",
     "RampPointMacro",
+    "ConditionalMacro",
 ]
 
 from quam.core.macro.quam_macro import QuamMacro
@@ -328,6 +329,180 @@ class RampPointMacro(BasePointMacro):
             ramp_duration=ramp_ns,
             duration=hold_ns,
         )
+
+
+@quam_dataclass
+class ConditionalMacro(QuamMacro):
+    """
+    Macro for conditional execution: measure and conditionally apply an operation.
+
+    This macro performs conditional logic by:
+    1. Executing a measurement macro
+    2. Conditionally applying another macro based on the measurement result
+    3. Returning the measured state for further conditional logic
+
+    This is useful for active reset, state preparation, and conditional operations
+    where you need to branch based on a measurement outcome.
+
+    Attributes:
+        measurement_macro: Reference to the measurement macro (string reference).
+                          Must return a boolean QUA variable when executed.
+        conditional_macro: Reference to the macro to apply conditionally (string reference).
+                          Applied when condition is met.
+        invert_condition: If False (default), macro is applied when measurement is True.
+                         If True, macro is applied when measurement is False.
+                         Use cases:
+                         - False: Standard (apply if measurement=True, e.g., excited)
+                         - True: Inverted (apply if measurement=False, e.g., ground)
+
+    Example:
+        .. code-block:: python
+
+            # Assume qubit_pair has measurement and x180 macros defined
+
+            # Standard conditional: apply x180 if measurement is True (excited)
+            qubit_pair.macros['reset'] = ConditionalMacro(
+                measurement_macro='#./macros/measure',
+                conditional_macro='#./qubit_target/macros/x180',
+                invert_condition=False
+            )
+
+            # Inverted conditional: apply x180 if measurement is False (ground)
+            qubit_pair.macros['prep_excited'] = ConditionalMacro(
+                measurement_macro='#./macros/measure',
+                conditional_macro='#./qubit_target/macros/x180',
+                invert_condition=True
+            )
+
+            # Execute in QUA program
+            with program() as prog:
+                was_excited = qubit_pair.reset()  # Resets to ground
+                qubit_pair.prep_excited()  # Prepares in excited state
+    """
+    measurement_macro: str  # Reference to measurement macro
+    conditional_macro: str  # Reference to the macro to apply conditionally
+    invert_condition: bool = False  # If True, inverts the conditional logic
+
+    def __call__(self, **overrides):
+        """
+        Allow macro to be invoked as callable (quam convention).
+
+        Args:
+            **overrides: Optional parameter overrides passed to the conditional macro
+
+        Returns:
+            Result of apply() method (the measured state)
+        """
+        if not hasattr(self, "parent") or self.parent is None:
+            raise ValueError(
+                "Cannot execute macro: macro has no parent. "
+                "Ensure the macro is attached to a component via component.macros['name'] = macro"
+            )
+        return self.apply(**overrides)
+
+    def _resolve_macro(self, reference: str) -> QuamMacro:
+        """
+        Resolve a macro reference to get the actual macro object.
+
+        Args:
+            reference: Reference string to the macro
+
+        Returns:
+            QuamMacro: The resolved macro
+
+        Raises:
+            InvalidReferenceError: If reference cannot be resolved
+        """
+        try:
+            if isinstance(reference, str):
+                macro = string_reference.get_referenced_value(
+                    self.parent.parent,  # Component that owns this macro
+                    reference,
+                    root=self.parent.parent.get_root(),
+                )
+            elif isinstance(reference, QuamMacro):
+                macro = reference
+
+        except (InvalidReferenceError, AttributeError) as e:
+            raise InvalidReferenceError(
+                f"Could not resolve macro reference '{reference}': {e}"
+            )
+
+        if not isinstance(macro, QuamMacro):
+            raise TypeError(
+                f"Reference '{reference}' resolved to {type(macro).__name__}, "
+                "expected QuamMacro"
+            )
+
+        return macro
+
+    @property
+    def inferred_duration(self) -> Optional[float]:
+        """
+        Calculate the total duration of the conditional operation.
+
+        Returns:
+            float: Duration in seconds (measurement + conditional macro).
+                  Returns None if any duration cannot be inferred.
+        """
+        try:
+            measurement = self._resolve_macro(self.measurement_macro)
+            conditional = self._resolve_macro(self.conditional_macro)
+
+            measurement_duration = getattr(measurement, 'inferred_duration', None)
+            conditional_duration = getattr(conditional, 'inferred_duration', None)
+
+            if measurement_duration is None or conditional_duration is None:
+                return None
+
+            return measurement_duration + conditional_duration
+        except (InvalidReferenceError, AttributeError):
+            return None
+
+    def apply(self, invert_condition: Optional[bool] = None, **kwargs):
+        """
+        Execute the conditional operation.
+
+        Args:
+            invert_condition: Optional override for the condition inversion.
+                            If None, uses the instance's invert_condition value.
+                            If True, macro applied when measurement is False.
+                            If False, macro applied when measurement is True.
+            **kwargs: Additional parameters passed to the conditional macro.
+
+        Returns:
+            The measured state (typically a QUA boolean variable).
+
+        Example:
+            # >>> # Use instance default
+            # >>> state = qubit_pair.reset()
+            #
+            # >>> # Override condition at runtime
+            # >>> state = qubit_pair.reset(invert_condition=True)
+        """
+        from qm import qua
+
+        # Resolve the macros
+        measurement = self._resolve_macro(self.measurement_macro)
+        conditional = self._resolve_macro(self.conditional_macro)
+
+        # Execute measurement
+        state = measurement.apply()
+
+        # Determine which condition to use (runtime override or instance default)
+        use_inverted = invert_condition if invert_condition is not None else self.invert_condition
+
+        # Apply conditional macro based on invert_condition
+        if use_inverted:
+            # Inverted: apply macro when state is False
+            with qua.if_(~state):
+                conditional.apply(**kwargs)
+        else:
+            # Standard: apply macro when state is True
+            with qua.if_(state):
+                conditional.apply(**kwargs)
+
+        return state
 
 
 @quam_dataclass
@@ -1219,5 +1394,105 @@ class VoltagePointMacroMixin(QuantumComponent):
             self, macro_names
         )
         self.macros[name] = sequence
+
+        return self
+
+    def with_conditional_macro(
+        self,
+        name: str,
+        measurement_macro: str,
+        conditional_macro: str,
+        invert_condition: bool = False,
+    ) -> "VoltagePointMacroMixin":
+        """
+        Fluent API: Add a conditional macro and return self for chaining.
+
+        This creates a ConditionalMacro that executes a measurement and conditionally
+        applies another macro based on the result.
+
+        Args:
+            name: Name for the conditional macro
+            measurement_macro: Name of measurement macro in self.macros, or a reference string
+            conditional_macro: Name of macro in self.macros, or a reference string (e.g., from get_reference())
+            invert_condition: If False (default), apply when measurement is True.
+                             If True, apply when measurement is False.
+
+        Returns:
+            self: The component instance for method chaining
+
+        Raises:
+            KeyError: If macro names don't exist (when not using references)
+
+        Example:
+            .. code-block:: python
+
+                # Option 1: Use macro names (must exist in self.macros)
+                component.with_conditional_macro(
+                    name='reset',
+                    measurement_macro='measure',
+                    conditional_macro='x180',
+                    invert_condition=False
+                )
+
+                # Option 2: Use reference strings (can reference macros from other components)
+                component.with_conditional_macro(
+                    name='reset',
+                    measurement_macro='measure',  # Local macro
+                    conditional_macro=component.qubit_target.macros["x180"].get_reference(),
+                    invert_condition=False
+                )
+
+                # Option 3: Chain with other operations
+                (component
+                    .with_step_point("idle", {"gate": 0.1}, hold_duration=100)
+                    .with_conditional_macro(
+                        name='reset',
+                        measurement_macro='measure',
+                        conditional_macro='x180'
+                    )
+                    .with_sequence("init_with_reset", ["idle", "reset"]))
+
+                # Execute in QUA program
+                with program() as prog:
+                    was_excited = component.reset()  # Conditional reset
+                    component.init_with_reset()  # Full sequence
+        """
+        # Handle measurement_macro: check if it's a reference or macro name
+        if measurement_macro.startswith('#'):
+            # Already a reference string
+            measurement_ref = measurement_macro
+        else:
+            # It's a macro name, validate and create reference
+            if measurement_macro not in self.macros:
+                raise KeyError(
+                    f"Measurement macro '{measurement_macro}' not found in macros. "
+                    f"Available macros: {list(self.macros.keys())}"
+                )
+            # Use #../ to reference sibling macros (go up from this macro to parent macros dict)
+            measurement_ref = f"#../{measurement_macro}"
+
+        # Handle conditional_macro: check if it's a reference or macro name
+        if conditional_macro.startswith('#'):
+            # Already a reference string
+            conditional_ref = conditional_macro
+        else:
+            # It's a macro name, validate and create reference
+            if conditional_macro not in self.macros:
+                raise KeyError(
+                    f"Conditional macro '{conditional_macro}' not found in macros. "
+                    f"Available macros: {list(self.macros.keys())}"
+                )
+            # Use #../ to reference sibling macros (go up from this macro to parent macros dict)
+            conditional_ref = f"#../{conditional_macro}"
+
+        # Create the conditional macro
+        macro = ConditionalMacro(
+            measurement_macro=measurement_ref,
+            conditional_macro=conditional_ref,
+            invert_condition=invert_condition
+        )
+
+        # Store in macros dict
+        self.macros[name] = macro
 
         return self
