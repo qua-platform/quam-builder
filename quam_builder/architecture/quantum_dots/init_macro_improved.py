@@ -175,7 +175,7 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
             name='reset',
             measurement_macro='measure_init',
             conditional_macro=qubit_pair.qubit_target.macros["x180"].get_reference(),
-            invert_condition=True  # Apply X180 when in ground state
+            invert_condition=False  # Apply X180 when in ground state
         )
 
         # Create full initialization sequence (reset + wait + measure)
@@ -237,8 +237,13 @@ if __name__ == "__main__":
 
         # Execute initialization sequence on all qubit pairs
         for qp_id, qubit_pair in machine.qubit_pairs.items():
+            # Option 1: function based
             state = init_sequence(qubit_pair)
-            qua.wait(100)
+            # Option 2: method based
+            # state = qubit_pair.init_sequence()
+
+
+        qua.wait(100)
 
         # Ramp all voltages back to zero at end of sequence
         qubit_pair.voltage_sequence.ramp_to_zero()
