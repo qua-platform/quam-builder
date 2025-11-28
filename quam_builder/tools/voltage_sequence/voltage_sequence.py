@@ -299,9 +299,6 @@ class VoltageSequence:
                 )
             tracker.current_level = target_voltage
 
-            if self._keep_levels and ch_name in self._keep_levels_tracker._keep_levels_dict:
-                self._keep_levels_tracker._keep_levels_dict[ch_name].current_level = target_voltage
-
     def step_to_voltages(
         self, voltages: Dict[str, VoltageLevelType], duration: DurationType
     ):
