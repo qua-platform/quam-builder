@@ -19,12 +19,7 @@ __all__ = ["ReadoutResonatorBase", "ReadoutResonatorIQ", "ReadoutResonatorMW", "
 class ReadoutResonatorBase:
     """
     QUAM component for a readout resonator.
-
-    Attributes:
-        frequency_bare (float): The bare resonator frequency in Hz.
     """
-    
-    frequency_bare: float = None
 
     @staticmethod
     def calculate_voltage_scaling_factor(
