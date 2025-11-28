@@ -132,6 +132,24 @@ class VoltageSequence:
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
+        
+        self.attenuation_qua_variables = {
+            ch_name: (
+                declare(
+                    fixed,
+                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
+                )
+                if hasattr(ch, "attenuation")
+                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+            )
+            for (ch_name, ch) in self.gate_set.channels.items()
+        }
+        if self.gate_set.adjust_for_attenuation:
+            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
+                ch_name: declare(fixed)
+                for ch_name in self.gate_set.channels.keys()
+            }
+
 
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
@@ -143,21 +161,19 @@ class VoltageSequence:
         return self._temp_qua_vars[internal_name]
 
     def _adjust_for_attenuation(self, channel, delta_v):
-        default_attenuation_scale = (
-            10 ** (channel.attenuation / 20) if hasattr(channel, "attenuation") else 1
+        ch_name = next(
+            name for name, ch in self.gate_set.channels.items() if ch is channel
         )
+        attenuation_scale = self.attenuation_qua_variables[ch_name]
         if is_qua_type(delta_v):
-            # Same temp variable reused across gates, just redefined
-            attenuation_factor = self._get_temp_qua_var(name_suffix="attenuation")
-            assign(
-                attenuation_factor,
-                default_attenuation_scale / (1 << ATTENUATION_BITSHIFT),
-            )
-            unattenuated_delta_v = (
-                delta_v * attenuation_factor
-            ) << ATTENUATION_BITSHIFT
+            unattenuated_delta_v = self._attenuated_delta_v_vars[ch_name]
+            assign(unattenuated_delta_v, (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT)
         else:
-            unattenuated_delta_v = delta_v * default_attenuation_scale
+            unattenuated_delta_v = delta_v * (
+                10 ** (channel.attenuation / 20)
+                if hasattr(channel, "attenuation")
+                else 1
+            )
         return unattenuated_delta_v
 
     def _play_step_on_channel(
