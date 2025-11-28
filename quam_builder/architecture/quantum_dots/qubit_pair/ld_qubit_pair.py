@@ -1,15 +1,12 @@
-from typing import Union, List, Dict, TYPE_CHECKING
-from dataclasses import field
+from typing import Union, Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
 
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
-    BarrierGate,
-    SensorDot,
 )
-from quam_builder.architecture.quantum_dots.components.macros import (
+from quam_builder.architecture.quantum_dots.macros.point_macros import (
     VoltagePointMacroMixin,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit

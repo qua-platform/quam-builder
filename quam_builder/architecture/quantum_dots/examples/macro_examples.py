@@ -18,16 +18,10 @@ Key Features:
 - Serializable: All state stored in self.macros dict
 """
 
-from typing import Dict
-from dataclasses import field
-
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 from qm import qua
 
-from quam_builder.architecture.quantum_dots.components.macros import (
-    SequenceMacro,
-    StepPointMacro,
-    RampPointMacro,
+from quam_builder.architecture.quantum_dots.macros.point_macros import (
     VoltagePointMacroMixin,
 )
 
@@ -308,12 +302,11 @@ def example_06_operations_registry(machine) -> None:
     """
     from quam.components.macro.qubit_macros import PulseMacro
     from quam.components import pulses
-    from quam_builder.architecture.quantum_dots.operations import (
+    from quam_builder.architecture.quantum_dots.examples.operations import (
         operations_registry,
         # Import individual operations for type safety
         idle, load, readout,
-        x180, y90, x90,
-        rabi
+        x180, rabi
     )
 
     # === SETUP: Register operations with machine ===

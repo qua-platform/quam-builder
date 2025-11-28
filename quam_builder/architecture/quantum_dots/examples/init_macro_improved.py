@@ -1,12 +1,12 @@
 """
 Improved Initialization Macro with Conditional Reset
 
-This module demonstrates how to use the ConditionalMacro from macros.py
+This module demonstrates how to use the ConditionalMacro from point_macros.py
 for creating initialization sequences with conditional reset capabilities
 for quantum dot systems.
 
 Key Features:
-- Uses ConditionalMacro from macros.py (unified with QUAM patterns)
+- Uses ConditionalMacro from point_macros.py (unified with QUAM patterns)
 - Invertible condition: apply pulse when excited OR when ground
 - Optional element alignment between measurement and conditional operations
 - Fluent API via with_conditional_macro() method
@@ -46,8 +46,8 @@ from quam.components.macro import PulseMacro
 from quam.components.quantum_components import Qubit, QubitPair
 from quam.utils.qua_types import QuaVariableBool
 
-from quam_builder.architecture.quantum_dots.operations import operations_registry
-from quam_builder.architecture.quantum_dots.components.macros import (
+from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
+from quam_builder.architecture.quantum_dots.macros import (
     AlignMacro,
     WaitMacro,
     MeasureMacro

@@ -1,13 +1,13 @@
-from typing import Dict, List, Union, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING
 from dataclasses import field
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePointMacroMixin
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

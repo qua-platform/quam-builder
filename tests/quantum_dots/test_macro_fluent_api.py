@@ -14,9 +14,9 @@ This test file covers:
 
 import pytest
 from qm import qua
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from quam_builder.architecture.quantum_dots.components.macros import (
+from quam_builder.architecture.quantum_dots.macros.point_macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,

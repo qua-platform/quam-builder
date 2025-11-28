@@ -34,27 +34,14 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
-    MWFEMAnalogInputPort,
     MWFEMAnalogOutputPort
 )
-import numpy as np
-from quam.components.pulses import GaussianPulse
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, VoltagePointMacroMixin
-from qm.qua import *
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 
 # Import gate-level operations for cleaner QUA code
-from quam_builder.architecture.quantum_dots.operations import (
-    idle,
-    readout,
-    x180,
-    y180,
-    x90,
-    y90,
-    rabi, operations_registry,
-)
 
 # Instantiate Quam
 machine = BaseQuamQD()
@@ -183,7 +170,7 @@ for i in range(plunger_gates):
 ########################################
 
 # Register the quantum dot pairs
-for i in [0]:
+for i in range(barrier_gates):
     dot_id = f"dot{i}_dot{i+1}_pair"
     machine.register_quantum_dot_pair(
         id=dot_id,
@@ -210,8 +197,6 @@ quantum_dot_pair_id = 'dot{0}_dot{1}_pair'.format(i, i + 1)
 quantum_dot_pair = machine.quantum_dot_pairs[quantum_dot_pair_id]
 qubit_id = 'Q0'
 qubit = machine.qubits[qubit_id]
-from quam_builder.architecture.quantum_dots.components.macros import StepPointMacro, RampPointMacro, SequenceMacro
-from quam.components.macro.qubit_macros import PulseMacro
 
 #############################################################
 ###### Gate-Level Operations Examples (NEW FEATURE) ######

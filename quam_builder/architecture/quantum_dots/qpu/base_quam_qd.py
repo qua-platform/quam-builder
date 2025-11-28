@@ -2,7 +2,7 @@ from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
-
+from quam.core.macro import QuamMacro
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
@@ -28,6 +28,7 @@ from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorBase,
     XYDrive
 )
+from quam_builder.architecture.quantum_dots.components.qpu import QPU
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import (
@@ -85,6 +86,8 @@ class BaseQuamQD(QuamRoot):
         update_full_cross_compensation: Update the full compensation matrix of the first VirtualGateSet layer.
         step_to_voltage: Steps the associated VoltageSequence to a dict of voltages.
     """
+
+    qpu: QPU = field(default_factory=QPU)
 
     physical_channels: Dict[str, Channel] = field(default_factory=dict)
     global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
