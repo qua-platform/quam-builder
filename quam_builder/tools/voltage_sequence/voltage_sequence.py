@@ -126,6 +126,11 @@ class VoltageSequence:
         if internal_name not in self._temp_qua_vars:
             self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
+    
+    def declare_qua_vars(self):
+        """A helper to use with looped QUA programs. Pre-declares trackers as QUA variables"""
+        for tracker in self.state_trackers.values():
+            tracker._current_level_internal = declare(fixed, value=0.0)
 
     def _play_step_on_channel(
         self,
@@ -293,6 +298,9 @@ class VoltageSequence:
                     duration,
                 )
             tracker.current_level = target_voltage
+
+            if self._keep_levels and ch_name in self._keep_levels_tracker._keep_levels_dict:
+                self._keep_levels_tracker._keep_levels_dict[ch_name].current_level = target_voltage
 
     def step_to_voltages(
         self, voltages: Dict[str, VoltageLevelType], duration: DurationType
