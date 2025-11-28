@@ -94,10 +94,6 @@ class SequenceStateTracker:
         self._integrated_voltage_qua_var: Optional[QuaVariable] = None
         self._current_py_val_before_promotion = None
 
-    def declare_current_level_var(self):
-        """Must be called within QUA program context before any operations."""
-        self._current_level_internal = declare(fixed, value=0.0)
-
     @property
     def element_name(self) -> str:
         """Gets the name of the element tracked by this instance."""
