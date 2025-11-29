@@ -12,6 +12,7 @@ from quam_builder.builder.quantum_dots.build_qpu import (
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pair_pulses,
     add_default_ldv_qubit_pulses,
+    add_default_resonator_pulses
 )
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
@@ -102,6 +103,9 @@ def add_pulses(machine: AnyQuam):
         for qubit_pair in machine.qubit_pairs.values():
             add_default_ldv_qubit_pair_pulses(qubit_pair)
 
+    if hasattr(machine, "sensor_dots"):
+        for sensor_dot in machine.sensor_dots.values():
+            add_default_resonator_pulses(sensor_dot.readout_resonator)
 
 def _resolve_calibration_db_path(
     machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
