@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.components import (
@@ -59,10 +59,16 @@ class QpuAssembly:
 class _QpuBuilder:
     """Handles wiring-to-component translation and QPU registration."""
 
-    def __init__(self, machine: AnyQuam):
+    def __init__(
+        self,
+        machine: AnyQuam,
+        qubit_pair_sensor_map: Optional[Mapping[str, Sequence[str]]] = None,
+    ):
         self.machine = machine
         self.assembly = QpuAssembly()
         self._wiring_by_type: Dict[str, Mapping[str, Any]] = {}
+        self._qubit_pair_sensor_map = qubit_pair_sensor_map or {}
+        self._normalized_pair_sensor_map: Dict[str, Sequence[str]] = {}
 
     def build(self) -> AnyQuam:
         self.assembly = QpuAssembly()
@@ -72,6 +78,7 @@ class _QpuBuilder:
         self.machine.active_qubit_pair_names = []
 
         self._wiring_by_type = self._normalize_wiring(self.machine.wiring or {})
+        self._normalized_pair_sensor_map = self._normalize_sensor_map(self._qubit_pair_sensor_map)
         self._collect_physical_channels()
         self._create_virtual_gate_set()
         self._register_channels()
@@ -88,6 +95,20 @@ class _QpuBuilder:
                     f"Duplicate wiring entries for element type '{canonical_type}' detected"
                 )
             normalized[canonical_type] = wiring_by_element
+        return normalized
+
+    def _normalize_sensor_map(self, sensor_map: Mapping[str, Sequence[str]]) -> Dict[str, Sequence[str]]:
+        normalized: Dict[str, Sequence[str]] = {}
+        for pair_id, sensors in (sensor_map or {}).items():
+            qc, qt = _parse_qubit_pair_ids(pair_id)
+            normalized_pair_id = f"{qc}_{qt}"
+            if not isinstance(sensors, (list, tuple, set)):
+                raise ValueError(
+                    f"Sensor map for pair '{pair_id}' must be a list/tuple/set of sensor identifiers. "
+                    "Supported pair formats: q1_q2 or q1-2. "
+                    "Supported sensor formats: virtual_sensor_<n>, sensor_<n>, s<n>."
+                )
+            normalized[normalized_pair_id] = list(sensors)
         return normalized
 
     def _collect_physical_channels(self):
@@ -280,9 +301,14 @@ class _QpuBuilder:
             qc_plunger_id = f"plunger_{qc_name[1:]}"
             qt_plunger_id = f"plunger_{qt_name[1:]}"
 
-            sensor_dot_ids = [
-                name for _, name in _sorted_items(self.assembly.sensor_virtual_names)
-            ]
+            normalized_pair_id = f"{qc_name}_{qt_name}"
+            if normalized_pair_id in self._normalized_pair_sensor_map:
+                requested_sensors = self._normalized_pair_sensor_map[normalized_pair_id]
+                sensor_dot_ids = [self._resolve_sensor_virtual_name(normalized_pair_id, sensor) for sensor in requested_sensors]
+            else:
+                sensor_dot_ids = [
+                    name for _, name in _sorted_items(self.assembly.sensor_virtual_names)
+                ]
 
             barrier_gate_id = None
             physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(
@@ -320,3 +346,39 @@ class _QpuBuilder:
                 qubit_target_name=qt_name,
             )
             self.machine.active_qubit_pair_names.append(f"{qc_name}_{qt_name}")
+
+    def _resolve_sensor_virtual_name(self, pair_id: str, sensor: str) -> str:
+        allowed_formats = "virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1)"
+        if not isinstance(sensor, str):
+            raise ValueError(
+                f"Sensor mapping for pair '{pair_id}' must contain string identifiers; "
+                f"supported formats: {allowed_formats}"
+            )
+
+        normalized_sensor = sensor
+        if sensor.startswith("s") and sensor[1:].isdigit():
+            normalized_sensor = f"sensor_{sensor[1:]}"
+
+        if normalized_sensor.startswith("sensor_") and normalized_sensor[7:].isdigit():
+            if normalized_sensor not in self.assembly.sensor_virtual_names:
+                raise ValueError(
+                    f"Sensor '{sensor}' for pair '{pair_id}' is not registered. "
+                    f"Use {allowed_formats} and ensure the sensor exists in wiring."
+                )
+            return self.assembly.sensor_virtual_names[normalized_sensor]
+
+        if (
+            normalized_sensor.startswith("virtual_sensor_")
+            and normalized_sensor[len("virtual_sensor_"):].isdigit()
+        ):
+            if normalized_sensor not in self.assembly.sensor_virtual_names.values():
+                raise ValueError(
+                    f"Sensor '{sensor}' for pair '{pair_id}' is not registered. "
+                    f"Use {allowed_formats} and ensure the sensor exists in wiring."
+                )
+            return normalized_sensor
+
+        raise ValueError(
+            f"Sensor identifier '{sensor}' for pair '{pair_id}' is invalid. "
+            f"Supported formats: {allowed_formats}"
+        )
