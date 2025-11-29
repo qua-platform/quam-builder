@@ -5,6 +5,12 @@ from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.superconducting.qpu import AnyQuam
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
+from quam_builder.builder.qop_connectivity.channel_ports import (
+    iq_out_channel_ports,
+    mw_out_channel_ports,
+)
+from quam.components import StickyChannelAddon, pulses
 
 
 def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -> str:
@@ -24,12 +30,14 @@ class QpuAssembly:
     plunger_channels: List[VoltageGate] = field(default_factory=list)
     barrier_channels: List[VoltageGate] = field(default_factory=list)
     sensor_channels: List[VoltageGate] = field(default_factory=list)
+    barrier_counter: int = 1
     resonators: List = field(default_factory=list)
     plunger_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
     barrier_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
     sensor_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
     sensor_id_to_resonator: Dict[str, object] = field(default_factory=dict)
     qubit_id_to_xy_info: Dict[str, Tuple[str, str, object]] = field(default_factory=dict)
+    qubit_pair_id_to_barrier_id: Dict[str, str] = field(default_factory=dict)
 
 
 class _QpuBuilder:
@@ -48,16 +56,11 @@ class _QpuBuilder:
         return self.machine
 
     def _collect_physical_channels(self):
-        from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
-        from quam_builder.builder.qop_connectivity.channel_ports import (
-            iq_out_channel_ports,
-            mw_out_channel_ports,
-        )
 
         for element_type, wiring_by_element in self.machine.wiring.items():
-            if element_type == "global_gates":
+            if element_type == "globals":
                 self._collect_global_gates(wiring_by_element)
-            elif element_type == "sensor_dots":
+            elif element_type == "readout":
                 self._collect_sensor_dots(wiring_by_element, ReadoutResonatorSingle)
             elif element_type == "qubits":
                 self._collect_qubits(
@@ -69,85 +72,100 @@ class _QpuBuilder:
                 self._collect_qubit_pairs(wiring_by_element)
 
     def _collect_global_gates(self, wiring_by_element):
+        element_type='globals'
         self.machine.active_global_gate_names = []
-        number_of_global_gates = len(wiring_by_element.items())
         for global_gate_number, (global_gate_id, wiring_by_line_type) in enumerate(
             wiring_by_element.items()
         ):
-            global_gate_class = self.machine.global_gate_type[global_gate_id]
-            global_gate = global_gate_class(id=global_gate_id)
-            self.machine.global_gates[global_gate_id] = global_gate
-            global_gate.grid_location = _set_default_grid_location(
-                global_gate_number, number_of_global_gates
-            )
             for line_type, ports in wiring_by_line_type.items():
-                wiring_path = self._wiring_path("global_gates", global_gate_id, line_type)
-                if line_type == WiringLineType.GLOBAL_GATE.value:
-                    self.assembly.global_gates.append(
-                        VoltageGate(id=global_gate_id, opx_output=f"{wiring_path}/opx_output")
+
+                wiring_path = f"#/wiring/{element_type}/{global_gate_id}/{line_type}"
+                self.assembly.global_gates.append(
+                    VoltageGate(
+                        id=global_gate_id,
+                        opx_output=f'{wiring_path}/opx_output',
+                        sticky=StickyChannelAddon(duration=16, digital=False),
                     )
-                else:
-                    raise ValueError(f"Unknown line type: {line_type}")
-            self.machine.active_global_gate_names.append(global_gate.name)
+                )
 
     def _collect_sensor_dots(self, wiring_by_element, resonator_cls):
+        element_type = 'readout'
         for sensor_dot_id, wiring_by_line_type in wiring_by_element.items():
             for line_type, ports in wiring_by_line_type.items():
-                wiring_path = self._wiring_path("sensor_dots", sensor_dot_id, line_type)
+                wiring_path = f"#/wiring/{element_type}/{sensor_dot_id}/{line_type}"
                 if line_type == WiringLineType.SENSOR_GATE.value:
                     sensor_gate = VoltageGate(
-                        id=sensor_dot_id, opx_output=f"{wiring_path}/opx_output"
+                        id=f'sensor_{sensor_dot_id[1:]}',
+                        opx_output=f"{wiring_path}/opx_output",
+                        sticky=StickyChannelAddon(duration=16, digital=False),
                     )
                     self.assembly.sensor_channels.append(sensor_gate)
-                    self.assembly.sensor_id_to_channel[sensor_dot_id] = sensor_gate
+                    self.assembly.sensor_id_to_channel[sensor_gate.id] = sensor_gate
+
                 elif line_type == WiringLineType.RF_RESONATOR.value:
                     resonator = resonator_cls(
-                        id=f"{sensor_dot_id}_resonator",
+                        id=f"sensor_{sensor_dot_id[1:]}_resonator",
+                        frequency_bare=0,
+                        intermediate_frequency=500e6,
+                        operations={
+                            "readout": pulses.SquareReadoutPulse(
+                                length=200, id="readout", amplitude=0.01
+                            )
+                        },
                         opx_output=f"{wiring_path}/opx_output",
                         opx_input=f"{wiring_path}/opx_input",
+                        sticky=StickyChannelAddon(duration=16, digital=False),
                     )
                     self.assembly.resonators.append(resonator)
-                    self.assembly.sensor_id_to_resonator[sensor_dot_id] = resonator
+                    self.assembly.sensor_id_to_resonator[f'sensor_{sensor_dot_id[1:]}'] = resonator
 
     def _collect_qubits(self, wiring_by_element, iq_out_channel_ports, mw_out_channel_ports):
+        element_type = 'qubits'
         for qubit_id, wiring_by_line_type in wiring_by_element.items():
+            qubit_index = qubit_id[1:]
             for line_type, ports in wiring_by_line_type.items():
-                wiring_path = self._wiring_path("qubits", qubit_id, line_type)
+                wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
                 if line_type == WiringLineType.DRIVE.value:
                     if all(key in ports for key in iq_out_channel_ports):
                         self.assembly.qubit_id_to_xy_info[qubit_id] = ("IQ", wiring_path, ports)
                     elif all(key in ports for key in mw_out_channel_ports):
                         self.assembly.qubit_id_to_xy_info[qubit_id] = ("MW", wiring_path, ports)
                 elif line_type == WiringLineType.PLUNGER_GATE.value:
-                    plunger_gate = VoltageGate(id=qubit_id, opx_output=f"{wiring_path}/opx_output")
+                    plunger_gate = VoltageGate(
+                        id=f'plunger_{qubit_index}',
+                        opx_output=f"{wiring_path}/opx_output",
+                        sticky=StickyChannelAddon(duration=16, digital=False),
+                    )
                     self.assembly.plunger_channels.append(plunger_gate)
-                    self.assembly.plunger_id_to_channel[qubit_id] = plunger_gate
+                    self.assembly.plunger_id_to_channel[plunger_gate.id] = plunger_gate
 
     def _collect_qubit_pairs(self, wiring_by_element):
+        element_type = 'qubit_pairs'
         for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
             for line_type, ports in wiring_by_line_type.items():
-                wiring_path = self._wiring_path("qubit_pairs", qubit_pair_id, line_type)
+                wiring_path = f"#/wiring/{element_type}/{qubit_pair_id}/{line_type}"
                 if line_type == WiringLineType.BARRIER_GATE.value:
                     barrier_gate = VoltageGate(
-                        id=qubit_pair_id, opx_output=f"{wiring_path}/opx_output"
+                        id=f'barrier_{self.assembly.barrier_counter}',
+                        opx_output=f"{wiring_path}/opx_output",
+                        sticky=StickyChannelAddon(duration=16, digital=False),
                     )
+                    self.assembly.barrier_counter += 1
                     self.assembly.barrier_channels.append(barrier_gate)
-                    self.assembly.barrier_id_to_channel[qubit_pair_id] = barrier_gate
+                    self.assembly.barrier_id_to_channel[barrier_gate.id] = barrier_gate
+                    self.assembly.qubit_pair_id_to_barrier_id[qubit_pair_id] = barrier_gate.id
 
     def _create_virtual_gate_set(self):
-        virtual_channel_mapping: Dict[str, VoltageGate] = {}
-        for dot_id, channel in self.assembly.plunger_id_to_channel.items():
-            virtual_channel_mapping[dot_id] = channel
-        for barrier_id, channel in self.assembly.barrier_id_to_channel.items():
-            virtual_channel_mapping[barrier_id] = channel
-        for sensor_id, channel in self.assembly.sensor_id_to_channel.items():
-            virtual_channel_mapping[sensor_id] = channel
 
-        if virtual_channel_mapping:
-            self.machine.create_virtual_gate_set(
-                virtual_channel_mapping=virtual_channel_mapping,
-                gate_set_id="main_qpu",
-            )
+        self.machine.create_virtual_gate_set(
+            virtual_channel_mapping={
+                **{f"virtual_dot_{i+1}": p for i, p in enumerate(self.assembly.plunger_channels)},
+                **{f"virtual_barrier_{i+1}": b for i, b in enumerate(self.assembly.barrier_channels)},
+                **{f"virtual_sensor_{i+1}": s for i, s in enumerate(self.assembly.sensor_channels)},
+            },
+            gate_set_id="main_qpu",
+        )
+
 
     def _register_channels(self):
         if not (
@@ -158,9 +176,7 @@ class _QpuBuilder:
             return
 
         sensor_resonator_mappings = {
-            self.assembly.sensor_id_to_channel[sid]: self.assembly.sensor_id_to_resonator[sid]
-            for sid in self.assembly.sensor_id_to_channel.keys()
-            if sid in self.assembly.sensor_id_to_resonator
+            s: r for s, r in zip(self.assembly.sensor_channels, self.assembly.resonators)
         }
         self.machine.register_channel_elements(
             plunger_channels=self.assembly.plunger_channels,
@@ -168,7 +184,7 @@ class _QpuBuilder:
             barrier_channels=self.assembly.barrier_channels,
             global_gates=self.assembly.global_gates if self.assembly.global_gates else None,
         )
-        self.machine.active_sensor_dot_names = list(self.assembly.sensor_id_to_channel.keys())
+        self.machine.active_sensor_dot_names = [n.id for n in self.assembly.sensor_channels]
 
     def _register_qubits(self):
         from quam_builder.architecture.superconducting.components.xy_drive import (
@@ -179,11 +195,12 @@ class _QpuBuilder:
         self.machine.active_qubit_names = []
         number_of_qubits = len(self.assembly.plunger_channels)
         for qubit_number, qubit_id in enumerate(self.assembly.plunger_id_to_channel.keys()):
-            qubit_name = self._qubit_name(qubit_id)
+            _, qubit_id = qubit_id.split("_")
+            qubit_name = f"q{qubit_id}"
             xy_channel = None
 
-            if qubit_id in self.assembly.qubit_id_to_xy_info:
-                xy_type, wiring_path, _ = self.assembly.qubit_id_to_xy_info[qubit_id]
+            if qubit_name in self.assembly.qubit_id_to_xy_info:
+                xy_type, wiring_path, _ = self.assembly.qubit_id_to_xy_info[qubit_name]
                 if xy_type == "IQ":
                     xy_channel = XYDriveIQ(
                         id=f"{qubit_name}_xy",
@@ -198,9 +215,9 @@ class _QpuBuilder:
                     )
 
             self.machine.register_qubit(
-                quantum_dot_id=qubit_id,
-                qubit_name=qubit_name,
                 qubit_type="loss_divincenzo",
+                quantum_dot_id=f'virtual_dot_{qubit_id}',
+                qubit_name=qubit_name,
                 xy_channel=xy_channel,
             )
             self.machine.qubits[qubit_name].grid_location = _set_default_grid_location(
@@ -214,31 +231,36 @@ class _QpuBuilder:
 
         self.machine.active_qubit_pair_names = []
         for qubit_pair_id in self.machine.wiring["qubit_pairs"].keys():
-            qc_id, qt_id = qubit_pair_id.split("_")
-            qc_name = self._qubit_name(qc_id)
-            qt_name = self._qubit_name(qt_id)
+            qc_id, qt_id = qubit_pair_id.split("-")
+            qc_name = qc_id
+            qt_name = f'q{qt_id}'
 
-            sensor_dot_ids = list(self.assembly.sensor_id_to_channel.keys()) if self.assembly.sensor_id_to_channel else []
+            # Convert to plunger gate IDs
+            qc_plunger_id = f'plunger_{qc_id[1:]}'
+            qt_plunger_id = f'plunger_{qt_id}'
 
-            if qc_id in self.assembly.plunger_id_to_channel and qt_id in self.assembly.plunger_id_to_channel:
+            # Get virtual sensor names (matching how they're registered in virtual gate set)
+            sensor_dot_ids = [f"virtual_sensor_{i+1}" for i in range(len(self.assembly.sensor_channels))]
+
+            # Get barrier gate ID if it exists and convert to virtual name
+            barrier_gate_id = None
+            physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(qubit_pair_id, None)
+            if physical_barrier_id:
+                # Convert physical barrier ID to virtual name based on its position
+                barrier_index = list(self.assembly.barrier_id_to_channel.keys()).index(physical_barrier_id)
+                barrier_gate_id = f"virtual_barrier_{barrier_index + 1}"
+
+            if qc_plunger_id in self.assembly.plunger_id_to_channel and qt_plunger_id in self.assembly.plunger_id_to_channel:
                 self.machine.register_quantum_dot_pair(
-                    id=f"dot{qc_id}_dot{qt_id}_pair",
-                    quantum_dot_ids=[qc_id, qt_id],
+                    id=f"dot{qc_name[1:]}_dot{qt_name[1:]}_pair",
+                    quantum_dot_ids=[f'virtual_dot_{qc_name[1:]}', f'virtual_dot_{qt_name[1:]}'],
                     sensor_dot_ids=sensor_dot_ids,
-                    barrier_gate_id=qubit_pair_id if qubit_pair_id in self.assembly.barrier_id_to_channel else None,
+                    barrier_gate_id=barrier_gate_id,
                 )
                 self.machine.register_qubit_pair(
-                    id=qubit_pair_id,
+                    id=f"{qc_name}_{qt_name}",
                     qubit_type="loss_divincenzo",
                     qubit_control_name=qc_name,
                     qubit_target_name=qt_name,
                 )
                 self.machine.active_qubit_pair_names.append(qubit_pair_id)
-
-    @staticmethod
-    def _wiring_path(element_type: str, element_id: str, line_type: str) -> str:
-        return f"#/wiring/{element_type}/{element_id}/{line_type}"
-
-    @staticmethod
-    def _qubit_name(qubit_id: str) -> str:
-        return f"Q{qubit_id.split('_')[-1] if '_' in qubit_id else qubit_id}"
