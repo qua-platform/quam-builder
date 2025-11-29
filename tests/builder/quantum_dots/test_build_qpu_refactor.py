@@ -162,3 +162,99 @@ class TestQpuBuilderBehavior:
 
         assert "q1_q2" in machine.active_qubit_pair_names
         assert "q1_q2" in machine.qubit_pairs
+
+    def test_qubit_pair_sensor_mapping_applied(self):
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/8"},
+                    WiringLineType.RF_RESONATOR.value: {
+                        "opx_output": "#/ports/con1/9",
+                        "opx_input": "#/ports/con1/10",
+                    },
+                },
+                "s2": {
+                    WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/11"},
+                    WiringLineType.RF_RESONATOR.value: {
+                        "opx_output": "#/ports/con1/12",
+                        "opx_input": "#/ports/con1/13",
+                    },
+                },
+            },
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+                "q2": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+            },
+            "qubit_pairs": {
+                "q1_q2": {
+                    WiringLineType.BARRIER_GATE.value: {
+                        "opx_output": "#/wiring/qubit_pairs/q1_q2/b/opx_output"
+                    }
+                }
+            },
+        }
+
+        builder = _QpuBuilder(
+            machine,
+            qubit_pair_sensor_map={"q1_q2": ["virtual_sensor_2"]},
+        )
+        builder.build()
+
+        qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+        sensor_ids = {s.id for s in qd_pair.sensor_dots}
+        assert sensor_ids == {"virtual_sensor_2"}
+
+    def test_qubit_pair_sensor_mapping_aliases(self):
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/8"},
+                    WiringLineType.RF_RESONATOR.value: {
+                        "opx_output": "#/ports/con1/9",
+                        "opx_input": "#/ports/con1/10",
+                    },
+                },
+                "s2": {
+                    WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/11"},
+                    WiringLineType.RF_RESONATOR.value: {
+                        "opx_output": "#/ports/con1/12",
+                        "opx_input": "#/ports/con1/13",
+                    },
+                },
+            },
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+                "q2": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+            },
+            "qubit_pairs": {
+                "q1_q2": {
+                    WiringLineType.BARRIER_GATE.value: {
+                        "opx_output": "#/wiring/qubit_pairs/q1_q2/b/opx_output"
+                    }
+                }
+            },
+        }
+
+        builder = _QpuBuilder(
+            machine,
+            qubit_pair_sensor_map={"q1_q2": ["s2", "sensor_1"]},
+        )
+        builder.build()
+
+        qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+        sensor_ids = {s.id for s in qd_pair.sensor_dots}
+        assert sensor_ids == {"virtual_sensor_1", "virtual_sensor_2"}

@@ -31,6 +31,7 @@ __all__ = [
 def build_quam(
     machine: AnyQuam,
     calibration_db_path: Optional[Union[Path, str]] = None,
+    qubit_pair_sensor_map: Optional[dict] = None,
     save: bool = True,
 ) -> AnyQuam:
     """High-level builder that wires instruments, registers QPU elements, and applies defaults.
@@ -48,7 +49,11 @@ def build_quam(
     Returns:
         AnyQuam: The built QuAM.
     """
-    builder = _OrchestratedQuamBuilder(machine, calibration_db_path)
+    builder = _OrchestratedQuamBuilder(
+        machine,
+        calibration_db_path=calibration_db_path,
+        qubit_pair_sensor_map=qubit_pair_sensor_map,
+    )
     builder.add_octaves()
     builder.add_external_mixers()
     builder.add_ports()
@@ -64,9 +69,15 @@ def build_quam(
 class _OrchestratedQuamBuilder:
     """Coordinates the build flow so each stage has a focused responsibility."""
 
-    def __init__(self, machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]):
+    def __init__(
+        self,
+        machine: AnyQuam,
+        calibration_db_path: Optional[Union[Path, str]],
+        qubit_pair_sensor_map: Optional[dict],
+    ):
         self.machine = machine
         self.calibration_db_path = calibration_db_path
+        self.qubit_pair_sensor_map = qubit_pair_sensor_map
 
     def add_octaves(self):
         add_octaves(self.machine, calibration_db_path=self.calibration_db_path)
@@ -78,7 +89,7 @@ class _OrchestratedQuamBuilder:
         add_ports(self.machine)
 
     def add_qpu(self):
-        add_qpu(self.machine)
+        add_qpu(self.machine, qubit_pair_sensor_map=self.qubit_pair_sensor_map)
 
     def add_pulses(self):
         add_pulses(self.machine)
@@ -97,10 +108,10 @@ def add_ports(machine: AnyQuam):
                         )
 
 
-def add_qpu(machine: AnyQuam):
+def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None):
     """Adds global_gates, qubits, qubit_pairs, and sensor dots using the QPU builder."""
 
-    _QpuBuilder(machine).build()
+    _QpuBuilder(machine, qubit_pair_sensor_map=qubit_pair_sensor_map).build()
 
 
 def add_pulses(machine: AnyQuam):
