@@ -23,6 +23,7 @@ from quam_builder.architecture.quantum_dots.components import (
     QuantumDot,
     VoltageGate,
     SensorDot,
+    GlobalGate,
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
@@ -30,6 +31,7 @@ from quam_builder.architecture.quantum_dots.components import (
     VirtualDCSet,
 )
 from quam_builder.architecture.quantum_dots.components.qpu import QPU
+from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import (
@@ -248,7 +250,12 @@ class BaseQuamQD(QuamRoot):
         if isinstance(global_channels, VoltageGate):
             global_channels = [global_channels]
         for ch in global_channels:
-            self.global_gates[ch.id] = ch
+            virtual_name = self._get_virtual_name(ch)
+            global_gate = GlobalGate(
+                id=virtual_name,
+                physical_channel=ch.get_reference(),
+            )
+            self.global_gates[virtual_name] = global_gate
 
     def register_channel_elements(
         self,

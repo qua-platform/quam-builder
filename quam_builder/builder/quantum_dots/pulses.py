@@ -5,6 +5,7 @@ import numpy as np
 from quam.components.pulses import GaussianPulse, SquareReadoutPulse, DragPulse
 from qualang_tools.addons.calibration.calibrations import unit
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorBase
 
 u = unit(coerce_to_integer=True)
 
@@ -19,14 +20,14 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
     Args:
         qubit (LDQubit): The Loss-DiVincenzo qubit to which pulses will be added.
     """
-    # ESR/MW drive pulses (if xy channel exists)
-    if hasattr(qubit, "xy") and qubit.xy is not None:
+    # ESR/MW drive pulses (if xy_channel exists)
+    if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
         pulse_length = 1000  # ns
         pulse_amp = 0.2
         sigma = pulse_length / 6
 
         # X rotations
-        qubit.xy.operations["x180"] = GaussianPulse(
+        qubit.xy_channel.operations["x180"] = GaussianPulse(
             id="x180",
             length=pulse_length,
             amplitude=pulse_amp,
@@ -34,7 +35,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
             axis_angle=0.0,
         )
 
-        qubit.xy.operations["x90"] = GaussianPulse(
+        qubit.xy_channel.operations["x90"] = GaussianPulse(
             id="x90",
             length=pulse_length,
             amplitude=pulse_amp / 2,
@@ -43,7 +44,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
         )
 
         # Y rotations
-        qubit.xy.operations["y180"] = GaussianPulse(
+        qubit.xy_channel.operations["y180"] = GaussianPulse(
             id="y180",
             length=pulse_length,
             amplitude=pulse_amp,
@@ -51,7 +52,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
             axis_angle=float(np.pi / 2),
         )
 
-        qubit.xy.operations["y90"] = GaussianPulse(
+        qubit.xy_channel.operations["y90"] = GaussianPulse(
             id="y90",
             length=pulse_length,
             amplitude=pulse_amp / 2,
@@ -60,7 +61,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
         )
 
         # Minus rotations (useful for pulse sequences)
-        qubit.xy.operations["-x90"] = GaussianPulse(
+        qubit.xy_channel.operations["-x90"] = GaussianPulse(
             id="-x90",
             length=pulse_length,
             amplitude=-pulse_amp / 2,
@@ -68,7 +69,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
             axis_angle=0.0,
         )
 
-        qubit.xy.operations["-y90"] = GaussianPulse(
+        qubit.xy_channel.operations["-y90"] = GaussianPulse(
             id="-y90",
             length=pulse_length,
             amplitude=-pulse_amp / 2,
@@ -76,17 +77,16 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit):
             axis_angle=float(np.pi / 2),
         )
 
+def add_default_resonator_pulses(resonator: ReadoutResonatorBase):
     # Readout pulses (if resonator exists)
-    if hasattr(qubit, "resonator") and qubit.resonator is not None:
-        readout_length = 2000  # ns
-        readout_amp = 0.1
-
-        qubit.resonator.operations["readout"] = SquareReadoutPulse(
+    readout_length = 2000  # ns
+    readout_amp = 0.1
+    if isinstance(resonator, ReadoutResonatorBase):
+        resonator.operations["readout"] = SquareReadoutPulse(
             id="readout",
             length=readout_length,
             amplitude=readout_amp,
         )
-
 
 def add_default_ldv_qubit_pair_pulses(qubit_pair):
     """Adds default pulses for Loss-DiVincenzo qubit pairs (two-qubit gates).
