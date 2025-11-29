@@ -1,5 +1,7 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+import warnings
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.components import (
@@ -30,6 +32,8 @@ __all__ = [
     "DEFAULT_READOUT_LENGTH",
     "DEFAULT_READOUT_AMPLITUDE",
 ]
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class QpuAssembly:
@@ -67,7 +71,7 @@ class _QpuBuilder:
         self.machine = machine
         self.assembly = QpuAssembly()
         self._wiring_by_type: Dict[str, Mapping[str, Any]] = {}
-        self._qubit_pair_sensor_map = qubit_pair_sensor_map or {}
+        self._qubit_pair_sensor_map = qubit_pair_sensor_map
         self._normalized_pair_sensor_map: Dict[str, Sequence[str]] = {}
 
     def build(self) -> AnyQuam:
@@ -97,9 +101,23 @@ class _QpuBuilder:
             normalized[canonical_type] = wiring_by_element
         return normalized
 
-    def _normalize_sensor_map(self, sensor_map: Mapping[str, Sequence[str]]) -> Dict[str, Sequence[str]]:
+    def _normalize_sensor_map(self, sensor_map: Optional[Mapping[str, Sequence[str]]]) -> Dict[str, Sequence[str]]:
         normalized: Dict[str, Sequence[str]] = {}
-        for pair_id, sensors in (sensor_map or {}).items():
+        if sensor_map is None:
+            return normalized
+        if not isinstance(sensor_map, dict):
+            raise ValueError(
+                "qubit_pair_sensor_map must be a dict mapping pair ids to sensor lists. "
+                "Pair formats: q1_q2 or q1-2. Sensor formats: virtual_sensor_<n>, sensor_<n>, s<n>."
+            )
+        if not sensor_map:
+            msg = (
+                "qubit_pair_sensor_map is an empty dict; defaulting to all registered sensors for each pair."
+            )
+            logger.warning(msg)
+            warnings.warn(msg, UserWarning)
+            return normalized
+        for pair_id, sensors in sensor_map.items():
             qc, qt = _parse_qubit_pair_ids(pair_id)
             normalized_pair_id = f"{qc}_{qt}"
             if not isinstance(sensors, (list, tuple, set)):

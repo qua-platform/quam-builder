@@ -258,3 +258,32 @@ class TestQpuBuilderBehavior:
         qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         sensor_ids = {s.id for s in qd_pair.sensor_dots}
         assert sensor_ids == {"virtual_sensor_1", "virtual_sensor_2"}
+
+    def test_qubit_pair_sensor_mapping_empty_warns(self, caplog):
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+            }
+        }
+
+        builder = _QpuBuilder(machine, qubit_pair_sensor_map={})
+        with pytest.warns(UserWarning, match="qubit_pair_sensor_map is an empty dict"):
+            builder.build()
+
+    def test_qubit_pair_sensor_mapping_non_dict_raises(self):
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports(),
+                },
+            }
+        }
+
+        with pytest.raises(ValueError, match="must be a dict mapping pair ids to sensor lists"):
+            _QpuBuilder(machine, qubit_pair_sensor_map="bad").build()
