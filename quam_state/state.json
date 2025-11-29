@@ -1,0 +1,546 @@
+{
+    "physical_channels": {
+        "q1": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q1",
+            "opx_output": "#/wiring/qubits/q1/p/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q2": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q2",
+            "opx_output": "#/wiring/qubits/q2/p/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q3": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q3",
+            "opx_output": "#/wiring/qubits/q3/p/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q4": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q4",
+            "opx_output": "#/wiring/qubits/q4/p/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q1_2": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q1_2",
+            "opx_output": "#/wiring/qubit_pairs/q1_2/b/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q2_3": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q2_3",
+            "opx_output": "#/wiring/qubit_pairs/q2_3/b/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "q3_4": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "q3_4",
+            "opx_output": "#/wiring/qubit_pairs/q3_4/b/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "s1": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "s1",
+            "opx_output": "#/wiring/sensor_dots/s1/s/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "s2": {
+            "operations": {
+                "half_max_square": {
+                    "length": 16,
+                    "amplitude": 0.25,
+                    "__class__": "quam.components.pulses.SquarePulse"
+                }
+            },
+            "id": "s2",
+            "opx_output": "#/wiring/sensor_dots/s2/s/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        }
+    },
+    "global_gates": {
+        "g1": {
+            "id": "g1",
+            "opx_output": "#/wiring/global_gates/g1/g/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        },
+        "g2": {
+            "id": "g2",
+            "opx_output": "#/wiring/global_gates/g2/g/opx_output",
+            "__class__": "quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate"
+        }
+    },
+    "virtual_gate_sets": {
+        "main_qpu": {
+            "id": "main_qpu",
+            "channels": {
+                "q1": "#/physical_channels/q1",
+                "q2": "#/physical_channels/q2",
+                "q3": "#/physical_channels/q3",
+                "q4": "#/physical_channels/q4",
+                "q1_2": "#/physical_channels/q1_2",
+                "q2_3": "#/physical_channels/q2_3",
+                "q3_4": "#/physical_channels/q3_4",
+                "s1": "#/physical_channels/s1",
+                "s2": "#/physical_channels/s2"
+            },
+            "layers": [
+                {
+                    "source_gates": [
+                        "q1",
+                        "q2",
+                        "q3",
+                        "q4",
+                        "q1_2",
+                        "q2_3",
+                        "q3_4",
+                        "s1",
+                        "s2"
+                    ],
+                    "target_gates": [
+                        "q1",
+                        "q2",
+                        "q3",
+                        "q4",
+                        "q1_2",
+                        "q2_3",
+                        "q3_4",
+                        "s1",
+                        "s2"
+                    ],
+                    "matrix": [
+                        [
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    ],
+                    "__class__": "quam_builder.architecture.quantum_dots.components.virtual_gate_set.VirtualizationLayer"
+                }
+            ],
+            "__class__": "quam_builder.architecture.quantum_dots.components.virtual_gate_set.VirtualGateSet"
+        }
+    },
+    "quantum_dots": {
+        "q1": {
+            "id": "q1",
+            "physical_channel": "#/physical_channels/q1",
+            "__class__": "quam_builder.architecture.quantum_dots.components.quantum_dot.QuantumDot"
+        },
+        "q2": {
+            "id": "q2",
+            "physical_channel": "#/physical_channels/q2",
+            "__class__": "quam_builder.architecture.quantum_dots.components.quantum_dot.QuantumDot"
+        },
+        "q3": {
+            "id": "q3",
+            "physical_channel": "#/physical_channels/q3",
+            "__class__": "quam_builder.architecture.quantum_dots.components.quantum_dot.QuantumDot"
+        },
+        "q4": {
+            "id": "q4",
+            "physical_channel": "#/physical_channels/q4",
+            "__class__": "quam_builder.architecture.quantum_dots.components.quantum_dot.QuantumDot"
+        }
+    },
+    "sensor_dots": {
+        "s1": {
+            "id": "s1",
+            "physical_channel": "#/physical_channels/s1",
+            "readout_resonator": {
+                "id": "s1_resonator",
+                "opx_input": "#/wiring/sensor_dots/s1/rf/opx_input",
+                "opx_output": "#/wiring/sensor_dots/s1/rf/opx_output",
+                "__class__": "quam_builder.architecture.quantum_dots.components.readout_resonator.ReadoutResonatorSingle"
+            },
+            "__class__": "quam_builder.architecture.quantum_dots.components.sensor_dot.SensorDot"
+        },
+        "s2": {
+            "id": "s2",
+            "physical_channel": "#/physical_channels/s2",
+            "readout_resonator": {
+                "id": "s2_resonator",
+                "opx_input": "#/wiring/sensor_dots/s2/rf/opx_input",
+                "opx_output": "#/wiring/sensor_dots/s2/rf/opx_output",
+                "__class__": "quam_builder.architecture.quantum_dots.components.readout_resonator.ReadoutResonatorSingle"
+            },
+            "__class__": "quam_builder.architecture.quantum_dots.components.sensor_dot.SensorDot"
+        }
+    },
+    "barrier_gates": {
+        "q1_2": {
+            "id": "q1_2",
+            "physical_channel": "#/physical_channels/q1_2",
+            "__class__": "quam_builder.architecture.quantum_dots.components.barrier_gate.BarrierGate"
+        },
+        "q2_3": {
+            "id": "q2_3",
+            "physical_channel": "#/physical_channels/q2_3",
+            "__class__": "quam_builder.architecture.quantum_dots.components.barrier_gate.BarrierGate"
+        },
+        "q3_4": {
+            "id": "q3_4",
+            "physical_channel": "#/physical_channels/q3_4",
+            "__class__": "quam_builder.architecture.quantum_dots.components.barrier_gate.BarrierGate"
+        }
+    },
+    "qubits": {
+        "Qq1": {
+            "id": "q1",
+            "quantum_dot": "#/quantum_dots/q1",
+            "xy_channel": {
+                "id": "Qq1_xy",
+                "opx_output": "#/wiring/qubits/q1/xy/opx_output",
+                "__class__": "quam_builder.architecture.superconducting.components.xy_drive.XYDriveMW"
+            },
+            "name": "Qq1",
+            "__class__": "quam_builder.architecture.quantum_dots.qubit.ld_qubit.LDQubit"
+        },
+        "Qq2": {
+            "id": "q2",
+            "quantum_dot": "#/quantum_dots/q2",
+            "xy_channel": {
+                "id": "Qq2_xy",
+                "opx_output": "#/wiring/qubits/q2/xy/opx_output",
+                "__class__": "quam_builder.architecture.superconducting.components.xy_drive.XYDriveMW"
+            },
+            "name": "Qq2",
+            "__class__": "quam_builder.architecture.quantum_dots.qubit.ld_qubit.LDQubit"
+        },
+        "Qq3": {
+            "id": "q3",
+            "quantum_dot": "#/quantum_dots/q3",
+            "xy_channel": {
+                "id": "Qq3_xy",
+                "opx_output": "#/wiring/qubits/q3/xy/opx_output",
+                "__class__": "quam_builder.architecture.superconducting.components.xy_drive.XYDriveMW"
+            },
+            "name": "Qq3",
+            "__class__": "quam_builder.architecture.quantum_dots.qubit.ld_qubit.LDQubit"
+        },
+        "Qq4": {
+            "id": "q4",
+            "quantum_dot": "#/quantum_dots/q4",
+            "xy_channel": {
+                "id": "Qq4_xy",
+                "opx_output": "#/wiring/qubits/q4/xy/opx_output",
+                "__class__": "quam_builder.architecture.superconducting.components.xy_drive.XYDriveMW"
+            },
+            "name": "Qq4",
+            "__class__": "quam_builder.architecture.quantum_dots.qubit.ld_qubit.LDQubit"
+        }
+    },
+    "active_global_gate_names": [
+        "global_g1",
+        "global_g2"
+    ],
+    "active_sensor_dot_names": [
+        "s1",
+        "s2"
+    ],
+    "active_qubit_names": [
+        "Qq1",
+        "Qq2",
+        "Qq3",
+        "Qq4"
+    ],
+    "ports": {
+        "analog_outputs": {
+            "con1": {
+                "3": {
+                    "1": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 1,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "2": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 2,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "3": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 3,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "4": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 4,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "5": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 5,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "6": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 6,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "7": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 7,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "8": {
+                        "controller_id": "con1",
+                        "fem_id": 3,
+                        "port_id": 8,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    }
+                },
+                "4": {
+                    "1": {
+                        "controller_id": "con1",
+                        "fem_id": 4,
+                        "port_id": 1,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "2": {
+                        "controller_id": "con1",
+                        "fem_id": 4,
+                        "port_id": 2,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    },
+                    "3": {
+                        "controller_id": "con1",
+                        "fem_id": 4,
+                        "port_id": 3,
+                        "__class__": "quam.components.ports.analog_outputs.LFFEMAnalogOutputPort"
+                    }
+                }
+            }
+        },
+        "mw_outputs": {
+            "con1": {
+                "1": {
+                    "1": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 1,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    },
+                    "2": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 2,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    },
+                    "3": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 3,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    },
+                    "4": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 4,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    },
+                    "5": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 5,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    },
+                    "6": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 6,
+                        "band": 1,
+                        "upconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_outputs.MWFEMAnalogOutputPort"
+                    }
+                }
+            }
+        },
+        "mw_inputs": {
+            "con1": {
+                "1": {
+                    "1": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 1,
+                        "band": 1,
+                        "downconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_inputs.MWFEMAnalogInputPort"
+                    },
+                    "2": {
+                        "controller_id": "con1",
+                        "fem_id": 1,
+                        "port_id": 2,
+                        "band": 1,
+                        "downconverter_frequency": 5000000000.0,
+                        "__class__": "quam.components.ports.analog_inputs.MWFEMAnalogInputPort"
+                    }
+                }
+            }
+        },
+        "__class__": "quam.components.ports.ports_containers.FEMPortsContainer"
+    },
+    "__class__": "quam_builder.architecture.quantum_dots.qpu.base_quam_qd.BaseQuamQD"
+}
