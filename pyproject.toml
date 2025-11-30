@@ -1,6 +1,6 @@
 [project]
 name = "quam-builder"
-version = "0.2.2"
+version = "0.2.0"
 description = "A Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP)."
 readme = "README.md"
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
