@@ -1,5 +1,5 @@
-from typing import Union, Any
 from dataclasses import field
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -19,9 +19,7 @@ def get_pulse_name(pulse: Pulse) -> str:
     elif pulse.parent is not None:
         return pulse.parent.get_attr_name(pulse)
     else:
-        raise AttributeError(
-            f"Cannot infer id of {pulse} because it is not attached to a parent"
-        )
+        raise AttributeError(f"Cannot infer id of {pulse} because it is not attached to a parent")
 
 
 @quam_dataclass
@@ -149,9 +147,62 @@ class CZGate(QubitPairMacro):
         if phase_shift_control is not None:
             self.qubit_pair.qubit_control.xy.frame_rotation_2pi(phase_shift_control)
         elif np.abs(self.phase_shift_control) > 1e-6:
-            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(
-                self.phase_shift_control
-            )
+            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(self.phase_shift_control)
+        if phase_shift_target is not None:
+            self.qubit_pair.qubit_target.xy.frame_rotation_2pi(phase_shift_target)
+        elif np.abs(self.phase_shift_target) > 1e-6:
+            self.qubit_pair.qubit_target.xy.frame_rotation_2pi(self.phase_shift_target)
+
+        self.qubit_pair.align()
+
+
+@quam_dataclass
+class ParametricIswapGate(QubitPairMacro):
+
+    coupler_pulse: Pulse = None
+    pulse_phase: Optional[float] = None  # phase of the parametric drive, in units of 2pi
+
+    phase_shift_control: float = 0.0
+    phase_shift_target: float = 0.0
+
+    fidelity: dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def coupler_flux_pulse_label(self) -> str:
+        pulse = (
+            self.coupler.get_pulse(self.coupler_flux_pulse)
+            if isinstance(self.coupler_flux_pulse, str)
+            else self.coupler_flux_pulse
+        )
+        return get_pulse_name(pulse)
+
+    def apply(
+        self,
+        *,
+        amplitude_scale_coupler=None,
+        phase_shift_control=None,
+        phase_shift_target=None,
+        pulse_phase=None,
+        **kwargs,
+    ) -> None:
+
+        if pulse_phase is not None:
+            self.qubit_pair.coupler.reset_if_phase()
+            self.qubit_pair.coupler.frame_rotation_2pi(pulse_phase)
+        elif self.pulse_phase is not None:
+            self.qubit_pair.coupler.reset_if_phase()
+            self.qubit_pair.coupler.frame_rotation_2pi(self.pulse_phase)
+
+        self.qubit_pair.coupler.play(
+            self.coupler_flux_pulse_label, validate=False, amplitude_scale=amplitude_scale_coupler
+        )
+
+        self.qubit_pair.align()
+        if phase_shift_control is not None:
+            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(phase_shift_control)
+        elif np.abs(self.phase_shift_control) > 1e-6:
+            self.qubit_pair.qubit_control.xy.frame_rotation_2pi(self.phase_shift_control)
         if phase_shift_target is not None:
             self.qubit_pair.qubit_target.xy.frame_rotation_2pi(phase_shift_target)
         elif np.abs(self.phase_shift_target) > 1e-6:
