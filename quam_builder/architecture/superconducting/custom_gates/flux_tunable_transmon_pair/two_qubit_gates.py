@@ -7,14 +7,7 @@ from quam.components.macro import QubitPairMacro
 from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
 from quam.utils.qua_types import (
-    ChirpType,
-    StreamType,
-    ScalarInt,
-    ScalarFloat,
-    ScalarBool,
-    QuaScalarInt,
-    QuaVariableInt,
-    QuaVariableFloat,
+    ScalarInt
 )
 __all__ = ["CZGate"]
 
@@ -57,18 +50,74 @@ class CZGate(QubitPairMacro):
     phase_shift_target : float
          Default frame rotation (in units of 2π) applied to the target qubit after flux interaction
          if not overridden and |value| > 1e-6.
-    spectator_qubits: dict[str, Any]
-         Optional dictionary of spectator qubit objects.
-    spectator_qubits_control: dict[str, Pulse]
-         Optional dictionary of spectator qubit control pulses and their parameters.
-    spectator_qubits_phase_shift: dict[str, float]
-         Optional dictionary of spectator qubit phase shifts and their parameters.
     fidelity: Dict[str, Any]
          Collection of gate fidelity (e.g. fidelity["RB"]=xx, fidelity["XEB"]=xx).
     extras: Dict[str, Any]
          Additional attributes for the CZGate.
     duration_control: ScalarInt
          Optional duration override for the control qubit flux pulse.
+
+    Spectator Qubits
+    ----------------
+    Spectator qubits are additional qubits that need to be controlled during the CZ gate operation
+    but are not the control or target qubits of the gate. This is useful for:
+    - Compensating for crosstalk: applying compensating flux pulses to nearby qubits to prevent
+      unwanted frequency shifts during the CZ gate.
+    - Maintaining qubit states: keeping spectator qubits in specific states during the gate.
+    - Multi-qubit gate synchronization: ensuring all qubits are properly aligned and synchronized.
+    
+    The three spectator qubit parameters work together:
+    - ``spectator_qubits``: Dictionary mapping qubit names (str) to qubit objects. These are the
+      qubit instances that will be controlled during the gate.
+    - ``spectator_qubits_control``: Dictionary mapping the same qubit names (str) to Pulse objects.
+      These pulses are applied to the spectator qubits' Z (flux) lines simultaneously with the
+      control qubit flux pulse.
+    - ``spectator_qubits_phase_shift``: Dictionary mapping qubit names (str) to phase shift values
+      (float, in units of 2π). These frame rotations are applied to the spectator qubits after
+      the flux pulses, similar to phase_shift_control and phase_shift_target.
+    
+    Usage Example:
+    ```python
+    # Configure spectator qubits for crosstalk compensation
+    cz_gate.spectator_qubits = {
+        "q1": qubit_q1,  # Nearby qubit that needs compensation
+        "q2": qubit_q2   # Another spectator qubit
+    }
+    cz_gate.spectator_qubits_control = {
+        "q1": {
+            "id": "cz_spectator_pulse_qD1",
+            "length": 48,
+            "__class__": "quam.components.pulses.SquarePulse",
+            "amplitude": 0.04
+        },
+        "q2": {
+            "id": "cz_spectator_pulse_qD2",
+            "length": 44,
+            "__class__": "quam.components.pulses.FlatTopGaussianPulse",
+            "amplitude": 0.05
+        }
+    }
+    cz_gate.spectator_qubits_phase_shift = {
+        "q1": 0.01,  # Small phase correction for q1 (0.01 * 2π)
+        "q2": 0.0    # No phase correction needed for q2
+    }
+    
+    # When apply() is called, spectator qubits will:
+    # 1. Be aligned with control and target qubits
+    # 2. Have their flux pulses played in parallel with the control qubit pulse
+    # 3. Receive phase corrections after the gate
+    cz_gate.apply()
+    ```
+    Note: The keys in all three dictionaries must match (same qubit names). Only qubits listed
+    in both ``spectator_qubits`` and ``spectator_qubits_control`` will have flux pulses applied.
+    
+    spectator_qubits: dict[str, Any]
+         Optional dictionary of spectator qubit objects.
+    spectator_qubits_control: dict[str, Pulse]
+         Optional dictionary of spectator qubit control pulses and their parameters.
+    spectator_qubits_phase_shift: dict[str, float]
+         Optional dictionary of spectator qubit phase shifts and their parameters.
+
 
     Properties
     ----------
