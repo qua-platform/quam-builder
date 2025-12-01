@@ -201,7 +201,6 @@ def example_04_nested_sequences(quantum_dot: VoltageMacroMixin) -> None:
 # Example 5: Mixed Pulse and Point Sequence Macros
 # ============================================================================
 
-
 def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     """
     Combining pulse macros and point macros in a single sequence.
@@ -293,7 +292,6 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
 # ============================================================================
 # Example 6: Using Operations Registry (RECOMMENDED)
 # ============================================================================
-
 
 def example_06_operations_registry(machine) -> None:
     """
