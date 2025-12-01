@@ -1,7 +1,7 @@
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel
 from quam import QuamComponent
-from typing import Union
+from typing import Union, ClassVar
 from qm.qua import align, wait
 import numpy as np
 from qm.qua import update_frequency
@@ -41,7 +41,11 @@ class TWPA(QuamComponent):
     dispersive_feature: float = None
     qubits: list = None
     
-    initialize: bool = True
+    with_initialization: bool = True
+    
+    # Class-level set to track initialized object IDs externally
+    # This won't be serialized since it's not an instance attribute
+    _initialized_ids: ClassVar[set] = set()
     
     def get_output_power(self, operation, Z=50) -> float:
         power = self.xy.opx_output.full_scale_power_dbm
@@ -69,19 +73,23 @@ class TWPA(QuamComponent):
         wait(duration, self.xy.name, self.z.name, self.resonator.name)
 
     def initialize(self):
-        
-        if not self.initialize:
+        if not self.with_initialization:
             return
         
-        else:
+        # Check initialization state using object ID (memory address)
+        # This won't be serialized since it's stored in a class-level set
+        obj_id = id(self)
+        if obj_id in self._initialized_ids:
+            return
         
-            f_p = self.pump_frequency
-            p_p = self.pump_amplitude
-            update_frequency(
-                self.pump.name,
-                f_p+ self.pump.intermediate_frequency,
-            )
-            self.pump.play("pump", amplitude_scale=p_p)
-            
-            self.initialize = False
+        f_p = self.pump_frequency
+        p_p = self.pump_amplitude
+        update_frequency(
+            self.pump.name,
+            f_p+ self.pump.intermediate_frequency,
+        )
+        self.pump.play("pump", amplitude_scale=p_p)
+        # Store object ID externally (won't be serialized)
+        self._initialized_ids.add(obj_id)
+       
 

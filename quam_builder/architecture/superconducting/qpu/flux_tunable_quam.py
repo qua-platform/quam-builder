@@ -126,7 +126,7 @@ class FluxTunableQuam(BaseQuam):
     def initialize_twpas(self):
         """Initialize the TWPA components."""
         for twpa in self.twpas.values():
-            twpa.initialize()
+            twpa.with_initialization()
 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the specified flux point and target.
