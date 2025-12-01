@@ -1,15 +1,12 @@
-from typing import Union, List, Dict, TYPE_CHECKING
-from dataclasses import field
+from typing import Union, Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
 
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
-    BarrierGate,
-    SensorDot,
 )
-from quam_builder.architecture.quantum_dots.components.macros import (
+from quam_builder.architecture.quantum_dots.macros.point_macros import (
     VoltagePointMacroMixin,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
@@ -47,8 +44,9 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     def __post_init__(self):
         if self.id is None:
-            self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
-    
+            self.id = f"{self.qubit_control.id}_{self.qubit_target.id}"
+        self.gate_id = self.quantum_dot_pair.gate_id
+
     @property
     def detuning_axis_name(self): 
         if self.quantum_dot_pair is None: 
@@ -64,10 +62,6 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     @property 
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
-
-    def _should_map_qubit_names(self) -> bool:
-        """Enable qubit name mapping for LDQubitPair."""
-        return True
 
     def _get_component_id_for_voltages(self) -> str:
         """

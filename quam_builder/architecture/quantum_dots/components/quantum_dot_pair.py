@@ -1,13 +1,13 @@
-from typing import Dict, List, Union, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING
 from dataclasses import field
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePointMacroMixin
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -16,7 +16,7 @@ __all__ = ["QuantumDotPair"]
 
 
 @quam_dataclass
-class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
+class QuantumDotPair(VoltagePointMacroMixin):
 
     """
     Class representing a Quantum Dot Pair. 
@@ -54,7 +54,8 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
 
         if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence: 
             raise ValueError("Quantum Dots not part of same VoltageSequence")
-        
+
+        self.gate_id = self.barrier_gate.id
         self.detuning_axis_name = f"{self.id}_epsilon"
 
     @property
@@ -64,7 +65,11 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
     @property 
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dots[0].machine
-        
+
+    @property
+    def name(self) -> str:
+        return self.id
+
     def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
         
         # If no name is given, ensure that it is the default
@@ -114,6 +119,38 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
             str: The detuning axis name to use for voltage operations
         """
         return self.detuning_axis_name
+
+    def measure(self):
+        pass
+
+    def readout_state(
+        self,
+        state,
+        pulse_name: str = "readout",
+    ):
+
+        if self.sensor_dots.__len__() == 0:
+            raise ValueError("No sensor dots")
+        elif self.sensor_dots.__len__() == 1:
+            pass
+        else:
+            raise NotImplementedError(
+                f"self.sensor_dots.__len__() is {len(self.sensor_dots)}"
+            )
+
+        I = declare(fixed)
+        Q = declare(fixed)
+        x = declare(fixed)  # projected value
+
+        sensor_dot = self.sensor_dots[0]
+
+        threshold, projector = sensor_dot._readout_threshold(self.id)
+
+        sensor_dot.measure(pulse_name, qua_vars=(I, Q))
+
+        assign(x, I * projector["wI"] + Q * projector["wQ"] + projector["offset"])
+
+        assign(state, Cast.to_int(x > threshold))
 
     # Voltage point macro methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 
