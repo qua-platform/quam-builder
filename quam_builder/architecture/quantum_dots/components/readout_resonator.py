@@ -63,7 +63,7 @@ class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
 
 
 @quam_dataclass
-class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
+class ReadoutResonatorIQ(InOutSingleChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     def __post_init__(self): 

@@ -5,28 +5,17 @@ import numpy as np
 from quam.components.quantum_components import Qubit
 from quam.components import Channel, pulses
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePointMacroMixin
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
-from qm.qua.type_hints import QuaVariable
 from qm.qua import (
-    save,
-    declare,
-    fixed,
-    assign,
     wait,
-    while_,
-    StreamType,
-    if_,
-    update_frequency,
-    Math,
-    Cast,
     frame_rotation_2pi
 )
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot, XYDrive
+from quam_builder.architecture.quantum_dots.components import XYDrive
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -62,6 +51,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     """
 
     id: Union[str, int] = None
+    grid_location: str = None
 
     quantum_dot: QuantumDot
     xy_channel: XYDrive = None

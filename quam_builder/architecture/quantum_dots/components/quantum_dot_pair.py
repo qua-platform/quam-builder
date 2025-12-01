@@ -1,7 +1,7 @@
 from typing import Dict, List, TYPE_CHECKING
 from dataclasses import field
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from .quantum_dot import QuantumDot

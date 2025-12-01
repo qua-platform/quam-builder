@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from .voltage_gate import VoltageGate
 from .mixins import VoltageMacroMixin
@@ -21,6 +21,10 @@ class BarrierGate(VoltageMacroMixin):
     id: str
     physical_channel: VoltageGate
     current_voltage: float = 0.0
+
+    @property
+    def name(self) -> str:
+        return self.id
 
     @property
     def machine(self) -> "BaseQuamQD":

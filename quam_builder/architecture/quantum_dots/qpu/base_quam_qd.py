@@ -71,6 +71,8 @@ class BaseQuamQD(QuamRoot):
         step_to_voltage: Steps the associated VoltageSequence to a dict of voltages.
     """
 
+    qpu: QPU = field(default_factory=QPU)
+
     physical_channels: Dict[str, Channel] = field(default_factory=dict)
     global_gates: Dict[str, GlobalGate] = field(default_factory=dict)
 
@@ -651,7 +653,7 @@ class BaseQuamQD(QuamRoot):
             if readout_quantum_dot is not None: 
                 qubit.preferred_readout_quantum_dot = readout_quantum_dot
 
-            self.qubits[qubit_name] = qubit
+            self.qubits[id] = qubit
         else:
             raise NotImplementedError(f"Qubit type {qubit_type} not implemented.")
 
@@ -665,22 +667,22 @@ class BaseQuamQD(QuamRoot):
 
     def register_qubit_pair(
         self,
-        qubit_control_name: str,
-        qubit_target_name: str,
+        qubit_control_id: str,
+        qubit_target_id: str,
         qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo",
         id: str = None,
     ) -> None:
 
-        for name in [qubit_control_name, qubit_target_name]:
+        for name in [qubit_control_id, qubit_target_id]:
             if name not in self.qubits:
                 raise ValueError(f"Qubit {name} not registered. Please register first")
         qubit_control, qubit_target = (
-            self.qubits[qubit_control_name],
-            self.qubits[qubit_target_name],
+            self.qubits[qubit_control_id],
+            self.qubits[qubit_target_id],
         )
 
         if id is None:
-            id = f"{qubit_control_name}_{qubit_target_name}"
+            id = f"{qubit_control_id}_{qubit_target_id}"
 
         if qubit_type.lower() == "loss_divincenzo":
             quantum_dot_pair = self.find_quantum_dot_pair(
