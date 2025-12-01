@@ -28,7 +28,6 @@ __all__ = [
     "BasePointMacro",
     "StepPointMacro",
     "RampPointMacro",
-    "MeasureMacro",
     "VoltagePointMacroMixin",
 ]
 
@@ -203,31 +202,6 @@ class RampPointMacro(BasePointMacro):
         )
 
 
-@quam_dataclass
-class MeasureMacro(QuamMacro):
-    """Macro for qubit state measurement with threshold discrimination.
-
-    Performs I/Q measurement and thresholds I value to determine qubit state.
-
-    Attributes:
-        threshold: Threshold for state discrimination (I > threshold → excited state)
-        component: QuamComponent to measure
-    """
-
-    threshold: float
-    component: QuamComponent
-
-    def apply(self, **kwargs) -> QuaVariableBool:
-        """Execute measurement and return qubit state.
-
-        Returns:
-            Boolean QUA variable indicating qubit state (True = excited)
-        """
-        I, Q = self.component.measure("readout")
-        state = qua.declare(bool)
-        qua.assign(state, I > self.threshold)
-        return state
-
 
 @quam_dataclass
 class VoltagePointMacroMixin(QuamBaseComponent):
@@ -380,8 +354,7 @@ class VoltagePointMacroMixin(QuamBaseComponent):
         else:
             # Reference existing point
             machine = self.machine
-            gate_set_id = list(machine.virtual_gate_sets.keys())[0]
-            gate_set = machine.virtual_gate_sets[gate_set_id]
+            gate_set = machine._get_virtual_gate_set(self.physical_channel)
             full_name = f"{self.id}_{name}" if f"{self.id}_{name}" in gate_set.get_macros() else name
             point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
             self.macros[name] = StepPointMacro(point_ref=point_ref, hold_duration=hold_duration)
@@ -409,8 +382,7 @@ class VoltagePointMacroMixin(QuamBaseComponent):
             self.add_point_with_ramp_macro(name, voltages, hold_duration, ramp_duration)
         else:
             machine = self.machine
-            gate_set_id = list(machine.virtual_gate_sets.keys())[0]
-            gate_set = machine.virtual_gate_sets[gate_set_id]
+            gate_set = machine._get_virtual_gate_set(self.physical_channel)
             full_name = f"{self.id}_{name}" if f"{self.id}_{name}" in gate_set.get_macros() else name
             point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
             self.macros[name] = RampPointMacro(

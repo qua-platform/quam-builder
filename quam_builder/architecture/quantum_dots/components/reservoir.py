@@ -2,18 +2,26 @@ from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
 from quam_builder.architecture.quantum_dots.components import VoltageGate
-
+from quam_builder.architecture.quantum_dots.components import VoltagePointMacroMixin, QuantumDot
 
 
 @quam_dataclass
-class ReservoirBase(VoltageGate):
+class ReservoirBase(VoltagePointMacroMixin):
     """
     Base class for a reservoir in a quantum dot device. 
     """
 
+    id: str = None
+    quantum_dots: List[QuantumDot]
+
     @property
     def machine(self) -> "BaseQuamQD":
-        return self.quantum_dots[0].machine
+        # Climb up the parent ladder in order to find the VoltageSequence in the machine
+        obj = self
+        while obj.parent is not None:
+            obj = obj.parent
+        machine = obj
+        return machine
 
     @property
     def name(self) -> str:

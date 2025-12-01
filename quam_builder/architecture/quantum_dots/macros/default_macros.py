@@ -66,6 +66,6 @@ class WaitMacro(QuamMacro):
 # Dictionary of default macros to be automatically added to components
 # Add new default macros here to make them available across all components
 DEFAULT_MACROS = {
-    "align": AlignMacro(),
-    "wait": WaitMacro(),
+    "align": AlignMacro,
+    "wait": WaitMacro,
 }

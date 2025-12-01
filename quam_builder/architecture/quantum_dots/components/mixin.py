@@ -7,6 +7,8 @@ to reduce code duplication across quantum dot components.
 from quam.core.macro import QuamMacro
 from typing import Dict, TYPE_CHECKING, Optional, List, Any
 from dataclasses import field
+from copy import deepcopy
+
 from quam_builder.architecture.quantum_dots.macros import SequenceMacro, StepPointMacro, RampPointMacro, ConditionalMacro
 from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
 from quam.core import quam_dataclass, QuamComponent
@@ -79,7 +81,8 @@ class VoltagePointMacroMixin(QuantumComponent):
         # Add default macros if not already present
         for macro_name, macro_instance in DEFAULT_MACROS.items():
             if macro_name not in self.macros:
-                self.macros[macro_name] = macro_instance
+                # Use a fresh copy per component to avoid sharing parent links
+                self.macros[macro_name] = macro_instance()
 
         # Attach parents for any pre-populated entries
         for macro in self.macros.values():
