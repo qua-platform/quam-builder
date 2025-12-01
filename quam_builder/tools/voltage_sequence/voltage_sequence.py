@@ -93,6 +93,7 @@ class VoltageSequence:
       virtual gates from the resulting physical voltages. To preserve a prior
       virtual configuration, include all relevant virtual gates (and their
       values) in each call, or operate directly on physical gates.
+    - the keep_levels argument can be used to modify this behavior
     """
 
     def __init__(
@@ -100,16 +101,29 @@ class VoltageSequence:
         gate_set: GateSet,
         track_integrated_voltage: bool = True,
         keep_levels: bool = True,
+        enforce_qua_calcs: bool = False,
     ):
         """
         Initializes the VoltageSequence.
 
         Args:
             gate_set: The GateSet instance this sequence will operate on.
+            track_integrated_voltage: Whether to track integrated voltage
+            or only current level. Defaults to True
+            keep_levels: without keep_levels, the default behaviour for resolving voltages
+            will be that any unspecified voltages will be treated as 0,
+            with keep_levels, unspecified voltages instead use the latest value
+            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
+            track the current level for certain programs, defaults to False.
+
         """
         self.gate_set: GateSet = gate_set
         self.state_trackers: Dict[str, SequenceStateTracker] = {
-            ch_name: SequenceStateTracker(ch_name)
+            ch_name: SequenceStateTracker(
+                ch_name,
+                track_integrated_voltage=track_integrated_voltage,
+                enforce_qua_calcs=enforce_qua_calcs,
+            )
             for ch_name in self.gate_set.channels.keys()
         }
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
@@ -118,6 +132,24 @@ class VoltageSequence:
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
+        
+        self.attenuation_qua_variables = {
+            ch_name: (
+                declare(
+                    fixed,
+                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
+                )
+                if hasattr(ch, "attenuation")
+                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+            )
+            for (ch_name, ch) in self.gate_set.channels.items()
+        }
+        if self.gate_set.adjust_for_attenuation:
+            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
+                ch_name: declare(fixed)
+                for ch_name in self.gate_set.channels.keys()
+            }
+
 
         self.attenuation_qua_variables = {
             ch_name: (
@@ -591,8 +623,6 @@ class VoltageSequence:
         return_to_zero: bool = True,
     ):
         """
-        To be included in future release: Use with caution
-
         Apply compensation pulse to each channel to counteract integrated voltage drift.
 
         When integrated voltage tracking is enabled, this method calculates and applies

@@ -99,7 +99,7 @@ class GateSet(QuantumComponent):
     channels: Dict[str, SingleChannel]
     adjust_for_attenuation: bool = False
 
-    def __post_init__(self): 
+    def __post_init__(self):
         for ch in self.channels.values():
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
@@ -213,7 +213,12 @@ class GateSet(QuantumComponent):
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
-    def new_sequence(self, track_integrated_voltage: bool = False) -> "VoltageSequence":
+    def new_sequence(
+        self,
+        track_integrated_voltage: bool = False,
+        keep_levels: bool = True,
+        enforce_qua_calcs: bool = False,
+    ) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
 
@@ -221,6 +226,11 @@ class GateSet(QuantumComponent):
             track_integrated_voltage: Whether to track integrated voltage.
                 If False, the sequence will not track integrated voltage, and
                 apply_compensation_pulse will not be available.
+            keep_levels: without keep_levels, the default behaviour for resolving voltages
+                will be that any unspecified voltages will be treated as 0,
+                with keep_levels, unspecified voltages instead use the latest value
+            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
+                track the current level for certain programs, defaults to False.
 
         Returns:
             VoltageSequence: A new voltage sequence instance configured with this GateSet
@@ -230,4 +240,7 @@ class GateSet(QuantumComponent):
         from quam_builder.tools.voltage_sequence import (
             VoltageSequence,
         )
-        return VoltageSequence(self, track_integrated_voltage)
+
+        return VoltageSequence(
+            self, track_integrated_voltage, keep_levels, enforce_qua_calcs
+        )
