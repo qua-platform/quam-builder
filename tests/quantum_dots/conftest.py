@@ -110,16 +110,16 @@ def machine():
 
     # Register Qubits
     machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_1", qubit_name="Q1"
+        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_1", id="Q1"
     )
     machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_2", qubit_name="Q2"
+        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_2", id="Q2"
     )
     machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_3", qubit_name="Q3"
+        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_3", id="Q3"
     )
     machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_4", qubit_name="Q4"
+        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_4", id="Q4"
     )
 
     # Register Quantum Dot Pairs
@@ -148,14 +148,14 @@ def machine():
     machine.register_qubit_pair(
         id="Q1_Q2",
         qubit_type="loss_divincenzo",
-        qubit_control_name="Q1",
-        qubit_target_name="Q2",
+        qubit_control_id="Q1",
+        qubit_target_id="Q2",
     )
     machine.register_qubit_pair(
         id="Q3_Q4",
         qubit_type="loss_divincenzo",
-        qubit_control_name="Q3",
-        qubit_target_name="Q4",
+        qubit_control_id="Q3",
+        qubit_target_id="Q4",
     )
 
     return machine
