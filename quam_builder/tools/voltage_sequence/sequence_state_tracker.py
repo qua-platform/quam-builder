@@ -66,7 +66,12 @@ class SequenceStateTracker:
     variables are used.
     """
 
-    def __init__(self, element_name: str, track_integrated_voltage: bool = True):
+    def __init__(
+        self,
+        element_name: str,
+        track_integrated_voltage: bool = True,
+        enforce_qua_calcs: bool = False,
+    ):
         """
         Initializes the SequenceStateTracker for a given element name.
 
@@ -76,6 +81,8 @@ class SequenceStateTracker:
         Args:
             element_name: The unique string name for the gate element to be tracked.
                 Used for debugging purposes.
+            track_integrated_voltage: Whether to track integrated voltage or only current level. Defaults to True
+            enforce_qua_calcs: Enforcing qua calcs can be required to correctly track the current level for certain programs, defaults to False.
 
         Raises:
             ValueError: If `element_name` is empty or not a string.
@@ -86,6 +93,10 @@ class SequenceStateTracker:
         self._element_name: str = element_name
         # Initialize state variables directly for the single element
         self._current_level_internal: Scalar[float] = 0.0
+        if enforce_qua_calcs:
+            self._current_level_internal = declare(
+                fixed, value=self._current_level_internal
+            )
         # Whether to track integrated voltage
         self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
