@@ -119,6 +119,28 @@ machine.register_channel_elements(
     sensor_channels_resonators = [(s1, resonator)], 
 )
 
+##################################################################
+###### Connect the physical channels to the external source ######
+##################################################################
+
+qdac_connect = True
+if qdac_connect: 
+    qdac_ip = "172.16.33.101"
+    from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+    qdac = QDAC2.QDac2('QDAC', visalib='@py', address=f'TCPIP::{qdac_ip}::5025::SOCKET')
+    external_voltage_mapping = {
+        machine.quantum_dots["virtual_dot_1"].physical_channel: qdac.ch01.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_2"].physical_channel: qdac.ch02.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_3"].physical_channel: qdac.ch03.dc_constant_V, 
+        machine.quantum_dots["virtual_dot_4"].physical_channel: qdac.ch04.dc_constant_V, 
+        machine.barrier_gates["virtual_barrier_1"].physical_channel: qdac.ch05.dc_constant_V, 
+        machine.barrier_gates["virtual_barrier_2"].physical_channel: qdac.ch06.dc_constant_V,
+        machine.barrier_gates["virtual_barrier_3"].physical_channel: qdac.ch07.dc_constant_V, 
+        machine.sensor_dots["virtual_sensor_1"].physical_channel: qdac.ch08.dc_constant_V
+    }
+    machine.connect_to_external_source(external_voltage_mapping)
+
+
 #############################
 ###### Register Qubits ######
 #############################

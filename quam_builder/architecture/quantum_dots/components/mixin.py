@@ -180,7 +180,7 @@ class VoltagePointMacroMixin:
         self._validate_component_id_in_gate_set(component_id)
 
         # Allow subclasses to track current voltage if needed
-        if hasattr(self, "_update_current_voltage"):
+        if hasattr(self, "_update_current_voltage") and isinstance(voltage, (int, float)):
             self._update_current_voltage(voltage)
         return {component_id: voltage}
 

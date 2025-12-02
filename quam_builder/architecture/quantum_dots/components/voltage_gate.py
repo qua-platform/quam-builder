@@ -1,3 +1,5 @@
+from typing import Optional
+
 from quam.components import SingleChannel
 from quam.core import quam_dataclass
 
@@ -31,6 +33,8 @@ class VoltageGate(SingleChannel):
     """
 
     attenuation: float = 0.0
+    # current_external_voltage, an attribute to help with serialising the experimental state
+    current_external_voltage: Optional[float] = None
 
     def __post_init__(self):
         self._offset_parameter = None
@@ -46,3 +50,4 @@ class VoltageGate(SingleChannel):
     @offset_parameter.setter
     def offset_parameter(self, value):
         self._offset_parameter = value
+        self.current_external_voltage = self.offset_parameter()
