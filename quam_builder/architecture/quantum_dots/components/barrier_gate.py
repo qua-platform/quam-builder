@@ -1,6 +1,6 @@
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
@@ -12,13 +12,17 @@ __all__ = ["BarrierGate"]
 
 
 @quam_dataclass
-class BarrierGate(QuamComponent, VoltagePointMacroMixin):
+class BarrierGate(VoltagePointMacroMixin):
     """
     A class for a BarrierGate channel
     """
     id: str
     physical_channel: VoltageGate
     current_voltage: float = 0.0
+
+    @property
+    def name(self) -> str:
+        return self.id
 
     @property
     def machine(self) -> "BaseQuamQD":

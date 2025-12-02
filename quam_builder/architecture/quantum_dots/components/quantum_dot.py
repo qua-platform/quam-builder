@@ -1,5 +1,4 @@
-import numpy as np
-from typing import Dict, Union, Tuple, Optional, List, Sequence, TYPE_CHECKING
+from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
@@ -10,12 +9,7 @@ from quam.utils.qua_types import (
     ScalarInt,
     ScalarFloat,
     ScalarBool,
-    QuaScalarInt,
-    QuaVariableInt,
-    QuaVariableFloat,
 )
-
-from qm import QuantumMachine
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
@@ -26,7 +20,7 @@ __all__ = ["QuantumDot"]
 
 
 @quam_dataclass
-class QuantumDot(QuamComponent, VoltagePointMacroMixin):
+class QuantumDot(VoltagePointMacroMixin):
     """
     Quam component for a single Quantum Dot
     Attributes: 
