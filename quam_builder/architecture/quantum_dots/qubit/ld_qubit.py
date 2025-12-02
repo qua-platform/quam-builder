@@ -77,7 +77,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         #         f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
         #         f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
         #     )
-        self.gate_id = self.quantum_dot.id
 
     @property
     def physical_channel(self) -> Channel: 

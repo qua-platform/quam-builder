@@ -45,7 +45,6 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
     def __post_init__(self):
         if self.id is None:
             self.id = f"{self.qubit_control.id}_{self.qubit_target.id}"
-        self.gate_id = self.quantum_dot_pair.gate_id
 
     @property
     def detuning_axis_name(self): 

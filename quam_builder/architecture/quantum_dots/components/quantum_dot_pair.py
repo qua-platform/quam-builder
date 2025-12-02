@@ -55,7 +55,6 @@ class QuantumDotPair(VoltagePointMacroMixin):
         if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence: 
             raise ValueError("Quantum Dots not part of same VoltageSequence")
 
-        self.gate_id = self.barrier_gate.id
         self.detuning_axis_name = f"{self.id}_epsilon"
 
     @property
