@@ -149,7 +149,8 @@ class VoltageSequence:
             self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
                 ch_name: declare(fixed)
                 for ch_name in self.gate_set.channels.keys()
-            }        self._batched_voltages = None
+            }        
+        self._batched_voltages = None
 
     @contextmanager
     def simultaneous(self, duration: int = 16, ramp_duration: int = None):
