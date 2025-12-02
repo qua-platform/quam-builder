@@ -7,7 +7,7 @@ from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -56,6 +56,10 @@ class QuantumDotPair(QuamComponent, VoltagePointMacroMixin):
             raise ValueError("Quantum Dots not part of same VoltageSequence")
         
         self.detuning_axis_name = f"{self.id}_epsilon"
+
+    @@property
+    def physical_channel(self) -> VoltageGate:
+        return self.barrier_gate.physical_channel
 
     @property
     def voltage_sequence(self) -> VoltageSequence: 

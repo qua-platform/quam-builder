@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 __all__ = ["VoltagePointMacroMixin"]
 
-
 @quam_dataclass
 class VoltagePointMacroMixin:
     """
