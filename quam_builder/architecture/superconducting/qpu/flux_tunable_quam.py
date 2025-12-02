@@ -3,6 +3,7 @@ from dataclasses import field
 from typing import Dict, Union, ClassVar, Type
 
 from quam.core import quam_dataclass
+from qm.qua import update_frequency
 
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
@@ -29,7 +30,7 @@ class FluxTunableQuam(BaseQuam):
         apply_all_flux_to_min: Apply the offsets that bring all the active qubits to the minimum frequency point.
         apply_all_flux_to_zero: Apply the offsets that bring all the active qubits to the zero bias point.
         set_all_fluxes: Set the fluxes to the specified point for the target qubit or qubit pair.
-        initialize_qpu: Initialize the QPU with the specified flux point and target.
+        initialize_qpu: Initialize the QPU with the calibrated TWPA pumping points and with the specified flux point and target .
     """
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
@@ -123,19 +124,24 @@ class FluxTunableQuam(BaseQuam):
         target.align()
         return target_bias
 
-    def initialize_twpas(self):
-        """Initialize the TWPA components."""
-        for twpa in self.twpas.values():
-            twpa.with_initialization()
-
+ 
     def initialize_qpu(self, **kwargs):
-        """Initialize the QPU with the specified flux point and target.
+        """Initialize the QPU with the calibrated TWPA pumping points and
+           with the specified flux point and target
 
         Args:
             flux_point (str): The flux point to set. Default is 'joint'.
             target: The qubit under study.
         """
+        for twpa in self.twpas.values():
+            twpa.initialize() 
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
-        self.initialize_twpas()
+
+    
+        
+
+        
+
+        

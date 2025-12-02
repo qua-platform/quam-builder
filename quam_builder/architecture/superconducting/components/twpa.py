@@ -2,9 +2,8 @@ from quam.core import quam_dataclass
 from quam.components.channels import IQChannel
 from quam import QuamComponent
 from typing import Union, ClassVar
-from qm.qua import align, wait
+from qm.qua import align, wait, update_frequency
 import numpy as np
-from qm.qua import update_frequency
 
 __all__ = ["TWPA"]
 
@@ -20,6 +19,24 @@ class TWPA(QuamComponent):
         pump (IQChannel): The pump component(sticky element) used for continuous output. 
         pump_ (IQChannel): The pump component(non sticky element)used for TWPA calibration
         spectroscopy (IQChannel): Probe tone used for calibrating the saturation power of the TWPA
+
+        max_avg_gain (float): The maximum average gain around the readout resonators related to the TWPA
+        max_avg_snr_improvement (float): The maximum average SNR improvement around the readout resonators related to the TWPA
+        pump_frequency (float): calibrated pump frequency at which twpa gives the maximum average snr improvement (calibrated at node 00a_twpa_calibration)
+        pump_amplitude (float): calibrated pump amplitude at which twpa gives the maximum average snr improvement (calibrated at node 00a_twpa_calibration)
+        mltpx_pump_frequency (float): calibrated pump frequency at which twpa gives proper snr improvement for multiplexed readout(calibrated at node 00a1_twpa_calibration_MTPLX_RO)
+        mltpx_pump_amplitude (float): calibrated pump amplitude at which twpa gives proper snr improvement for multiplexed readout(calibrated at node 00a1_twpa_calibration_MTPLX_RO)
+        p_saturation (float): calibrated saturation power of the twpa (calibrated at node 00b_twpa_saturation)
+        avg_std_gain (float): standard deviation of the average gain around the readout resonators related to the TWPA(calibrated at node 00d_twpa_fluctuation_overnight)
+        avg_std_snr_improvement (float): standard deviation of the average snr improvement around the readout resonators related to the TWPA(calibrated at node 00d_twpa_fluctuation_overnight)
+        
+        dispersive_feature (float): dispersive feature of the twpa defined from it's designed parameters
+        qubits (list): list of qubits of which the signals are amplified by the twpa
+       
+        initialization (bool): whether to use the twpa in the QUA program or not
+        _initialized_ids (ClassVar[set]): A class-level set to track initialized twpa object IDs externally.
+            This won't be serialized since it's not an instance attribute.
+
     """
 
     id: Union[int, str]
@@ -41,42 +58,23 @@ class TWPA(QuamComponent):
     dispersive_feature: float = None
     qubits: list = None
     
-    with_initialization: bool = True
-    
-    # Class-level set to track initialized object IDs externally
-    # This won't be serialized since it's not an instance attribute
+    initialization: bool = True
     _initialized_ids: ClassVar[set] = set()
     
-    def get_output_power(self, operation, Z=50) -> float:
-        power = self.xy.opx_output.full_scale_power_dbm
-        amplitude = self.xy.operations[operation].amplitude
-        x_mw = 10 ** (power / 10)                       #Pmw
-        x_v = amplitude * np.sqrt(2 * Z * x_mw / 1000) # Vp
-        return 10 * np.log10(((x_v / np.sqrt(2)) ** 2 * 1000) / Z) # Pdbm
 
-    
     @property
     def name(self):
-        """The name of the transmon"""
-        return self.id if isinstance(self.id, str) else f"q{self.id}"
+        """The name of the twpa"""
+        return self.id if isinstance(self.id, str) else f"twpa{self.id}"
 
-   
-    def align(self, other = None):
-        channels = [self.xy.name, self.resonator.name, self.z.name]
 
-        if other is not None:
-            channels += [other.xy.name, other.resonator.name, other.z.name]
-
-        align(*channels)
-
-    def wait(self, duration):
-        wait(duration, self.xy.name, self.z.name, self.resonator.name)
 
     def initialize(self):
-        if not self.with_initialization:
-            return
-        
+        # dont use twpa for the QUA program if initialization is set to False
+        if not self.initialization:
+            return        
         # Check initialization state using object ID (memory address)
+        # Initialize TWPA pump only when it hasn't been initialized yet        
         # This won't be serialized since it's stored in a class-level set
         obj_id = id(self)
         if obj_id in self._initialized_ids:
@@ -90,6 +88,7 @@ class TWPA(QuamComponent):
         )
         self.pump.play("pump", amplitude_scale=p_p)
         # Store object ID externally (won't be serialized)
+        # guarantee initializing twpa pump only once per QUA program execution
         self._initialized_ids.add(obj_id)
        
 
