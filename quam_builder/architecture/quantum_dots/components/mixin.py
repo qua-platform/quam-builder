@@ -16,6 +16,11 @@ from quam.components import QuantumComponent
 
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
 
+from typing import Dict, TYPE_CHECKING
+from dataclasses import field
+
+from quam.core import quam_dataclass
+
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

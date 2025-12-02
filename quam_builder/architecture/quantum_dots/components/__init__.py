@@ -2,6 +2,7 @@ from .voltage_gate import *
 from .barrier_gate import *
 from .virtual_gate_set import *
 from .gate_set import *
+from .mixin import *
 
 from .quantum_dot import *
 from .readout_resonator import *

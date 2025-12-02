@@ -1,7 +1,8 @@
 from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
-from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePointMacroMixin
+from quam.core import quam_dataclass, QuamComponent
+from quam.components import Channel
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam.utils.qua_types import (
     ChirpType,
     StreamType,

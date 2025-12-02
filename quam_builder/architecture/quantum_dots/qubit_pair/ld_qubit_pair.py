@@ -6,7 +6,7 @@ from quam.components import QubitPair
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
-from quam_builder.architecture.quantum_dots.macros.point_macros import (
+from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
@@ -44,7 +44,11 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     def __post_init__(self):
         if self.id is None:
-            self.id = f"{self.qubit_control.id}_{self.qubit_target.id}"
+            self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
+
+    @property
+    def physical_channel(self) -> VoltageGate:
+        return self.quantum_dot_pair.physical_channel
 
     @property
     def detuning_axis_name(self): 

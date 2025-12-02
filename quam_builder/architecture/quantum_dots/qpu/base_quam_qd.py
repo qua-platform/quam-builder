@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple
+from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callable
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
@@ -140,6 +140,61 @@ class BaseQuamQD(QuamRoot):
             self.voltage_sequences[gate_set_id] = seq
         return self.voltage_sequences[gate_set_id]
 
+    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+        """
+        Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
+        
+        Args: 
+            name: The name of the object
+        """
+        collections = [
+            self.qubits, 
+            self.quantum_dots, 
+            self.sensor_dots, 
+            self.barrier_gates, 
+            self.quantum_dot_pairs, 
+            self.qubit_pairs
+        ]
+        for collection in collections: 
+            if name in collection: 
+                return collection[name]
+    
+        raise ValueError(f"Element {name} not found in Quam")
+    
+    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable], reset_voltages: bool = False) -> None: 
+        """
+        Binds the channels to the correct external voltage source functions. 
+
+        Args: 
+            channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
+            Example for a QDAC:
+                    >>> 
+                    >>> channel_source_mapping = {}
+                    ...     channel_object_1: qdac.ch01.dc_constant_V, 
+                    ...     channel_object_2: qdac.ch02.dc_constant_V
+                    ...     }
+                    >>> 
+
+        """
+        for channel, fn in channel_source_mapping.items(): 
+
+            # Ensure that the channel actually exists in the Quam.
+            chan = None
+            for ch in self.physical_channels.values(): 
+                if ch is channel: 
+                    chan = ch
+                    break
+
+            if chan is None: 
+                raise ValueError(f"Channel {channel.id} not found in Quam")
+            
+            chan.offset_parameter = fn
+            
+            if reset_voltages: 
+                if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
+                    chan.offset_parameter(chan.current_external_voltage)
+
+
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
@@ -177,6 +232,27 @@ class BaseQuamQD(QuamRoot):
             vgs.layers[0].target_gates.index(physical_name)
         ]
         return virtual_name
+    
+    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+        """
+        Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
+        
+        Args: 
+            name: The name of the object
+        """
+        collections = [
+            self.qubits, 
+            self.quantum_dots, 
+            self.sensor_dots, 
+            self.barrier_gates, 
+            self.quantum_dot_pairs, 
+            self.qubit_pairs
+        ]
+        for collection in collections: 
+            if name in collection: 
+                return collection[name]
+
+        raise ValueError(f"Element {name} not found in Quam")
 
     def reset_voltage_sequence(self, gate_set_id) -> None:
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
@@ -667,6 +743,12 @@ class BaseQuamQD(QuamRoot):
         pass
 
     def to_dict(self, follow_references=False, include_defaults=False):
+        # Ensure that all the current_external_voltage values in VoltageGates are synchronised to the actual value, right before serialisation. This
+        # ensures that the right value is saved. 
+        for ch in self.physical_channels.values():
+            if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None: 
+                ch.current_external_voltage = float(ch.offset_parameter())
+
         d = super().to_dict(
             follow_references=follow_references, include_defaults=include_defaults
         )
