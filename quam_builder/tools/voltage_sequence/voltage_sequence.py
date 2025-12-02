@@ -14,6 +14,7 @@ from qm.qua import (
     else_,
     align,
 )
+from qm.qua._scope_management.scopes_manager import scopes_manager
 from qm.qua.type_hints import (
     QuaVariable,
     QuaScalarExpression,
@@ -133,24 +134,35 @@ class VoltageSequence:
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
-        
-        self.attenuation_qua_variables = {
-            ch_name: (
-                declare(
-                    fixed,
-                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
-                )
-                if hasattr(ch, "attenuation")
-                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
-            )
-            for (ch_name, ch) in self.gate_set.channels.items()
-        }
-        if self.gate_set.adjust_for_attenuation:
-            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
-                ch_name: declare(fixed)
-                for ch_name in self.gate_set.channels.keys()
-            }        
+            
         self._batched_voltages = None
+        self._prog_id = None
+
+    def _initialise_qua_vars(self) -> None: 
+        """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
+        current_program_scope = id(scopes_manager.program_scope)
+        if self._prog_id != current_program_scope: 
+            self._prog_id = current_program_scope
+
+            self.attenuation_qua_variables = {
+                ch_name: (
+                    declare(
+                        fixed,
+                        value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
+                    )
+                    if hasattr(ch, "attenuation")
+                    else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+                )
+                for (ch_name, ch) in self.gate_set.channels.items()
+            }
+            if self.gate_set.adjust_for_attenuation:
+                self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
+                    ch_name: declare(fixed)
+                    for ch_name in self.gate_set.channels.keys()
+                }    
+
+        else: 
+            return
 
     @contextmanager
     def simultaneous(self, duration: int = 16, ramp_duration: int = None):
@@ -308,6 +320,8 @@ class VoltageSequence:
         ensure_align: bool = True,
     ):
         """Common logic for step_to_voltages and ramp_to_voltages."""
+
+        self._initialise_qua_vars()
 
         if self._batched_voltages is not None:
             self._batched_voltages.update(target_voltages_dict)
@@ -665,6 +679,8 @@ class VoltageSequence:
             raise ValueError(
                 "apply_compensation_pulse is not supported when integrated voltage is not tracked."
             )
+        self._initialise_qua_vars()
+
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
 
