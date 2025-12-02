@@ -149,25 +149,7 @@ class VoltageSequence:
                 ch_name: declare(fixed)
                 for ch_name in self.gate_set.channels.keys()
             }
-
-
-        self.attenuation_qua_variables = {
-            ch_name: (
-                declare(
-                    fixed,
-                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
-                )
-                if hasattr(ch, "attenuation")
-                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
-            )
-            for (ch_name, ch) in self.gate_set.channels.items()
-        }
-        if self.gate_set.adjust_for_attenuation:
-            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
-                ch_name: declare(fixed)
-                for ch_name in self.gate_set.channels.keys()
-            }
-
+            
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
         # Use a prefix related to the VoltageSequence instance if multiple exist
@@ -674,7 +656,7 @@ class VoltageSequence:
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
             opx_voltage_limit = (
-                0.5 if channel_obj.opx_output.output_mode == "direct" else 2.5
+                2.5 if hasattr(channel_obj.opx_output, "output_mode") and channel_obj.opx_output.output_mode == "amplified" else 0.5
             )
 
             if self.gate_set.adjust_for_attenuation:
