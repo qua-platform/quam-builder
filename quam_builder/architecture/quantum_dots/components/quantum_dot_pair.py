@@ -80,6 +80,10 @@ class QuantumDotPair(VoltageMacroMixin):
 
         self.detuning_axis_name = f"{self.id}_epsilon"
 
+    @@property
+    def physical_channel(self) -> VoltageGate:
+        return self.barrier_gate.physical_channel
+
     @property
     def physical_channel(self) -> VoltageGate:
         return self.barrier_gate.physical_channel

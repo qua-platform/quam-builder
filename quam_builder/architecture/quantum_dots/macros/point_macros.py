@@ -278,7 +278,7 @@ class VoltagePointMacroMixin(QuamBaseComponent):
             Full point name with component prefix
         """
         machine = self.machine
-        gate_set_id = list(machine.virtual_gate_sets.keys())[0]
+        gate_set_id = machine._get_virtual_gate_set(self.physical_channel).id
         full_name = f"{self.id}_{name}"
         machine.add_point(gate_set_id, full_name, voltages, duration or 16)
         return full_name
