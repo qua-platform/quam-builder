@@ -138,7 +138,7 @@ class VoltageSequence:
         self._batched_voltages = None
         self._prog_id = None
 
-    def _initialise_qua_vars(self) -> None: 
+    def _initialise_attenuation_qua_vars(self) -> None: 
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
         current_program_scope = id(scopes_manager.program_scope)
         if self._prog_id != current_program_scope: 
@@ -320,8 +320,8 @@ class VoltageSequence:
         ensure_align: bool = True,
     ):
         """Common logic for step_to_voltages and ramp_to_voltages."""
-
-        self._initialise_qua_vars()
+        if self.gate_set.adjust_for_attenuation:
+            self._initialise_attenuation_qua_vars()
 
         if self._batched_voltages is not None:
             self._batched_voltages.update(target_voltages_dict)
@@ -679,7 +679,8 @@ class VoltageSequence:
             raise ValueError(
                 "apply_compensation_pulse is not supported when integrated voltage is not tracked."
             )
-        self._initialise_qua_vars()
+        if self.gate_set.adjust_for_attenuation:
+            self._initialise_attenuation_qua_vars()
 
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
