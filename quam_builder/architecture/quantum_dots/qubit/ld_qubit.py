@@ -5,7 +5,7 @@ import numpy as np
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger

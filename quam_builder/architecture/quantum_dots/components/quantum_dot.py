@@ -3,7 +3,7 @@ from typing import Dict, Union, Tuple, Optional, List, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam.utils.qua_types import (
     ChirpType,
     StreamType,
