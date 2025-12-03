@@ -10,38 +10,28 @@ class CrossResonanceBase:
     Example QUAM component for a cross resonance gate.
 
     Attributes:
-        target_qubit_LO_frequency (float): the coupler flux bias for which the interaction is off.
-        target_qubit_IF_frequency (float): the coupler flux bias for which the interaction is ON.
-        bell_state_fidelity (float): an arbitrary coupler flux bias.
+        target_qubit_RF_frequency (float): target qubit's frequency.
     """
 
     target_qubit_RF_frequency: float = None
-    bell_state_fidelity: float = None
 
 
 @quam_dataclass
 class CrossResonanceIQ(IQChannel, CrossResonanceBase):
-
     @property
     def upconverter_frequency(self):
         return self.LO_frequency
 
     @property
     def inferred_intermediate_frequency(self):
-        return (
-            self.target_qubit_RF_frequency
-            - self.LO_frequency
-        )
+        return self.target_qubit_RF_frequency - self.LO_frequency
 
 
 @quam_dataclass
 class CrossResonanceMW(MWChannel, CrossResonanceBase):
     @property
     def inferred_intermediate_frequency(self):
-        return (
-            self.target_qubit_RF_frequency
-            - self.LO_frequency
-        )
+        return self.target_qubit_RF_frequency - self.LO_frequency
 
     @property
     def upconverter_frequency(self):
