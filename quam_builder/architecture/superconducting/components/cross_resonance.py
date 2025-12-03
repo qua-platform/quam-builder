@@ -19,6 +19,9 @@ class CrossResonanceBase:
     cancel_amplitude_scaling: float = 0.0
     cancel_phase: float = 0.0
 
+    qc_correction_phase: float = 0.0
+    qt_correction_phase: float = 0.0
+
 
 @quam_dataclass
 class CrossResonanceIQ(IQChannel, CrossResonanceBase):

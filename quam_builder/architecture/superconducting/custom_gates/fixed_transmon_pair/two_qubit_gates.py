@@ -38,12 +38,18 @@ class _QubitPairCrossDriveHelpers:
 
     # ---- Phase shifts (common ZI / IZ corrections) ----
     def _qc_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
-        if phi is not None:
-            self._qc.xy.frame_rotation_2pi(phi)
+        if phi is None:
+            phi = self.cross_resonance.qc_correction_phase
+        else:
+            phi += self.cross_resonance.qc_correction_phase
+        self._qc.xy.frame_rotation_2pi(phi)
 
     def _qt_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
-        if phi is not None:
-            self._qt.xy.frame_rotation_2pi(phi)
+        if phi is None:
+            phi = self.cross_resonance.qt_correction_phase
+        else:
+            phi += self.cross_resonance.qt_correction_phase
+        self._qt.xy.frame_rotation_2pi(phi)
 
     # ---- Low-level play helper (common) ----
     @staticmethod
