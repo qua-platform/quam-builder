@@ -225,7 +225,8 @@ class VirtualGateSet(GateSet):
         for lyr in self.layers:
             existing_source_gates.update(lyr.source_gates)
             existing_target_gates.update(lyr.target_gates)
-            existing_layer_names.update(lyr.id)
+            if lyr.id is not None:
+                existing_layer_names.add(lyr.id)
 
         # Check 1: Each target gate must correspond to a lower layer source gate or
         # physical channel.
