@@ -14,6 +14,10 @@ class CrossResonanceBase:
     """
 
     target_qubit_RF_frequency: float = None
+    drive_amplitude_scaling: float = 1.0
+    drive_phase: float = 0.0
+    cancel_amplitude_scaling: float = 0.0
+    cancel_phase: float = 0.0
 
 
 @quam_dataclass
