@@ -87,6 +87,24 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         qc_correction_phase: Optional[float | qua_T] = None,
         qt_correction_phase: Optional[float | qua_T] = None,
     ) -> None:
+        # Relative to the stored CrossResonance component parameters
+        if cr_drive_amp_scaling is None:
+            cr_drive_amp_scaling = self._cr.drive_amplitude_scaling
+        else:
+            cr_drive_amp_scaling *= self._cr.drive_amplitude_scaling
+        if cr_drive_phase is None:
+            cr_drive_phase = self._cr.drive_phase
+        else:
+            cr_drive_phase += self._cr.drive_phase
+        if cr_cancel_amp_scaling is None:
+            cr_cancel_amp_scaling = self._cr.cancel_amplitude_scaling
+        else:
+            cr_cancel_amp_scaling *= self._cr.cancel_amplitude_scaling
+        if cr_cancel_phase is None:
+            cr_cancel_phase = self._cr.cancel_phase
+        else:
+            cr_cancel_phase += self._cr.cancel_phase
+
         params = self._merge_params(
             dict(
                 qc_correction_phase=self.qc_correction_phase,
