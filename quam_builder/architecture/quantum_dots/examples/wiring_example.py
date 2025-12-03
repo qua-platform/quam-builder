@@ -23,16 +23,16 @@ cluster_name = "Cluster_1"  # Name of the cluster
 # %%                                      Define the available instrument setup
 ########################################################################################################################
 instruments = Instruments()
-instruments.add_mw_fem(controller=1, slots=[1, 2])
-instruments.add_lf_fem(controller=1, slots=[3, 4, 5])
+instruments.add_mw_fem(controller=1, slots=[1])
+instruments.add_lf_fem(controller=1, slots=[2, 3])
 
 ########################################################################################################################
 # %%                                 Define which qubit ids are present in the system
 ########################################################################################################################
 global_gates = [1, 2]
 sensor_dots = [1, 2]
-qubits = [1, 2, 3, 4]
-qubit_pairs = [(1, 2), (2, 3), (3, 4)]
+qubits = [1, 2, 3, 4, ]
+qubit_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
 
 ########################################################################################################################
 # %%                                 Define any custom/hardcoded channel addresses
@@ -46,20 +46,20 @@ qubit_pairs = [(1, 2), (2, 3), (3, 4)]
 ########################################################################################################################
 connectivity = Connectivity()
 # The readout lines
-connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+# connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
 # Option 1
-connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False)
+# connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
 
 # Option 2
-# connectivity.add_sensor_dot_resonator_line(sensor_dots, wiring_frequency=WiringFrequency.DC)
-# connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
+connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=True, wiring_frequency=WiringFrequency.DC)
+connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
 
 # Option 1:
-connectivity.add_qubits(qubits=qubits)
+# connectivity.add_qubits(qubits=qubits)
 # Option 2:
-# connectivity.add_qubit_voltage_gate_lines(qubits)
-# connectivity.add_quantum_dot_qubit_drive_lines(qubits, wiring_frequency=WiringFrequency.DC)
+connectivity.add_qubit_voltage_gate_lines(qubits)
+connectivity.add_quantum_dot_qubit_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
 
 connectivity.add_qubit_pairs(qubit_pairs=qubit_pairs)
 allocate_wiring(connectivity, instruments)
