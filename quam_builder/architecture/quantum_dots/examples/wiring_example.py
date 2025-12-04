@@ -38,8 +38,8 @@ qubit_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
 # %%                                 Define any custom/hardcoded channel addresses
 ########################################################################################################################
 # multiplexed readout for sensor 1 to 2 and 3 to 4 on two feed-lines
-# s1to2_res_ch = mw_fem_spec(con=1, slot=1, in_port=1, out_port=1)
-# s3to4_res_ch = mw_fem_spec(con=1, slot=2, in_port=1, out_port=1)
+s1to2_res_ch = mw_fem_spec(con=1, slot=1, in_port=1, out_port=1)
+s3to4_res_ch = mw_fem_spec(con=1, slot=2, in_port=1, out_port=1)
 
 ########################################################################################################################
 # %%                Allocate the wiring to the connectivity object based on the available instruments
@@ -52,7 +52,7 @@ connectivity = Connectivity()
 # connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
 
 # Option 2
-connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=True, wiring_frequency=WiringFrequency.DC)
+connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
 connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
 
 # Option 1:
@@ -85,15 +85,15 @@ machine = build_quam_wiring(
     cluster_name,
     machine,
 )
-
-machine.generate_config()
-
-# Example: map qubit pairs to specific sensor dots (supports multiple sensors per pair).
-# Pair keys: q1_q2 or q1-2. Sensor ids: virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1).
-qubit_pair_sensor_map = {
-    "q1_q2": ["sensor_1"],
-    "q2_q3": ["sensor_1", "sensor_2"],
-    "q3_q4": ["sensor_2"],
-}
-
-build_quam(machine, qubit_pair_sensor_map=qubit_pair_sensor_map)
+#
+# machine.generate_config()
+#
+# # Example: map qubit pairs to specific sensor dots (supports multiple sensors per pair).
+# # Pair keys: q1_q2 or q1-2. Sensor ids: virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1).
+# qubit_pair_sensor_map = {
+#     "q1_q2": ["sensor_1"],
+#     "q2_q3": ["sensor_1", "sensor_2"],
+#     "q3_q4": ["sensor_2"],
+# }
+#
+# build_quam(machine, qubit_pair_sensor_map=qubit_pair_sensor_map)

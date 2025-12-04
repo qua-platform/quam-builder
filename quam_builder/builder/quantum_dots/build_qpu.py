@@ -1,3 +1,13 @@
+"""QPU builder for quantum dot systems.
+
+This module provides the core QPU building functionality for quantum dot systems,
+including:
+- Collection and organization of physical channels (gates, resonators)
+- Virtual gate mapping and registration
+- Qubit and qubit pair registration
+- Sensor dot association with qubit pairs
+"""
+
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
@@ -35,9 +45,33 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class QpuAssembly:
-    """Holds intermediate channel objects and wiring lookups during QPU build."""
+    """Container for intermediate QPU components during build process.
+
+    Stores physical channels, resonators, and mappings between physical and virtual
+    elements as they are collected from wiring specifications.
+
+    Attributes:
+        global_gates: Global voltage gates affecting all quantum dots.
+        plunger_channels: Plunger gate channels for individual quantum dots.
+        barrier_channels: Barrier gate channels for coupling between dots.
+        sensor_channels: Sensor gate channels for charge sensing.
+        resonators: Readout resonators associated with sensor dots.
+        barrier_counter: Counter for generating unique barrier gate IDs.
+        plunger_id_to_channel: Map from plunger IDs to channel objects.
+        barrier_id_to_channel: Map from barrier IDs to channel objects.
+        sensor_id_to_channel: Map from sensor IDs to gate channel objects.
+        sensor_id_to_resonator: Map from sensor IDs to resonator objects.
+        qubit_id_to_xy_info: Map from qubit IDs to XY drive configuration.
+        qubit_pair_id_to_barrier_id: Map from qubit pair IDs to barrier gate IDs.
+        plunger_virtual_names: Map from physical plunger IDs to virtual names.
+        barrier_virtual_names: Map from physical barrier IDs to virtual names.
+        sensor_virtual_names: Map from physical sensor IDs to virtual names.
+        global_virtual_names: Map from physical global gate IDs to virtual names.
+        gate_set_id: Identifier for the virtual gate set.
+    """
 
     global_gates: List[VoltageGate] = field(default_factory=list)
     plunger_channels: List[VoltageGate] = field(default_factory=list)
@@ -61,13 +95,29 @@ class QpuAssembly:
 
 
 class _QpuBuilder:
-    """Handles wiring-to-component translation and QPU registration."""
+    """Orchestrates QPU construction from wiring specifications.
+
+    Translates wiring specifications into physical components, creates virtual gate
+    mappings, and registers qubits and qubit pairs with the machine.
+
+    Attributes:
+        machine: The QuAM machine being configured.
+        assembly: Container for intermediate build state and components.
+    """
 
     def __init__(
         self,
         machine: AnyQuam,
         qubit_pair_sensor_map: Optional[Mapping[str, Sequence[str]]] = None,
-    ):
+    ) -> None:
+        """Initialize the QPU builder.
+
+        Args:
+            machine: QuAM machine instance to populate with QPU components.
+            qubit_pair_sensor_map: Optional mapping from qubit pair IDs to sensor
+                dot lists. If provided, restricts which sensors are associated with
+                each pair. If None, all sensors are associated with all pairs.
+        """
         self.machine = machine
         self.assembly = QpuAssembly()
         self._wiring_by_type: Dict[str, Mapping[str, Any]] = {}
@@ -75,6 +125,19 @@ class _QpuBuilder:
         self._normalized_pair_sensor_map: Dict[str, Sequence[str]] = {}
 
     def build(self) -> AnyQuam:
+        """Execute the full QPU build process.
+
+        Performs the following steps in order:
+        1. Normalize wiring and sensor map specifications
+        2. Collect physical channels from wiring
+        3. Create virtual gate set and mappings
+        4. Register channels with machine
+        5. Register qubits with machine
+        6. Register qubit pairs with machine
+
+        Returns:
+            The configured QuAM machine with registered QPU elements.
+        """
         self.assembly = QpuAssembly()
         self.machine.active_global_gate_names = []
         self.machine.active_sensor_dot_names = []
