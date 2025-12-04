@@ -68,6 +68,17 @@ def idle(component: VoltagePointMacroMixin, **kwargs):
 
 
 @operations_registry.register_operation
+def X90(component: LDQubit, **kwargs):
+    pass #
+
+operations_registry = OperationsRegistry()
+@operations_registry.register_operation
+# The function name below becomes the gate-level call (e.g., X(q1)).
+def X(qubit: LDQubit, **kwargs):
+    # Implementation is resolved by the macros attached to the qubit.
+    pass
+
+@operations_registry.register_operation
 def load(component: VoltagePointMacroMixin, **kwargs):
     """
     Move component to load voltage point.

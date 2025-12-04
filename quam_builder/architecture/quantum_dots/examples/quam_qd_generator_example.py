@@ -34,8 +34,10 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
+    MWFEMAnalogOutputPort
 )
 
+from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ, XYDrive
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
@@ -154,7 +156,9 @@ for i in range(plunger_gates):
     machine.register_qubit(
         qubit_type="loss_divincenzo",
         quantum_dot_id=f"virtual_dot_{i}",
-        qubit_name=f"Q{i}",
+        id=f"Q{i}",
+        xy_channel=XYDrive(id = f"Q{i}_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 5, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=10e6)
+
     )
 
 ########################################
@@ -181,8 +185,8 @@ for i in range(barrier_gates):
     machine.register_qubit_pair(
         id=qubit_id,
         qubit_type="loss_divincenzo",
-        qubit_control_name=f"Q{i}",
-        qubit_target_name=f"Q{i+1}",
+        qubit_control_id=f"Q{i}",
+        qubit_target_id=f"Q{i+1}",
     )
 
 config = machine.generate_config()

@@ -6,6 +6,9 @@ from quam.components import QubitPair
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
+from quam_builder.architecture.quantum_dots.components import (
+    VoltageGate
+)
 from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
 )

@@ -8,6 +8,7 @@ from quam_builder.architecture.quantum_dots.components.quantum_dot import Quantu
 from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
 from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -57,7 +58,7 @@ class QuantumDotPair(VoltagePointMacroMixin):
 
         self.detuning_axis_name = f"{self.id}_epsilon"
 
-    @@property
+    @property
     def physical_channel(self) -> VoltageGate:
         return self.barrier_gate.physical_channel
 

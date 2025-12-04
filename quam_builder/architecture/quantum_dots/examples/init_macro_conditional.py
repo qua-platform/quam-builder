@@ -259,25 +259,25 @@ if __name__ == "__main__":
     # Connect to Quantum Machines and Execute
     # -----------------------------------------------------------------------
 
-    # Connect to the OPX controller
-    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
-    qm = qmm.open_qm(config)
-
-    # Clear previous job results
-    qmm.clear_all_job_results()
-
-    # Run simulation (800 clock cycles = 3200ns with 4ns clock period)
-    simulation_config = SimulationConfig(duration=800)
-    job = qmm.simulate(config, prog, simulation_config)
-
-    # Plot simulated waveforms
-    job.get_simulated_samples().con1.plot()
-    plt.show()
-
-    # Retrieve and print results
-    res = job.result_handles
-    out = res.fetch_results()
-    print(f'Results: {out}')
+    # # Connect to the OPX controller
+    # qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
+    # qm = qmm.open_qm(config)
+    #
+    # # Clear previous job results
+    # qmm.clear_all_job_results()
+    #
+    # # Run simulation (800 clock cycles = 3200ns with 4ns clock period)
+    # simulation_config = SimulationConfig(duration=800)
+    # job = qmm.simulate(config, prog, simulation_config)
+    #
+    # # Plot simulated waveforms
+    # job.get_simulated_samples().con1.plot()
+    # plt.show()
+    #
+    # # Retrieve and print results
+    # res = job.result_handles
+    # out = res.fetch_results()
+    # print(f'Results: {out}')
 
     # -----------------------------------------------------------------------
     # Hardware Execution (commented out - uncomment to run on real hardware)
