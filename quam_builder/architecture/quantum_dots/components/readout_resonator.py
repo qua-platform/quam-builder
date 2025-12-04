@@ -48,7 +48,7 @@ class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
 
     def __post_init__(self): 
         if hasattr(self.opx_output, "upsampling_mode"): 
-            self.opx_output.upsampling_mode = "pulse"
+            self.opx_output.upsampling_mode = "mw"
 
     def set_output_power(
         self,
@@ -68,7 +68,7 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
 
     def __post_init__(self): 
         if hasattr(self.opx_output, "upsampling_mode"): 
-            self.opx_output.upsampling_mode = "pulse"
+            self.opx_output.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):
