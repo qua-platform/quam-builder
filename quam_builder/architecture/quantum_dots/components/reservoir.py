@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components import VoltagePointMacroMixin, QuantumDot
 
@@ -27,5 +28,20 @@ class ReservoirBase(VoltagePointMacroMixin):
     def name(self) -> str:
         return self.id
 
+
+@quam_dataclass
+class Source(ReservoirBase): 
+    """
+    Source contact for Quantum Dot devices
+    """
+    physical_channel: VoltageGate = None
+
+    
+@quam_dataclass
+class Drain(ReservoirBase): 
+    """
+    Drain contact for Quantum Dot devices
+    """
+    current_readout_channel = None
 
 
