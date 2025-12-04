@@ -84,10 +84,10 @@ class VoltagePointMacroMixin(QuantumComponent):
             self.macros = {}
 
         # Add default macros if not already present
-        for macro_name, macro_instance in DEFAULT_MACROS.items():
+        for macro_name, macro_class in DEFAULT_MACROS.items():
             if macro_name not in self.macros:
                 # Use a fresh copy per component to avoid sharing parent links
-                self.macros[macro_name] = macro_instance()
+                self.macros[macro_name] = macro_class()
 
         # Attach parents for any pre-populated entries
         for macro in self.macros.values():
