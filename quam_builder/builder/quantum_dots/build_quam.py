@@ -1,3 +1,14 @@
+"""High-level QuAM configuration builder for quantum dot systems.
+
+This module provides the main entry point for building complete QuAM configurations
+from wiring specifications. It orchestrates:
+- Octave frequency converter initialization
+- External mixer configuration
+- Port registration
+- QPU element creation (gates, qubits, qubit pairs)
+- Default pulse assignment
+"""
+
 from pathlib import Path
 from typing import Optional, Union
 
@@ -34,20 +45,52 @@ def build_quam(
     qubit_pair_sensor_map: Optional[dict] = None,
     save: bool = True,
 ) -> AnyQuam:
-    """High-level builder that wires instruments, registers QPU elements, and applies defaults.
+    """Build complete QuAM configuration from wiring specifications.
 
-    The workflow mirrors ``wiring_lffem_mwfem.py``: build wiring, load the machine, then
-    call this function to attach hardware abstractions. Saving can be skipped when the
-    caller wants to inspect the machine before persisting.
+    This is the main entry point for configuring quantum dot systems. It processes
+    wiring specifications and configures all necessary components including Octaves,
+    mixers, ports, quantum gates, qubits, qubit pairs, and default pulses.
+
+    The build process executes these steps:
+    1. Initialize Octave frequency converters from wiring
+    2. Configure external mixers
+    3. Register all I/O ports
+    4. Build QPU elements (global gates, qubits, qubit pairs, sensors)
+    5. Add default pulse configurations
 
     Args:
-        machine: The QuAM to be built.
-        calibration_db_path: Path to the Octave calibration database. Defaults to the
-            machine's state directory when omitted.
-        save: Whether to persist the machine state at the end of the build.
+        machine: QuAM instance with wiring specifications already defined.
+        calibration_db_path: Path to Octave calibration database. If None, uses
+            the machine's state directory.
+        qubit_pair_sensor_map: Optional mapping to specify which sensor dots are
+            used for each qubit pair. Format: {"q1_q2": ["s1", "s2"]}. If None,
+            all sensors are associated with all qubit pairs.
+        save: If True, saves the machine state after building. Set to False to
+            inspect the configuration before persisting.
 
     Returns:
-        AnyQuam: The built QuAM.
+        The fully configured QuAM instance.
+
+    Example:
+        >>> from quam_builder.builder.quantum_dots import build_quam
+        >>> # Load a machine with wiring already defined
+        >>> machine = AnyQuam.load("state.json")
+        >>> # Build the complete configuration
+        >>> configured_machine = build_quam(machine)
+        >>> # Access configured qubits
+        >>> print(machine.qubits.keys())  # ['q1', 'q2', ...]
+
+    Example with sensor mapping:
+        >>> # Specify which sensors to use for each qubit pair
+        >>> sensor_map = {
+        ...     "q1_q2": ["s1", "s2"],  # Pair q1-q2 uses sensors s1 and s2
+        ...     "q2_q3": ["s2", "s3"],  # Pair q2-q3 uses sensors s2 and s3
+        ... }
+        >>> machine = build_quam(machine, qubit_pair_sensor_map=sensor_map)
+
+    Note:
+        The machine must have its wiring specifications defined before calling
+        this function. Use the wiring builder tools to create wiring configurations.
     """
     builder = _OrchestratedQuamBuilder(
         machine,
@@ -67,37 +110,57 @@ def build_quam(
 
 
 class _OrchestratedQuamBuilder:
-    """Coordinates the build flow so each stage has a focused responsibility."""
+    """Internal coordinator for sequential build stages.
+
+    Ensures each build stage (octaves, mixers, ports, QPU, pulses) executes
+    in the correct order with proper dependencies.
+
+    Attributes:
+        machine: QuAM instance being configured.
+        calibration_db_path: Path to Octave calibration database.
+        qubit_pair_sensor_map: Optional sensor-to-pair mapping.
+    """
 
     def __init__(
         self,
         machine: AnyQuam,
         calibration_db_path: Optional[Union[Path, str]],
         qubit_pair_sensor_map: Optional[dict],
-    ):
+    ) -> None:
         self.machine = machine
         self.calibration_db_path = calibration_db_path
         self.qubit_pair_sensor_map = qubit_pair_sensor_map
 
-    def add_octaves(self):
+    def add_octaves(self) -> None:
+        """Add and initialize Octave components."""
         add_octaves(self.machine, calibration_db_path=self.calibration_db_path)
 
-    def add_external_mixers(self):
+    def add_external_mixers(self) -> None:
+        """Add external frequency mixers."""
         add_external_mixers(self.machine)
 
-    def add_ports(self):
+    def add_ports(self) -> None:
+        """Register all I/O ports."""
         add_ports(self.machine)
 
-    def add_qpu(self):
+    def add_qpu(self) -> None:
+        """Build and register QPU elements."""
         add_qpu(self.machine, qubit_pair_sensor_map=self.qubit_pair_sensor_map)
 
-    def add_pulses(self):
+    def add_pulses(self) -> None:
+        """Add default pulse configurations."""
         add_pulses(self.machine)
 
 
-def add_ports(machine: AnyQuam):
-    """Creates and stores all input/output ports according to what has been allocated to each element in the machine's wiring."""
+def add_ports(machine: AnyQuam) -> None:
+    """Register all I/O ports referenced in wiring specifications.
 
+    Scans the wiring configuration and creates port objects for all
+    referenced inputs and outputs.
+
+    Args:
+        machine: QuAM instance with wiring defined.
+    """
     for wiring_by_element in machine.wiring.values():
         for wiring_by_line_type in wiring_by_element.values():
             for ports in wiring_by_line_type.values():
@@ -108,15 +171,35 @@ def add_ports(machine: AnyQuam):
                         )
 
 
-def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None):
-    """Adds global_gates, qubits, qubit_pairs, and sensor dots using the QPU builder."""
+def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> None:
+    """Build and register QPU elements from wiring specifications.
 
+    Creates and registers:
+    - Global gates
+    - Quantum dots (plunger gates)
+    - Qubits (Loss-DiVincenzo type)
+    - Qubit pairs
+    - Sensor dots with resonators
+
+    Args:
+        machine: QuAM instance with wiring defined.
+        qubit_pair_sensor_map: Optional mapping specifying which sensors are
+            used for each qubit pair.
+    """
     _QpuBuilder(machine, qubit_pair_sensor_map=qubit_pair_sensor_map).build()
 
 
-def add_pulses(machine: AnyQuam):
-    """Adds default pulses to the ldv_qubit qubits and qubit pairs in the machine."""
+def add_pulses(machine: AnyQuam) -> None:
+    """Add default pulse configurations to qubits and resonators.
 
+    Configures:
+    - Single-qubit rotation pulses (X, Y, ±90°, 180°)
+    - Readout pulses for sensor resonators
+    - Placeholder two-qubit gate pulses
+
+    Args:
+        machine: QuAM instance with qubits and sensors registered.
+    """
     if hasattr(machine, "qubits"):
         for ldv_qubit in machine.qubits.values():
             add_default_ldv_qubit_pulses(ldv_qubit)
@@ -129,11 +212,19 @@ def add_pulses(machine: AnyQuam):
         for sensor_dot in machine.sensor_dots.values():
             add_default_resonator_pulses(sensor_dot.readout_resonator)
 
+
 def _resolve_calibration_db_path(
     machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
 ) -> Path:
-    """Normalizes calibration path inputs so builders can rely on a Path object."""
+    """Resolve and normalize Octave calibration database path.
 
+    Args:
+        machine: QuAM instance.
+        calibration_db_path: User-provided path or None.
+
+    Returns:
+        Resolved Path object for calibration database.
+    """
     if calibration_db_path is None:
         serializer = machine.get_serialiser()
         calibration_db_path = serializer._get_state_path().parent
@@ -147,8 +238,18 @@ def _resolve_calibration_db_path(
 def add_octaves(
     machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
 ) -> AnyQuam:
-    """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters."""
+    """Scan wiring for Octaves and initialize frequency converters.
 
+    Creates Octave component instances for each Octave found in the wiring
+    configuration and initializes their frequency converters.
+
+    Args:
+        machine: QuAM instance with wiring defined.
+        calibration_db_path: Path to Octave calibration database.
+
+    Returns:
+        The machine with Octaves registered.
+    """
     calibration_db_path = _resolve_calibration_db_path(machine, calibration_db_path)
 
     for wiring_by_element in machine.wiring.values():
@@ -170,8 +271,17 @@ def add_octaves(
 
 
 def add_external_mixers(machine: AnyQuam) -> AnyQuam:
-    """Adds external mixers to the machine based on the wiring configuration."""
+    """Scan wiring for external mixers and create frequency converter components.
 
+    Creates mixer components with local oscillators for each external mixer
+    referenced in the wiring configuration.
+
+    Args:
+        machine: QuAM instance with wiring defined.
+
+    Returns:
+        The machine with external mixers registered.
+    """
     for wiring_by_element in machine.wiring.values():
         for qubit, wiring_by_line_type in wiring_by_element.items():
             for line_type, references in wiring_by_line_type.items():
