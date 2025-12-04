@@ -371,14 +371,24 @@ class _QpuBuilder:
             self.machine.active_qubit_names.append(qubit_name)
 
     def _register_qubit_pairs(self):
+        """
+        Register all qubit pairs in the assembly, and both combinations
+        of control and target qubits for each pair.
+        :return:
+        """
         qubit_pair_wiring = self._wiring_by_type.get("qubit_pairs")
         if not qubit_pair_wiring:
             return
 
         self.machine.active_qubit_pair_names = []
         for qubit_pair_id in sorted(qubit_pair_wiring, key=_natural_sort_key):
-            qc_name, qt_name = _parse_qubit_pair_ids(qubit_pair_id)
+            q0_name, q1_name = _parse_qubit_pair_ids(qubit_pair_id)
+            pairs = [[q0_name, q1_name], [q1_name, q0_name]]
+            for pair in pairs:
+                qc_name, qt_name = pair
+                self._register_qubit_pairs_by_name(qc_name, qt_name, qubit_pair_id)
 
+    def _register_qubit_pairs_by_name(self, qc_name, qt_name, qubit_pair_id):
             qc_plunger_id = f"plunger_{qc_name[1:]}"
             qt_plunger_id = f"plunger_{qt_name[1:]}"
 
