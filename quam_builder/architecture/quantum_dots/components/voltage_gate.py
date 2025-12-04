@@ -38,6 +38,8 @@ class VoltageGate(SingleChannel):
     current_external_voltage: Optional[float] = None
 
     def __post_init__(self):
+        if hasattr(self.opx_output, "upsampling_mode"): 
+            self.opx_output.upsampling_mode = "pulse"
         self._offset_parameter = None
 
     @property
