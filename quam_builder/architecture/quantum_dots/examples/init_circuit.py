@@ -214,7 +214,6 @@ class Init3Macro(QuamMacro):
         q1_q2.load()
         return state
 
-
 @quam_dataclass
 class InitAllMacro(QuamMacro):
     q1: str

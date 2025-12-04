@@ -49,7 +49,7 @@ class VoltageGate(SingleChannel):
         return self
 
     @property
-    def physical_channel(self) -> VoltageGate:
+    def physical_channel(self):
         return self
 
     @property
