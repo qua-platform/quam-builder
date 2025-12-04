@@ -49,4 +49,5 @@ class VoltageGate(SingleChannel):
     @offset_parameter.setter
     def offset_parameter(self, value):
         self._offset_parameter = value
-        self.current_external_voltage = self.offset_parameter()
+        if self.offset_parameter is not None: 
+            self.current_external_voltage = self.offset_parameter()
