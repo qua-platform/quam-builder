@@ -185,4 +185,8 @@ for i in range(barrier_gates):
         qubit_target_name=f"Q{i+1}",
     )
 
+for i in range(plunger_gates):
+    neighbor_idx = i - 1 if i == plunger_gates - 1 else i + 1
+    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
+
 config = machine.generate_config()

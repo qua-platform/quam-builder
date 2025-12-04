@@ -375,7 +375,8 @@ class BaseQuamQD(QuamRoot):
                        quantum_dot_id: str,
                        qubit_name: str,
                        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
-                       xy_channel: XYDrive = None
+                       xy_channel: XYDrive = None, 
+                       readout_quantum_dot: str = None,
                        ) -> None: 
         """
         Instantiates a qubit based on the associated quantum dot and qubit type.
@@ -392,6 +393,8 @@ class BaseQuamQD(QuamRoot):
                 name = qubit_name,
                 xy_channel = xy_channel
             )
+            if readout_quantum_dot is not None: 
+                qubit.preferred_readout_quantum_dot = readout_quantum_dot
 
             self.qubits[qubit_name] = qubit
         else:

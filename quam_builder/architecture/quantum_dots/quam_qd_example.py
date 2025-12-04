@@ -140,41 +140,6 @@ if qdac_connect:
     }
     machine.connect_to_external_source(external_voltage_mapping)
 
-
-#############################
-###### Register Qubits ######
-#############################
-
-
-# Register qubits. For ST qubits, quantum_dots should be a tuple
-machine.register_qubit(
-    qubit_type = "loss_divincenzo",
-    quantum_dot_id = "virtual_dot_1", 
-    qubit_name = "Q1",
-    xy_channel = xy_q1
-)
-
-machine.register_qubit(
-    qubit_type = "loss_divincenzo",
-    quantum_dot_id = "virtual_dot_2", 
-    qubit_name = "Q2",
-    xy_channel = xy_q2
-)
-
-machine.register_qubit(
-    qubit_type = "loss_divincenzo",
-    quantum_dot_id = "virtual_dot_3", 
-    qubit_name = "Q3",
-    xy_channel = xy_q3
-)
-
-machine.register_qubit(
-    qubit_type = "loss_divincenzo",
-    quantum_dot_id = "virtual_dot_4", 
-    qubit_name = "Q4",
-    xy_channel = xy_q4
-)
-
 ########################################
 ###### Register Quantum Dot Pairs ######
 ########################################
@@ -204,6 +169,46 @@ machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix = [[1,-1]], 
     detuning_axis_name = "dot3_dot4_epsilon"
 )
+
+
+#############################
+###### Register Qubits ######
+#############################
+
+
+# Register qubits. For ST qubits, quantum_dots should be a tuple
+machine.register_qubit(
+    qubit_type = "loss_divincenzo",
+    quantum_dot_id = "virtual_dot_1", 
+    qubit_name = "Q1",
+    xy_channel = xy_q1, 
+    readout_quantum_dot="virtual_dot_2"
+)
+
+machine.register_qubit(
+    qubit_type = "loss_divincenzo",
+    quantum_dot_id = "virtual_dot_2", 
+    qubit_name = "Q2",
+    xy_channel = xy_q2, 
+    readout_quantum_dot="virtual_dot_1"
+)
+
+machine.register_qubit(
+    qubit_type = "loss_divincenzo",
+    quantum_dot_id = "virtual_dot_3", 
+    qubit_name = "Q3",
+    xy_channel = xy_q3, 
+    readout_quantum_dot="virtual_dot_4"
+)
+
+machine.register_qubit(
+    qubit_type = "loss_divincenzo",
+    quantum_dot_id = "virtual_dot_4", 
+    qubit_name = "Q4",
+    xy_channel = xy_q4, 
+    readout_quantum_dot="virtual_dot_3"
+)
+
 
 ##################################
 ###### Register Qubit Pairs ######
