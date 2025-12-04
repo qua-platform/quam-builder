@@ -170,16 +170,6 @@ class VoltagePointMacroMixin(QuantumComponent):
             f"{self.__class__.__name__} must implement voltage_sequence property"
         )
 
-    def _validate_voltage_sequence(self) -> None:
-        """Validate that voltage_sequence is available."""
-        if self.voltage_sequence is None:
-            component_name = self.__class__.__name__
-            component_id = self.id
-            raise RuntimeError(
-                f"{component_name} {component_id} has no VoltageSequence. "
-                "Ensure that the VoltageSequence is mapped to the relevant QUAM voltage_sequence."
-            )
-
     def _validate_component_id_in_gate_set(self, component_id: str) -> None:
         """
         Validate that the component_id exists in the voltage sequence's gate set.
