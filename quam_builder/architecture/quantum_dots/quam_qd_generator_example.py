@@ -144,18 +144,6 @@ machine.register_channel_elements(
     sensor_channels_resonators=[(s, r) for s, r in zip(ss, rs)],
 )
 
-#############################
-###### Register Qubits ######
-#############################
-
-
-# Register qubits. For ST qubits, quantum_dots should be a tuple
-for i in range(plunger_gates):
-    machine.register_qubit(
-        qubit_type="loss_divincenzo",
-        quantum_dot_id=f"virtual_dot_{i}",
-        qubit_name=f"Q{i}",
-    )
 
 ########################################
 ###### Register Quantum Dot Pairs ######
@@ -172,25 +160,5 @@ for i in range(barrier_gates):
     )
 
     machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]])
-
-    ##################################
-    ###### Register Qubit Pairs ######
-    ##################################
-    qubit_id = f"Q{i}_Q{i+1}"
-    # Register a Qubit Pair. Internally this checks for QuantumDotPair
-    machine.register_qubit_pair(
-        id=qubit_id,
-        qubit_type="loss_divincenzo",
-        qubit_control_name=f"Q{i}",
-        qubit_target_name=f"Q{i+1}",
-    )
-
-################################################
-###### Set Preferred Readout Quantum Dots ######
-################################################
-
-for i in range(plunger_gates):
-    neighbor_idx = i - 1 if i == plunger_gates - 1 else i + 1
-    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
 
 config = machine.generate_config()
