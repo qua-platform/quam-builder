@@ -648,6 +648,8 @@ class BaseQuamQD(QuamRoot):
                 drive=drive_channel,
                 name=qubit_name,
             )
+            if readout_quantum_dot is not None: 
+                qubit.preferred_readout_quantum_dot = readout_quantum_dot
 
             self.qubits[qubit_name] = qubit
         else:

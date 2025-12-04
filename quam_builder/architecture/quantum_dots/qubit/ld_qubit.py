@@ -77,6 +77,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     name: str = None
+    _preferred_readout_quantum_dot: str = None
 
     def __post_init__(self):
         if isinstance(self.quantum_dot, str):
@@ -108,6 +109,33 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     @property
     def voltage_sequence(self):
         return self.quantum_dot.voltage_sequence
+    
+    def _validate_readout_quantum_dot(self, qd_name): 
+        """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
+        if qd_name not in self.machine.quantum_dots: 
+            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
+        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
+        if qd_pair is None: 
+            raise ValueError(f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first")
+    
+    @property
+    def preferred_readout_quantum_dot(self) -> str: 
+        return self._preferred_readout_quantum_dot
+    
+    @preferred_readout_quantum_dot.setter
+    def preferred_readout_quantum_dot(self, value: str): 
+        if value is not None and not isinstance(self.quantum_dot, str): 
+            self._validate_readout_quantum_dot(value)
+        self._preferred_readout_quantum_dot = value
+
+    @property
+    def sensor_dots(self) -> List[SensorDot]: 
+        if self._preferred_readout_quantum_dot is None: 
+            raise ValueError(f"No preferred_readout_quantum_dot set for qubit '{self.id}'. Please set first")
+        self._validate_readout_quantum_dot(self._preferred_readout_quantum_dot)
+        qd_pair = self.machine.quantum_dot_pairs[self.machine.find_quantum_dot_pair(self.quantum_dot.id, self.preferred_readout_quantum_dot)]
+        sensors = qd_pair.sensor_dots
+        return sensors
 
     def _should_map_qubit_names(self) -> bool:
         """Enable qubit name mapping for LDQubit."""
