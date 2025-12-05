@@ -1,32 +1,21 @@
-from typing import List, Dict, Tuple, Union, Literal, TYPE_CHECKING
+from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
-from qm.qua.type_hints import QuaVariable
 from qm.qua import (
-    save,
-    declare,
-    fixed,
-    assign,
     wait,
-    while_,
-    StreamType,
-    if_,
-    update_frequency,
-    Math,
-    Cast,
     frame_rotation_2pi
 )
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot, XYDrive
+from quam_builder.architecture.quantum_dots.components import XYDrive
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot
 
@@ -63,6 +52,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
     """
     id: Union[str, int] = None
+    grid_location: str = None
 
     quantum_dot: QuantumDot
     xy_channel: XYDrive = None
@@ -83,13 +73,13 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     def __post_init__(self): 
         if isinstance(self.quantum_dot, str): 
             return
-        if self.id is None: 
+        if self.id is None:
             self.id = self.quantum_dot.id
-        if self.id != self.quantum_dot.id:
-            raise ValueError(
-                f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
-                f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
-            )
+        # if self.id != self.quantum_dot.id:
+        #     raise ValueError(
+        #         f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
+        #         f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
+        #     )
 
     @property
     def physical_channel(self) -> Channel: 
@@ -110,37 +100,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     @property
     def voltage_sequence(self): 
         return self.quantum_dot.voltage_sequence
-    
-    def _validate_readout_quantum_dot(self, qd_name): 
-        """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
-        if qd_name not in self.machine.quantum_dots: 
-            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
-        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
-        if qd_pair is None: 
-            raise ValueError(f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first")
-    
-    @property
-    def preferred_readout_quantum_dot(self) -> str: 
-        return self._preferred_readout_quantum_dot
-    
-    @preferred_readout_quantum_dot.setter
-    def preferred_readout_quantum_dot(self, value: str): 
-        if value is not None and not isinstance(self.quantum_dot, str): 
-            self._validate_readout_quantum_dot(value)
-        self._preferred_readout_quantum_dot = value
-
-    @property
-    def sensor_dots(self) -> List[SensorDot]: 
-        if self._preferred_readout_quantum_dot is None: 
-            raise ValueError(f"No preferred_readout_quantum_dot set for qubit '{self.id}'. Please set first")
-        self._validate_readout_quantum_dot(self._preferred_readout_quantum_dot)
-        qd_pair = self.machine.quantum_dot_pairs[self.machine.find_quantum_dot_pair(self.quantum_dot.id, self.preferred_readout_quantum_dot)]
-        sensors = qd_pair.sensor_dots
-        return sensors
-
-    def _should_map_qubit_names(self) -> bool:
-        """Enable qubit name mapping for LDQubit."""
-        return True
 
     def _get_component_id_for_voltages(self) -> str:
         """Target the quantum_dot for voltage operations."""
@@ -228,7 +187,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         Configure the LO+IF of the xy_channel. Use this function to update the drive frequency to the calibrated Larmor frequency
         """
         if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.name}")
+            raise ValueError(f"No XY Channel on Qubit {self.id}")
 
         LO_frequency = self.xy_channel.LO_frequency
         intermediate_frequency = frequency - LO_frequency
@@ -243,10 +202,10 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         else:
             self.xy_channel.intermediate_frequency = intermediate_frequency
 
-    def play_xy_pulse(self, pulse_name:str, pulse_duration: int, amplitude_scale:float = 1.0, **kwargs) -> None:
+    def play_xy_pulse(self, pulse_name:str, pulse_duration: Optional[int] = None, amplitude_scale:float = None, **kwargs) -> None:
         """Play a pulse from the XY channel associated with the Qubit"""
         if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.name}")
+            raise ValueError(f"No XY Channel on Qubit {self.id}")
 
         if pulse_name not in self.xy_channel.operations:
             raise ValueError(f"Pulse {pulse_name} not in XY Channel operations")

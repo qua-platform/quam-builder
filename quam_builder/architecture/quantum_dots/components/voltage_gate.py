@@ -40,6 +40,10 @@ class VoltageGate(SingleChannel):
         self._offset_parameter = None
 
     @property
+    def physical_channel(self):
+        return self
+
+    @property
     def offset_parameter(self):
         return self._offset_parameter
 
