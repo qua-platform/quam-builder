@@ -22,7 +22,6 @@ from quam_builder.architecture.quantum_dots.components import VoltagePointMacroM
 
 __all__ = [
     "operations_registry",
-    "voltage_operations_registry",
     # Voltage operations
     "idle",
     "load",
@@ -43,10 +42,6 @@ __all__ = [
 
 # Main registry for all quantum dot operations (voltage + pulse)
 operations_registry = OperationsRegistry()
-
-# Optional: Separate registry for voltage-only operations
-voltage_operations_registry = OperationsRegistry()
-
 
 # ============================================================================
 # Generic Voltage Point Operations

@@ -91,7 +91,6 @@ def measure_init(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute measure and return to load point."""
     pass
 
-
 # ============================================================================
 # Configuration Helper Function
 # ============================================================================
@@ -241,7 +240,8 @@ if __name__ == "__main__":
             state = init_sequence(qubit_pair)
             # Option 2: method based
             # state = qubit_pair.init_sequence()
-
+            element_names = [channel.name for channel in qubit_pair.channels.values()]
+            qua.align(*element_names)
 
         qua.wait(100)
 

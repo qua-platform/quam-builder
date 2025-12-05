@@ -28,7 +28,6 @@ __all__ = [
     "BasePointMacro",
     "StepPointMacro",
     "RampPointMacro",
-    "VoltagePointMacroMixin",
 ]
 
 
@@ -48,6 +47,11 @@ class BasePointMacro(QuamMacro):
     point_ref: Optional[str] = None
     hold_duration: Optional[int] = None
     macro_type: str = "base"
+
+    @property
+    def voltage_sequence(self) -> VoltageSequence:
+        """Voltage sequence for this macro."""
+        return self.parent.parent.voltage_sequence
 
     def _resolve_point(self, component: QuamComponent):
         """Resolve point reference to actual VoltageTuningPoint object.
@@ -153,7 +157,7 @@ class StepPointMacro(BasePointMacro):
         """
         duration = hold_duration if hold_duration is not None else self.hold_duration
         point_name = self._get_point_name()
-        self.parent.parent.voltage_sequence.step_to_point(point_name, duration=duration)
+        self.voltage_sequence.step_to_point(point_name, duration=duration)
 
 
 @quam_dataclass
@@ -195,199 +199,8 @@ class RampPointMacro(BasePointMacro):
         ramp_ns = ramp_duration if ramp_duration is not None else self.ramp_duration
         hold_ns = hold_duration if hold_duration is not None else self.hold_duration
         point_name = self._get_point_name()
-        self.parent.parent.voltage_sequence.ramp_to_point(
+        self.voltage_sequence.ramp_to_point(
             point_name,
             ramp_duration=ramp_ns,
             duration=hold_ns,
         )
-
-
-
-@quam_dataclass
-class VoltagePointMacroMixin(QuamBaseComponent):
-    """Mixin providing voltage point macro methods for quantum dot components.
-
-    This mixin adds convenience methods for creating voltage points with associated
-    step/ramp macros. Components that manage voltage gates should inherit this.
-
-    Attributes:
-        id: Component identifier
-        macros: Dictionary of macros attached to this component
-    """
-
-    id: str
-    macros: Dict[str, QuamMacro] = field(default_factory=dict)
-
-    @property
-    def name(self) -> str:
-        """Component name (required by QuantumComponent)."""
-        return str(self.id)
-
-    @property
-    def machine(self) -> "BaseQuamQD":
-        """Get machine root by climbing parent hierarchy."""
-        obj = self
-        while hasattr(obj, "parent") and obj.parent is not None:
-            obj = obj.parent
-        return obj
-
-    @property
-    def voltage_sequence(self) -> "VoltageSequence":
-        """Get voltage sequence from machine."""
-        machine = self.machine
-        try:
-            from quam_builder.architecture.quantum_dots.components import VoltageGate
-
-            if hasattr(self, "physical_channel"):
-                physical_channel = self.physical_channel
-            else:
-                return None
-
-            virtual_gate_set_name = machine._get_virtual_gate_set(physical_channel).id
-            return machine.get_voltage_sequence(virtual_gate_set_name)
-        except (AttributeError, ValueError, KeyError):
-            return None
-
-    def __getattr__(self, name: str) -> Any:
-        """Enable calling macros as methods: component.macro_name(**kwargs)."""
-        macros_dict = object.__getattribute__(self, "macros")
-
-        if name in macros_dict:
-            def macro_method(**kwargs):
-                return macros_dict[name].apply(**kwargs)
-            return macro_method
-
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def add_point(
-        self,
-        name: str,
-        voltages: Dict[str, float],
-        duration: Optional[int] = None,
-    ) -> str:
-        """Add voltage point to gate set.
-
-        Args:
-            name: Point name
-            voltages: Virtual gate voltages
-            duration: Hold duration (nanoseconds)
-
-        Returns:
-            Full point name with component prefix
-        """
-        machine = self.machine
-        gate_set_id = machine._get_virtual_gate_set(self.physical_channel).id
-        full_name = f"{self.id}_{name}"
-        machine.add_point(gate_set_id, full_name, voltages, duration or 16)
-        return full_name
-
-    def add_point_with_step_macro(
-        self,
-        name: str,
-        voltages: Dict[str, float],
-        hold_duration: int = 16,
-    ) -> "StepPointMacro":
-        """Create voltage point with step macro.
-
-        Args:
-            name: Macro name
-            voltages: Virtual gate voltages
-            hold_duration: Hold duration (nanoseconds)
-
-        Returns:
-            Created step macro
-        """
-        full_name = self.add_point(name, voltages, hold_duration)
-        point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
-        macro = StepPointMacro(point_ref=point_ref, hold_duration=hold_duration)
-        self.macros[name] = macro
-        return macro
-
-    def add_point_with_ramp_macro(
-        self,
-        name: str,
-        voltages: Dict[str, float],
-        hold_duration: int = 16,
-        ramp_duration: int = 16,
-    ) -> "RampPointMacro":
-        """Create voltage point with ramp macro.
-
-        Args:
-            name: Macro name
-            voltages: Virtual gate voltages
-            hold_duration: Hold duration (nanoseconds)
-            ramp_duration: Ramp duration (nanoseconds)
-
-        Returns:
-            Created ramp macro
-        """
-        full_name = self.add_point(name, voltages, hold_duration)
-        point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
-        macro = RampPointMacro(
-            point_ref=point_ref,
-            hold_duration=hold_duration,
-            ramp_duration=ramp_duration,
-        )
-        self.macros[name] = macro
-        return macro
-
-    def with_step_point(
-        self,
-        name: str,
-        voltages: Optional[Dict[str, float]] = None,
-        hold_duration: int = 16,
-    ):
-        """Fluent API: add step point and return self for chaining.
-
-        Args:
-            name: Point/macro name
-            voltages: Virtual gate voltages (if None, looks up existing point)
-            hold_duration: Hold duration (nanoseconds)
-
-        Returns:
-            Self for method chaining
-        """
-        if voltages is not None:
-            self.add_point_with_step_macro(name, voltages, hold_duration)
-        else:
-            # Reference existing point
-            machine = self.machine
-            gate_set = machine._get_virtual_gate_set(self.physical_channel)
-            full_name = f"{self.id}_{name}" if f"{self.id}_{name}" in gate_set.get_macros() else name
-            point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
-            self.macros[name] = StepPointMacro(point_ref=point_ref, hold_duration=hold_duration)
-        return self
-
-    def with_ramp_point(
-        self,
-        name: str,
-        voltages: Optional[Dict[str, float]] = None,
-        hold_duration: int = 16,
-        ramp_duration: int = 16,
-    ):
-        """Fluent API: add ramp point and return self for chaining.
-
-        Args:
-            name: Point/macro name
-            voltages: Virtual gate voltages (if None, looks up existing point)
-            hold_duration: Hold duration (nanoseconds)
-            ramp_duration: Ramp duration (nanoseconds)
-
-        Returns:
-            Self for method chaining
-        """
-        if voltages is not None:
-            self.add_point_with_ramp_macro(name, voltages, hold_duration, ramp_duration)
-        else:
-            machine = self.machine
-            gate_set = machine._get_virtual_gate_set(self.physical_channel)
-            full_name = f"{self.id}_{name}" if f"{self.id}_{name}" in gate_set.get_macros() else name
-            point_ref = f"#./voltage_sequence/gate_set/macros/{full_name}"
-            self.macros[name] = RampPointMacro(
-                point_ref=point_ref,
-                hold_duration=hold_duration,
-                ramp_duration=ramp_duration,
-            )
-        return self
