@@ -109,7 +109,7 @@ machine.register_qubit_pair(
 machine.qubits["Q1"].add_point(
     point_name = "initialisation", 
     voltages = {
-        "Q1": 0.1, 
+        "virtual_dot_1": 0.1, 
     }, 
     replace_existing_point=True
 )
@@ -117,7 +117,7 @@ machine.qubits["Q1"].add_point(
 machine.qubits["Q2"].add_point(
     point_name = "initialisation", 
     voltages = {
-        "Q2": 0.15, 
+        "virtual_dot_2": 0.15, 
     }, 
     replace_existing_point=True
 )
@@ -126,74 +126,74 @@ machine.qubits["Q2"].add_point(
 machine.qubit_pairs["Q3_Q4"].add_point(
     point_name = "some_two_qubit_gate", 
     voltages = {
-        "Q3": 0.2, 
-        "Q4": 0.25,
+        "virtual_dot_3": 0.2, 
+        "virtual_dot_4": 0.25,
     }, 
     replace_existing_point=True
 )
 
 
-# Example QUA programme: 
-with program() as prog:
-    i = declare(int)
-    seq = machine.voltage_sequences["main_qpu"]
-    with for_(i, 0, i<100, i+1):
+# # Example QUA programme: 
+# with program() as prog:
+#     i = declare(int)
+#     seq = machine.voltage_sequences["main_qpu"]
+#     with for_(i, 0, i<100, i+1):
 
-        # Option 1 for simultaneous stepping
-        seq.step_to_voltages({"virtual_dot_1": -0.4, "virtual_dot_2": -0.2}, duration = 1000)
+#         # Option 1 for simultaneous stepping
+#         seq.step_to_voltages({"virtual_dot_1": -0.4, "virtual_dot_2": -0.2}, duration = 1000)
 
-        # Option 2 for simultaneous stepping: May be easier for the user
-        with seq.simultaneous(duration = 1000): 
-            machine.qubits["Q1"].go_to_voltages(0.4)
-            machine.qubits["Q2"].go_to_voltages(0.2)
-            machine.qubit_pairs["Q3_Q4"].step_to_voltages(0.2)
+#         # Option 2 for simultaneous stepping: May be easier for the user
+#         with seq.simultaneous(duration = 1000): 
+#             machine.qubits["Q1"].go_to_voltages(0.4)
+#             machine.qubits["Q2"].go_to_voltages(0.2)
+#             machine.qubit_pairs["Q3_Q4"].step_to_voltages(0.2)
 
-        # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
-        with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
-            machine.qubits["Q1"].go_to_voltages(0.1)
-            machine.qubits["Q2"].go_to_voltages(-0.2)
+#         # Simulteneous ramping simply with a ramp_duration argument in seq.simultaneous
+#         with seq.simultaneous(duration = 1500, ramp_duration = 1500): 
+#             machine.qubits["Q1"].go_to_voltages(0.1)
+#             machine.qubits["Q2"].go_to_voltages(-0.2)
 
-        # For sequential stepping, use outside of simultaneous block
-        # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
-        machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
-        machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
+#         # For sequential stepping, use outside of simultaneous block
+#         # These two commands will NOT happen simultaneously. Remember, commands can be used interchangeably with machine.qubits
+#         machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
+#         machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
 
-        # Can also use point macros saved in qubit and QD objects, inside a simultaneous block. 
-        # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once! 
-        with seq.simultaneous(duration = 1000): 
-            machine.qubits["Q1"].step_to_point("initialisation")
-            machine.qubits["Q2"].step_to_point("initialisation")
-            machine.qubit_pairs["Q3_Q4"].step_to_point("some_two_qubit_gate")
-            # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
+#         # Can also use point macros saved in qubit and QD objects, inside a simultaneous block. 
+#         # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once! 
+#         with seq.simultaneous(duration = 1000): 
+#             machine.qubits["Q1"].step_to_point("initialisation")
+#             machine.qubits["Q2"].step_to_point("initialisation")
+#             machine.qubit_pairs["Q3_Q4"].step_to_point("some_two_qubit_gate")
+#             # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
 
-        machine.qubits["Q1"].sensor_dots[0].readout_resonator.measure("readout")
-        seq.ramp_to_zero()
-
-
-from qm import QuantumMachinesManager, SimulationConfig
-qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
-
-config = machine.generate_config()
-
-simulate = True
+#         machine.qubits["Q1"].sensor_dots[0].readout_resonator.measure("readout")
+#         seq.ramp_to_zero()
 
 
-if simulate:
-    # Simulates the QUA program for the specified duration
-    simulation_config = SimulationConfig(duration=10_000//4)  # In clock cycles = 4ns
-    # Simulate blocks python until the simulation is done
-    job = qmm.simulate(config, prog, simulation_config)
-    # Get the simulated samples
-    samples = job.get_simulated_samples()
-    # Plot the simulated samples
-    samples.con1.plot()
-    # Get the waveform report object
-    waveform_report = job.get_simulated_waveform_report()
-    # Cast the waveform report to a python dictionary
-    waveform_dict = waveform_report.to_dict()
-    # Visualize and save the waveform report
-    waveform_report.create_plot(samples, plot=True)
-else:
-    qm = qmm.open_qm(config)
-    # Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
-    job = qm.execute(prog)
+# from qm import QuantumMachinesManager, SimulationConfig
+# qmm = QuantumMachinesManager(host = "172.16.33.115", cluster_name="CS_3")
+
+# config = machine.generate_config()
+
+# simulate = True
+
+
+# if simulate:
+#     # Simulates the QUA program for the specified duration
+#     simulation_config = SimulationConfig(duration=10_000//4)  # In clock cycles = 4ns
+#     # Simulate blocks python until the simulation is done
+#     job = qmm.simulate(config, prog, simulation_config)
+#     # Get the simulated samples
+#     samples = job.get_simulated_samples()
+#     # Plot the simulated samples
+#     samples.con1.plot()
+#     # Get the waveform report object
+#     waveform_report = job.get_simulated_waveform_report()
+#     # Cast the waveform report to a python dictionary
+#     waveform_dict = waveform_report.to_dict()
+#     # Visualize and save the waveform report
+#     waveform_report.create_plot(samples, plot=True)
+# else:
+#     qm = qmm.open_qm(config)
+#     # Send the QUA program to the OPX, which compiles and executes it - Execute does not block python!
+#     job = qm.execute(prog)

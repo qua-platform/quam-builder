@@ -77,8 +77,6 @@ class BaseQuamQD(QuamRoot):
         step_to_voltage: Steps the associated VoltageSequence to a dict of voltages.
     """
 
-    qpu: QPU = field(default_factory=QPU)
-
     physical_channels: Dict[str, Channel] = field(default_factory=dict)
     global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
 
