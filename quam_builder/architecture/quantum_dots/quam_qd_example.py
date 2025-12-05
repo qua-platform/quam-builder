@@ -117,6 +117,7 @@ machine.register_channel_elements(
 qdac_connect = True
 if qdac_connect: 
     qdac_ip = "172.16.33.101"
+    machine.network.update({"qdac_ip": qdac_ip})
     from qcodes_contrib_drivers.drivers.QDevil import QDAC2
     qdac = QDAC2.QDac2('QDAC', visalib='@py', address=f'TCPIP::{qdac_ip}::5025::SOCKET')
     external_voltage_mapping = {
@@ -258,8 +259,8 @@ with program() as prog:
         # Can also use point macros saved in qubit and QD objects, inside a simultaneous block. 
         # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once! 
         with seq.simultaneous(duration = 1000): 
-            machine.quantum_dots["virtual_dot_1"].step_to_point("initialisation")
-            machine.quantum_dots["virtual_dot_2"].step_to_point("initialisation")
+            machine.quantum_dots["virtual_dot_1"].step_to_point("loading")
+            machine.quantum_dots["virtual_dot_2"].step_to_point("loading")
             machine.quantum_dot_pairs["dot3_dot4_pair"].step_to_point("some_detuning_points")
             # If there are repeated dict entries, internally, the last entered voltage for that particular gate wins. 
 

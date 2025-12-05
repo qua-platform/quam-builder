@@ -110,14 +110,16 @@ machine.qubits["Q1"].add_point(
     point_name = "initialisation", 
     voltages = {
         "Q1": 0.1, 
-    }
+    }, 
+    replace_existing_point=True
 )
 
 machine.qubits["Q2"].add_point(
     point_name = "initialisation", 
     voltages = {
         "Q2": 0.15, 
-    }
+    }, 
+    replace_existing_point=True
 )
 
 # We can also initialise a tuning point for a qubit pair: 
@@ -126,7 +128,8 @@ machine.qubit_pairs["Q3_Q4"].add_point(
     voltages = {
         "Q3": 0.2, 
         "Q4": 0.25,
-    }
+    }, 
+    replace_existing_point=True
 )
 
 
