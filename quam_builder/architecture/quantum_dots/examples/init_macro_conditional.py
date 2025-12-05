@@ -86,7 +86,6 @@ def measure_init(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute measure and return to load point."""
     pass
 
-
 # ============================================================================
 # Configuration Helper Function
 # ============================================================================
