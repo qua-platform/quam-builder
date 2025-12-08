@@ -5,6 +5,7 @@ from quam.core import quam_dataclass
 
 __all__ = ["VoltageGate"]
 
+
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """
@@ -19,11 +20,11 @@ class VoltageGate(SingleChannel):
         >>>
         >>> # Create VoltageGate
         >>> gate = VoltageGate(
-        ...     opx_output = (...), 
-        ...     operations = {...}, 
+        ...     opx_output = (...),
+        ...     operations = {...},
         ...     sticky = ...
         ...     )
-        >>> 
+        >>>
         >>> # Attach e.g. a QCoDeS driver channel to VoltageGate; example shows a QCoDeS driver for QDAC-II
         >>> gate.offset_parameter = QDAC.ch17.dc_constant_V
         >>>
@@ -37,6 +38,8 @@ class VoltageGate(SingleChannel):
     current_external_voltage: Optional[float] = None
 
     def __post_init__(self):
+        if hasattr(self.opx_output, "upsampling_mode"): 
+            self.opx_output.upsampling_mode = "pulse"
         self._offset_parameter = None
 
     @property
@@ -50,4 +53,5 @@ class VoltageGate(SingleChannel):
     @offset_parameter.setter
     def offset_parameter(self, value):
         self._offset_parameter = value
-        self.current_external_voltage = self.offset_parameter()
+        if self.offset_parameter is not None: 
+            self.current_external_voltage = self.offset_parameter()

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from quam.core import quam_dataclass
-from quam.components.channels import InOutIQChannel, InOutMWChannel, InOutSingleChannel
+from quam.components.channels import IQChannel, MWChannel
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
@@ -12,19 +12,14 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["ReadoutResonatorBase", "ReadoutResonatorIQ", "ReadoutResonatorMW", "ReadoutResonatorSingle"]
+__all__ = ["XYDriveIQ", "XYDriveMW"]
 
 
 @quam_dataclass
-class ReadoutResonatorBase:
+class XYDriveBase:
     """
-    QUAM component for a readout resonator.
-
-    Attributes:
-        frequency_bare (float): The bare resonator frequency in Hz.
+    QUAM component for a XY drive line.
     """
-    
-    frequency_bare: float = None
 
     @staticmethod
     def calculate_voltage_scaling_factor(
@@ -41,34 +36,15 @@ class ReadoutResonatorBase:
         float: The voltage scaling factor.
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
-    
-@quam_dataclass
-class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase): 
-    intermediate_frequency: int = "#/inferred_intermediate_frequency"
-
-    def __post_init__(self): 
-        if hasattr(self.opx_output, "upsampling_mode"): 
-            self.opx_output.upsampling_mode = "mw"
-
-    def set_output_power(
-        self,
-        power_in_dbm: float,
-        gain: Optional[int] = None,
-        max_amplitude: Optional[float] = None,
-        Z: int = 50,
-        operation: Optional[str] = "readout",
-    ):
-
-        pass
 
 
 @quam_dataclass
-class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
+class XYDriveIQ(IQChannel, XYDriveBase):
+    """
+    QUAM component for a XY drive line through an IQ channel.
+    """
+
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
-
-    def __post_init__(self): 
-        if hasattr(self.opx_output, "upsampling_mode"): 
-            self.opx_output.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):
@@ -122,8 +98,8 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
 
 
 @quam_dataclass
-class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
-    intermediate_frequency: int = "#./inferred_intermediate_frequency"
+class XYDriveMW(MWChannel, XYDriveBase):
+    intermediate_frequency: float = "#./inferred_intermediate_frequency"
 
     @property
     def upconverter_frequency(self):
@@ -141,7 +117,8 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         Returns:
             float: The output power in dBm.
 
-        The function calculates the output power based on the full-scale power in dBm and the amplitude of the specified operation.
+        The function calculates the output power based on the full-scale power in dBm and the amplitude of the
+        specified operation.
         """
         return get_output_power_mw_channel(self, operation, Z)
 
@@ -149,8 +126,8 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         self,
         power_in_dbm: float,
         full_scale_power_dbm: Optional[int] = None,
-        max_amplitude: Optional[float] = 1,
-        operation: Optional[str] = "readout",
+        max_amplitude: float = 1,
+        operation: str = "readout",
     ):
         """
         Sets the power level in dBm for a specified operation, increasing the full-scale power

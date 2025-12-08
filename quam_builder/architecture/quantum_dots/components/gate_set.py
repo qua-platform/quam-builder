@@ -11,7 +11,11 @@ if TYPE_CHECKING:
         VoltageSequence,
     )
 
-from quam_builder.tools.qua_tools import VoltageLevelType, CLOCK_CYCLE_NS, MIN_PULSE_DURATION_NS
+from quam_builder.tools.qua_tools import (
+    VoltageLevelType,
+    CLOCK_CYCLE_NS,
+    MIN_PULSE_DURATION_NS,
+)
 
 DEFAULT_PULSE_NAME = "half_max_square"
 
@@ -31,7 +35,7 @@ class VoltageTuningPoint(QuamMacro):
 
     Attributes:
         voltages: Dictionary mapping channel names to their target voltages.
-        duration: Default duration in nanoseconds to hold these voltages. 
+        duration: Default duration in nanoseconds to hold these voltages.
             - Duration must be in integer multiple of 4ns
             - Minimum duration is 16ns
     """
@@ -56,6 +60,8 @@ class GateSet(QuantumComponent):
       sequences
     - Resolve voltages for all channels with default fallbacks
     - Create voltage sequences with proper channel configuration
+    - Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
+        their output mode (amplified vs direct) before creating the sequence.
 
     The GateSet acts as a logical grouping of related channels (e.g., gates
     controlling a specific quantum dot) and enables high-level voltage control
@@ -91,6 +97,25 @@ class GateSet(QuantumComponent):
     """
 
     channels: Dict[str, SingleChannel]
+    adjust_for_attenuation: bool = False
+
+    def __post_init__(self):
+        for ch in self.channels.values():
+            if isinstance(ch, str):
+                continue
+            if hasattr(ch.opx_output, "output_mode"):
+                if ch.opx_output.output_mode == "amplified":
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
+                    )
+                else:
+                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                    )
+            else:
+                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                )
 
     @property
     def name(self) -> str:
@@ -190,17 +215,24 @@ class GateSet(QuantumComponent):
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
-    def new_sequence(self, track_integrated_voltage: bool = False) -> "VoltageSequence":
+    def new_sequence(
+        self,
+        track_integrated_voltage: bool = False,
+        keep_levels: bool = True,
+        enforce_qua_calcs: bool = False,
+    ) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
-
-        Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
-        their output mode (amplified vs direct) before creating the sequence.
 
         Args:
             track_integrated_voltage: Whether to track integrated voltage.
                 If False, the sequence will not track integrated voltage, and
                 apply_compensation_pulse will not be available.
+            keep_levels: without keep_levels, the default behaviour for resolving voltages
+                will be that any unspecified voltages will be treated as 0,
+                with keep_levels, unspecified voltages instead use the latest value
+            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
+                track the current level for certain programs, defaults to False.
 
         Returns:
             VoltageSequence: A new voltage sequence instance configured with this GateSet
@@ -211,18 +243,6 @@ class GateSet(QuantumComponent):
             VoltageSequence,
         )
 
-        for ch in self.channels.values():
-            if hasattr(ch.opx_output, "output_mode"):
-                if ch.opx_output.output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
-                    )
-                else:
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                    )
-            else:
-                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                )
-        return VoltageSequence(self, track_integrated_voltage)
+        return VoltageSequence(
+            self, track_integrated_voltage, keep_levels, enforce_qua_calcs
+        )
