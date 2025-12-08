@@ -56,14 +56,14 @@ mw_fem = 1
 ###### Instantiate Physical Channels ######
 ###########################################
 
-p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False))
-p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
-p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
-p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
-b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
-b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
-b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
-s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
+p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), qdac_channel = 1, sticky = StickyChannelAddon(duration = 16, digital = False))
+p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), qdac_channel = 2, sticky = StickyChannelAddon(duration = 16, digital = False))
+p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), qdac_channel = 3, sticky = StickyChannelAddon(duration = 16, digital = False))
+p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), qdac_channel = 4, sticky = StickyChannelAddon(duration = 16, digital = False))
+b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), qdac_channel = 5, sticky = StickyChannelAddon(duration = 16, digital = False))
+b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), qdac_channel = 6, sticky = StickyChannelAddon(duration = 16, digital = False))
+b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), qdac_channel = 7, sticky = StickyChannelAddon(duration = 16, digital = False))
+s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), qdac_channel = 8, sticky = StickyChannelAddon(duration = 16, digital = False))
 
 
 
@@ -114,23 +114,11 @@ machine.register_channel_elements(
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = False
+qdac_connect = True
 if qdac_connect: 
     qdac_ip = "172.16.33.101"
     machine.network.update({"qdac_ip": qdac_ip})
-    from qcodes_contrib_drivers.drivers.QDevil import QDAC2
-    qdac = QDAC2.QDac2('QDAC', visalib='@py', address=f'TCPIP::{qdac_ip}::5025::SOCKET')
-    external_voltage_mapping = {
-        machine.quantum_dots["virtual_dot_1"].physical_channel: qdac.ch01.dc_constant_V, 
-        machine.quantum_dots["virtual_dot_2"].physical_channel: qdac.ch02.dc_constant_V, 
-        machine.quantum_dots["virtual_dot_3"].physical_channel: qdac.ch03.dc_constant_V, 
-        machine.quantum_dots["virtual_dot_4"].physical_channel: qdac.ch04.dc_constant_V, 
-        machine.barrier_gates["virtual_barrier_1"].physical_channel: qdac.ch05.dc_constant_V, 
-        machine.barrier_gates["virtual_barrier_2"].physical_channel: qdac.ch06.dc_constant_V,
-        machine.barrier_gates["virtual_barrier_3"].physical_channel: qdac.ch07.dc_constant_V, 
-        machine.sensor_dots["virtual_sensor_1"].physical_channel: qdac.ch08.dc_constant_V
-    }
-    machine.connect_to_external_source(external_voltage_mapping)
+    machine.connect_to_external_source(external_qdac = True)
 
 ########################################
 ###### Register Quantum Dot Pairs ######

@@ -140,38 +140,59 @@ class BaseQuamQD(QuamRoot):
     
         raise ValueError(f"Element {name} not found in Quam")
     
-    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable], reset_voltages: bool = False) -> None: 
+    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable] = None, reset_voltages: bool = False, external_qdac: bool = False) -> None: 
         """
-        Binds the channels to the correct external voltage source functions. 
+        Binds the channels to the correct external voltage source functions. If the external voltage souce is a QDAC, then set the bool external_qdac = True. 
 
         Args: 
-            channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
-            Example for a QDAC:
+            if external_qdac = True, then it will connect to the qdac IP saved in self.network, and it will use the qdac_ports stored in each VoltageGate.
+
+            if external_qdac = False, then you must provide a channel mapping.
+                channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
+            Example for an external source:
                     >>> 
                     >>> channel_source_mapping = {}
-                    ...     channel_object_1: qdac.ch01.dc_constant_V, 
-                    ...     channel_object_2: qdac.ch02.dc_constant_V
+                    ...     channel_object_1: voltage_source.channel_1.current_voltage, 
+                    ...     channel_object_2: voltage_source.channel_2.current_voltage
                     ...     }
                     >>> 
-
         """
-        for channel, fn in channel_source_mapping.items(): 
+        if external_qdac: 
+            name = "QDAC"
+            from qcodes import Instrument
+            from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+            try:
+                self.qdac = Instrument.find_instrument(name)
+            except KeyError:
+                self.qdac = QDAC2.QDac2(name, visalib='@py', address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET')
 
-            # Ensure that the channel actually exists in the Quam.
-            chan = None
-            for ch in self.physical_channels.values(): 
-                if ch is channel: 
-                    chan = ch
-                    break
-
-            if chan is None: 
-                raise ValueError(f"Channel {channel.id} not found in Quam")
-            
-            chan.offset_parameter = fn
-            
+            for channel in self.physical_channels.values(): 
+                if hasattr(channel, "qdac_channel"):
+                    qdac_port = channel.qdac_channel
+                    channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
+                else: 
+                    print(f"Channel {channel.id} has no Qdac channel associated. Skipping")
             if reset_voltages: 
-                if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
-                    chan.offset_parameter(chan.current_external_voltage)
+                if hasattr(channel, "current_external_voltage") and channel.offset_parameter is not None: 
+                    channel.offset_parameter(channel.current_external_voltage)
+            
+        else: 
+            for channel, fn in channel_source_mapping.items(): 
+                # Ensure that the channel actually exists in the Quam.
+                chan = None
+                for ch in self.physical_channels.values(): 
+                    if ch is channel: 
+                        chan = ch
+                        break
+
+                if chan is None: 
+                    raise ValueError(f"Channel {channel.id} not found in Quam")
+                
+                chan.offset_parameter = fn
+                
+                if reset_voltages: 
+                    if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
+                        chan.offset_parameter(chan.current_external_voltage)
 
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
