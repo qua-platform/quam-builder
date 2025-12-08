@@ -7,6 +7,7 @@ __all__ = ["VoltageGate", "QdacSpec"]
 
 
 
+
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """

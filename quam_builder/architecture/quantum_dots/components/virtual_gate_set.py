@@ -16,6 +16,7 @@ from quam_builder.tools.qua_tools import VoltageLevelType
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
 
 
+
 @quam_dataclass
 class VirtualizationLayer(QuamComponent):
     """
@@ -125,8 +126,12 @@ class VirtualGateSet(GateSet):
 
     Inheriting from GateSet, VirtualGateSet allows control of a set of virtual
     gates that can be used to create a virtual gate layer.
+    Inheriting from GateSet, VirtualGateSet allows control of a set of virtual
+    gates that can be used to create a virtual gate layer.
 
     A VirtualGateSet manages a collection of channels (instances of `SingleChannel`,
+    including subclasses like `VoltageGate`) and provides all the functionalities
+    of a GateSet, plus functionality to:
     including subclasses like `VoltageGate`) and provides all the functionalities
     of a GateSet, plus functionality to:
     - Add any number of virtualization layers onto any subset of physical or virtual gates,
@@ -163,6 +168,7 @@ class VirtualGateSet(GateSet):
         >>> # Create any number of virtualization layers
         >>> dot_gates.add_layer(
         ...     source_gates = ["virtual1", "virtual2"],
+        ...     target_gates=["plunger", "barrier"],
         ...     target_gates=["plunger", "barrier"],
         ...     matrix = [[1, 0.3],[0.4, 1]]
         ... )
