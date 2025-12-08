@@ -67,6 +67,8 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
+    _preferred_readout_quantum_dot: str = None
+
     def __post_init__(self): 
         if isinstance(self.quantum_dot, str): 
             return

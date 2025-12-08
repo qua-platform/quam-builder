@@ -36,6 +36,7 @@ class VoltageGate(SingleChannel):
     attenuation: float = 0.0
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
+    qdac_channel: int = None
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
