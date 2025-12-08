@@ -86,6 +86,8 @@ class LossDiVincenzoQuam(BaseQuamQD):
         # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD. 
         if not hasattr(instance, 'b_field'):
             instance.b_field = 0
+        if not hasattr(instance, 'qpu'):
+            instance.qpu = field(default_factory=QPU)
         if not hasattr(instance, 'qubits'):
             instance.qubits = {}
         if not hasattr(instance, 'qubit_pairs'):
@@ -135,7 +137,6 @@ class LossDiVincenzoQuam(BaseQuamQD):
         qubit = LDQubit(
             id = d, 
             quantum_dot = dot.get_reference(), 
-            name = qubit_name,
             xy_channel = xy_channel
         )
         if readout_quantum_dot is not None: 

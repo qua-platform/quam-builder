@@ -49,7 +49,7 @@ class BasePointMacro(QuamMacro):
     macro_type: str = "base"
 
     @property
-    def voltage_sequence(self) -> VoltageSequence:
+    def voltage_sequence(self) -> "VoltageSequence":
         """Voltage sequence for this macro."""
         return self.parent.parent.voltage_sequence
 

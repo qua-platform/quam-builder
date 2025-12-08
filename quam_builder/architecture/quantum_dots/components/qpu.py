@@ -1,7 +1,7 @@
 from typing import Union, TYPE_CHECKING
 
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 
 from quam_builder.tools.voltage_sequence import VoltageSequence
 
