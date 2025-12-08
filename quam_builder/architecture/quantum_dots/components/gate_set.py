@@ -48,6 +48,31 @@ class VoltageTuningPoint(QuamMacro):
 
 
 @quam_dataclass
+class ArbitraryVoltageWaveform(QuamMacro):
+    """
+    Defines a specific set of DC voltages for a group of channels,
+    along with a default duration to hold these voltages.
+
+    This class is typically not instantiated directly by users, but is created
+    automatically by the GateSet.add_point() method. Once created, instances
+    are stored in the GateSet's macros dictionary and can be referenced by
+    name in voltage sequences.
+
+    Attributes:
+        voltages: Dictionary mapping channel names to their target voltages.
+        duration: Default duration in nanoseconds to hold these voltages.
+            - Duration must be in integer multiple of 4ns
+            - Minimum duration is 16ns
+    """
+
+    voltages: Dict[str, list[float]]
+    duration: int
+
+    def apply(self, *args, **kwargs):
+        raise NotImplementedError("Not yet implemented")
+
+
+@quam_dataclass
 class GateSet(QuantumComponent):
     """
     Represents a set of gate channels used for voltage sequencing in quantum dot
@@ -212,6 +237,46 @@ class GateSet(QuantumComponent):
             self.macros: Dict[str, QuamMacro] = {}
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
+
+    def add_arbitrary_waveform(
+        self, name: str, voltages: Dict[str, list[float]], duration: int
+    ):
+        """
+        Adds a named voltage tuning point (macro) to this GateSet.
+
+        Args:
+            name: The name for this tuning point.
+            voltages: A dictionary mapping channel names (keys in self.channels)
+                to their target DC voltage (float) for this point.
+                - Values are to be entered in units of V
+            duration: The default duration (ns) to hold these voltages.
+                - The duration must be an integer multiple of 4ns
+                - Minimum duration is 16ns
+
+        Example:
+            >>> gate_set = GateSet(channels={"gate1": ch1, "gate2": ch2})
+            >>> # Create a macro that can be used in voltage sequences
+            >>> gate_set.add_point("load", {"gate1": 0.5, "gate2": -0.2}, duration=1000)
+        """
+        invalid_channel_names = set(voltages) - set(self.valid_channel_names)
+        if invalid_channel_names:
+            raise ValueError(
+                f"Channel(s) '{invalid_channel_names}' specified in voltages for point "
+                f"'{name}' are not part of this GateSet."
+            )
+
+        for channel_name, arbitrary_values in voltages.items():
+            if len(arbitrary_values) != duration:
+                raise Exception(
+                    f"length of channel {channel_name}'s samples do not match duration: {duration}"
+                )
+        # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
+        if not hasattr(self, "macros") or self.macros is None:
+            self.macros: Dict[str, QuamMacro] = {}
+
+        self.macros[name] = ArbitraryVoltageWaveform(
+            voltages=voltages, duration=duration
+        )
 
     def new_sequence(
         self,
