@@ -227,7 +227,6 @@ class VoltagePointMacroMixin(QuantumComponent):
                 f"default_macros not provided for {self.__class__.__name__}"
             )
 
-
         for name, MacroClass in default_macros.items():
             self._validate_default_macro(name)
             self.macros[name] = MacroClass()
