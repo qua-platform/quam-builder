@@ -61,11 +61,3 @@ class WaitMacro(QuamMacro):
     def inferred_duration(self) -> Optional[float]:
         """Wait duration in seconds."""
         return self.duration * 1e-9
-
-
-# Dictionary of default macros to be automatically added to components
-# Add new default macros here to make them available across all components
-DEFAULT_MACROS = {
-    "align": AlignMacro,
-    "wait": WaitMacro,
-}

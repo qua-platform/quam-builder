@@ -4,22 +4,18 @@ Quantum Dot Architecture for QuAM.
 This module provides components and tools for building quantum dot-based quantum processors.
 """
 
-# Components
-from quam_builder.architecture.quantum_dots.components import *
+from .components import *
+from .examples import *
+from .operations import *
+from .qpu import *
+from .qubit import *
+from .qubit_pair import *
 
-# QPU
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-
-# Qubits
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
-# Operations (gate-level operations registry)
-from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-
-from .macros import *
 __all__ = [
-    "BaseQuamQD",
-    "LDQubit",
-    "operations_registry",
-    *macros.__all__,
+    *components.__all__,
+    *examples.__all__,
+    *operations.__all__,
+    *qpu.__all__,
+    *qubit.__all__,
+    *qubit_pair.__all__,
 ]

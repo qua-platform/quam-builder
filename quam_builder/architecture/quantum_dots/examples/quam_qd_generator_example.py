@@ -190,3 +190,7 @@ for i in range(barrier_gates):
     )
 
 config = machine.generate_config()
+machine.network = {"host": '172.16.33.115', "cluster_name": 'CS_3'}
+machine.connect()
+config_path = 'config'
+machine.save(config_path)

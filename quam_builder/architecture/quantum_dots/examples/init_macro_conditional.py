@@ -39,17 +39,14 @@ Example Usage:
 # Imports
 # ============================================================================
 from qm.qua import *
-from qm import SimulationConfig
 
 from quam.components import pulses
 from quam.components.macro import PulseMacro
 from quam.components.quantum_components import Qubit, QubitPair
 from quam.utils.qua_types import QuaVariableBool
 
-from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.architecture.quantum_dots.macros import (
-    AlignMacro,
-    WaitMacro,
+from quam_builder.architecture.quantum_dots.operations import operations_registry
+from quam_builder.tools.macros import (
     MeasureMacro
 )
 
@@ -136,9 +133,6 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     # ----------------------------------------------------------------------------
     # Configure Macros and Operations (non-fluent assignments)
     # ----------------------------------------------------------------------------
-    # Utility macros for alignment and waiting
-    qubit_pair.macros["align"] = AlignMacro()
-    qubit_pair.macros["wait"] = WaitMacro(duration=wait_duration)
 
     # Readout system configuration
     qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
@@ -165,7 +159,7 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
         # Create measure-and-return-to-load sequence
         .with_sequence(
             'measure_init',
-            ['measure_point', 'align', 'measure', 'align', 'load_point', 'align'],
+            ['measure_point', 'measure', 'load_point'],
             return_index=2  # Return measurement result
         )
 
@@ -180,7 +174,7 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
         # Create full initialization sequence (reset + wait + measure)
         .with_sequence(
             'init_sequence',
-            ['reset', 'align', 'wait', 'align', 'measure_init'],
+            ['reset', 'measure_init'],
             return_index=-1  # Return final measurement result
         )
     )
@@ -218,9 +212,7 @@ config = machine.generate_config()
 # ============================================================================
 if __name__ == "__main__":
     from qm import qua
-    from qm import QuantumMachinesManager
     import matplotlib
-    import matplotlib.pyplot as plt
 
     # Configure matplotlib for interactive plotting
     matplotlib.use('TkAgg')
@@ -240,8 +232,6 @@ if __name__ == "__main__":
             state = init_sequence(qubit_pair)
             # Option 2: method based
             # state = qubit_pair.init_sequence()
-            element_names = [channel.name for channel in qubit_pair.channels.values()]
-            qua.align(*element_names)
 
         qua.wait(100)
 

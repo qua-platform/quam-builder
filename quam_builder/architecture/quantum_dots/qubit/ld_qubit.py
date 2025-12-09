@@ -1,12 +1,14 @@
-from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
+from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional, Type, ClassVar
 from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam.core.macro import QuamMacro
 
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.operations import SINGLE_QUBIT_MACROS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
@@ -26,7 +28,7 @@ __all__ = ["LDQubit"]
 
 
 @quam_dataclass
-class LDQubit(Qubit, VoltagePointMacroMixin):
+class LDQubit(VoltagePointMacroMixin, Qubit):
     """
     An example QUAM component for a Loss DiVincenzo Qubit
 
@@ -65,18 +67,16 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     T2echo: float = None
     thermalization_time_factor: int = 5
 
+    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = SINGLE_QUBIT_MACROS
+
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
-    def __post_init__(self): 
-        if isinstance(self.quantum_dot, str): 
+    def __post_init__(self):
+        super().__post_init__()
+        if isinstance(self.quantum_dot, str):
             return
         if self.id is None:
             self.id = self.quantum_dot.id
-        # if self.id != self.quantum_dot.id:
-        #     raise ValueError(
-        #         f"LDQubit id {self.id} does not match QuantumDot id {self.quantum_dot.id}. "
-        #         f"These must be consistent. Either set LDQubit(id = {self.quantum_dot.id}, ...)"
-        #     )
 
     @property
     def physical_channel(self) -> Channel: 
@@ -101,15 +101,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     def _get_component_id_for_voltages(self) -> str:
         """Target the quantum_dot for voltage operations."""
         return self.quantum_dot.id
-
-    # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
-    # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
-
-    def initialisation(self): 
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle")
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle2")
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle3")
-        pass
 
     def calibrate_octave(
         self,

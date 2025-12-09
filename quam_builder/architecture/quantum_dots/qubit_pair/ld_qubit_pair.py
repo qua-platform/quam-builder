@@ -1,7 +1,8 @@
-from typing import Union, Dict, TYPE_CHECKING
+from typing import Union, Dict, TYPE_CHECKING, Type, ClassVar
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
+from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
@@ -12,6 +13,9 @@ from quam_builder.architecture.quantum_dots.components import (
 from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
 )
+from quam_builder.architecture.quantum_dots.operations import (
+    TWO_QUBIT_MACROS
+)
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 if TYPE_CHECKING:
@@ -21,7 +25,7 @@ __all__ = ["LDQubitPair"]
 
 
 @quam_dataclass
-class LDQubitPair(QubitPair, VoltagePointMacroMixin):
+class LDQubitPair(VoltagePointMacroMixin, QubitPair):
     """
     Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.
@@ -45,7 +49,10 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     quantum_dot_pair: QuantumDotPair = None
 
+    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = TWO_QUBIT_MACROS
+
     def __post_init__(self):
+        super().__post_init__()
         if self.id is None:
             self.id = f"{self.qubit_control.name}_{self.qubit_target.name}"
 

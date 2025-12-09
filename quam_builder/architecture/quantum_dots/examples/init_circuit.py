@@ -19,7 +19,6 @@ The circuit structure:
 # ============================================================================
 from qm.qua import *
 from qm import qua
-from qm import SimulationConfig
 from quam import QuamComponent
 
 from quam.components import pulses
@@ -30,7 +29,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.architecture.quantum_dots.macros import (
+from quam_builder.tools.macros import (
     AlignMacro,
     WaitMacro,
     MeasureMacro

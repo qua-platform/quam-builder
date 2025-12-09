@@ -37,6 +37,7 @@ class VoltageGate(SingleChannel):
     current_external_voltage: Optional[float] = None
 
     def __post_init__(self):
+        super().__post_init__()
         self._offset_parameter = None
 
     @property

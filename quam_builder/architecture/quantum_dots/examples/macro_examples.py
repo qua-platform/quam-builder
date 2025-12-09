@@ -21,7 +21,7 @@ Key Features:
 from quam.core import quam_dataclass
 from qm import qua
 
-from quam_builder.architecture.quantum_dots.macros.point_macros import (
+from quam_builder.architecture.quantum_dots.components import (
     VoltagePointMacroMixin,
 )
 

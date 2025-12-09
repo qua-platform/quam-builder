@@ -5,21 +5,17 @@ This module provides mixin classes that implement common voltage point macro met
 to reduce code duplication across quantum dot components.
 """
 from quam.core.macro import QuamMacro
-from typing import Dict, TYPE_CHECKING, Optional, List, Any
-from dataclasses import field
-from copy import deepcopy
+from qm.qua._expressions import Scalar, QuaVariable, to_scalar_pb_expression
+from quam.components.channels import Channel
+from qm.qua import align, wait
+from quam_builder.tools.macros import SequenceMacro, StepPointMacro, RampPointMacro, ConditionalMacro
+from collections import UserDict, UserList
 
-from quam_builder.architecture.quantum_dots.macros import SequenceMacro, StepPointMacro, RampPointMacro, ConditionalMacro
-from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass, QuamComponent, OperationsRegistry, QuamBase
 from quam.components import QuantumComponent
-
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
 
-from typing import Dict, TYPE_CHECKING
-from dataclasses import field
-
-from quam.core import quam_dataclass
+from typing import Dict, TYPE_CHECKING, Type, Union, Iterable, Optional, ClassVar, List, Set
 
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import VoltageSequence
@@ -76,23 +72,14 @@ class VoltagePointMacroMixin(QuantumComponent):
 
     # Attributes that must be provided by the class using the mixin
     id: str
-    macros: Dict[str, QuamMacro] = field(default_factory=dict)
+    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = {}
 
     def __post_init__(self):
         # Ensure macro containers exist and set parent links when possible
         if not hasattr(self, "macros") or self.macros is None:
             self.macros = {}
 
-        # Add default macros if not already present
-        for macro_name, macro_class in DEFAULT_MACROS.items():
-            if macro_name not in self.macros:
-                # Use a fresh copy per component to avoid sharing parent links
-                self.macros[macro_name] = macro_class()
-
-        # Attach parents for any pre-populated entries
-        for macro in self.macros.values():
-            if getattr(macro, "parent", None) is None:
-                macro.parent = self
+        self._register_default_macros()
 
     def __getattr__(self, name):
         """
@@ -131,7 +118,16 @@ class VoltagePointMacroMixin(QuantumComponent):
                     # Return a bound method-like callable
                     # Note: apply() uses self.parent internally, no need to pass component
                     def macro_method(**kwargs):
-                        return macros_dict[name].apply(**kwargs)
+                        macro = macros_dict[name]
+                        result = macro.apply(**kwargs)
+
+                        # Automatic sticky voltage tracking for non-voltage macros
+                        if hasattr(macro, 'inferred_duration'):
+                            duration = macro.inferred_duration
+                            if duration is not None and self._should_track_macro(macro):
+                                self._track_sticky_voltage_duration(duration)
+
+                        return result
 
                     macro_method.__name__ = name
                     macro_method.__doc__ = getattr(
@@ -145,7 +141,6 @@ class VoltagePointMacroMixin(QuantumComponent):
             raise AttributeError(
                 f"'{type(self).__name__}' object has no attribute or macro '{name}'"
             )
-
     @property
     def machine(self) -> "BaseQuamQD":
         """
@@ -170,6 +165,79 @@ class VoltagePointMacroMixin(QuantumComponent):
             f"{self.__class__.__name__} must implement voltage_sequence property"
         )
 
+    def _should_track_macro(self, macro: QuamMacro) -> bool:
+        """
+        Determine if this macro should trigger sticky voltage tracking.
+
+        Voltage point macros (StepPointMacro, RampPointMacro) handle their own
+        voltage tracking internally, so we don't want to double-count them.
+        Other macros with inferred_duration (like RF pulses) should be tracked
+        because they don't interact with voltage channels but voltage remains sticky.
+
+        Args:
+            macro: The macro to check
+
+        Returns:
+            bool: True if the macro should trigger sticky voltage tracking
+        """
+        # Don't track voltage point macros (they handle their own tracking)
+        if isinstance(macro, (StepPointMacro, RampPointMacro)):
+            return False
+
+        # Track all other macros that have an inferred_duration
+        # This includes RF pulses, wait operations, etc.
+        return True
+
+    def _track_sticky_voltage_duration(self, duration_seconds: float) -> None:
+        """
+        Track time passed while voltages remain sticky.
+
+        This method updates the integrated voltage for all channels that currently
+        have non-zero voltages. It's called automatically when non-voltage macros
+        execute to account for the fact that voltage remains at its sticky level
+        during these operations.
+
+        Args:
+            duration_seconds: Duration in seconds that the voltage was held
+
+        Technical details:
+            - Converts duration to nanoseconds (integer)
+            - Only tracks channels with non-zero current voltage levels
+            - Updates integrated voltage for compensation pulse calculation
+        """
+        duration_ns = int(duration_seconds * 1e9)
+
+        # Update integrated voltage for all channels with non-zero voltage
+        for ch_name, tracker in self.voltage_sequence.state_trackers.items():
+            current_level = tracker.current_level
+            # Only track if voltage is non-zero (sticky voltage is active)
+            if current_level != 0:
+                tracker.update_integrated_voltage(
+                    current_level,
+                    duration_ns,
+                    ramp_duration=None
+                )
+
+    def _register_default_macros(self, default_macros = None,) -> None:
+        """Register qubit macros."""
+        default_macros = default_macros if default_macros is not None else self.DEFAULT_MACROS
+
+        if default_macros is None:
+            raise ValueError(
+                f"default_macros not provided for {self.__class__.__name__}"
+            )
+
+
+        for name, MacroClass in default_macros.items():
+            self._validate_default_macro(name)
+            self.macros[name] = MacroClass()
+
+    def _validate_default_macro(self, name):
+        """Validate macro parameters."""
+        if name in self.macros.keys():
+            # print(Warning(f"macro {name} is already registered in {self.id}"))
+            pass
+
     def _validate_component_id_in_gate_set(self, component_id: str) -> None:
         """
         Validate that the component_id exists in the voltage sequence's gate set.
@@ -193,6 +261,131 @@ class VoltagePointMacroMixin(QuantumComponent):
                 f"{component_name} {self.id}: Component id '{component_id}' not found in gate set. "
                 f"Valid channel names: {list(valid_channel_names)}"
             )
+
+    @property
+    def channels(self) -> Dict[str, Channel]:
+        """
+        Return a dictionary of all Channel instances reachable from this component.
+
+        The search walks the component's attributes recursively (including nested
+        containers and child components) to make sure channels referenced deep in the
+        object graph are also returned. Keys are the dotted attribute paths to the
+        channel (e.g. ``quantum_dot.physical_channel``) so callers can disambiguate
+        multiple references. Duplicate channel instances are de-duplicated by identity.
+        """
+        channels: Dict[str, Channel] = {}
+        seen_objects: Set[int] = set()
+        seen_channels: Set[int] = set()
+
+        def walk(obj, path: List[str]) -> None:
+            obj_id = id(obj)
+            if obj_id in seen_objects:
+                return
+            seen_objects.add(obj_id)
+
+            if isinstance(obj, Channel):
+                if obj_id in seen_channels:
+                    return
+                seen_channels.add(obj_id)
+                key = ".".join(path) if path else getattr(obj, "name", None)
+                if not key:
+                    key = getattr(obj, "id", None) or f"channel_{len(channels)}"
+
+                # Avoid accidental overwrites if two channels share the same identifier.
+                if key in channels and channels[key] is not obj:
+                    suffix = 1
+                    base_key = key
+                    while f"{base_key}_{suffix}" in channels:
+                        suffix += 1
+                    key = f"{base_key}_{suffix}"
+
+                channels[key] = obj
+                return
+
+            if obj is None or isinstance(obj, (str, bytes, int, float, bool)):
+                return
+
+            if isinstance(obj, (dict, UserDict)):
+                for k, v in obj.items():
+                    walk(v, path + [str(k)])
+                return
+
+            if isinstance(obj, (list, tuple, set, UserList)):
+                for idx, item in enumerate(obj):
+                    walk(item, path + [str(idx)])
+                return
+
+            if isinstance(obj, QuamBase):
+                for attr_name, value in obj.get_attrs(
+                    follow_references=True, include_defaults=True
+                ).items():
+                    if attr_name == "parent":
+                        continue
+                    walk(value, path + [attr_name])
+                return
+
+            # Recurse into attributes of custom objects but avoid climbing up the
+            # parent link to the root to keep the search bounded.
+            if hasattr(obj, "__dict__"):
+                for attr_name, value in obj.__dict__.items():
+                    if attr_name == "parent":
+                        continue
+                    walk(value, path + [attr_name])
+
+        walk(self, [])
+        return channels
+
+    @QuantumComponent.register_macro
+    def wait(self,
+             duration: Scalar[int],
+             other_components: Optional[Union["QuamComponent", Iterable["QuamComponent"]]] = None,
+             *args: "QuamComponent",
+             ):
+        quantum_components = [self]
+
+        if isinstance(other_components, QuantumComponent):
+            quantum_components.append(other_components)
+        elif isinstance(other_components, Iterable) and not isinstance(other_components, (str, bytes, bytearray)):
+            quantum_components.extend(other_components)
+        elif other_components is not None:
+            raise ValueError(f"Invalid type for other_components: {type(other_components)}")
+
+        if args:
+            assert all(isinstance(arg, QuantumComponent) for arg in args)
+            quantum_components.extend(args)
+
+        channel_names = {
+            ch.name for component in quantum_components for ch in component.channels.values()
+        }
+
+        wait(*channel_names)
+
+    @QuantumComponent.register_macro
+    def align(
+        self,
+        other_components: Optional[Union["QuamComponent", Iterable["QuamComponent"]]] = None,
+        *args: "QuamComponent",
+    ):
+        """Aligns the execution of all channels of this qubit and all other qubits"""
+        quantum_components = [self]
+
+        if isinstance(other_components, QuantumComponent):
+            quantum_components.append(other_components)
+        elif isinstance(other_components, Iterable) and not isinstance(other_components, (str, bytes, bytearray)):
+            quantum_components.extend(other_components)
+        elif other_components is not None:
+            raise ValueError(f"Invalid type for other_components: {type(other_components)}")
+
+        if args:
+            assert all(isinstance(arg, QuantumComponent) for arg in args)
+            quantum_components.extend(args)
+
+        channel_names = {
+            ch.name for component in quantum_components for ch in component.channels.values()
+        }
+
+        align(*channel_names)
+
 
     def go_to_voltages(
         self, voltages: Dict[str, VoltageLevelType], duration: DurationType

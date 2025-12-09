@@ -45,7 +45,8 @@ class QuantumDotPair(VoltagePointMacroMixin):
 
     detuning_axis_name: str = ""
 
-    def __post_init__(self): 
+    def __post_init__(self):
+        super().__post_init__()
         if isinstance(self.quantum_dots[0], str): 
             return 
         if len(self.quantum_dots) != 2: 

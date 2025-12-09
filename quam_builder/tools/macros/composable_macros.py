@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from qm import qua
 from quam import QuamComponent
+from quam.components.quantum_components import Qubit, QubitPair
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
 from quam.core.operation.operations_registry import OperationsRegistry
@@ -149,6 +150,7 @@ class SequenceMacro(QuamMacro):
     macro_refs: tuple[str, ...] = field(default_factory=tuple)
     description: Optional[str] = None
     return_index: Optional[int] = None
+    align_elements = True
 
     def __call__(self, *args, **kwargs):
         """Execute sequence as callable."""
@@ -259,8 +261,29 @@ class SequenceMacro(QuamMacro):
             Result(s) based on return_index setting
         """
         res = []
+        previous_element = None
         for macro in self.resolved_macros(self.parent.parent):
             r = macro.apply(**kwargs)
+
+            # Get the component that owns this macro (macro.parent is 'macros' dict, parent.parent is the component)
+            new_element = macro.parent.parent
+
+            if previous_element is not None and self.align_elements:
+
+                if isinstance(previous_element, (Qubit, QubitPair)) and not isinstance(new_element, (Qubit, QubitPair)):
+                    previous_element.align()
+                elif isinstance(previous_element, (Qubit, QubitPair)) and previous_element==new_element:
+                    previous_element.align()
+                elif isinstance(previous_element, (Qubit)) and isinstance(new_element, (Qubit)):
+                    previous_element.align(new_element)
+                elif isinstance(new_element, (QubitPair)):
+                    new_element.align()
+                else:
+                    raise TypeError(
+                        f"Cannot align '{previous_element.id}' to '{new_element.id}' because previous_element is not Qubit, or QubitPair "
+                    )
+
+            previous_element = new_element
             res.append(r)
 
         if self.return_index is not None:

@@ -2,7 +2,6 @@ from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callab
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
-from quam.core.macro import QuamMacro
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
