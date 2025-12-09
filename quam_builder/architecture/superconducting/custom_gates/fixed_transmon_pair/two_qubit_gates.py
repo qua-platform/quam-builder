@@ -208,6 +208,7 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
 
         # Cleanup
         # reset_frame(self._cr.name)
+        self._cr_drive_shift_phase(-cr_drive_phase)
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
@@ -241,6 +242,7 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
 
         # Cleanup
         # reset_frame(self._cr.name)
+        self._cr_drive_shift_phase(-cr_drive_phase)
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
@@ -271,6 +273,8 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         # reset_frame(self._qt.xy.name)
         align(*self._cr_elems)
 
+        self._cr_drive_shift_phase(-cr_drive_phase)
+        self._cr_cancel_shift_phase(-cr_cancel_phase)
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
@@ -310,6 +314,8 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         # Cleanup
         # reset_frame(self._cr.name)
         # reset_frame(self._qt.xy.name)
+        self._cr_drive_shift_phase(-cr_drive_phase)
+        self._cr_cancel_shift_phase(-cr_cancel_phase)
         align(*self._cr_elems)
 
         self._qc_shift_correction_phase(qc_correction_phase)
