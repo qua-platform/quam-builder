@@ -22,13 +22,13 @@ class TWPA(QuamComponent):
 
         max_avg_gain (float): The maximum average gain around the readout resonators related to the TWPA
         max_avg_snr_improvement (float): The maximum average SNR improvement around the readout resonators related to the TWPA
-        pump_frequency (float): calibrated pump frequency at which twpa gives the maximum average snr improvement (calibrated at node 00a_twpa_calibration)
-        pump_amplitude (float): calibrated pump amplitude at which twpa gives the maximum average snr improvement (calibrated at node 00a_twpa_calibration)
-        mltpx_pump_frequency (float): calibrated pump frequency at which twpa gives proper snr improvement for multiplexed readout(calibrated at node 00a1_twpa_calibration_MTPLX_RO)
-        mltpx_pump_amplitude (float): calibrated pump amplitude at which twpa gives proper snr improvement for multiplexed readout(calibrated at node 00a1_twpa_calibration_MTPLX_RO)
-        p_saturation (float): calibrated saturation power of the twpa (calibrated at node 00b_twpa_saturation)
-        avg_std_gain (float): standard deviation of the average gain around the readout resonators related to the TWPA(calibrated at node 00d_twpa_fluctuation_overnight)
-        avg_std_snr_improvement (float): standard deviation of the average snr improvement around the readout resonators related to the TWPA(calibrated at node 00d_twpa_fluctuation_overnight)
+        pump_frequency (float): calibrated pump frequency at which twpa gives the maximum average snr improvement 
+        pump_amplitude (float): calibrated pump amplitude at which twpa gives the maximum average snr improvement 
+        mltpx_pump_frequency (float): calibrated pump frequency at which twpa gives proper snr improvement for multiplexed readout
+        mltpx_pump_amplitude (float): calibrated pump amplitude at which twpa gives proper snr improvement for multiplexed readout
+        p_saturation (float): calibrated saturation power of the twpa 
+        avg_std_gain (float): standard deviation of the average gain around the readout resonators related to the TWPA
+        avg_std_snr_improvement (float): standard deviation of the average snr improvement around the readout resonators related to the TWPA
         
         dispersive_feature (float): dispersive feature of the twpa defined from it's designed parameters
         qubits (list): list of qubits of which the signals are amplified by the twpa
