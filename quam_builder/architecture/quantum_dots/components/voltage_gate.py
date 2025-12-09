@@ -37,6 +37,7 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     qdac_channel: int = None
+    opx_external_ratio: float = 1.0
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
