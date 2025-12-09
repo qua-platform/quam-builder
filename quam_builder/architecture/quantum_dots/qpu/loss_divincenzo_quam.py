@@ -181,17 +181,6 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
         self.qubit_pairs[id] = qubit_pair
 
-    def initialise(self, qubit_name: str) -> None:
-        if qubit_name not in self.qubits:
-            raise ValueError(
-                f"Qubit {qubit_name} not in registered qubits: {list[self.qubits.keys()]}"
-            )
-
-        try:
-            self.qubits[qubit_name].initialisation()
-        except:
-            raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
-
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
         """Calibrate the Octave ports for all the active qubits.
 
