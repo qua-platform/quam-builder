@@ -1,5 +1,10 @@
 # QUAM Builder
 
+[![CI](https://github.com/qua-platform/quam-builder/workflows/CI/badge.svg)](https://github.com/qua-platform/quam-builder/actions)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/github/license/qua-platform/quam-builder)](https://github.com/qua-platform/quam-builder/blob/main/LICENSE)
+
 This repository contains the `quam-builder`, a Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP).
 
 The current version implements superconducting qubits and single NV centers. Future versions will include other qubit types.
