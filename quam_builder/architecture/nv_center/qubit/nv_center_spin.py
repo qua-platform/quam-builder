@@ -1,20 +1,19 @@
-from typing import Callable, Dict, Any, Union, Optional, Literal, Tuple
+from collections.abc import Callable
 from dataclasses import field
 from logging import getLogger
+from typing import Any, Literal
 
-from quam.core import quam_dataclass
+from qm import QuantumMachine, logger
+from qm.octave.octave_mixer_calibration import MixerCalibrationResults
+from qm.qua import assign, declare, wait
 from quam.components.quantum_components import Qubit
-from quam_builder.architecture.nv_center.components.spcm import SPCM
+from quam.core import quam_dataclass
 from quam_builder.architecture.nv_center.components.laser import LaserControl
+from quam_builder.architecture.nv_center.components.spcm import SPCM
 from quam_builder.architecture.nv_center.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
 )
-
-from qm import QuantumMachine, logger
-from qm.qua.type_hints import QuaVariable
-from qm.octave.octave_mixer_calibration import MixerCalibrationResults
-from qm.qua import declare, assign, wait
 
 __all__ = ["NVCenter"]
 
@@ -42,9 +41,9 @@ class NVCenter(Qubit):
         reset_qubit_thermal: Reset the qubit to the ground state ('g') using thermalization.
     """
 
-    id: Union[int, str]
+    id: int | str
 
-    xy: Union[XYDriveIQ, XYDriveMW] = None
+    xy: XYDriveIQ | XYDriveMW = None
     laser: LaserControl = None
     spcm: SPCM = None
 
@@ -55,17 +54,15 @@ class NVCenter(Qubit):
     T2echo: float = None
 
     grid_location: str = None
-    gate_fidelity: Dict[str, Any] = field(default_factory=dict)
-    extras: Dict[str, Any] = field(default_factory=dict)
+    gate_fidelity: dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
 
     def calibrate_octave(
         self,
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = False,
-    ) -> Tuple[
-        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
-    ]:
+    ) -> tuple[None | MixerCalibrationResults, None | MixerCalibrationResults]:
         """Calibrate the Octave channels (xy and resonator) linked to this NV center for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -126,9 +123,7 @@ class NVCenter(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_counts(
-        self, state, readout_method: str = "optical", readout_name: str = "readout"
-    ):
+    def readout_counts(self, state, readout_method: str = "optical", readout_name: str = "readout"):
         """
         Perform a readout of the qubit state using the specified method.
 
@@ -181,7 +176,7 @@ class NVCenter(Qubit):
         self,
         reset_type: Literal["laser"] = "laser",
         simulate: bool = False,
-        log_callable: Optional[Callable] = None,
+        log_callable: Callable | None = None,
         **kwargs,
     ):
         """
@@ -207,15 +202,11 @@ class NVCenter(Qubit):
             if reset_type == "laser":
                 self.reset_qubit_laser(**kwargs)
             else:
-                raise NotImplementedError(
-                    f"Reset type {reset_type} is not implemented."
-                )
+                raise NotImplementedError(f"Reset type {reset_type} is not implemented.")
         else:
             if log_callable is None:
                 log_callable = getLogger(__name__).warning
-            log_callable(
-                "For simulating the QUA program, the qubit reset has been skipped."
-            )
+            log_callable("For simulating the QUA program, the qubit reset has been skipped.")
 
     def reset_qubit_laser(self, **kwargs):
         """

@@ -1,21 +1,21 @@
-
-import numpy as np
-
+# ruff: noqa
 import matplotlib
 import matplotlib.pyplot as plt
-from quam.components.channels import SingleChannel
+import numpy as np
 
+from quam.components.channels import SingleChannel
 from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
     VirtualGateSet,
 )
 
+
 def _channels(names):
     return {
-        name: SingleChannel(id=name, opx_output=("con", idx + 1))
-        for idx, name in enumerate(names)
+        name: SingleChannel(id=name, opx_output=("con", idx + 1)) for idx, name in enumerate(names)
     }
 
-matplotlib.use('TkAgg')
+
+matplotlib.use("TkAgg")
 gate_set = VirtualGateSet(
     id="rectangular_roundtrip",
     channels=_channels(["P1", "P2", "P3"]),
@@ -50,11 +50,9 @@ physical_samples = np.array([pinv_matrix @ source for source in source_samples])
 resolved_samples = []
 for source_vector in source_samples:
     resolved = gate_set.resolve_voltages(
-        {gate: value for gate, value in zip(source_gates, source_vector)}
+        {gate: value for gate, value in zip(source_gates, source_vector, strict=False)}
     )
-    resolved_samples.append(
-        np.array([resolved["P1"], resolved["P2"], resolved["P3"]])
-    )
+    resolved_samples.append(np.array([resolved["P1"], resolved["P2"], resolved["P3"]]))
 resolved_samples = np.array(resolved_samples)
 
 np.testing.assert_allclose(resolved_samples, physical_samples, rtol=1e-9, atol=1e-9)

@@ -1,5 +1,3 @@
-from .base_quam_qd import *
+from .base_quam_qd import BaseQuamQD
 
-__all__ = [
-    "BaseQuamQD"
-]
+__all__ = ["BaseQuamQD"]

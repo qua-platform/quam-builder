@@ -1,8 +1,8 @@
-from typing import Dict, Any, Optional, Union, List
 from dataclasses import field
+from typing import Any
 
-from quam.core import quam_dataclass
 from quam.components.quantum_components import QubitPair
+from quam.core import quam_dataclass
 from quam_builder.architecture.nv_center.qubit.nv_center_spin import NVCenter
 
 __all__ = ["NVCenterPair"]
@@ -20,8 +20,8 @@ class NVCenterPair(QubitPair):
         extras (Dict[str, Any]): Additional attributes for the NV center pair.
     """
 
-    id: Union[int, str]
+    id: int | str
     qubit_control: NVCenter = None
     qubit_target: NVCenter = None
 
-    extras: Dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)

@@ -1,13 +1,10 @@
-from typing import Union, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from quam.core import quam_dataclass
 from quam.components import QubitPair
-
+from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
-)
-from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate
+    VoltageGate,
 )
 from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
@@ -38,7 +35,7 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
 
-    id: Union[str, int]
+    id: str | int
 
     qubit_control: LDQubit
     qubit_target: LDQubit
@@ -54,18 +51,18 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
         return self.quantum_dot_pair.physical_channel
 
     @property
-    def detuning_axis_name(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def detuning_axis_name(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.detuning_axis_name
-    
+
     @property
-    def voltage_sequence(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def voltage_sequence(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.voltage_sequence
-    
-    @property 
+
+    @property
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
 

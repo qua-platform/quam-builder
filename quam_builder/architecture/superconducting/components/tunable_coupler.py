@@ -1,7 +1,7 @@
 from typing import Literal
 
-from quam.core import quam_dataclass
 from quam.components import SingleChannel
+from quam.core import quam_dataclass
 
 __all__ = ["TunableCoupler"]
 

@@ -10,15 +10,10 @@ The OperationsRegistry allows you to:
 3. Get type checking and IDE autocomplete support
 4. Write cleaner QUA code
 """
-from quam import QuamComponent
-from typing import TYPE_CHECKING
 
 from quam.core import OperationsRegistry
-
-from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.components import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 __all__ = [
     "operations_registry",
@@ -48,6 +43,7 @@ operations_registry = OperationsRegistry()
 # ============================================================================
 # These work with any component that has VoltagePointMacroMixin
 
+
 @operations_registry.register_operation
 def idle(component: VoltagePointMacroMixin, **kwargs):
     """
@@ -64,14 +60,18 @@ def idle(component: VoltagePointMacroMixin, **kwargs):
 
 @operations_registry.register_operation
 def X90(component: LDQubit, **kwargs):
-    pass #
+    pass  #
+
 
 operations_registry = OperationsRegistry()
+
+
 @operations_registry.register_operation
 # The function name below becomes the gate-level call (e.g., X(q1)).
 def X(qubit: LDQubit, **kwargs):
     # Implementation is resolved by the macros attached to the qubit.
     pass
+
 
 @operations_registry.register_operation
 def load(component: VoltagePointMacroMixin, **kwargs):
@@ -84,6 +84,7 @@ def load(component: VoltagePointMacroMixin, **kwargs):
     """
     pass
 
+
 @operations_registry.register_operation
 def init(component: VoltagePointMacroMixin, **kwargs):
     """
@@ -93,6 +94,7 @@ def init(component: VoltagePointMacroMixin, **kwargs):
     :return:
     """
     pass
+
 
 @operations_registry.register_operation
 def readout(component: VoltagePointMacroMixin, **kwargs):
@@ -109,6 +111,7 @@ def readout(component: VoltagePointMacroMixin, **kwargs):
 # ============================================================================
 # Pulse Operations
 # ============================================================================
+
 
 @operations_registry.register_operation
 def x180(qubit: LDQubit, **kwargs):
@@ -163,6 +166,7 @@ def y90(qubit: LDQubit, **kwargs):
 # ============================================================================
 # Mixed Pulse + Voltage Operations
 # ============================================================================
+
 
 @operations_registry.register_operation
 def rabi(qubit: VoltagePointMacroMixin, **kwargs):

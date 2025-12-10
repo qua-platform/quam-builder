@@ -1,4 +1,3 @@
-from typing import Dict, Union
 from quam_builder.architecture.superconducting.components.flux_line import FluxLine
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
@@ -7,9 +6,9 @@ from quam_builder.architecture.superconducting.qubit import (
 
 
 def add_transmon_flux_component(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
+    transmon: FixedFrequencyTransmon | FluxTunableTransmon,
     wiring_path: str,
-    ports: Dict[str, str],
+    ports: dict[str, str],
 ):
     """Adds a flux component to a transmon qubit based on the provided wiring path and ports.
 
@@ -24,6 +23,4 @@ def add_transmon_flux_component(
     if "opx_output" in ports:
         transmon.z = FluxLine(opx_output=f"{wiring_path}/opx_output")
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

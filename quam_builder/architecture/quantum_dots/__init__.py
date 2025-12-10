@@ -7,16 +7,18 @@ This module provides components and tools for building quantum dot-based quantum
 # Components
 from quam_builder.architecture.quantum_dots.components import *
 
+# Operations (gate-level operations registry)
+from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
+
 # QPU
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 # Qubits
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
-# Operations (gate-level operations registry)
-from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-
+from . import macros
 from .macros import *
+
 __all__ = [
     "BaseQuamQD",
     "LDQubit",

@@ -1,8 +1,5 @@
-from typing import Optional
-
-from quam.core import QuamComponent, quam_dataclass
 from quam.components.channels import Channel, SingleChannel
-
+from quam.core import QuamComponent, quam_dataclass
 
 __all__ = ["LaserControl", "LaserLFAnalog", "LaserLFDigital"]
 
@@ -39,8 +36,8 @@ class LaserControl(QuamComponent):
         power Optional[LaserLFAnalog]: the laser power control component.
     """
 
-    trigger: Optional[LaserLFDigital] = None
-    power: Optional[LaserLFAnalog] = None
+    trigger: LaserLFDigital | None = None
+    power: LaserLFAnalog | None = None
 
     @property
     def name(self) -> str:

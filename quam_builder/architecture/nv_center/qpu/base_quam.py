@@ -1,21 +1,16 @@
 from dataclasses import field
-from typing import List, Dict, ClassVar, Optional, Union
+from typing import ClassVar
 
-from qm import QuantumMachinesManager, QuantumMachine
+from qm import QuantumMachine, QuantumMachinesManager
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import declare_stream, declare, fixed
-
 from quam.components import FrequencyConverter
-from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
+from quam.core import QuamRoot, quam_dataclass
 from quam.serialisation import JSONSerialiser
-
-from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 from quam_builder.architecture.nv_center.qubit import NVCenter
-
-from qualang_tools.results.data_handler import DataHandler
+from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 
 __all__ = ["BaseQuamNV"]
 
@@ -48,20 +43,20 @@ class BaseQuamNV(QuamRoot):
         initialize_qpu: Initialize the QPU with the specified settings.
     """
 
-    octaves: Dict[str, Octave] = field(default_factory=dict)
-    mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
+    octaves: dict[str, Octave] = field(default_factory=dict)
+    mixers: dict[str, FrequencyConverter] = field(default_factory=dict)
 
-    qubits: Dict[str, NVCenter] = field(default_factory=dict)
-    qubit_pairs: Dict[str, NVCenterPair] = field(default_factory=dict)
+    qubits: dict[str, NVCenter] = field(default_factory=dict)
+    qubit_pairs: dict[str, NVCenterPair] = field(default_factory=dict)
     wiring: dict = field(default_factory=dict)
     network: dict = field(default_factory=dict)
 
-    active_qubit_names: List[str] = field(default_factory=list)
-    active_qubit_pair_names: List[str] = field(default_factory=list)
+    active_qubit_names: list[str] = field(default_factory=list)
+    active_qubit_pair_names: list[str] = field(default_factory=list)
 
-    ports: Union[FEMPortsContainer, OPXPlusPortsContainer] = None
+    ports: FEMPortsContainer | OPXPlusPortsContainer = None
 
-    qmm: ClassVar[Optional[QuantumMachinesManager]] = None
+    qmm: ClassVar[QuantumMachinesManager | None] = None
 
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
@@ -69,9 +64,7 @@ class BaseQuamNV(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_octave_config(self) -> QmOctaveConfig:
         """Return the Octave configuration."""
@@ -87,11 +80,11 @@ class BaseQuamNV(QuamRoot):
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
         """
-        settings = dict(
-            host=self.network["host"],
-            cluster_name=self.network["cluster_name"],
-            octave=self.get_octave_config(),
-        )
+        settings = {
+            "host": self.network["host"],
+            "cluster_name": self.network["cluster_name"],
+            "octave": self.get_octave_config(),
+        }
         if "port" in self.network:
             settings["port"] = self.network["port"]
         self.qmm = QuantumMachinesManager(**settings)
@@ -109,21 +102,21 @@ class BaseQuamNV(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
-    def active_qubits(self) -> List[NVCenter]:
+    def active_qubits(self) -> list[NVCenter]:
         """Return the list of active qubits."""
         return [self.qubits[q] for q in self.active_qubit_names]
 
     @property
-    def active_qubit_pairs(self) -> List[NVCenterPair]:
+    def active_qubit_pairs(self) -> list[NVCenterPair]:
         """Return the list of active qubit pairs."""
         return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
 
-    def declare_qua_variables(self) -> tuple[
+    def declare_qua_variables(
+        self,
+    ) -> tuple[
         list[QuaVariable],
         list[StreamType],
         list[QuaVariable],

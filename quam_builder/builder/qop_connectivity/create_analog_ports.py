@@ -1,11 +1,10 @@
-from typing import List
 from qualang_tools.wirer.connectivity.element import QubitReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 from quam_builder.builder.qop_connectivity.paths import (
+    MIXERS_BASE_JSON_PATH,
     OCTAVES_BASE_JSON_PATH,
     PORTS_BASE_JSON_PATH,
-    MIXERS_BASE_JSON_PATH,
 )
 
 
@@ -86,7 +85,7 @@ def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
 
 
 def create_lf_opx_plus_port(
-    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
+    channel: AnyInstrumentChannel, channels: list[AnyInstrumentChannel]
 ) -> (str, str):
     """Generates a key/JSON reference pair from which a QUAM port can be created for a single non-octave channel.
 
@@ -115,10 +114,7 @@ def create_lf_opx_plus_port(
         key = f"opx_{channel.io_type}"
     elif len(channels_with_same_type) == 2:
         if channel.port == min(
-            [
-                channel_with_same_type.port
-                for channel_with_same_type in channels_with_same_type
-            ]
+            [channel_with_same_type.port for channel_with_same_type in channels_with_same_type]
         ):
             key = f"opx_{channel.io_type}_I"
         else:

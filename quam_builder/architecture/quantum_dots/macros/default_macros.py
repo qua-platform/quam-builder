@@ -1,6 +1,6 @@
 """Default utility macros for quantum operations."""
 
-from typing import Any, List, Optional
+from typing import Any
 
 from qm import qua
 from qm.qua._expressions import QuaVariable, Scalar
@@ -12,6 +12,7 @@ __all__ = [
     "WaitMacro",
     "DEFAULT_MACROS",
 ]
+
 
 @quam_dataclass()
 class AlignMacro(QuamMacro):
@@ -30,7 +31,7 @@ class AlignMacro(QuamMacro):
         qua.align(*elements)
 
     @property
-    def inferred_duration(self) -> Optional[float]:
+    def inferred_duration(self) -> float | None:
         """Duration is zero (synchronization point)."""
         return 0.0
 
@@ -45,9 +46,9 @@ class WaitMacro(QuamMacro):
     """
 
     duration: Scalar[int] = 16
-    elements: Optional[List[QuaVariable]] = None
+    elements: list[QuaVariable] | None = None
 
-    def apply(self, duration: Optional[int] = None, **kwargs) -> Any:
+    def apply(self, duration: int | None = None, **kwargs) -> Any:
         """Execute wait operation.
 
         Args:
@@ -58,7 +59,7 @@ class WaitMacro(QuamMacro):
         qua.wait(t)
 
     @property
-    def inferred_duration(self) -> Optional[float]:
+    def inferred_duration(self) -> float | None:
         """Wait duration in seconds."""
         return self.duration * 1e-9
 

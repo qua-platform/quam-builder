@@ -1,21 +1,19 @@
-from dataclasses import field
-from typing import List, Dict, ClassVar, Optional, Union
 import importlib
 import logging
+from dataclasses import field
+from typing import ClassVar
 
-from qm import QuantumMachinesManager, QuantumMachine
+from qm import QuantumMachine, QuantumMachinesManager
 from qm.octave import QmOctaveConfig
+from qm.qua import declare, declare_stream, fixed
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import declare_stream, declare, fixed
-
 from quam.components import FrequencyConverter
-from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
+from quam.core import QuamRoot, quam_dataclass
 from quam.serialisation import JSONSerialiser
-
-from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
+from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 
 logger = logging.getLogger(__name__)
 
@@ -52,20 +50,20 @@ class BaseQuam(QuamRoot):
         initialize_qpu: Initialize the QPU with specified settings.
     """
 
-    octaves: Dict[str, Octave] = field(default_factory=dict)
-    mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
+    octaves: dict[str, Octave] = field(default_factory=dict)
+    mixers: dict[str, FrequencyConverter] = field(default_factory=dict)
 
-    qubits: Dict[str, AnyTransmon] = field(default_factory=dict)
-    qubit_pairs: Dict[str, AnyTransmonPair] = field(default_factory=dict)
+    qubits: dict[str, AnyTransmon] = field(default_factory=dict)
+    qubit_pairs: dict[str, AnyTransmonPair] = field(default_factory=dict)
     wiring: dict = field(default_factory=dict)
     network: dict = field(default_factory=dict)
 
-    active_qubit_names: List[str] = field(default_factory=list)
-    active_qubit_pair_names: List[str] = field(default_factory=list)
+    active_qubit_names: list[str] = field(default_factory=list)
+    active_qubit_pair_names: list[str] = field(default_factory=list)
 
-    ports: Optional[Union[FEMPortsContainer, OPXPlusPortsContainer]] = None
+    ports: FEMPortsContainer | OPXPlusPortsContainer | None = None
 
-    qmm: ClassVar[Optional[QuantumMachinesManager]] = None
+    qmm: ClassVar[QuantumMachinesManager | None] = None
 
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
@@ -73,11 +71,9 @@ class BaseQuam(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
-    def get_octave_config(self) -> Optional[QmOctaveConfig]:
+    def get_octave_config(self) -> QmOctaveConfig | None:
         """Return the Octave configuration."""
         octave_config = None
         for octave in self.octaves.values():
@@ -288,9 +284,7 @@ class BaseQuam(QuamRoot):
                 f"Failed to initialize {qmm_class.__name__} with provided settings: {e}"
             ) from e
         except Exception as e:
-            raise ConnectionError(
-                f"Failed to connect to Quantum Machines Manager: {e}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to Quantum Machines Manager: {e}") from e
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
         """Calibrate the Octave ports for all the active qubits.
@@ -304,17 +298,15 @@ class BaseQuam(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
-    def active_qubits(self) -> List[AnyTransmon]:
+    def active_qubits(self) -> list[AnyTransmon]:
         """Return the list of active qubits."""
         return [self.qubits[q] for q in self.active_qubit_names]
 
     @property
-    def active_qubit_pairs(self) -> List[AnyTransmonPair]:
+    def active_qubit_pairs(self) -> list[AnyTransmonPair]:
         """Return the list of active qubit pairs."""
         return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
 
@@ -330,7 +322,7 @@ class BaseQuam(QuamRoot):
 
     def declare_qua_variables(
         self,
-        num_IQ_pairs: Optional[int] = None,
+        num_IQ_pairs: int | None = None,
     ) -> tuple[
         list[QuaVariable],
         list[StreamType],
@@ -353,11 +345,11 @@ class BaseQuam(QuamRoot):
 
         n = declare(int)
         n_st = declare_stream()
-        I = [declare(fixed) for _ in range(num_IQ_pairs)]
-        Q = [declare(fixed) for _ in range(num_IQ_pairs)]
-        I_st = [declare_stream() for _ in range(num_IQ_pairs)]
-        Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
-        return I, I_st, Q, Q_st, n, n_st
+        i_values = [declare(fixed) for _ in range(num_IQ_pairs)]
+        q_values = [declare(fixed) for _ in range(num_IQ_pairs)]
+        i_streams = [declare_stream() for _ in range(num_IQ_pairs)]
+        q_streams = [declare_stream() for _ in range(num_IQ_pairs)]
+        return i_values, i_streams, q_values, q_streams, n, n_st
 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the specified settings."""

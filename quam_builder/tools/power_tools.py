@@ -1,11 +1,8 @@
 import numpy as np
 
-from typing import Optional
-
+from qualang_tools.units import unit
 from quam.components import IQChannel
 from quam.components.channels import MWChannel
-
-from qualang_tools.units import unit
 
 __all__ = [
     "set_output_power_mw_channel",
@@ -20,8 +17,8 @@ def set_output_power_mw_channel(
     channel: MWChannel,
     power_in_dbm: float,
     operation: str,
-    full_scale_power_dbm: Optional[int] = None,
-    max_amplitude: Optional[float] = 1,
+    full_scale_power_dbm: int | None = None,
+    max_amplitude: float | None = 1,
 ):
     """
     Sets the power level in dBm for a specified operation, increasing the full-scale power
@@ -113,10 +110,10 @@ def get_output_power_mw_channel(channel: MWChannel, operation, Z=50) -> float:
 def set_output_power_iq_channel(
     channel: IQChannel,
     power_in_dbm: float,
-    gain: Optional[int] = None,
-    max_amplitude: Optional[float] = None,
+    gain: int | None = None,
+    max_amplitude: float | None = None,
     Z: int = 50,
-    operation: Optional[str] = "readout",
+    operation: str | None = "readout",
 ):
     """
     Configure the output power for a specific operation by setting the gain or amplitude.

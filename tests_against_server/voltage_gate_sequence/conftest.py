@@ -1,17 +1,16 @@
+import numpy as np
 import pytest
 
-from quam.core import QuamRoot, quam_dataclass
-from quam.components import SingleChannel
-from quam.components.ports import LFFEMAnalogOutputPort
+from qm import QuantumMachinesManager
 from quam.components.channels import StickyChannelAddon
+from quam.components.ports import LFFEMAnalogOutputPort
+from quam.core import QuamRoot, quam_dataclass
 from quam_builder.architecture.quantum_dots.components import (
     GateSet,
     VirtualGateSet,
     VirtualizationLayer,
     VoltageGate,
 )
-from qm import QuantumMachinesManager
-import numpy as np
 
 
 @quam_dataclass
@@ -39,16 +38,12 @@ def machine():
             id="test_gate_set",
             channels={
                 "ch1": VoltageGate(
-                    opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 6, upsampling_mode="pulse"
-                    ),
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 6, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                     attenuation=10,
                 ),
                 "ch2": VoltageGate(
-                    opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 3, upsampling_mode="pulse"
-                    ),
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 3, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                     attenuation=10,
                 ),

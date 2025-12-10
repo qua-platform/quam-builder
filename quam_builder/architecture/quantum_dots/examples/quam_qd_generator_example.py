@@ -1,3 +1,4 @@
+# ruff: noqa
 """
 
 This is an example script on how to instantiate a QPU which contains Loss-DiVincenzo qubits, with other barrier gates and sensor dots.
@@ -30,20 +31,12 @@ Workflow:
 
 """
 
-from quam.components import StickyChannelAddon, pulses
-from quam.components.ports import (
-    LFFEMAnalogOutputPort,
-    LFFEMAnalogInputPort,
-    MWFEMAnalogOutputPort
-)
-
-from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ, XYDrive
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
-
-import numpy as np
+from quam.components import StickyChannelAddon, pulses
+from quam.components.ports import LFFEMAnalogInputPort, LFFEMAnalogOutputPort, MWFEMAnalogOutputPort
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, VoltageGate
+from quam_builder.architecture.quantum_dots.components.xy_drive import XYDrive
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 # Instantiate Quam
 machine = BaseQuamQD()
@@ -100,17 +93,9 @@ rs = [
         id=f"readout_resonator_{i}",
         frequency_bare=0,
         intermediate_frequency=500e6,
-        operations={
-            "readout": pulses.SquareReadoutPulse(
-                length=200, id="readout", amplitude=0.01
-            )
-        },
-        opx_output=LFFEMAnalogOutputPort(
-            "con1", lf_fem_resonators, port_id=i * 2 + next_port_id
-        ),
-        opx_input=LFFEMAnalogInputPort(
-            "con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id
-        ),
+        operations={"readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)},
+        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_resonators, port_id=i * 2 + next_port_id),
+        opx_input=LFFEMAnalogInputPort("con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
     for i in range(resonators)
@@ -143,7 +128,7 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels=ps,
     barrier_channels=bs,
-    sensor_channels_resonators=[(s, r) for s, r in zip(ss, rs)],
+    sensor_channels_resonators=[(s, r) for s, r in zip(ss, rs, strict=False)],
 )
 
 #############################
@@ -157,8 +142,18 @@ for i in range(plunger_gates):
         qubit_type="loss_divincenzo",
         quantum_dot_id=f"virtual_dot_{i}",
         id=f"Q{i}",
-        xy_channel=XYDrive(id = f"Q{i}_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 5, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=10e6)
-
+        xy_channel=XYDrive(
+            id=f"Q{i}_xy",
+            opx_output=MWFEMAnalogOutputPort(
+                "con1",
+                mw_fem,
+                port_id=5,
+                upconverter_frequency=5e9,
+                band=2,
+                full_scale_power_dbm=10,
+            ),
+            intermediate_frequency=10e6,
+        ),
     )
 
 ########################################

@@ -1,7 +1,4 @@
-from typing import Dict
-
 from qualang_tools.addons.calibration.calibrations import unit
-
 from quam_builder.architecture.nv_center.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
@@ -21,7 +18,7 @@ u = unit(coerce_to_integer=True)
 def add_nv_drive_component(
     nv_center: NVCenter,
     wiring_path: str,
-    ports: Dict[str, str],
+    ports: dict[str, str],
 ):
     """Adds a drive component to an nv_center qubit based on the provided wiring path and ports.
 
@@ -58,6 +55,4 @@ def add_nv_drive_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

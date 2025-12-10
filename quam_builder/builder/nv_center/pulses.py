@@ -1,9 +1,7 @@
-from typing import Union
-
 import numpy as np
+
 from qualang_tools.units import unit
 from quam.components import pulses
-
 from quam_builder.architecture.nv_center.qubit import NVCenter
 from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 

@@ -1,10 +1,9 @@
+from typing import TYPE_CHECKING
+
 from quam.components import QuantumComponent, pulses
 from quam.components.channels import SingleChannel
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-
-
-from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from quam_builder.tools.voltage_sequence import (
@@ -12,9 +11,8 @@ if TYPE_CHECKING:
     )
 
 from quam_builder.tools.qua_tools import (
-    VoltageLevelType,
-    CLOCK_CYCLE_NS,
     MIN_PULSE_DURATION_NS,
+    VoltageLevelType,
 )
 
 DEFAULT_PULSE_NAME = "half_max_square"
@@ -40,7 +38,7 @@ class VoltageTuningPoint(QuamMacro):
             - Minimum duration is 16ns
     """
 
-    voltages: Dict[str, float]
+    voltages: dict[str, float]
     duration: int
 
     def apply(self, *args, **kwargs):
@@ -96,7 +94,7 @@ class GateSet(QuantumComponent):
         ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
-    channels: Dict[str, SingleChannel]
+    channels: dict[str, SingleChannel]
     adjust_for_attenuation: bool = False
 
     def __post_init__(self):
@@ -122,8 +120,8 @@ class GateSet(QuantumComponent):
         return self.id
 
     def resolve_voltages(
-        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
-    ) -> Dict[str, VoltageLevelType]:
+        self, voltages: dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> dict[str, VoltageLevelType]:
         """
         Resolves voltages for all channels in the GateSet.
 
@@ -184,7 +182,7 @@ class GateSet(QuantumComponent):
     def valid_channel_names(self) -> list[str]:
         return list(self.channels.keys())
 
-    def add_point(self, name: str, voltages: Dict[str, float], duration: int):
+    def add_point(self, name: str, voltages: dict[str, float], duration: int):
         """
         Adds a named voltage tuning point (macro) to this GateSet.
 
@@ -211,7 +209,7 @@ class GateSet(QuantumComponent):
 
         # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
         if not hasattr(self, "macros") or self.macros is None:
-            self.macros: Dict[str, QuamMacro] = {}
+            self.macros: dict[str, QuamMacro] = {}
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
@@ -243,6 +241,4 @@ class GateSet(QuantumComponent):
             VoltageSequence,
         )
 
-        return VoltageSequence(
-            self, track_integrated_voltage, keep_levels, enforce_qua_calcs
-        )
+        return VoltageSequence(self, track_integrated_voltage, keep_levels, enforce_qua_calcs)

@@ -1,16 +1,13 @@
-from typing import Optional
 import numpy as np
 
+from qm.qua import Cast, assign, declare, fixed
 from qm.qua.type_hints import QuaVariable, Scalar
-from qm.qua import declare, assign, Cast, fixed
-
-from quam_builder.tools.voltage_sequence.exceptions import StateError
-from quam_builder.tools.qua_tools import is_qua_type
 from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
 from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
     VirtualGateSet,
 )
-from typing import Dict
+from quam_builder.tools.qua_tools import is_qua_type
+from quam_builder.tools.voltage_sequence.exceptions import StateError
 
 __all__ = [
     "SequenceStateTracker",
@@ -94,15 +91,13 @@ class SequenceStateTracker:
         # Initialize state variables directly for the single element
         self._current_level_internal: Scalar[float] = 0.0
         if enforce_qua_calcs:
-            self._current_level_internal = declare(
-                fixed, value=self._current_level_internal
-            )
+            self._current_level_internal = declare(fixed, value=self._current_level_internal)
         # Whether to track integrated voltage
         self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
         self._integrated_voltage_internal: Scalar[int] = 0
         # Keep track of the declared QUA variable for integrated voltage, if any
-        self._integrated_voltage_qua_var: Optional[QuaVariable] = None
+        self._integrated_voltage_qua_var: QuaVariable | None = None
         self._current_py_val_before_promotion = None
 
     @property
@@ -214,9 +209,7 @@ class SequenceStateTracker:
             self._current_py_val_before_promotion = current_py_val
             int_v_var = declare(int, value=current_py_val)
             self._integrated_voltage_qua_var = int_v_var
-            self._integrated_voltage_internal = (
-                int_v_var  # Update tracking to use the QUA var
-            )
+            self._integrated_voltage_internal = int_v_var  # Update tracking to use the QUA var
             return int_v_var
         else:
             # QUA Variable already exists for this element's integrated voltage
@@ -226,7 +219,7 @@ class SequenceStateTracker:
         self,
         level: Scalar[float],
         duration: Scalar[int],
-        ramp_duration: Optional[Scalar[int]] = None,
+        ramp_duration: Scalar[int] | None = None,
     ):
         """
         Updates the accumulated integrated voltage for the tracked element.
@@ -298,11 +291,7 @@ class SequenceStateTracker:
                 assign(int_v_var, int_v_var + ramp_contribution)
             else:  # All inputs for ramp part are Python types
                 ramp_contribution = int(
-                    np.round(
-                        avg_ramp_level
-                        * ramp_duration
-                        * INTEGRATED_VOLTAGE_SCALING_FACTOR
-                    )
+                    np.round(avg_ramp_level * ramp_duration * INTEGRATED_VOLTAGE_SCALING_FACTOR)
                 )
                 # _integrated_voltage_internal is guaranteed to be an int here
                 self._integrated_voltage_internal += ramp_contribution
@@ -325,20 +314,15 @@ class KeepLevels:
                 channel, track_integrated_voltage=False
             )
 
-    def update_voltage_dict_with_current(
-        self, voltages_dict: Dict[str, VoltageLevelType]
-    ):
+    def update_voltage_dict_with_current(self, voltages_dict: dict[str, VoltageLevelType]):
         """
         adds points that are not supplied to the voltages_dict
         """
         self.update_tracking(voltages_dict=voltages_dict)
 
-        return {
-            name: tracker.current_level
-            for name, tracker in self._keep_levels_dict.items()
-        }
+        return {name: tracker.current_level for name, tracker in self._keep_levels_dict.items()}
 
-    def update_tracking(self, voltages_dict: Dict[str, VoltageLevelType]):
+    def update_tracking(self, voltages_dict: dict[str, VoltageLevelType]):
         """
         updates the internal state for newly supplied points
         """

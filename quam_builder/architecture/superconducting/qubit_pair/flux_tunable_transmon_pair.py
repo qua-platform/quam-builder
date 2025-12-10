@@ -1,9 +1,9 @@
-from typing import Dict, Any, Optional, Union, List
 from dataclasses import field
-from qm.qua import align, wait
+from typing import Any
 
-from quam.core import quam_dataclass
+from qm.qua import align, wait
 from quam.components.quantum_components import QubitPair
+from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
 )
@@ -35,15 +35,15 @@ class FluxTunableTransmonPair(QubitPair):
         to_mutual_idle: Sets the flux bias to the mutual idle offset for the control and target qubits.
     """
 
-    id: Union[int, str]
+    id: int | str
     qubit_control: FluxTunableTransmon = None
     qubit_target: FluxTunableTransmon = None
-    coupler: Optional[TunableCoupler] = None
+    coupler: TunableCoupler | None = None
 
-    detuning: Optional[float] = None
-    confusion: Optional[List[List[float]]] = None
-    mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
-    extras: Dict[str, Any] = field(default_factory=dict)
+    detuning: float | None = None
+    confusion: list[list[float]] | None = None
+    mutual_flux_bias: list[float] = field(default_factory=lambda: [0, 0])
+    extras: dict[str, Any] = field(default_factory=dict)
 
     def align(self):
         """Aligns the channels of the control and target qubits, and the coupler if present."""

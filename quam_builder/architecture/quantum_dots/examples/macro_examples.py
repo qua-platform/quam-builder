@@ -1,3 +1,4 @@
+# ruff: noqa
 """
 Essential examples demonstrating voltage point and sequence macro functionality.
 
@@ -18,17 +19,16 @@ Key Features:
 - Serializable: All state stored in self.macros dict
 """
 
-from quam.core import quam_dataclass
 from qm import qua
-
+from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.macros.point_macros import (
     VoltagePointMacroMixin,
 )
 
-
 # ============================================================================
 # Example Component Setup
 # ============================================================================
+
 
 @quam_dataclass
 class ExampleQuantumDot(VoltagePointMacroMixin):
@@ -56,6 +56,7 @@ class ExampleQuantumDot(VoltagePointMacroMixin):
 # Example 1: Fluent API (Recommended)
 # ============================================================================
 
+
 def example_01_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Modern fluent API with method chaining.
@@ -67,24 +68,24 @@ def example_01_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
     - Full serialization support
     """
     # Define multiple macros in one fluent chain
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=500)
+    (
+        quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+        .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
         .with_step_point("measure", {"virtual_dot_0": 0.15}, hold_duration=1000)
-        .with_sequence("full_cycle", ["idle", "load", "measure"]))
+        .with_sequence("full_cycle", ["idle", "load", "measure"])
+    )
 
     # Can also define macros incrementally during calibration
     quantum_dot.with_step_point("readout", {"virtual_dot_0": 0.2}, hold_duration=500)
 
     # Add to existing sequence
-    quantum_dot.with_sequence("extended_cycle",
-                             ["idle", "load", "measure", "readout"])
+    quantum_dot.with_sequence("extended_cycle", ["idle", "load", "measure", "readout"])
 
 
 # ============================================================================
 # Example 2: Dynamic Method Calling
 # ============================================================================
+
 
 def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
     """
@@ -97,17 +98,17 @@ def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
     maintaining full flexibility for dynamic calibration-time definition.
     """
     # Define macros using fluent API
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=500)
-        .with_sequence("init", ["idle", "load"]))
+    (
+        quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+        .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
+        .with_sequence("init", ["idle", "load"])
+    )
 
     # Call macros as methods (via __getattr__)
     with qua.program() as prog:
-        quantum_dot.idle()           # Calls StepPointMacro
-        quantum_dot.load()           # Calls RampPointMacro
-        quantum_dot.init()           # Calls SequenceMacro
+        quantum_dot.idle()  # Calls StepPointMacro
+        quantum_dot.load()  # Calls RampPointMacro
+        quantum_dot.init()  # Calls SequenceMacro
 
         # With parameter overrides
         quantum_dot.idle(hold_duration=200)
@@ -121,13 +122,15 @@ def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
 
     # or
     with qua.program() as prog:
-        quantum_dot.apply('idle')
-        quantum_dot.apply('load')
-        quantum_dot.apply('init')
+        quantum_dot.apply("idle")
+        quantum_dot.apply("load")
+        quantum_dot.apply("init")
+
 
 # ============================================================================
 # Example 3: Parameter Overrides
 # ============================================================================
+
 
 def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
     """
@@ -137,11 +140,12 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
     reuse the same macro definition with different timing parameters.
     """
     # Define base macros
-    
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=500))
+
+    (
+        quantum_dot.with_step_point(
+            "idle", {"virtual_dot_0": 0.1}, hold_duration=100
+        ).with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
+    )
 
     with qua.program() as prog:
         # Use default parameters
@@ -162,6 +166,7 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
 # Example 4: Nested Sequences
 # ============================================================================
 
+
 def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
     """
     Creating nested sequences by composing sequence macros.
@@ -170,12 +175,12 @@ def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
     composition of complex protocols.
     """
     # Define primitive macros
-    (quantum_dot
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("load", {"virtual_dot_0": 0.3},
-                        hold_duration=200, ramp_duration=400)
+    (
+        quantum_dot.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+        .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=400)
         .with_step_point("manipulate", {"virtual_dot_0": 0.25}, hold_duration=152)
-        .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000))
+        .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000)
+    )
 
     # Build sub-sequences
     quantum_dot.with_sequence("init", ["idle", "load"])
@@ -194,6 +199,7 @@ def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
 # ============================================================================
 # Example 5: Mixed Pulse and Point Sequence Macros
 # ============================================================================
+
 
 def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     """
@@ -216,11 +222,11 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
 
     # === STAGE 1: Define Voltage Point Macros ===
     # These control the charge state / detuning of the quantum dot
-    (qubit
-        .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-        .with_ramp_point("sweetspot", {"virtual_dot_0": 0.22},
-                        hold_duration=200, ramp_duration=400)
-        .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000))
+    (
+        qubit.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+        .with_ramp_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200, ramp_duration=400)
+        .with_step_point("readout", {"virtual_dot_0": 0.15}, hold_duration=1000)
+    )
 
     # === STAGE 2: Define Pulse Macros ===
     # These drive microwave transitions (assuming pulses are already added to xy_channel)
@@ -246,7 +252,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     # Complex sequence mixing multiple operations
     qubit.with_sequence(
         "complex_protocol",
-        ["idle", "sweetspot", "y90", "idle", "y90", "sweetspot", "x180", "readout"]
+        ["idle", "sweetspot", "y90", "idle", "y90", "sweetspot", "x180", "readout"],
     )
 
     # === STAGE 4: Execute Mixed Sequences ===
@@ -276,7 +282,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     # Define a main experiment that uses the calibration
     qubit.with_sequence(
         "full_experiment_with_calibration",
-        ["calibrate_pi_pulse", "ramsey_sequence", "calibrate_pi_pulse"]
+        ["calibrate_pi_pulse", "ramsey_sequence", "calibrate_pi_pulse"],
     )
 
     with qua.program() as prog:
@@ -286,6 +292,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
 # ============================================================================
 # Example 6: Using Operations Registry (RECOMMENDED)
 # ============================================================================
+
 
 def example_06_operations_registry(machine) -> None:
     """
@@ -300,13 +307,16 @@ def example_06_operations_registry(machine) -> None:
 
     This example mirrors the usage in quam_qd_generator_example.py
     """
-    from quam.components.macro.qubit_macros import PulseMacro
     from quam.components import pulses
+    from quam.components.macro.qubit_macros import PulseMacro
     from quam_builder.architecture.quantum_dots.examples.operations import (
-        operations_registry,
         # Import individual operations for type safety
-        idle, load, readout,
-        x180, rabi
+        idle,
+        load,
+        operations_registry,
+        rabi,
+        readout,
+        x180,
     )
 
     # === SETUP: Register operations with machine ===
@@ -328,13 +338,15 @@ def example_06_operations_registry(machine) -> None:
         q.macros["x90"] = PulseMacro(pulse=q.xy_channel.operations["x90"].get_reference())
 
         # Add voltage point macros using fluent API
-        (q
-         .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
-         .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
-         .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
-         .with_ramp_point("readout", {"virtual_dot_0": 0.15, "virtual_dot_1": 0.33}, hold_duration=200)
-         .with_sequence("init", ["load", "sweetspot"])
-         )
+        (
+            q.with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
+            .with_ramp_point("load", {"virtual_dot_0": 0.3}, hold_duration=200, ramp_duration=500)
+            .with_step_point("sweetspot", {"virtual_dot_0": 0.22}, hold_duration=200)
+            .with_ramp_point(
+                "readout", {"virtual_dot_0": 0.15, "virtual_dot_1": 0.33}, hold_duration=200
+            )
+            .with_sequence("init", ["load", "sweetspot"])
+        )
 
         # Define mixed sequences (voltage + pulse)
         q.with_sequence("rabis", ["init", "x180", "readout"])
@@ -351,7 +363,7 @@ def example_06_operations_registry(machine) -> None:
     with qua.program() as prog_operations:
         print("\n--- Rabi Experiment ---")
         # Clean, readable syntax with type checking!
-        rabi(qubit)   # Executes: init → x180 → readout
+        rabi(qubit)  # Executes: init → x180 → readout
         rabi(qubit2)  # Same for second qubit
 
         print("\n--- Individual Operations ---")
@@ -367,29 +379,19 @@ def example_06_operations_registry(machine) -> None:
         idle(qubit, hold_duration=152)
         load(qubit, hold_duration=240, ramp_duration=600)
 
+
 if __name__ == "__main__":
     from quam_qd_generator_example import machine
+
     qubit = machine.qubits["Q0"]
     quantum_dot = qubit.quantum_dot
 
-    example_01_fluent_api(
-        quantum_dot
-    )
-    example_02_method_calling(
-        quantum_dot
-    )
-    example_03_parameter_overrides(
-        quantum_dot
-    )
-    example_04_nested_sequences(
-        quantum_dot
-    )
-    example_05_mixed_pulse_and_point_sequence(
-        qubit
-    )
-    example_06_operations_registry(
-        machine
-    )
+    example_01_fluent_api(quantum_dot)
+    example_02_method_calling(quantum_dot)
+    example_03_parameter_overrides(quantum_dot)
+    example_04_nested_sequences(quantum_dot)
+    example_05_mixed_pulse_and_point_sequence(qubit)
+    example_06_operations_registry(machine)
 
 # ============================================================================
 # Summary and Best Practices

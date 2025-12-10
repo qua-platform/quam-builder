@@ -1,18 +1,12 @@
 import pytest
-from quam.components import StickyChannelAddon
-from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
+from quam.components import StickyChannelAddon
+from quam.components.ports import LFFEMAnalogInputPort, LFFEMAnalogOutputPort
 from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate,
-    QuantumDot,
-    BarrierGate,
-    QuantumDotPair,
-    SensorDot,
     ReadoutResonatorSingle,
+    VoltageGate,
 )
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 
 
 @pytest.fixture
@@ -109,18 +103,10 @@ def machine():
     )
 
     # Register Qubits
-    machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_1", id="Q1"
-    )
-    machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_2", id="Q2"
-    )
-    machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_3", id="Q3"
-    )
-    machine.register_qubit(
-        qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_4", id="Q4"
-    )
+    machine.register_qubit(qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_1", id="Q1")
+    machine.register_qubit(qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_2", id="Q2")
+    machine.register_qubit(qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_3", id="Q3")
+    machine.register_qubit(qubit_type="loss_divincenzo", quantum_dot_id="virtual_dot_4", id="Q4")
 
     # Register Quantum Dot Pairs
     machine.register_quantum_dot_pair(
@@ -137,11 +123,13 @@ def machine():
     )
 
     # Define detuning axes for both QuantumDotPairs
+    # Matrix format: 1 row with 2 columns representing the detuning transformation
+    # detuning = 1*dot1 + (-1)*dot2 (difference between the two dots)
     machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
-        matrix=[[1, 1], [1, -1]], detuning_axis_name="dot1_dot2_epsilon"
+        matrix=[[1, -1]], detuning_axis_name="dot1_dot2_epsilon"
     )
     machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
-        matrix=[[1, 1], [1, -1]], detuning_axis_name="dot3_dot4_epsilon"
+        matrix=[[1, -1]], detuning_axis_name="dot3_dot4_epsilon"
     )
 
     # Register Qubit Pairs

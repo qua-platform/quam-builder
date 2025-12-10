@@ -1,14 +1,10 @@
-from typing import Optional, Union
-
 from qualang_tools.wirer import Connectivity
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
-
-from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
-
-AnyQuam = Union[AnyQuamSC, AnyQuamNV]
+AnyQuam = AnyQuamSC | AnyQuamNV
 
 
 def build_quam_wiring(
@@ -16,7 +12,7 @@ def build_quam_wiring(
     host_ip: str,
     cluster_name: str,
     quam_instance: AnyQuam,
-    port: Optional[int] = None,
+    port: int | None = None,
 ):
     """Builds the QUAM wiring configuration and saves the machine setup.
 
@@ -53,9 +49,7 @@ def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
                     machine.ports = OPXPlusPortsContainer()
 
 
-def add_name_and_ip(
-    machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]
-):
+def add_name_and_ip(machine: AnyQuam, host_ip: str, cluster_name: str, port: int | None):
     """Stores the minimal information to connect to a QuantumMachinesManager.
 
     Args:

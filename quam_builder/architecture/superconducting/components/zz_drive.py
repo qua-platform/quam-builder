@@ -1,5 +1,5 @@
-from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
+from quam.core import quam_dataclass
 
 __all__ = ["ZZDriveIQ", "ZZDriveMW"]
 
@@ -13,7 +13,6 @@ class ZZDriveBase:
 
 @quam_dataclass
 class ZZDriveIQ(IQChannel, ZZDriveBase):
-
     @property
     def upconverter_frequency(self):
         return self.LO_frequency

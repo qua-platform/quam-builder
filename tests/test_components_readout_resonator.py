@@ -1,6 +1,6 @@
 from quam_builder.architecture.superconducting.components.readout_resonator import (
-    ReadoutResonatorMW,
     ReadoutResonatorIQ,
+    ReadoutResonatorMW,
 )
 
 ALL_RES = [

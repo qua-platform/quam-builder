@@ -1,7 +1,6 @@
 """Composable macros for building complex quantum operation sequences."""
 
 from dataclasses import field
-from typing import List, Optional
 
 from qm import qua
 from quam import QuamComponent
@@ -75,7 +74,9 @@ class ConditionalMacro(QuamMacro):
                 raise InvalidReferenceError(f"Reference type '{reference}' not supported")
 
         except (InvalidReferenceError, AttributeError) as e:
-            raise InvalidReferenceError(f"Could not resolve macro reference '{reference}': {e}")
+            raise InvalidReferenceError(
+                f"Could not resolve macro reference '{reference}': {e}"
+            ) from e
 
         if not isinstance(macro, QuamMacro):
             raise TypeError(
@@ -85,7 +86,7 @@ class ConditionalMacro(QuamMacro):
         return macro
 
     @property
-    def inferred_duration(self) -> Optional[float]:
+    def inferred_duration(self) -> float | None:
         """Calculate total duration (measurement + conditional macro) in seconds."""
         try:
             measurement = self._resolve_macro(self.measurement_macro)
@@ -101,7 +102,7 @@ class ConditionalMacro(QuamMacro):
         except (InvalidReferenceError, AttributeError):
             return None
 
-    def apply(self, invert_condition: Optional[bool] = None, **kwargs):
+    def apply(self, invert_condition: bool | None = None, **kwargs):
         """Execute conditional operation.
 
         Args:
@@ -147,8 +148,8 @@ class SequenceMacro(QuamMacro):
 
     name: str
     macro_refs: tuple[str, ...] = field(default_factory=tuple)
-    description: Optional[str] = None
-    return_index: Optional[int] = None
+    description: str | None = None
+    return_index: int | None = None
 
     def __call__(self, *args, **kwargs):
         """Execute sequence as callable."""
@@ -183,7 +184,7 @@ class SequenceMacro(QuamMacro):
         reference = self._reference_for(owner, macro_name)
         return self.with_reference(reference)
 
-    def with_macros(self, owner: QuamComponent, macro_names: List[str]) -> "SequenceMacro":
+    def with_macros(self, owner: QuamComponent, macro_names: list[str]) -> "SequenceMacro":
         """Append multiple macros by name.
 
         Args:
@@ -215,14 +216,14 @@ class SequenceMacro(QuamMacro):
         macros = getattr(owner, "macros", None)
         if macros is None:
             macros = {}
-            setattr(owner, "macros", macros)
+            owner.macros = macros
 
         if macro_name not in macros:
             raise KeyError(f"Macro '{macro_name}' not found on owner {owner}")
 
         return f"#./macros/{macro_name}"
 
-    def resolved_macros(self, component: QuamComponent) -> List[QuamMacro]:
+    def resolved_macros(self, component: QuamComponent) -> list[QuamMacro]:
         """Resolve stored references to concrete macros.
 
         Args:
@@ -234,7 +235,7 @@ class SequenceMacro(QuamMacro):
         Raises:
             InvalidReferenceError: If any reference cannot be resolved
         """
-        resolved: List[QuamMacro] = []
+        resolved: list[QuamMacro] = []
         for reference in self.macro_refs:
             try:
                 resolved_macro = string_reference.get_referenced_value(
@@ -242,10 +243,10 @@ class SequenceMacro(QuamMacro):
                     reference,
                     root=component.get_root(),
                 )
-            except (InvalidReferenceError, AttributeError):
+            except (InvalidReferenceError, AttributeError) as e:
                 raise InvalidReferenceError(
                     f"Could not resolve reference '{reference}' for sequence '{self.name}'"
-                )
+                ) from e
             resolved.append(resolved_macro)
         return resolved
 
@@ -269,8 +270,8 @@ class SequenceMacro(QuamMacro):
     def register_operation(
         self,
         registry: OperationsRegistry,
-        operation_name: Optional[str] = None,
-        description: Optional[str] = None,
+        operation_name: str | None = None,
+        description: str | None = None,
     ) -> None:
         """Register this sequence as an operation.
 
@@ -290,7 +291,7 @@ class SequenceMacro(QuamMacro):
         operation_fn.__name__ = op_name
         registry.register_operation(op_name)(operation_fn)
 
-    def total_duration_seconds(self, component: QuamComponent) -> Optional[float]:
+    def total_duration_seconds(self, component: QuamComponent) -> float | None:
         """Calculate summed duration of all referenced macros.
 
         Args:
@@ -299,7 +300,7 @@ class SequenceMacro(QuamMacro):
         Returns:
             Total duration in seconds, or None if any duration is unavailable
         """
-        durations: List[Optional[float]] = []
+        durations: list[float | None] = []
         for macro in self.resolved_macros(component):
             duration = getattr(macro, "inferred_duration", None)
             if duration is None:

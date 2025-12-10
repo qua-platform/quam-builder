@@ -1,15 +1,14 @@
-from dataclasses import field
-from typing import List, Dict, Any
 import warnings
+from dataclasses import field
+from typing import Any
+
 import numpy as np
 
 from quam.core import QuamComponent, quam_dataclass
 from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
 from quam_builder.tools.qua_tools import VoltageLevelType
 
-
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
-
 
 
 @quam_dataclass
@@ -26,10 +25,11 @@ class VirtualizationLayer(QuamComponent):
             defining the transformation.
             - NOTE: Matrix elements must be python literals, not QUA variables
     """
+
     id: str = None
-    source_gates: List[str]
-    target_gates: List[str]
-    matrix: List[List[float]]
+    source_gates: list[str]
+    target_gates: list[str]
+    matrix: list[list[float]]
     use_pseudoinverse: bool = False
 
     def _as_matrix_array(self) -> np.ndarray:
@@ -53,11 +53,11 @@ class VirtualizationLayer(QuamComponent):
                 )
             return inv_matrix
         except Exception as e:
-            raise ValueError(f"Error calculating inverse matrix: {e}")
+            raise ValueError(f"Error calculating inverse matrix: {e}") from e
 
     def resolve_voltages(
-        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
-    ) -> Dict[str, VoltageLevelType]:
+        self, voltages: dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> dict[str, VoltageLevelType]:
         """
         Resolves virtual gate voltages to physical gate voltages for this layer.
 
@@ -85,7 +85,7 @@ class VirtualizationLayer(QuamComponent):
             resolved_voltages.pop(source_gate, 0.0) for source_gate in self.source_gates
         ]
 
-        for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix):
+        for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix, strict=False):
             resolved_voltages.setdefault(target_gate, 0.0)
             resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
 
@@ -93,7 +93,7 @@ class VirtualizationLayer(QuamComponent):
 
     def to_dict(
         self, follow_references: bool = False, include_defaults: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Converts the VirtualizationLayer to a dictionary.
 
@@ -106,9 +106,7 @@ class VirtualizationLayer(QuamComponent):
         Returns:
             A dictionary representation of the VirtualizationLayer.
         """
-        d = super().to_dict(
-            follow_references=follow_references, include_defaults=include_defaults
-        )
+        d = super().to_dict(follow_references=follow_references, include_defaults=include_defaults)
         if isinstance(d["matrix"], np.ndarray):
             d["matrix"] = d["matrix"].tolist()
         return d
@@ -178,7 +176,7 @@ class VirtualGateSet(GateSet):
         ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
-    layers: List[VirtualizationLayer] = field(default_factory=list)
+    layers: list[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
 
     @property
@@ -187,16 +185,16 @@ class VirtualGateSet(GateSet):
         Returns a list of valid channel names for the VirtualGateSet.
         """
         # Collect all virtual gate names from all layers
-        virtual_channels = set(ch for layer in self.layers for ch in layer.source_gates)
+        virtual_channels = {ch for layer in self.layers for ch in layer.source_gates}
         # Combine physical and virtual gate names
         return list(self.channels) + list(virtual_channels)
 
     def _validate_new_layer(
         self,
-        layer_id: str, 
-        source_gates: List[str],
-        target_gates: List[str],
-        matrix: List[List[float]],
+        layer_id: str,
+        source_gates: list[str],
+        target_gates: list[str],
+        matrix: list[list[float]],
     ):
         """
         Validates the new layer to be added to the VirtualGateSet.
@@ -236,11 +234,7 @@ class VirtualGateSet(GateSet):
         if self.layers:  # Not the first layer
             # Get all source gates from previous layers
             all_previous_source_gates = set()
-            for (
-                lyr
-            ) in (
-                self.layers
-            ):  # Iterate through existing layers before adding the new one
+            for lyr in self.layers:  # Iterate through existing layers before adding the new one
                 all_previous_source_gates.update(lyr.source_gates)
 
             # Combine with physical channels for the very first layer's target check
@@ -279,13 +273,11 @@ class VirtualGateSet(GateSet):
                     f"Source gate '{sg}' in new layer is already a target gate in a "
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
-            
+
         # Check 5: The layer name must be unique
-        for lyr in self.layers: 
-            if layer_id == lyr.id: 
-                raise ValueError(
-                f"Layer name '{layer_id}' is already used in a previous layer."
-                )
+        for lyr in self.layers:
+            if layer_id == lyr.id:
+                raise ValueError(f"Layer name '{layer_id}' is already used in a previous layer.")
 
         matrix_array = np.array(matrix, dtype=float)
         expected_shape = (len(source_gates), len(target_gates))
@@ -307,17 +299,15 @@ class VirtualGateSet(GateSet):
             try:
                 det = np.linalg.det(matrix_array)
                 if abs(det) < 1e-10:  # Use small tolerance for floating point
-                    raise ValueError(
-                        f"Matrix is not invertible (determinant ≈ 0): {det}"
-                    )
+                    raise ValueError(f"Matrix is not invertible (determinant ≈ 0): {det}")
             except np.linalg.LinAlgError as e:
-                raise ValueError(f"Matrix inversion failed: {e}")
+                raise ValueError(f"Matrix inversion failed: {e}") from e
 
     def add_layer(
         self,
-        source_gates: List[str],
-        target_gates: List[str],
-        matrix: List[List[float]],
+        source_gates: list[str],
+        target_gates: list[str],
+        matrix: list[list[float]],
         layer_id: str = None,
     ) -> VirtualizationLayer:
         """
@@ -338,7 +328,7 @@ class VirtualGateSet(GateSet):
         use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
 
         virtualization_layer = VirtualizationLayer(
-            id = layer_id,
+            id=layer_id,
             source_gates=source_gates,
             target_gates=target_gates,
             matrix=matrix,
@@ -350,9 +340,9 @@ class VirtualGateSet(GateSet):
     def add_to_layer(
         self,
         layer_id: str,
-        source_gates: List[str],
-        target_gates: List[str],
-        matrix: List[List[float]],
+        source_gates: list[str],
+        target_gates: list[str],
+        matrix: list[list[float]],
     ) -> VirtualizationLayer:
         if not self.allow_rectangular_matrices:
             raise ValueError(
@@ -362,19 +352,19 @@ class VirtualGateSet(GateSet):
 
         if not self.layers:
             return self.add_layer(
-                layer_id = layer_id,
+                layer_id=layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
             )
-        
+
         # Check: target gates should not exist in any other layers
-        for lyr in self.layers: 
+        for lyr in self.layers:
             # Skip current layer
-            if lyr.id == layer_id: 
+            if lyr.id == layer_id:
                 continue
             conflicts = set(target_gates) & set(lyr.target_gates)
-            if conflicts: 
+            if conflicts:
                 raise ValueError(
                     f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
                 )
@@ -390,10 +380,9 @@ class VirtualGateSet(GateSet):
 
         target_overlap_layer = next((lyr for lyr in self.layers if lyr.id == layer_id), None)
 
-
         if target_overlap_layer is None:
             return self.add_layer(
-                layer_id = layer_id,
+                layer_id=layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
@@ -440,6 +429,7 @@ class VirtualGateSet(GateSet):
                             f"and target '{target}' in layer "
                             f"'{layer.id if hasattr(layer, 'id') else 'unnamed'}'.",
                             UserWarning,
+                            stacklevel=2,
                         )
                     full_matrix[row_idx, target_position] = value
             else:
@@ -458,8 +448,8 @@ class VirtualGateSet(GateSet):
         return layer
 
     def resolve_voltages(
-        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
-    ) -> Dict[str, VoltageLevelType]:
+        self, voltages: dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> dict[str, VoltageLevelType]:
         """
         Resolves all virtual gate voltages to physical gate voltages by applying
         all virtualization layers in reverse order.
@@ -493,13 +483,9 @@ class VirtualGateSet(GateSet):
         # Apply each virtualization layer in reverse order (from highest to lowest)
         # Each layer resolves its virtual gates to the next lower layer
         for layer in reversed(self.layers):
-            resolved_voltages = layer.resolve_voltages(
-                resolved_voltages, allow_extra_entries=True
-            )
+            resolved_voltages = layer.resolve_voltages(resolved_voltages, allow_extra_entries=True)
 
         # Finally, resolve any remaining voltages using the base class method
         # For example, add any voltages to channels that are undefined
-        resolved_voltages = super().resolve_voltages(
-            resolved_voltages, allow_extra_entries=True
-        )
+        resolved_voltages = super().resolve_voltages(resolved_voltages, allow_extra_entries=True)
         return resolved_voltages

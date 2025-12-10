@@ -1,5 +1,5 @@
-from quam.core import quam_dataclass
 from quam.components import Mixer
+from quam.core import quam_dataclass
 
 
 @quam_dataclass

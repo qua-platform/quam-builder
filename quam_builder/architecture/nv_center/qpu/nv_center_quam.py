@@ -1,8 +1,7 @@
 from dataclasses import field
-from typing import ClassVar, Dict, Type
+from typing import ClassVar
 
 from quam.core import quam_dataclass
-
 from quam_builder.architecture.nv_center.qpu.base_quam import BaseQuamNV
 from quam_builder.architecture.nv_center.qubit import NVCenter
 from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
@@ -24,11 +23,11 @@ class NVCenterQuam(BaseQuamNV):
         load: Loads the QUAM from the state.json file.
     """
 
-    qubit_type: ClassVar[Type[NVCenter]] = NVCenter
-    qubit_pair_type: ClassVar[Type[NVCenterPair]] = NVCenterPair
+    qubit_type: ClassVar[type[NVCenter]] = NVCenter
+    qubit_pair_type: ClassVar[type[NVCenterPair]] = NVCenterPair
 
-    qubits: Dict[str, NVCenter] = field(default_factory=dict)
-    qubit_pairs: Dict[str, NVCenterPair] = field(default_factory=dict)
+    qubits: dict[str, NVCenter] = field(default_factory=dict)
+    qubit_pairs: dict[str, NVCenterPair] = field(default_factory=dict)
 
     @classmethod
     def load(cls, *args, **kwargs) -> "NVCenterQuam":

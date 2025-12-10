@@ -1,24 +1,21 @@
 from pathlib import Path
-from typing import Optional, Union
 
 from numpy import ceil, sqrt
+
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
-
-from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
+from quam_builder.builder.nv_center.add_nv_drive_component import add_nv_drive_component
 from quam_builder.builder.nv_center.add_nv_laser_component import add_nv_laser_component
 from quam_builder.builder.nv_center.add_nv_spcm_component import add_nv_spcm_component
-from quam_builder.builder.nv_center.add_nv_drive_component import add_nv_drive_component
 from quam_builder.builder.nv_center.pulses import (
-    add_default_nv_center_pulses,
     add_default_nv_center_pair_pulses,
+    add_default_nv_center_pulses,
 )
 
 
-def build_quam(
-    machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuamNV:
+def build_quam(machine: AnyQuamNV, calibration_db_path: Path | str | None = None) -> AnyQuamNV:
     """Builds the QuAM by adding various components and saving the machine configuration.
 
     Args:
@@ -153,9 +150,7 @@ def add_pulses(machine: AnyQuamNV):
             add_default_nv_center_pair_pulses(qubit_pair)
 
 
-def add_octaves(
-    machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuamNV:
+def add_octaves(machine: AnyQuamNV, calibration_db_path: Path | str | None = None) -> AnyQuamNV:
     """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
 
     Args:
@@ -173,13 +168,11 @@ def add_octaves(
         calibration_db_path = Path(calibration_db_path)
 
     for wiring_by_element in machine.wiring.values():
-        for qubit, wiring_by_line_type in wiring_by_element.items():
-            for line_type, references in wiring_by_line_type.items():
+        for _qubit, wiring_by_line_type in wiring_by_element.items():
+            for _line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(
-                            reference
-                        ).split("/")[2]
+                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -204,9 +197,7 @@ def add_external_mixers(machine: AnyQuamNV) -> AnyQuamNV:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split(
-                            "/"
-                        )[2]
+                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
                         nv_center_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",

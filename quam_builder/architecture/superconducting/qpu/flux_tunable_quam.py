@@ -1,13 +1,11 @@
 import warnings
 from dataclasses import field
-from typing import Dict, Union, ClassVar, Type
+from typing import ClassVar
 
 from quam.core import quam_dataclass
-
+from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
-from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
-
 
 __all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
@@ -32,11 +30,11 @@ class FluxTunableQuam(BaseQuam):
         initialize_qpu: Initialize the QPU with the specified flux point and target.
     """
 
-    qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
-    qubit_pair_type: ClassVar[Type[FluxTunableTransmonPair]] = FluxTunableTransmonPair
+    qubit_type: ClassVar[type[FluxTunableTransmon]] = FluxTunableTransmon
+    qubit_pair_type: ClassVar[type[FluxTunableTransmonPair]] = FluxTunableTransmonPair
 
-    qubits: Dict[str, FluxTunableTransmon] = field(default_factory=dict)
-    qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
+    qubits: dict[str, FluxTunableTransmon] = field(default_factory=dict)
+    qubit_pairs: dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
 
     @classmethod
     def load(cls, *args, **kwargs) -> "FluxTunableQuam":
@@ -55,7 +53,8 @@ class FluxTunableQuam(BaseQuam):
                 q.z.to_joint_idle()
             else:
                 warnings.warn(
-                    f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle"
+                    f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle",
+                    stacklevel=2,
                 )
         for q in self.qubits:
             if self.qubits[q] not in self.active_qubits:
@@ -63,7 +62,8 @@ class FluxTunableQuam(BaseQuam):
                     self.qubits[q].z.to_min()
                 else:
                     warnings.warn(
-                        f"Didn't find z-element on qubit {q}, didn't set to min"
+                        f"Didn't find z-element on qubit {q}, didn't set to min",
+                        stacklevel=2,
                     )
         self.apply_all_couplers_to_min()
 
@@ -73,7 +73,10 @@ class FluxTunableQuam(BaseQuam):
             if self.qubits[q].z is not None:
                 self.qubits[q].z.to_min()
             else:
-                warnings.warn(f"Didn't find z-element on qubit {q}, didn't set to min")
+                warnings.warn(
+                    f"Didn't find z-element on qubit {q}, didn't set to min",
+                    stacklevel=2,
+                )
         self.apply_all_couplers_to_min()
 
     def apply_all_flux_to_zero(self) -> None:
@@ -84,7 +87,7 @@ class FluxTunableQuam(BaseQuam):
     def set_all_fluxes(
         self,
         flux_point: str,
-        target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
+        target: FluxTunableTransmon | FluxTunableTransmonPair,
     ):
         """Set the fluxes to the specified point for the target qubit or qubit pair.
 

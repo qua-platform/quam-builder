@@ -1,5 +1,5 @@
-from quam_builder.builder.qop_connectivity.paths import PORTS_BASE_JSON_PATH
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
+from quam_builder.builder.qop_connectivity.paths import PORTS_BASE_JSON_PATH
 
 
 def create_digital_output_port(channel: AnyInstrumentChannel) -> (str, str):

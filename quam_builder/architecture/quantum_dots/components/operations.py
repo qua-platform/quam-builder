@@ -1,8 +1,5 @@
-from typing import Tuple
-from qm.qua import QuaVariableType
 from quam.components import Qubit, QubitPair
 from quam.core import OperationsRegistry
-
 
 operations_registry = OperationsRegistry()
 
@@ -15,6 +12,7 @@ def x(qubit: Qubit, **kwargs):
 @operations_registry.register_operation
 def y(qubit: Qubit, **kwargs):
     pass
+
 
 @operations_registry.register_operation
 def z(qubit: Qubit, **kwargs):
@@ -57,5 +55,5 @@ def measure(qubit: QubitPair, **kwargs):
 
 
 @operations_registry.register_operation
-def align(qubits: Tuple[Qubit, ...]):
+def align(qubits: tuple[Qubit, ...]):
     pass

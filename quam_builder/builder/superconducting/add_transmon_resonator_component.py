@@ -1,4 +1,9 @@
-from typing import Dict
+from qualang_tools.addons.calibration.calibrations import unit
+from quam_builder.architecture.superconducting.components.readout_resonator import (
+    ReadoutResonatorIQ,
+    ReadoutResonatorMW,
+)
+from quam_builder.architecture.superconducting.qubit import AnyTransmon
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_in_out_channel_ports,
     mw_in_out_channel_ports,
@@ -6,18 +11,12 @@ from quam_builder.builder.qop_connectivity.channel_ports import (
 from quam_builder.builder.qop_connectivity.get_digital_outputs import (
     get_digital_outputs,
 )
-from qualang_tools.addons.calibration.calibrations import unit
-from quam_builder.architecture.superconducting.components.readout_resonator import (
-    ReadoutResonatorIQ,
-    ReadoutResonatorMW,
-)
-from quam_builder.architecture.superconducting.qubit import AnyTransmon
 
 u = unit(coerce_to_integer=True)
 
 
 def add_transmon_resonator_component(
-    transmon: AnyTransmon, wiring_path: str, ports: Dict[str, str]
+    transmon: AnyTransmon, wiring_path: str, ports: dict[str, str]
 ):
     """Adds a resonator component to a transmon qubit based on the provided wiring path and ports.
 
@@ -58,9 +57,7 @@ def add_transmon_resonator_component(
         RF_input_resonator.channel = transmon.resonator.get_reference()
         if RF_output_resonator != RF_input_resonator:
             # If there are separate up/down-converters, link their LOs by reference
-            RF_input_resonator.LO_frequency = (
-                f"{RF_output_resonator.get_reference()}/LO_frequency"
-            )
+            RF_input_resonator.LO_frequency = f"{RF_output_resonator.get_reference()}/LO_frequency"
 
     elif all(key in ports for key in mw_in_out_channel_ports):
         transmon.resonator = ReadoutResonatorMW(
@@ -76,6 +73,4 @@ def add_transmon_resonator_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

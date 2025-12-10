@@ -31,7 +31,7 @@ class MeasureMacro(QuamMacro):
         Returns:
             Boolean QUA variable indicating qubit state (True = excited)
         """
-        I, Q = self.component.measure("readout")
+        i_val, q_val = self.component.measure("readout")
         state = qua.declare(bool)
-        qua.assign(state, I > self.threshold)
+        qua.assign(state, i_val > self.threshold)
         return state

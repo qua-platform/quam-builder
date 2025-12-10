@@ -16,9 +16,13 @@ repos:
         hooks:
           # Lint and auto-fix where safe
           - id: ruff
-            args: [--fix]
-            # Optionally limit to Python files in src/tests:
-            # files: ^(src|tests)/.*\.py$
+            args:
+              - --fix
+              - --ignore=F403
+              - --ignore=F405
+              - --ignore=E741
+            # F403/F405: Star imports (architectural style choice)
+            # E741: Ambiguous variable 'I' (standard physics notation)
 
           # Ruff formatter (Black-compatible style)
           - id: ruff-format

@@ -1,16 +1,12 @@
-from typing import Optional
-
-from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
-
+from quam.core import quam_dataclass
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
-    set_output_power_mw_channel,
+    get_output_power_iq_channel,
     get_output_power_mw_channel,
     set_output_power_iq_channel,
-    get_output_power_iq_channel,
+    set_output_power_mw_channel,
 )
-
 
 __all__ = ["XYDriveIQ", "XYDriveMW"]
 
@@ -22,9 +18,7 @@ class XYDriveBase:
     """
 
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -70,10 +64,10 @@ class XYDriveIQ(IQChannel, XYDriveBase):
     def set_output_power(
         self,
         power_in_dbm: float,
-        gain: Optional[int] = None,
-        max_amplitude: Optional[float] = None,
+        gain: int | None = None,
+        max_amplitude: float | None = None,
         Z: int = 50,
-        operation: Optional[str] = "readout",
+        operation: str | None = "readout",
     ):
         """
         Configure the output power for a specific operation by setting the gain or amplitude.
@@ -92,9 +86,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass
@@ -125,7 +117,7 @@ class XYDriveMW(MWChannel, XYDriveBase):
     def set_output_power(
         self,
         power_in_dbm: float,
-        full_scale_power_dbm: Optional[int] = None,
+        full_scale_power_dbm: int | None = None,
         max_amplitude: float = 1,
         operation: str = "readout",
     ):

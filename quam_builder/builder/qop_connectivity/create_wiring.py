@@ -1,19 +1,20 @@
-from typing import List, Dict, Any
 from functools import reduce
+from typing import Any
+
 from qualang_tools.wirer import Connectivity
 from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 from quam_builder.builder.qop_connectivity.create_analog_ports import (
-    create_octave_port,
-    create_mw_fem_port,
-    create_lf_opx_plus_port,
     create_external_mixer_reference,
+    create_lf_opx_plus_port,
+    create_mw_fem_port,
+    create_octave_port,
 )
 from quam_builder.builder.qop_connectivity.create_digital_ports import (
     create_digital_output_port,
 )
-from quam_builder.builder.qop_connectivity.paths import *
+from quam_builder.builder.qop_connectivity.paths import QUBITS_BASE_JSON_PATH
 
 
 def create_wiring(connectivity: Connectivity) -> dict:
@@ -60,7 +61,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
 
 
 def qubit_wiring(
-    channels: List[AnyInstrumentChannel],
+    channels: list[AnyInstrumentChannel],
     element_id: QubitReference,
     line_type: WiringLineType,
 ) -> dict:
@@ -77,9 +78,7 @@ def qubit_wiring(
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
-            key, reference = create_external_mixer_reference(
-                channel, element_id, line_type
-            )
+            key, reference = create_external_mixer_reference(channel, element_id, line_type)
             qubit_line_wiring[key] = reference
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
@@ -88,9 +87,7 @@ def qubit_wiring(
     return qubit_line_wiring
 
 
-def qubit_pair_wiring(
-    channels: List[AnyInstrumentChannel], element_id: QubitPairReference
-) -> dict:
+def qubit_pair_wiring(channels: list[AnyInstrumentChannel], element_id: QubitPairReference) -> dict:
     """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
 
     Args:
@@ -112,9 +109,7 @@ def qubit_pair_wiring(
     return qubit_pair_line_wiring
 
 
-def get_channel_port(
-    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
-) -> tuple:
+def get_channel_port(channel: AnyInstrumentChannel, channels: list[AnyInstrumentChannel]) -> tuple:
     """Determines the key and JSON reference for a given channel.
 
     Args:
@@ -142,7 +137,7 @@ def get_channel_port(
     return key, reference
 
 
-def set_nested_value_with_path(d: Dict, path: str, value: Any):
+def set_nested_value_with_path(d: dict, path: str, value: Any):
     """Sets a value in a nested dictionary using a '/' separated path.
 
     Args:

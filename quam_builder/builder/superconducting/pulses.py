@@ -1,5 +1,7 @@
-from quam.components import pulses
+import numpy as np
+
 from qualang_tools.units import unit
+from quam.components import pulses
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
     FluxTunableTransmon,
@@ -8,15 +10,13 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
-import numpy as np
-from typing import Union
 
 # Class containing tools to help handling units and conversions.
 u = unit(coerce_to_integer=True)
 
 
 def add_DragGaussian_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
+    transmon: FixedFrequencyTransmon | FluxTunableTransmon,
     amplitude: float,
     length: int,
     sigma: int,
@@ -118,7 +118,7 @@ def add_DragGaussian_pulses(
 
 
 def add_DragCosine_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
+    transmon: FixedFrequencyTransmon | FluxTunableTransmon,
     amplitude: float,
     length: int,
     alpha: float,
@@ -203,7 +203,7 @@ def add_DragCosine_pulses(
 
 
 def add_Square_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
+    transmon: FixedFrequencyTransmon | FluxTunableTransmon,
     amplitude: float,
     length: int,
     digital_marker: str = None,
@@ -261,9 +261,7 @@ def add_Square_pulses(
         transmon.set_gate_shape("Square")
 
 
-def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
-):
+def add_default_transmon_pulses(transmon: FixedFrequencyTransmon | FluxTunableTransmon):
     """Adds default pulses to a transmon qubit:
         * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
         * transmon.z.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
@@ -280,9 +278,7 @@ def add_default_transmon_pulses(
 
     if hasattr(transmon, "z"):
         if transmon.z is not None:
-            transmon.z.operations["const"] = pulses.SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon.z.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
 
     if hasattr(transmon, "resonator"):
         if transmon.resonator is not None:
@@ -292,7 +288,7 @@ def add_default_transmon_pulses(
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: FixedFrequencyTransmonPair | FluxTunableTransmonPair,
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)

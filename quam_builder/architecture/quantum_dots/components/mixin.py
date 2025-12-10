@@ -4,30 +4,30 @@ Mixin classes for voltage point macro functionality.
 This module provides mixin classes that implement common voltage point macro methods
 to reduce code duplication across quantum dot components.
 """
-from quam.core.macro import QuamMacro
-from typing import Dict, TYPE_CHECKING, Optional, List, Any
+
 from dataclasses import field
-from copy import deepcopy
+from typing import TYPE_CHECKING
 
-from quam_builder.architecture.quantum_dots.macros import SequenceMacro, StepPointMacro, RampPointMacro, ConditionalMacro
-from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
-from quam.core import quam_dataclass, QuamComponent
 from quam.components import QuantumComponent
-
+from quam.core import quam_dataclass
+from quam.core.macro import QuamMacro
+from quam_builder.architecture.quantum_dots.macros import (
+    ConditionalMacro,
+    RampPointMacro,
+    SequenceMacro,
+    StepPointMacro,
+)
+from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
 
-from typing import Dict, TYPE_CHECKING
-from dataclasses import field
-
-from quam.core import quam_dataclass
-
 if TYPE_CHECKING:
-    from quam_builder.tools.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+    from quam_builder.tools.voltage_sequence import VoltageSequence
 
 __all__ = [
     "VoltagePointMacroMixin",
 ]
+
 
 @quam_dataclass
 class VoltagePointMacroMixin(QuantumComponent):
@@ -76,7 +76,7 @@ class VoltagePointMacroMixin(QuantumComponent):
 
     # Attributes that must be provided by the class using the mixin
     id: str
-    macros: Dict[str, QuamMacro] = field(default_factory=dict)
+    macros: dict[str, QuamMacro] = field(default_factory=dict)
 
     def __post_init__(self):
         # Ensure macro containers exist and set parent links when possible
@@ -124,9 +124,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         except AttributeError:
             # Check if it's a registered macro
             try:
-                macros_dict = object.__getattribute__(self, "__dict__").get(
-                    "macros", {}
-                )
+                macros_dict = object.__getattribute__(self, "__dict__").get("macros", {})
                 if macros_dict and name in macros_dict:
                     # Return a bound method-like callable
                     # Note: apply() uses self.parent internally, no need to pass component
@@ -144,7 +142,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             # If not found, raise AttributeError with helpful message
             raise AttributeError(
                 f"'{type(self).__name__}' object has no attribute or macro '{name}'"
-            )
+            ) from None
 
     @property
     def machine(self) -> "BaseQuamQD":
@@ -194,9 +192,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                 f"Valid channel names: {list(valid_channel_names)}"
             )
 
-    def go_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ) -> None:
+    def go_to_voltages(self, voltages: dict[str, VoltageLevelType], duration: DurationType) -> None:
         """
         Agnostic function to set voltage in a sequence.simultaneous block.
 
@@ -210,7 +206,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         self.voltage_sequence.step_to_voltages(voltages, duration=duration)
 
     def step_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
+        self, voltages: dict[str, VoltageLevelType], duration: DurationType
     ) -> None:
         """
         Step to a specified voltage.
@@ -223,7 +219,7 @@ class VoltagePointMacroMixin(QuantumComponent):
 
     def ramp_to_voltages(
         self,
-        voltages: Dict[str, VoltageLevelType],
+        voltages: dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: DurationType,
     ) -> None:
@@ -240,7 +236,7 @@ class VoltagePointMacroMixin(QuantumComponent):
     def add_point(
         self,
         point_name: str,
-        voltages: Dict[str, float],
+        voltages: dict[str, float],
         duration: int = 16,
         replace_existing_point: bool = True,
     ) -> str:
@@ -328,7 +324,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         """
         return f"{self.id}_{point_name}"
 
-    def step_to_point(self, point_name: str, duration: Optional[int] = None) -> None:
+    def step_to_point(self, point_name: str, duration: int | None = None) -> None:
         """
         Step instantly to a pre-defined voltage point (convenience method).
 
@@ -360,7 +356,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         self.voltage_sequence.step_to_point(name=full_name, duration=duration)
 
     def ramp_to_point(
-        self, point_name: str, ramp_duration: int, duration: Optional[int] = None
+        self, point_name: str, ramp_duration: int, duration: int | None = None
     ) -> None:
         """
         Ramp gradually to a pre-defined voltage point (convenience method).
@@ -398,7 +394,7 @@ class VoltagePointMacroMixin(QuantumComponent):
     def add_point_with_step_macro(
         self,
         macro_name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: dict[str, float] | None = None,
         hold_duration: int = 100,
         point_duration: int = 16,
         replace_existing_point: bool = True,
@@ -499,7 +495,7 @@ class VoltagePointMacroMixin(QuantumComponent):
     def add_point_with_ramp_macro(
         self,
         macro_name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: dict[str, float] | None = None,
         hold_duration: int = 100,
         ramp_duration: int = 16,
         point_duration: int = 16,
@@ -604,7 +600,7 @@ class VoltagePointMacroMixin(QuantumComponent):
     def with_step_point(
         self,
         name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: dict[str, float] | None = None,
         hold_duration: int = 100,
         point_duration: int = 16,
         replace_existing_point: bool = True,
@@ -665,7 +661,7 @@ class VoltagePointMacroMixin(QuantumComponent):
     def with_ramp_point(
         self,
         name: str,
-        voltages: Optional[Dict[str, float]] = None,
+        voltages: dict[str, float] | None = None,
         hold_duration: int = 100,
         ramp_duration: int = 16,
         point_duration: int = 16,
@@ -729,9 +725,9 @@ class VoltagePointMacroMixin(QuantumComponent):
     def with_sequence(
         self,
         name: str,
-        macro_names: List[str],
-        description: Optional[str] = None,
-        return_index: Optional[int] = None,
+        macro_names: list[str],
+        description: str | None = None,
+        return_index: int | None = None,
     ) -> "VoltagePointMacroMixin":
         """
         Fluent API: Create a sequence macro from existing macros and return self for chaining.
@@ -779,19 +775,18 @@ class VoltagePointMacroMixin(QuantumComponent):
                 )
 
         # Create and register the sequence
-        sequence = SequenceMacro(name=name, description=description, return_index=return_index).with_macros(
-            self, macro_names
-        )
+        sequence = SequenceMacro(
+            name=name, description=description, return_index=return_index
+        ).with_macros(self, macro_names)
         self.macros[name] = sequence
 
         return self
 
     def with_macro(
-            self,
-            name: str,
-            macro: QuamMacro,
+        self,
+        name: str,
+        macro: QuamMacro,
     ):
-
         # Store in macros dict
         self.macros[name] = macro
 
@@ -803,7 +798,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         measurement_macro: str,
         conditional_macro: str,
         invert_condition: bool = False,
-        align_elements: Optional[List[str]] = None,
+        align_elements: list[str] | None = None,
     ) -> "VoltagePointMacroMixin":
         """
         Fluent API: Add a conditional macro and return self for chaining.
@@ -859,7 +854,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                     component.init_with_reset()  # Full sequence
         """
         # Handle measurement_macro: check if it's a reference or macro name
-        if measurement_macro.startswith('#'):
+        if measurement_macro.startswith("#"):
             # Already a reference string
             measurement_ref = measurement_macro
         else:
@@ -873,7 +868,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             measurement_ref = f"#../{measurement_macro}"
 
         # Handle conditional_macro: check if it's a reference or macro name
-        if conditional_macro.startswith('#'):
+        if conditional_macro.startswith("#"):
             # Already a reference string
             conditional_ref = conditional_macro
         else:

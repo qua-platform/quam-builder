@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 from quam.components.channels import SingleChannel
-
 from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
     VirtualGateSet,
     VirtualizationLayer,
@@ -45,9 +44,7 @@ def test_virtualization_layer_resolve_square_matrix():
     source_vector = np.array([0.7, -0.4])
     expected_physical = np.linalg.inv(np.asarray(matrix)) @ source_vector
 
-    resolved = layer.resolve_voltages(
-        {"v_comp": source_vector[0], "v_tilt": source_vector[1]}
-    )
+    resolved = layer.resolve_voltages({"v_comp": source_vector[0], "v_tilt": source_vector[1]})
 
     assert np.isclose(resolved["P1"], expected_physical[0])
     assert np.isclose(resolved["P2"], expected_physical[1])
@@ -55,9 +52,7 @@ def test_virtualization_layer_resolve_square_matrix():
 
 def test_virtual_gate_set_resolve_single_layer_square(gate_set):
     matrix = [[1.0, 0.1], [0.0, 0.8]]
-    gate_set.add_layer(
-        source_gates=["Vx", "Vy"], target_gates=["P1", "P2"], matrix=matrix
-    )
+    gate_set.add_layer(source_gates=["Vx", "Vy"], target_gates=["P1", "P2"], matrix=matrix)
 
     source_vector = np.array([0.5, 0.2])
     expected = np.linalg.inv(np.asarray(matrix)) @ source_vector
@@ -70,10 +65,10 @@ def test_virtual_gate_set_resolve_single_layer_square(gate_set):
 
 def test_virtual_gate_set_resolve_stacked_layers_square(gate_set):
     gate_set.add_layer(
-        source_gates=["V_mid"], target_gates=["P1"], matrix=[[2.0]]
+        source_gates=["V_mid"], target_gates=["P1"], matrix=[[2.0]], layer_id="mid_layer"
     )
     gate_set.add_layer(
-        source_gates=["V_top"], target_gates=["V_mid"], matrix=[[0.5]]
+        source_gates=["V_top"], target_gates=["V_mid"], matrix=[[0.5]], layer_id="top_layer"
     )
 
     resolved = gate_set.resolve_voltages({"V_top": 1.2})
@@ -83,9 +78,7 @@ def test_virtual_gate_set_resolve_stacked_layers_square(gate_set):
 
 
 def test_virtual_gate_set_unknown_channel_rejected(gate_set):
-    gate_set.add_layer(
-        source_gates=["Vx"], target_gates=["P1"], matrix=[[1.0]]
-    )
+    gate_set.add_layer(source_gates=["Vx"], target_gates=["P1"], matrix=[[1.0]])
 
     with pytest.raises(ValueError):
         gate_set.resolve_voltages({"Vx": 0.2, "unknown": 0.1})
@@ -93,8 +86,7 @@ def test_virtual_gate_set_unknown_channel_rejected(gate_set):
 
 def _make_channels(names):
     return {
-        name: SingleChannel(id=name, opx_output=("con1", idx + 1))
-        for idx, name in enumerate(names)
+        name: SingleChannel(id=name, opx_output=("con1", idx + 1)) for idx, name in enumerate(names)
     }
 
 
@@ -115,16 +107,16 @@ def test_add_to_layer_matches_direct_matrix_sources_only():
 
     vgs_incremental = VirtualGateSet(id="incremental_sources", channels=channels_incremental)
     vgs_incremental.allow_rectangular_matrices = True
-    vgs_incremental.add_layer(source_all[:2], target_all, matrix_full[:2])
+    vgs_incremental.add_layer(source_all[:2], target_all, matrix_full[:2], layer_id="initial_layer")
     vgs_incremental.add_to_layer(
+        layer_id="initial_layer",
         source_gates=["V3"],
         target_gates=target_all,
         matrix=[matrix_full[2]],
     )
 
-    layer_direct = vgs_direct.layers[0]
     layer_incremental = vgs_incremental.layers[0]
-    assert layer_incremental.source_gates == layer_direct.source_gates == source_all
+    assert layer_incremental.source_gates == source_all
     assert layer_incremental.target_gates == target_all
     np.testing.assert_allclose(layer_incremental.matrix, matrix_full)
 
@@ -158,14 +150,15 @@ def test_add_to_layer_adds_targets_and_sources():
         source_all[:2],
         target_all[:2],
         [row[:2] for row in matrix_full[:2]],
+        layer_id="incremental_layer",
     )
     vgs_incremental.add_to_layer(
+        layer_id="incremental_layer",
         source_gates=["V3"],
         target_gates=target_all,
         matrix=[matrix_full[2]],
     )
 
-    layer_direct = vgs_direct.layers[0]
     layer_incremental = vgs_incremental.layers[0]
     assert layer_incremental.source_gates == source_all
     assert layer_incremental.target_gates == target_all
@@ -184,10 +177,11 @@ def test_add_to_layer_overwrites_existing_element_with_warning():
     channels = _make_channels(["P1"])
     vgs = VirtualGateSet(id="overwrite_test", channels=channels)
     vgs.allow_rectangular_matrices = True
-    vgs.add_layer(source_gates=["V1"], target_gates=["P1"], matrix=[[1.0]])
+    vgs.add_layer(source_gates=["V1"], target_gates=["P1"], matrix=[[1.0]], layer_id="test_layer")
 
     with pytest.warns(UserWarning, match="Overwriting virtualization matrix element"):
         vgs.add_to_layer(
+            layer_id="test_layer",
             source_gates=["V1"],
             target_gates=["P1"],
             matrix=[[2.0]],

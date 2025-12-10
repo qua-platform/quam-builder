@@ -1,11 +1,8 @@
-from typing import Dict, Optional
-
 from qualang_tools.addons.calibration.calibrations import unit
-
 from quam_builder.architecture.nv_center.components.laser import (
+    LaserControl,
     LaserLFAnalog,
     LaserLFDigital,
-    LaserControl,
 )
 from quam_builder.architecture.nv_center.qubit import AnyNVCenter
 from quam_builder.builder.qop_connectivity.get_digital_outputs import (
@@ -15,9 +12,7 @@ from quam_builder.builder.qop_connectivity.get_digital_outputs import (
 u = unit(coerce_to_integer=True)
 
 
-def add_nv_laser_component(
-    nv_center: AnyNVCenter, wiring_path: str, ports: Dict[str, str]
-):
+def add_nv_laser_component(nv_center: AnyNVCenter, wiring_path: str, ports: dict[str, str]):
     """Adds a laser component to a nv_center qubit based on the provided wiring path and ports.
 
     Args:

@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from quam.components.channels import SingleChannel
-
 from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
     VirtualGateSet,
 )
@@ -12,8 +11,7 @@ from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
 
 def _channels(names):
     return {
-        name: SingleChannel(id=name, opx_output=("con", idx + 1))
-        for idx, name in enumerate(names)
+        name: SingleChannel(id=name, opx_output=("con", idx + 1)) for idx, name in enumerate(names)
     }
 
 
@@ -41,9 +39,7 @@ def test_tall_virtual_matrix_uses_pseudoinverse():
     source_vector = np.array([0.2, -0.1, 0.3])
     expected_physical = np.linalg.pinv(np.asarray(matrix)) @ source_vector
 
-    resolved = gate_set.resolve_voltages(
-        {gate: value for gate, value in zip(source_gates, source_vector)}
-    )
+    resolved = gate_set.resolve_voltages(dict(zip(source_gates, source_vector, strict=False)))
 
     assert np.allclose(
         np.array([resolved["P1"], resolved["P2"]]),
@@ -74,9 +70,7 @@ def test_wide_virtual_matrix_returns_min_norm_solution():
     source_vector = np.array([0.3, -0.2])
     expected_physical = np.linalg.pinv(np.asarray(matrix)) @ source_vector
 
-    resolved = gate_set.resolve_voltages(
-        {gate: value for gate, value in zip(source_gates, source_vector)}
-    )
+    resolved = gate_set.resolve_voltages(dict(zip(source_gates, source_vector, strict=False)))
 
     resolved_vector = np.array(
         [resolved["P1"], resolved["P2"], resolved["P3"]],
@@ -124,12 +118,8 @@ def test_rectangular_roundtrip_visualisation():
 
     resolved_samples = []
     for source_vector in source_samples:
-        resolved = gate_set.resolve_voltages(
-            {gate: value for gate, value in zip(source_gates, source_vector)}
-        )
-        resolved_samples.append(
-            np.array([resolved["P1"], resolved["P2"], resolved["P3"]])
-        )
+        resolved = gate_set.resolve_voltages(dict(zip(source_gates, source_vector, strict=False)))
+        resolved_samples.append(np.array([resolved["P1"], resolved["P2"], resolved["P3"]]))
     resolved_samples = np.array(resolved_samples)
 
     np.testing.assert_allclose(resolved_samples, physical_samples, rtol=1e-9, atol=1e-9)
