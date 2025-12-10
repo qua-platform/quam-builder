@@ -42,7 +42,7 @@ class _QubitPairCrossDriveHelpers:
             self._qc.xy.frame_rotation_2pi(phi)
 
     def _qt_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
-        if phi is None:
+        if phi:
             self._qt.xy.frame_rotation_2pi(phi)
 
     # ---- Low-level play helper (common) ----
