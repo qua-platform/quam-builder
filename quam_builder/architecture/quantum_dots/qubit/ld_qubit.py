@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
+from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional, List
 from dataclasses import field
 import numpy as np
 
@@ -17,7 +17,7 @@ from qm.qua import (
 
 from quam_builder.architecture.quantum_dots.components import XYDrive
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -67,6 +67,8 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
+    _preferred_readout_quantum_dot: str = None
+
     def __post_init__(self): 
         if isinstance(self.quantum_dot, str): 
             return
@@ -105,11 +107,32 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
     # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
 
-    def initialisation(self): 
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle")
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle2")
-        # self.voltage_sequence.step_to_voltages("Qubit1_Idle3")
-        pass
+    def _validate_readout_quantum_dot(self, qd_name): 
+        """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
+        if qd_name not in self.machine.quantum_dots: 
+            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
+        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
+        if qd_pair is None: 
+            raise ValueError(f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first")
+    
+    @property
+    def preferred_readout_quantum_dot(self) -> str: 
+        return self._preferred_readout_quantum_dot
+    
+    @preferred_readout_quantum_dot.setter
+    def preferred_readout_quantum_dot(self, value: str): 
+        if value is not None and not isinstance(self.quantum_dot, str): 
+            self._validate_readout_quantum_dot(value)
+        self._preferred_readout_quantum_dot = value
+
+    @property
+    def sensor_dots(self) -> List[SensorDot]: 
+        if self._preferred_readout_quantum_dot is None: 
+            raise ValueError(f"No preferred_readout_quantum_dot set for qubit '{self.id}'. Please set first")
+        self._validate_readout_quantum_dot(self._preferred_readout_quantum_dot)
+        qd_pair = self.machine.quantum_dot_pairs[self.machine.find_quantum_dot_pair(self.quantum_dot.id, self.preferred_readout_quantum_dot)]
+        sensors = qd_pair.sensor_dots
+        return sensors
 
     def calibrate_octave(
         self,
