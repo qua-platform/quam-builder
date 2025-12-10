@@ -17,7 +17,7 @@ from qm.qua import (
 
 from quam_builder.architecture.quantum_dots.components import XYDrive
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
