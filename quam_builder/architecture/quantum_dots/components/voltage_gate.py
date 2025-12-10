@@ -37,12 +37,13 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     qdac_channel: int = None
-    opx_external_ratio: float = 1.0
+    
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
             self.opx_output.upsampling_mode = "pulse"
         self._offset_parameter = None
+        self.opx_external_ratio: float = 10**(self.attenuation / 20)
 
     @property
     def physical_channel(self):
