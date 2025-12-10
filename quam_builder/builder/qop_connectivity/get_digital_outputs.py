@@ -15,7 +15,7 @@ def get_digital_outputs(
     Returns:
         dict[str, DigitalOutputChannel]: A dictionary of digital output channels.
     """
-    digital_outputs = dict()
+    digital_outputs = {}
     for i, item in enumerate([port for port in ports if "digital_output" in port]):
         if digital_marker_name == "octave_switch":
             if isinstance(
