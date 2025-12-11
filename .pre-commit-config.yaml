@@ -1,0 +1,42 @@
+repos:
+      # 1. Generic hygiene hooks
+      - repo: https://github.com/pre-commit/pre-commit-hooks
+        rev: v4.6.0
+        hooks:
+          - id: trailing-whitespace
+          - id: end-of-file-fixer
+          - id: check-merge-conflict
+          - id: check-added-large-files
+          - id: check-yaml
+          - id: check-json
+
+      # 2. Ruff: lint & format
+      - repo: https://github.com/astral-sh/ruff-pre-commit
+        rev: v0.6.8
+        hooks:
+          # Lint and auto-fix where safe
+          - id: ruff
+            args: [--fix]
+            # Optionally limit to Python files in src/tests:
+            # files: ^(src|tests)/.*\.py$
+
+          # Ruff formatter (Black-compatible style)
+          - id: ruff-format
+
+      # 3. Type checking – heavier, so run on push instead of every commit
+      - repo: https://github.com/pre-commit/mirrors-mypy
+        rev: v1.11.1
+        hooks:
+          - id: mypy
+            stages: [pre-push]
+            additional_dependencies:
+              # Add stubs/internal deps here as needed
+              - types-setuptools
+
+      # 4. Conventional commit messages (commitizen)
+      - repo: https://github.com/commitizen-tools/commitizen
+        rev: v3.29.0
+        hooks:
+          - id: commitizen
+            stages: [commit-msg]
+            additional_dependencies: ["commitizen"]

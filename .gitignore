@@ -187,3 +187,9 @@ quam_builder/architecture/quantum_dots/other
 
 misc.xml
 quam-builder.iml
+
+# Quantum machine configuration files
+state.json
+wiring.json
+**/state.json
+**/wiring.json
