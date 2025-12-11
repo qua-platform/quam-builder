@@ -274,6 +274,129 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     return control, target
 
 
+def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
+    """Extract QDAC channel number from wiring configuration.
+
+    Args:
+        wiring_dict: Wiring dictionary that may contain 'qdac_channel' key.
+
+    Returns:
+        QDAC channel number if present, None otherwise.
+    """
+    return wiring_dict.get("qdac_channel")
+
+
+def _make_voltage_gate_with_qdac(
+    gate_id: str, wiring_path: str, qdac_channel: int | None = None
+) -> VoltageGate:
+    """Create a voltage gate component with sticky channel and optional QDAC mapping.
+
+    Args:
+        gate_id: Identifier for the gate.
+        wiring_path: JSON path to wiring configuration.
+        qdac_channel: Optional QDAC channel number for external voltage control.
+
+    Returns:
+        Configured VoltageGate instance with QDAC channel if provided.
+    """
+    gate = VoltageGate(
+        id=gate_id,
+        opx_output=f"{wiring_path}/opx_output",
+        sticky=_make_sticky_channel(),
+    )
+    if qdac_channel is not None:
+        gate.qdac_channel = qdac_channel
+    return gate
+
+
+def _extract_qubit_number(qubit_id: str) -> int:
+    """Extract numeric suffix from qubit identifier.
+
+    Args:
+        qubit_id: Qubit identifier (e.g., 'q1', 'Q2', 'qubit_5').
+
+    Returns:
+        Numeric suffix as integer.
+
+    Raises:
+        ValueError: If no numeric suffix is found.
+
+    Examples:
+        >>> _extract_qubit_number('q1')
+        1
+        >>> _extract_qubit_number('Q2')
+        2
+        >>> _extract_qubit_number('qubit_5')
+        5
+    """
+    match = re.search(r'(\d+)', qubit_id)
+    if not match:
+        raise ValueError(f"Cannot extract number from qubit_id: {qubit_id}")
+    return int(match.group(1))
+
+
+def _implicit_qubit_to_dot_mapping(qubit_id: str) -> str:
+    """Map qubit ID to quantum dot virtual name using implicit numbering.
+
+    Args:
+        qubit_id: Qubit identifier (e.g., 'q1', 'Q2').
+
+    Returns:
+        Virtual dot name (e.g., 'virtual_dot_1', 'virtual_dot_2').
+
+    Raises:
+        ValueError: If qubit_id doesn't contain a number.
+
+    Examples:
+        >>> _implicit_qubit_to_dot_mapping('q1')
+        'virtual_dot_1'
+        >>> _implicit_qubit_to_dot_mapping('Q2')
+        'virtual_dot_2'
+    """
+    number = _extract_qubit_number(qubit_id)
+    return f"virtual_dot_{number}"
+
+
+def _create_xy_drive_from_wiring(
+    qubit_id: str,
+    drive_type: str,
+    wiring_path: str,
+    intermediate_frequency: float = DEFAULT_INTERMEDIATE_FREQUENCY,
+) -> Any:  # Returns XYDriveIQ or XYDriveMW
+    """Create an XY drive channel from wiring specification.
+
+    Args:
+        qubit_id: Qubit identifier for naming the drive.
+        drive_type: Type of drive - 'IQ' or 'MW'.
+        wiring_path: JSON path to wiring configuration for ports.
+        intermediate_frequency: IF for the drive channel.
+
+    Returns:
+        XYDriveIQ or XYDriveMW instance based on drive_type.
+
+    Raises:
+        ValueError: If drive_type is not 'IQ' or 'MW'.
+    """
+    from quam_builder.architecture.quantum_dots.components import XYDriveIQ, XYDriveMW
+
+    drive_id = f"{qubit_id}_xy"
+
+    if drive_type == "IQ":
+        return XYDriveIQ(
+            id=drive_id,
+            intermediate_frequency=intermediate_frequency,
+            **iq_out_channel_ports(wiring_path),
+        )
+    elif drive_type == "MW":
+        return XYDriveMW(
+            id=drive_id,
+            intermediate_frequency=intermediate_frequency,
+            **mw_out_channel_ports(wiring_path),
+        )
+    else:
+        raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ' or 'MW'.")
+
+
 __all__ = [
     "DEFAULT_GATE_SET_ID",
     "DEFAULT_STICKY_DURATION",
@@ -287,8 +410,13 @@ __all__ = [
     "_set_default_grid_location",
     "_make_sticky_channel",
     "_make_voltage_gate",
+    "_make_voltage_gate_with_qdac",
     "_make_resonator",
     "_validate_drive_ports",
     "_build_virtual_mapping",
     "_parse_qubit_pair_ids",
+    "_extract_qdac_channel",
+    "_extract_qubit_number",
+    "_implicit_qubit_to_dot_mapping",
+    "_create_xy_drive_from_wiring",
 ]

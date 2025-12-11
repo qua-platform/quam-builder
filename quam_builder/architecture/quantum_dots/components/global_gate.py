@@ -1,9 +1,9 @@
 from typing import Dict, TYPE_CHECKING
 
-from quam.core import quam_dataclass, QuamComponent
+from quam.core import quam_dataclass
 
 from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.components.macros import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 __all__ = ["GlobalGate"]
 
 @quam_dataclass
-class GlobalGate(QuamComponent, VoltagePointMacroMixin):
+class GlobalGate(VoltagePointMacroMixin):
     """
     A class for a GlobalGate channel
     """

@@ -10,3 +10,5 @@ class StandaloneMixer(Mixer):
             if self.parent == frequency_converter:
                 return name
         raise KeyError()
+
+__all__ = ["StandaloneMixer",]

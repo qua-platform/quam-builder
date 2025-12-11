@@ -1,13 +1,4 @@
-from . import qpu, qubit, qubit_pair, custom_gates
-from .components import (
-    cross_resonance,
-    flux_line,
-    mixer,
-    readout_resonator,
-    tunable_coupler,
-    xy_drive,
-    zz_drive,
-)
+from .components import *
 from .qpu import *
 from .qubit import *
 from .qubit_pair import *
@@ -18,4 +9,5 @@ __all__ = [
     *qubit.__all__,
     *qubit_pair.__all__,
     *custom_gates.__all__,
+    *components.__all__,
 ]

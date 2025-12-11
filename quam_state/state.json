@@ -1,0 +1,20 @@
+{
+    "physical_channels": {},
+    "global_gates": {},
+    "virtual_gate_sets": {},
+    "quantum_dots": {},
+    "quantum_dot_pairs": {},
+    "sensor_dots": {},
+    "barrier_gates": {},
+    "octaves": {},
+    "mixers": {},
+    "ports": {
+        "analog_outputs": {},
+        "analog_inputs": {},
+        "mw_outputs": {},
+        "mw_inputs": {},
+        "digital_outputs": {},
+        "__class__": "quam.components.ports.ports_containers.FEMPortsContainer"
+    },
+    "__class__": "quam_builder.architecture.quantum_dots.qpu.base_quam_qd.BaseQuamQD"
+}

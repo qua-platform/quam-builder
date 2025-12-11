@@ -3,5 +3,5 @@ from quam_builder.architecture.superconducting.custom_gates.flux_tunable_transmo
 )
 
 __all__ = [
-    CZGate,
+    "CZGate",
 ]

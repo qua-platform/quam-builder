@@ -20,6 +20,9 @@ from quam_builder.builder.quantum_dots.build_qpu import (
     _QpuBuilder,
     _set_default_grid_location,
 )
+from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
+from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pair_pulses,
     add_default_ldv_qubit_pulses,
@@ -29,6 +32,8 @@ from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 __all__ = [
     "build_quam",
+    "build_base_quam",
+    "build_loss_divincenzo_quam",
     "add_octaves",
     "add_external_mixers",
     "add_ports",
@@ -39,72 +44,193 @@ __all__ = [
 ]
 
 
-def build_quam(
-    machine: AnyQuam,
+def build_base_quam(
+    machine: BaseQuamQD,
     calibration_db_path: Optional[Union[Path, str]] = None,
-    qubit_pair_sensor_map: Optional[dict] = None,
+    qdac_ip: Optional[str] = None,
+    connect_qdac: bool = False,
     save: bool = True,
-) -> AnyQuam:
-    """Build complete QuAM configuration from wiring specifications.
+) -> BaseQuamQD:
+    """Build Stage 1: BaseQuamQD with physical quantum dots.
 
-    This is the main entry point for configuring quantum dot systems. It processes
-    wiring specifications and configures all necessary components including Octaves,
-    mixers, ports, quantum gates, qubits, qubit pairs, and default pulses.
+    This creates the physical quantum dot layer with:
+    - Physical VoltageGate channels with QDAC mappings
+    - Virtual gate set with identity compensation matrix
+    - Quantum dots (from plunger gates)
+    - Quantum dot pairs (with barriers)
+    - Sensor dots with resonators
+    - Octaves, mixers, and ports
 
-    The build process executes these steps:
-    1. Initialize Octave frequency converters from wiring
-    2. Configure external mixers
-    3. Register all I/O ports
-    4. Build QPU elements (global gates, qubits, qubit pairs, sensors)
-    5. Add default pulse configurations
+    Does NOT create:
+    - Qubits (use build_loss_divincenzo_quam for Stage 2)
+    - XY drive channels (Stage 2)
+    - Qubit pairs (Stage 2)
 
     Args:
-        machine: QuAM instance with wiring specifications already defined.
+        machine: BaseQuamQD instance with wiring defined.
         calibration_db_path: Path to Octave calibration database. If None, uses
             the machine's state directory.
-        qubit_pair_sensor_map: Optional mapping to specify which sensor dots are
-            used for each qubit pair. Format: {"q1_q2": ["s1", "s2"]}. If None,
-            all sensors are associated with all qubit pairs.
-        save: If True, saves the machine state after building. Set to False to
-            inspect the configuration before persisting.
+        qdac_ip: IP address for QDAC connection. If provided with connect_qdac=True,
+            connects to QDAC for external voltage control.
+        connect_qdac: If True, connects to QDAC using qdac_ip or machine.network['qdac_ip'].
+        save: If True, saves the machine state after building.
 
     Returns:
-        The fully configured QuAM instance.
+        Configured BaseQuamQD ready for Stage 2 conversion.
 
     Example:
-        >>> from quam_builder.builder.quantum_dots import build_quam
-        >>> # Load a machine with wiring already defined
-        >>> machine = AnyQuam.load("state.json")
-        >>> # Build the complete configuration
-        >>> configured_machine = build_quam(machine)
-        >>> # Access configured qubits
-        >>> print(machine.qubits.keys())  # ['q1', 'q2', ...]
-
-    Example with sensor mapping:
-        >>> # Specify which sensors to use for each qubit pair
-        >>> sensor_map = {
-        ...     "q1_q2": ["s1", "s2"],  # Pair q1-q2 uses sensors s1 and s2
-        ...     "q2_q3": ["s2", "s3"],  # Pair q2-q3 uses sensors s2 and s3
-        ... }
-        >>> machine = build_quam(machine, qubit_pair_sensor_map=sensor_map)
+        >>> from quam_builder.builder.quantum_dots import build_base_quam
+        >>> machine = BaseQuamQD()
+        >>> # ... configure wiring ...
+        >>> machine = build_base_quam(machine, connect_qdac=True, qdac_ip="172.16.33.101")
+        >>> # Save and load later for Stage 2
+        >>> machine.save("base_quam_state")
 
     Note:
-        The machine must have its wiring specifications defined before calling
-        this function. Use the wiring builder tools to create wiring configurations.
+        This function implements Stage 1 only. To add qubits, call
+        build_loss_divincenzo_quam() with the resulting machine.
     """
-    builder = _OrchestratedQuamBuilder(
-        machine,
-        calibration_db_path=calibration_db_path,
-        qubit_pair_sensor_map=qubit_pair_sensor_map,
-    )
-    builder.add_octaves()
-    builder.add_external_mixers()
-    builder.add_ports()
-    builder.add_qpu()
-    builder.add_pulses()
+    # Add infrastructure components
+    add_octaves(machine, calibration_db_path=calibration_db_path)
+    add_external_mixers(machine)
+    add_ports(machine)
+
+    # Build Stage 1: Quantum dots only
+    _BaseQpuBuilder(machine).build()
+
+    # Optional QDAC connection
+    if connect_qdac:
+        if qdac_ip:
+            machine.network["qdac_ip"] = qdac_ip
+        machine.connect_to_external_source(external_qdac=True)
 
     if save:
         machine.save()
+
+    return machine
+
+
+def build_loss_divincenzo_quam(
+    machine: Union[BaseQuamQD, LossDiVincenzoQuam, str, Path],
+    xy_drive_wiring: Optional[dict] = None,
+    qubit_pair_sensor_map: Optional[dict] = None,
+    implicit_mapping: bool = True,
+    save: bool = True,
+) -> LossDiVincenzoQuam:
+    """Build Stage 2: Convert BaseQuamQD to LossDiVincenzoQuam with qubits.
+
+    This is INDEPENDENT of Stage 1 and works with any BaseQuamQD (file or memory).
+
+    Creates:
+    - LDQubits (mapped to quantum dots via implicit numbering: q1 → virtual_dot_1)
+    - XY drive channels for each qubit
+    - Qubit pairs (mapped to quantum dot pairs)
+    - Default pulses
+
+    Args:
+        machine: BaseQuamQD, LossDiVincenzoQuam, or path to saved BaseQuamQD state.
+        xy_drive_wiring: Optional dict mapping qubit_id → {type, ports}.
+                        If None and machine.wiring exists, extracts from wiring.
+        qubit_pair_sensor_map: Sensor mapping for qubit pairs.
+        implicit_mapping: If True, uses q1→virtual_dot_1 mapping. If False,
+                         requires explicit mapping configuration.
+        save: If True, saves the machine state after building.
+
+    Returns:
+        LossDiVincenzoQuam with qubits registered.
+
+    Example (from memory):
+        >>> from quam_builder.builder.quantum_dots import build_loss_divincenzo_quam
+        >>> # Assuming base_machine is a BaseQuamQD from Stage 1
+        >>> ld_machine = build_loss_divincenzo_quam(base_machine)
+        >>> # Access qubits
+        >>> print(ld_machine.qubits.keys())  # ['q1', 'q2', ...]
+
+    Example (from file):
+        >>> # Load Stage 1 result from file
+        >>> ld_machine = build_loss_divincenzo_quam("path/to/base_quam_state")
+
+    Note:
+        This function implements Stage 2 only and requires quantum dots to be
+        already registered. If starting from scratch, first call build_base_quam().
+    """
+    # Build Stage 2: Qubits from quantum dots
+    builder = _LDQubitBuilder(
+        machine,
+        xy_drive_wiring=xy_drive_wiring,
+        qubit_pair_sensor_map=qubit_pair_sensor_map,
+        implicit_mapping=implicit_mapping,
+    )
+    machine = builder.build()
+
+    # Add default pulses
+    add_pulses(machine)
+
+    if save:
+        machine.save()
+
+    return machine
+
+
+def build_quam(
+    machine: Union[BaseQuamQD, LossDiVincenzoQuam],
+    calibration_db_path: Optional[Union[Path, str]] = None,
+    qubit_pair_sensor_map: Optional[dict] = None,
+    qdac_ip: Optional[str] = None,
+    connect_qdac: bool = False,
+    save: bool = True,
+) -> LossDiVincenzoQuam:
+    """Build complete QuAM configuration using two-stage process.
+
+    This is a convenience wrapper that executes both stages:
+    - Stage 1: build_base_quam() - Creates BaseQuamQD with quantum dots
+    - Stage 2: build_loss_divincenzo_quam() - Adds qubits
+
+    For more control over the process, call the stage functions separately.
+
+    Args:
+        machine: BaseQuamQD or LossDiVincenzoQuam with wiring defined.
+        calibration_db_path: Path to Octave calibration database.
+        qubit_pair_sensor_map: Sensor mapping for qubit pairs.
+        qdac_ip: IP address for QDAC connection.
+        connect_qdac: If True, connects to QDAC for external voltage control.
+        save: If True, saves the machine state after building.
+
+    Returns:
+        Fully configured LossDiVincenzoQuam with qubits.
+
+    Example:
+        >>> from quam_builder.builder.quantum_dots import build_quam
+        >>> from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+        >>> machine = BaseQuamQD()
+        >>> # ... configure wiring ...
+        >>> machine = build_quam(machine, connect_qdac=True, qdac_ip="172.16.33.101")
+        >>> print(machine.qubits.keys())  # ['q1', 'q2', ...]
+
+    For more control (two separate stages):
+        >>> # Stage 1: Physical quantum dots
+        >>> machine = build_base_quam(machine, connect_qdac=True)
+        >>> machine.save("base_quam_state")
+        >>>
+        >>> # Stage 2: Add qubits (can be done later)
+        >>> machine = build_loss_divincenzo_quam("base_quam_state")
+    """
+    # Stage 1: Build BaseQuamQD
+    if isinstance(machine, BaseQuamQD) and not hasattr(machine, "qubits"):
+        machine = build_base_quam(
+            machine,
+            calibration_db_path=calibration_db_path,
+            qdac_ip=qdac_ip,
+            connect_qdac=connect_qdac,
+            save=False,  # Don't save yet
+        )
+
+    # Stage 2: Convert to LossDiVincenzoQuam
+    machine = build_loss_divincenzo_quam(
+        machine,
+        qubit_pair_sensor_map=qubit_pair_sensor_map,
+        save=save,
+    )
 
     return machine
 
