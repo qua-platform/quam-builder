@@ -67,6 +67,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
+    name: str = None
     _preferred_readout_quantum_dot: str = None
 
     def __post_init__(self): 
@@ -106,7 +107,6 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
 
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
     # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
-
     def _validate_readout_quantum_dot(self, qd_name): 
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
         if qd_name not in self.machine.quantum_dots: 
@@ -133,7 +133,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         qd_pair = self.machine.quantum_dot_pairs[self.machine.find_quantum_dot_pair(self.quantum_dot.id, self.preferred_readout_quantum_dot)]
         sensors = qd_pair.sensor_dots
         return sensors
-
+        
     def calibrate_octave(
         self,
         QM: QuantumMachine,

@@ -353,6 +353,34 @@ class BaseQuamQD(QuamRoot):
 
         self.quantum_dot_pairs[id] = quantum_dot_pair
 
+    def register_qubit(self, 
+                       quantum_dot_id: str,
+                       qubit_name: str,
+                       qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo", 
+                       xy_channel: XYDrive = None, 
+                       readout_quantum_dot: str = None,
+                       ) -> None: 
+        """
+        Instantiates a qubit based on the associated quantum dot and qubit type.
+
+        For LD Qubits, the qubit_id is only stored internally in the Quam, and the Qubit ID is simply the Quantum Dot ID.
+        """
+
+        if qubit_type.lower() == "loss_divincenzo": 
+            d = quantum_dot_id
+            dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
+            qubit = LDQubit(
+                id = d, 
+                quantum_dot = dot.get_reference(), 
+                name = qubit_name,
+                xy_channel = xy_channel
+            )
+            if readout_quantum_dot is not None: 
+                qubit.preferred_readout_quantum_dot = readout_quantum_dot
+
+            self.qubits[qubit_name] = qubit
+        else:
+            raise NotImplementedError(f"Qubit type {qubit_type} not implemented.")
 
     def find_quantum_dot_pair(self, dot1_name: str, dot2_name: str) -> Optional[str]:
         target_dots = {dot1_name, dot2_name}
