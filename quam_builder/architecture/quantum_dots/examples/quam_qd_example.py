@@ -51,6 +51,10 @@ machine = BaseQuamQD()
 lf_fem = 6
 mw_fem = 1
 
+machine.network = {
+    "host": "172.16.33.115",
+    "cluster_name": "CS_4"
+}
 
 ###########################################
 ###### Instantiate Physical Channels ######
@@ -114,7 +118,7 @@ machine.register_channel_elements(
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = False
 if qdac_connect: 
     qdac_ip = "172.16.33.101"
     machine.network.update({"qdac_ip": qdac_ip})

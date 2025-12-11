@@ -22,21 +22,22 @@ Workflow:
 from quam.components.ports import (
     MWFEMAnalogOutputPort
 )
+from quam.components import pulses
 
 from quam_builder.architecture.quantum_dots.components import XYDrive
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from qm.qua import *
 
 
-machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/Documents/test_quam_state")
+machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/.qualibrate/quam_state")
 
 lf_fem = 6
 mw_fem = 1
 
-xy_q1 = XYDrive(id = "Q1_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 5, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=10e6)
-xy_q2 = XYDrive(id = "Q2_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 6, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=12e6)
-xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 7, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=13e6)
-xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6)
+xy_q1 = XYDrive(id = "Q1_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 5, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=10e6, operations = {"x90": pulses.GaussianPulse(length= 200, amplitude = 0.01, sigma = 50)})
+xy_q2 = XYDrive(id = "Q2_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 6, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=12e6, operations = {"x90": pulses.GaussianPulse(length= 200, amplitude = 0.01, sigma = 50)})
+xy_q3 = XYDrive(id = "Q3_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 7, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=13e6, operations = {"x90": pulses.GaussianPulse(length= 200, amplitude = 0.01, sigma = 50)})
+xy_q4 = XYDrive(id = "Q4_xy", opx_output = MWFEMAnalogOutputPort("con1",  mw_fem, port_id = 8, upconverter_frequency = 5e9, band = 2, full_scale_power_dbm=10), intermediate_frequency=14e6, operations = {"x90": pulses.GaussianPulse(length= 200, amplitude = 0.01, sigma = 50)})
 
 
 
@@ -74,6 +75,10 @@ machine.register_qubit(
     xy_channel = xy_q4, 
 )
 
+# Fill out the grid location and arbitrary larmor frequencies of the qubit
+for i in range(1, 5): 
+    machine.qubits[f"Q{i}"].grid_location = f"0,{i}"
+    machine.qubits[f"Q{i}"].larmor_frequency = 5e6 + 1e6*i
 
 ##################################
 ###### Register Qubit Pairs ######
