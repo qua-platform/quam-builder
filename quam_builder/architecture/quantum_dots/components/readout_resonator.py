@@ -46,6 +46,10 @@ class ReadoutResonatorBase:
 class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase): 
     intermediate_frequency: int = "#/inferred_intermediate_frequency"
 
+    def __post_init__(self): 
+        if hasattr(self.opx_output, "upsampling_mode"): 
+            self.opx_output.upsampling_mode = "mw"
+
     def set_output_power(
         self,
         power_in_dbm: float,
@@ -61,6 +65,10 @@ class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
 @quam_dataclass
 class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
+
+    def __post_init__(self): 
+        if hasattr(self.opx_output, "upsampling_mode"): 
+            self.opx_output.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):

@@ -2,7 +2,7 @@ from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callab
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
-
+from quam.core.macro import QuamMacro
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
@@ -28,6 +28,7 @@ from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorBase,
     XYDrive
 )
+from quam_builder.architecture.quantum_dots.components.qpu import QPU
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import (
@@ -46,19 +47,14 @@ class BaseQuamQD(QuamRoot):
     Attributes:
         octaves (Dict[str, Octave]): A dictionary of Octave components.
         mixers (Dict[str, FrequencyConverter]): A dictionary of frequency converters.
-        qubits (Dict[str, AnySpinQubit]): A dictionary of the registered spin qubits.
-        qubit_pairs (Dict[str, AnySpinQubitPair]): A dictionary of the registered spin qubit pairs.
         quantum_dots (Dict[str, QuantumDot]): A dictionary of registered QuantumDot objects.
         sensor_dots (Dict[str, SensorDot]): A dictionary of the registered SensorDot objects.
         barrier_gates (Dict[str, BarrierGate]): A dictionary of the BarrierGate objects.
         virtual_gate_sets (Dict[str, VirtualGateSet]): A dictionary of the VirtualGateSet instances covering your QPU.
         voltage_sequences (Dict[str, VoltageSequence]): A dictionary of the VoltageSequence object associated to each VirtualGateSet. Uniquely mapped.
-        b_field (float): The operating external magnetic field.
         global_gates (VoltageGate): The channel objects associated with global gates such as the back gate, reservoirs, or splitter gates.
         wiring (dict): The wiring configuration.
         network (dict): The network configuration.
-        active_qubit_names (List[str]): A list of active qubit names.
-        active_qubit_pair_names (List[str]): A list of active qubit pair names.
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
         _data_handler (ClassVar[DataHandler]): The data handler.
         qmm (ClassVar[Optional[QuantumMachinesManager]]): The Quantum Machines Manager.
@@ -68,9 +64,6 @@ class BaseQuamQD(QuamRoot):
         get_octave_config: Return the Octave configuration.
         connect: Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
         calibrate_octave_ports: Calibrate the Octave ports for all the active qubits.
-        active_qubits: Return the list of active qubits.
-        active_qubit_pairs: Return the list of active qubit pairs.
-        thermalization_time: Return the longest thermalization time amongst the active qubits.
         declare_qua_variables: Macro to declare the necessary QUA variables for all qubits.
         initialize_qpu: Initialize the QPU with the specified settings.
         create_virtual_gate_set: Creates a VirtualGateSet with the input physical channels, and layers a single compensation layer on top, with a default identity matrix.
@@ -78,8 +71,6 @@ class BaseQuamQD(QuamRoot):
         register_sensor_dots: Internally create SensorDot objects from output physical channels, and their associated ReadoutResonator objects.
         register_barrier_gates: Internally create BarrierGate objects from the output physical channels.
         register_channel_elements: Shortcut to run register_quantum_dots, register_sensor_dots, and register_barrier_gates, i.e. a shortcut to register all the HW channel outputs.
-        register_qubit: Creates an internal Qubit object out of the specified QuantumDot. Specify the qubit type in the input, default "loss_divincenzo"
-        register_qubit_pair: Creates a QubitPair object internally, given a control qubit and a target qubit.
         add_point: Adds a point macro to a VirtualGateSet instance held internally.
         update_cross_compensation_submatrix: Input a list of virtual gates and a list of HW channels, as well as the associated correction submatrix. Internally it edits the VirtualGateSet matrix stored.
         update_full_cross_compensation: Update the full compensation matrix of the first VirtualGateSet layer.
@@ -88,7 +79,6 @@ class BaseQuamQD(QuamRoot):
 
     physical_channels: Dict[str, Channel] = field(default_factory=dict)
     global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
-    b_field: float = 0
 
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory=dict)
     voltage_sequences: Dict[str, VoltageSequence] = field(
@@ -99,12 +89,6 @@ class BaseQuamQD(QuamRoot):
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory=dict)
     sensor_dots: Dict[str, SensorDot] = field(default_factory=dict)
     barrier_gates: Dict[str, BarrierGate] = field(default_factory=dict)
-
-    qubits: Dict[str, AnySpinQubit] = field(default_factory=dict)
-    qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
-
-    active_qubit_names: List[str] = field(default_factory=list)
-    active_qubit_pair_names: List[str] = field(default_factory=list)
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
     mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
@@ -145,12 +129,10 @@ class BaseQuamQD(QuamRoot):
             name: The name of the object
         """
         collections = [
-            self.qubits, 
             self.quantum_dots, 
             self.sensor_dots, 
             self.barrier_gates, 
             self.quantum_dot_pairs, 
-            self.qubit_pairs
         ]
         for collection in collections: 
             if name in collection: 
@@ -158,38 +140,59 @@ class BaseQuamQD(QuamRoot):
     
         raise ValueError(f"Element {name} not found in Quam")
     
-    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable], reset_voltages: bool = False) -> None: 
+    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable] = None, reset_voltages: bool = False, external_qdac: bool = False) -> None: 
         """
-        Binds the channels to the correct external voltage source functions. 
+        Binds the channels to the correct external voltage source functions. If the external voltage souce is a QDAC, then set the bool external_qdac = True. 
 
         Args: 
-            channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
-            Example for a QDAC:
+            if external_qdac = True, then it will connect to the qdac IP saved in self.network, and it will use the qdac_ports stored in each VoltageGate.
+
+            if external_qdac = False, then you must provide a channel mapping.
+                channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
+            Example for an external source:
                     >>> 
                     >>> channel_source_mapping = {}
-                    ...     channel_object_1: qdac.ch01.dc_constant_V, 
-                    ...     channel_object_2: qdac.ch02.dc_constant_V
+                    ...     channel_object_1: voltage_source.channel_1.current_voltage, 
+                    ...     channel_object_2: voltage_source.channel_2.current_voltage
                     ...     }
                     >>> 
-
         """
-        for channel, fn in channel_source_mapping.items(): 
+        if external_qdac: 
+            name = "QDAC"
+            from qcodes import Instrument
+            from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+            try:
+                self.qdac = Instrument.find_instrument(name)
+            except KeyError:
+                self.qdac = QDAC2.QDac2(name, visalib='@py', address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET')
 
-            # Ensure that the channel actually exists in the Quam.
-            chan = None
-            for ch in self.physical_channels.values(): 
-                if ch is channel: 
-                    chan = ch
-                    break
-
-            if chan is None: 
-                raise ValueError(f"Channel {channel.id} not found in Quam")
-            
-            chan.offset_parameter = fn
-            
+            for channel in self.physical_channels.values(): 
+                if hasattr(channel, "qdac_channel"):
+                    qdac_port = channel.qdac_channel
+                    channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
+                else: 
+                    print(f"Channel {channel.id} has no Qdac channel associated. Skipping")
             if reset_voltages: 
-                if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
-                    chan.offset_parameter(chan.current_external_voltage)
+                if hasattr(channel, "current_external_voltage") and channel.offset_parameter is not None: 
+                    channel.offset_parameter(channel.current_external_voltage)
+            
+        else: 
+            for channel, fn in channel_source_mapping.items(): 
+                # Ensure that the channel actually exists in the Quam.
+                chan = None
+                for ch in self.physical_channels.values(): 
+                    if ch is channel: 
+                        chan = ch
+                        break
+
+                if chan is None: 
+                    raise ValueError(f"Channel {channel.id} not found in Quam")
+                
+                chan.offset_parameter = fn
+                
+                if reset_voltages: 
+                    if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
+                        chan.offset_parameter(chan.current_external_voltage)
 
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
@@ -229,27 +232,6 @@ class BaseQuamQD(QuamRoot):
             vgs.layers[0].target_gates.index(physical_name)
         ]
         return virtual_name
-    
-    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
-        """
-        Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
-        
-        Args: 
-            name: The name of the object
-        """
-        collections = [
-            self.qubits, 
-            self.quantum_dots, 
-            self.sensor_dots, 
-            self.barrier_gates, 
-            self.quantum_dot_pairs, 
-            self.qubit_pairs
-        ]
-        for collection in collections: 
-            if name in collection: 
-                return collection[name]
-
-        raise ValueError(f"Element {name} not found in Quam")
 
     def reset_voltage_sequence(self, gate_set_id) -> None:
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
@@ -407,45 +389,6 @@ class BaseQuamQD(QuamRoot):
             if pair_dots == target_dots:
                 return pair_name
         return None
-
-    def register_qubit_pair(
-        self,
-        qubit_control_name: str,
-        qubit_target_name: str,
-        qubit_type: Literal["loss_divincenzo", "singlet_triplet"] = "loss_divincenzo",
-        id: str = None,
-    ) -> None:
-
-        for name in [qubit_control_name, qubit_target_name]:
-            if name not in self.qubits:
-                raise ValueError(f"Qubit {name} not registered. Please register first")
-        qubit_control, qubit_target = (
-            self.qubits[qubit_control_name],
-            self.qubits[qubit_target_name],
-        )
-
-        if id is None:
-            id = f"{qubit_control_name}_{qubit_target_name}"
-
-        if qubit_type.lower() == "loss_divincenzo":
-            quantum_dot_pair = self.find_quantum_dot_pair(
-                qubit_control.quantum_dot.id, qubit_target.quantum_dot.id
-            )
-            if quantum_dot_pair is None:
-                raise ValueError(
-                    "QuantumDotPair for associated qubits not registered. Please register first"
-                )
-
-            qubit_pair = LDQubitPair(
-                id=id,
-                qubit_control=qubit_control.get_reference(),
-                qubit_target=qubit_target.get_reference(),
-                quantum_dot_pair=self.quantum_dot_pairs[
-                    quantum_dot_pair
-                ].get_reference(),
-            )
-
-            self.qubit_pairs[id] = qubit_pair
 
     def add_point(
         self,
@@ -681,32 +624,6 @@ class BaseQuamQD(QuamRoot):
                 octave_config = octave.get_octave_config()
         return octave_config
 
-    def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
-        """Calibrate the Octave ports for all the active qubits.
-
-        Args:
-            QM (QuantumMachine): The running quantum machine.
-        """
-        from qm.octave.octave_mixer_calibration import NoCalibrationElements
-
-        for qubit in self.qubits.values():
-            try:
-                qubit.calibrate_octave(QM)
-            except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {qubit.id}. Skipping calibration."
-                )
-
-    @property
-    def active_qubits(self) -> List[AnySpinQubit]:
-        """Return the list of active qubits"""
-        return [self.qubits[q] for q in self.active_qubit_names]
-
-    @property
-    def active_qubit_pairs(self) -> List[AnySpinQubitPair]:
-        """Return the list of active qubit pairs"""
-        return [self.qubit_pairs[q] for q in self.active_qubit_pair_names]
-
     def declare_qua_variables(
         self,
         num_IQ_pairs: Optional[int] = None,
@@ -722,13 +639,13 @@ class BaseQuamQD(QuamRoot):
 
         Args:
             num_IQ_pairs (Optional[int]): Number of IQ pairs (I and Q variables) to declare.
-                If None, it defaults to the number of qubits in `self.qubits`.
+                If None, it defaults to the number of qubits in `self.quantum_dots`.
 
         Returns:
             tuple: A tuple containing lists of QUA variables and streams.
         """
         if num_IQ_pairs is None:
-            num_IQ_pairs = len(self.qubits)
+            num_IQ_pairs = len(self.quantum_dots)
 
         n = declare(int)
         n_st = declare_stream()

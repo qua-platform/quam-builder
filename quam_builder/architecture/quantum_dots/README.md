@@ -1,5 +1,6 @@
 # Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
 
+
 ## 1. Introduction
 
 This document first introduces the **GateSet** component with the **VoltageSequence** tool, a python framework for generating QUA sequences to group control of DC gate voltages, particularly useful for spin qubit experiments. 
