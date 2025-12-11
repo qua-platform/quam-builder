@@ -1,4 +1,6 @@
 from typing import Union
+
+from . import ld_qubit_pair
 from .ld_qubit_pair import *
 
 __all__ = [

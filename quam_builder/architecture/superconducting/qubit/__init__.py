@@ -1,11 +1,9 @@
-from quam_builder.architecture.superconducting.qubit.base_transmon import BaseTransmon
-from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
-    FixedFrequencyTransmon,
-)
-from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
-    FluxTunableTransmon,
-)
 from typing import Union
+
+from . import base_transmon, fixed_frequency_transmon, flux_tunable_transmon
+from .base_transmon import *
+from .fixed_frequency_transmon import *
+from .flux_tunable_transmon import *
 
 __all__ = [
     *base_transmon.__all__,

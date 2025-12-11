@@ -1,14 +1,24 @@
+from . import voltage_gate
 from .voltage_gate import *
-from .barrier_gate import *
+from . import virtual_gate_set
 from .virtual_gate_set import *
+from . import global_gate
+from .global_gate import *
+from . import gate_set
 from .gate_set import *
-from .mixin import *
-
+from . import macros
+from .macros import *
+from . import quantum_dot
 from .quantum_dot import *
+from . import readout_resonator
 from .readout_resonator import *
+from . import sensor_dot
 from .sensor_dot import *
-
+from . import barrier_gate
+from .barrier_gate import *
+from . import quantum_dot_pair
 from .quantum_dot_pair import *
+from . import xy_drive
 from .xy_drive import *
 
 from .mixin import *
@@ -17,6 +27,7 @@ from .qpu import *
 __all__ = [
     *voltage_gate.__all__,
     *virtual_gate_set.__all__,
+    *global_gate.__all__,
     *gate_set.__all__,
     *quantum_dot.__all__,
     *sensor_dot.__all__,
