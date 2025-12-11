@@ -107,7 +107,7 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         if qc_correction_phase is None:
             qc_correction_phase = self._cr.qc_correction_phase
         else:
-            qc_correction_phase = self._cr.qc_correction_phase
+            qc_correction_phase += self._cr.qc_correction_phase
         if qt_correction_phase is None:
             qt_correction_phase = self._cr.qt_correction_phase
         else:
