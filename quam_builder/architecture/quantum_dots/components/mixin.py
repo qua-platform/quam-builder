@@ -797,6 +797,7 @@ class VoltagePointMacroMixin(QuantumComponent):
 
         return self
 
+
     def with_conditional_macro(
         self,
         name: str,
@@ -898,3 +899,6 @@ class VoltagePointMacroMixin(QuantumComponent):
         self.macros[name] = macro
 
         return self
+
+
+# Replace the placeholder export in point_macros with the real mixin class

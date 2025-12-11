@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Stage 1 QPU builder for quantum dot systems - BaseQuamQD only.
 
 This module provides the Stage 1 QPU building functionality that creates
@@ -6,7 +8,7 @@ BaseQuamQD with physical quantum dots, but does NOT create qubits.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.components import (
@@ -16,6 +18,7 @@ from quam_builder.architecture.quantum_dots.components import (
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 from quam_builder.builder.quantum_dots.build_utils import *
+from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
 
 __all__ = ["_BaseQpuBuilder"]
 
@@ -51,8 +54,8 @@ class _BaseQpuBuilder:
         """
         self.machine = machine
         self.resonator_cls = resonator_cls
-        self.assembly = None
-        self._wiring_by_type = {}
+        self.assembly = QpuAssembly()
+        self._wiring_by_type: Dict[str, Mapping[str, Any]] = {}
 
     def build(self) -> BaseQuamQD:
         """Execute Stage 1 build process.
@@ -67,10 +70,6 @@ class _BaseQpuBuilder:
         Returns:
             Configured BaseQuamQD ready for Stage 2 conversion.
         """
-        from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
-
-        self.assembly = QpuAssembly()
-
         self._wiring_by_type = self._normalize_wiring(self.machine.wiring or {})
         self._collect_physical_channels()
         self._create_virtual_gate_set()
@@ -112,6 +111,8 @@ class _BaseQpuBuilder:
         for sensor_id, line_types in wiring_by_element.items():
             sensor_channel = None
             resonator = None
+            sensor_number = _extract_qubit_number(sensor_id)
+            sensor_gate_id = f"sensor_{sensor_number}"
 
             for line_type, line_wiring in line_types.items():
                 _validate_line_type("readout", line_type)
@@ -121,17 +122,17 @@ class _BaseQpuBuilder:
                     # Extract QDAC channel if present
                     qdac_channel = _extract_qdac_channel(line_wiring)
                     sensor_channel = _make_voltage_gate_with_qdac(
-                        f"{sensor_id}_sensor", wiring_path, qdac_channel
+                        sensor_gate_id, wiring_path, qdac_channel
                     )
                 elif line_type == WiringLineType.RF_RESONATOR.value:
-                    resonator = _make_resonator(sensor_id, wiring_path, resonator_cls)
+                    resonator = _make_resonator(sensor_gate_id, wiring_path, resonator_cls)
 
             if sensor_channel:
                 self.assembly.sensor_channels.append(sensor_channel)
-                self.assembly.sensor_id_to_channel[sensor_id] = sensor_channel
+                self.assembly.sensor_id_to_channel[sensor_gate_id] = sensor_channel
             if resonator:
                 self.assembly.resonators.append(resonator)
-                self.assembly.sensor_id_to_resonator[sensor_id] = resonator
+                self.assembly.sensor_id_to_resonator[sensor_gate_id] = resonator
 
     def _collect_qubits(self, wiring_by_element: Mapping[str, Any]):
         """Collect plunger gates (quantum dots) with QDAC support.
@@ -147,9 +148,10 @@ class _BaseQpuBuilder:
                     # Extract QDAC channel if present
                     qdac_channel = _extract_qdac_channel(line_wiring)
 
-                    plunger = _make_voltage_gate_with_qdac(
-                        f"{qubit_id}_plunger", wiring_path, qdac_channel
-                    )
+                    plunger_number = _extract_qubit_number(qubit_id)
+                    plunger_id = f"plunger_{plunger_number}"
+
+                    plunger = _make_voltage_gate_with_qdac(plunger_id, wiring_path, qdac_channel)
                     self.assembly.plunger_channels.append(plunger)
                     self.assembly.plunger_id_to_channel[qubit_id] = plunger
 
@@ -184,50 +186,33 @@ class _BaseQpuBuilder:
         ):
             return
 
-        # Build virtual mapping (physical ID -> virtual name)
-        physical_to_virtual, virtual_to_physical = _build_virtual_mapping(
-            plunger_ids=list(self.assembly.plunger_id_to_channel.keys()),
-            barrier_ids=list(self.assembly.barrier_id_to_channel.keys()),
-            sensor_ids=list(self.assembly.sensor_id_to_channel.keys()),
-            global_ids=[g.id for g in self.assembly.global_gates],
+        # Build virtual mappings for each gate type
+        virtual_channel_mapping = {}
+
+        plunger_virtual, plunger_physical_to_virtual = _build_virtual_mapping(
+            "virtual_dot", self.assembly.plunger_channels
+        )
+        barrier_virtual, barrier_physical_to_virtual = _build_virtual_mapping(
+            "virtual_barrier", self.assembly.barrier_channels
+        )
+        sensor_virtual, sensor_physical_to_virtual = _build_virtual_mapping(
+            "virtual_sensor", self.assembly.sensor_channels
+        )
+        global_virtual, global_physical_to_virtual = _build_virtual_mapping(
+            "virtual_global", self.assembly.global_gates
         )
 
         # Store virtual names for later use
-        self.assembly.plunger_virtual_names = {
-            k: physical_to_virtual[k]
-            for k in self.assembly.plunger_id_to_channel.keys()
-        }
-        self.assembly.barrier_virtual_names = {
-            k: physical_to_virtual[k]
-            for k in self.assembly.barrier_id_to_channel.keys()
-        }
-        self.assembly.sensor_virtual_names = {
-            k: physical_to_virtual[k]
-            for k in self.assembly.sensor_id_to_channel.keys()
-        }
-        self.assembly.global_virtual_names = {
-            g.id: physical_to_virtual[g.id] for g in self.assembly.global_gates
-        }
+        self.assembly.plunger_virtual_names = plunger_physical_to_virtual
+        self.assembly.barrier_virtual_names = barrier_physical_to_virtual
+        self.assembly.sensor_virtual_names = sensor_physical_to_virtual
+        self.assembly.global_virtual_names = global_physical_to_virtual
 
-        # Create virtual channel mapping for BaseQuamQD.create_virtual_gate_set()
-        virtual_channel_mapping = {}
-
-        # Add all channels to mapping
-        for qubit_id, plunger in self.assembly.plunger_id_to_channel.items():
-            virtual_name = physical_to_virtual[qubit_id]
-            virtual_channel_mapping[virtual_name] = plunger
-
-        for barrier_id, barrier in self.assembly.barrier_id_to_channel.items():
-            virtual_name = physical_to_virtual[barrier_id]
-            virtual_channel_mapping[virtual_name] = barrier
-
-        for sensor_id, sensor in self.assembly.sensor_id_to_channel.items():
-            virtual_name = physical_to_virtual[sensor_id]
-            virtual_channel_mapping[virtual_name] = sensor
-
-        for global_gate in self.assembly.global_gates:
-            virtual_name = physical_to_virtual[global_gate.id]
-            virtual_channel_mapping[virtual_name] = global_gate
+        # Combine all virtual channel mappings
+        virtual_channel_mapping.update(plunger_virtual)
+        virtual_channel_mapping.update(barrier_virtual)
+        virtual_channel_mapping.update(sensor_virtual)
+        virtual_channel_mapping.update(global_virtual)
 
         # Call machine's create_virtual_gate_set method (uses identity matrix by default)
         self.machine.create_virtual_gate_set(
@@ -269,8 +254,8 @@ class _BaseQpuBuilder:
             control_id, target_id = _parse_qubit_pair_ids(pair_id)
 
             # Get virtual names for the quantum dots
-            control_virtual = self.assembly.plunger_virtual_names.get(control_id)
-            target_virtual = self.assembly.plunger_virtual_names.get(target_id)
+            control_virtual = self._resolve_plunger_virtual_name(control_id)
+            target_virtual = self._resolve_plunger_virtual_name(target_id)
             barrier_virtual = self.assembly.barrier_virtual_names.get(barrier_id)
 
             if not control_virtual or not target_virtual:
@@ -298,3 +283,20 @@ class _BaseQpuBuilder:
                 sensor_dot_ids=sensor_dot_ids,
                 barrier_gate_id=barrier_virtual,
             )
+
+    def _resolve_plunger_virtual_name(self, qubit_id: str) -> str | None:
+        """Resolve a qubit identifier to the corresponding virtual plunger name."""
+        # Direct lookup (already a plunger id)
+        if qubit_id in self.assembly.plunger_virtual_names:
+            return self.assembly.plunger_virtual_names[qubit_id]
+
+        # Handle Stage 0 naming (q1 -> plunger_1)
+        try:
+            number = _extract_qubit_number(qubit_id)
+            legacy_key = f"plunger_{number}"
+            if legacy_key in self.assembly.plunger_virtual_names:
+                return self.assembly.plunger_virtual_names[legacy_key]
+        except ValueError:
+            pass
+
+        return None

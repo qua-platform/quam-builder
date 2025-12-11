@@ -129,9 +129,21 @@ def build_loss_divincenzo_quam(
 
     Args:
         machine: BaseQuamQD, LossDiVincenzoQuam, or path to saved BaseQuamQD state.
-        xy_drive_wiring: Optional dict mapping qubit_id → {type, ports}.
-                        If None and machine.wiring exists, extracts from wiring.
+        xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
+                        Format: {
+                            "q1": {
+                                "type": "IQ" or "MW",
+                                "wiring_path": "#/wiring/qubits/q1/xy",
+                                "intermediate_frequency": 500e6  # optional
+                            },
+                            ...
+                        }
+                        If None (default), automatically extracts XY drives from
+                        machine.wiring if available. Only provide this if:
+                        - Loading from file without wiring information, OR
+                        - Need to override automatic extraction
         qubit_pair_sensor_map: Sensor mapping for qubit pairs.
+                              Format: {"q1_q2": ["sensor_1", "sensor_2"], ...}
         implicit_mapping: If True, uses q1→virtual_dot_1 mapping. If False,
                          requires explicit mapping configuration.
         save: If True, saves the machine state after building.
@@ -139,16 +151,23 @@ def build_loss_divincenzo_quam(
     Returns:
         LossDiVincenzoQuam with qubits registered.
 
-    Example (from memory):
+    Example (from memory - automatic XY extraction):
         >>> from quam_builder.builder.quantum_dots import build_loss_divincenzo_quam
-        >>> # Assuming base_machine is a BaseQuamQD from Stage 1
+        >>> # Assuming base_machine is a BaseQuamQD from Stage 1 with wiring
         >>> ld_machine = build_loss_divincenzo_quam(base_machine)
-        >>> # Access qubits
+        >>> # XY drives are automatically extracted from base_machine.wiring
         >>> print(ld_machine.qubits.keys())  # ['q1', 'q2', ...]
 
-    Example (from file):
-        >>> # Load Stage 1 result from file
-        >>> ld_machine = build_loss_divincenzo_quam("path/to/base_quam_state")
+    Example (from file with manual XY drives):
+        >>> # Load Stage 1 result from file (may not have wiring)
+        >>> xy_wiring = {
+        ...     "q1": {"type": "IQ", "wiring_path": "#/wiring/qubits/q1/xy"},
+        ...     "q2": {"type": "MW", "wiring_path": "#/wiring/qubits/q2/xy"},
+        ... }
+        >>> ld_machine = build_loss_divincenzo_quam(
+        ...     "path/to/base_quam_state",
+        ...     xy_drive_wiring=xy_wiring
+        ... )
 
     Note:
         This function implements Stage 2 only and requires quantum dots to be

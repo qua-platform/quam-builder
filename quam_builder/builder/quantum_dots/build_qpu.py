@@ -218,7 +218,8 @@ class _QpuBuilder:
     def _collect_sensor_dots(self, wiring_by_element: Mapping[str, Any], resonator_cls: Any):
         element_type = "readout"
         for sensor_dot_id, wiring_by_line_type in _sorted_items(wiring_by_element):
-            sensor_id = f"sensor_{sensor_dot_id[1:]}" if len(sensor_dot_id) > 1 else f"sensor_{sensor_dot_id}"
+            sensor_number = _extract_qubit_number(sensor_dot_id)
+            sensor_id = f"sensor_{sensor_number}"
             for line_type, ports in _sorted_items(wiring_by_line_type):
                 _validate_line_type(element_type, line_type)
                 wiring_path = f"#/wiring/{element_type}/{sensor_dot_id}/{line_type}"
@@ -360,7 +361,6 @@ class _QpuBuilder:
                     )
 
             self.machine.register_qubit(
-                qubit_type="loss_divincenzo",
                 quantum_dot_id=self.assembly.plunger_virtual_names[plunger_id],
                 qubit_name=qubit_name,
                 xy_channel=xy_channel,
@@ -432,7 +432,6 @@ class _QpuBuilder:
             )
             self.machine.register_qubit_pair(
                 id=f"{qc_name}_{qt_name}",
-                qubit_type="loss_divincenzo",
                 qubit_control_name=qc_name,
                 qubit_target_name=qt_name,
             )

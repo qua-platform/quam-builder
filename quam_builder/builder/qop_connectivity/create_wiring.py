@@ -11,7 +11,12 @@ while using the new extensible architecture internally.
 from typing import List, Dict, Any, Optional
 from functools import reduce
 from qualang_tools.wirer import Connectivity
-from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference, ElementReference
+from qualang_tools.wirer.connectivity.element import (
+    QubitPairReference,
+    QubitReference,
+    Reference,
+    ElementId,
+)
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 
@@ -157,7 +162,7 @@ def _create_wiring_legacy(connectivity: Connectivity) -> dict:
 
 def readout_wiring(
         channels: List[AnyInstrumentChannel],
-        element_id: ElementReference,
+        element_id: ElementId,
         line_type: WiringLineType,
 ) -> dict:
     qubit_line_wiring = {}
@@ -175,7 +180,7 @@ def readout_wiring(
 
 def global_element_wiring(
         channels: List[AnyInstrumentChannel],
-        element_id: QubitPairReference,
+        element_id: ElementId,
         line_type: WiringLineType,
 ) -> dict:
     qubit_line_wiring = {}

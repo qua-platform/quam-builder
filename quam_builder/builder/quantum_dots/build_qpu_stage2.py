@@ -8,7 +8,7 @@ This is INDEPENDENT of Stage 1 and works with any BaseQuamQD (file or memory).
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union, cast
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
@@ -43,9 +43,19 @@ class _LDQubitBuilder:
 
         Args:
             machine: BaseQuamQD, LossDiVincenzoQuam, or path to saved state.
-            xy_drive_wiring: Optional dict mapping qubit_id → {type, ports}.
-                            If None and machine.wiring exists, extracts from wiring.
+            xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
+                            Format: {
+                                "q1": {
+                                    "type": "IQ" | "MW",  # Drive type
+                                    "wiring_path": "#/wiring/qubits/q1/xy",  # JSON path to ports
+                                    "intermediate_frequency": 500e6  # Optional IF (Hz)
+                                },
+                                ...
+                            }
+                            If None (default), automatically extracts from machine.wiring.
+                            Only needed when loading from file without wiring or to override.
             qubit_pair_sensor_map: Sensor mapping for qubit pairs.
+                                  Format: {"q1_q2": ["sensor_1"], ...}
             implicit_mapping: If True, uses q1→virtual_dot_1 mapping.
         """
         # Load machine if path provided
@@ -98,28 +108,50 @@ class _LDQubitBuilder:
         self._register_qubits()
         self._register_qubit_pairs()
 
-        return self.machine
+        # Type cast: machine is guaranteed to be LossDiVincenzoQuam at this point
+        return cast(LossDiVincenzoQuam, self.machine)
 
     def _extract_xy_drive_wiring(self) -> Dict[str, Dict]:
-        """Extract XY drive wiring from machine.wiring if available."""
+        """Extract XY drive wiring from machine.wiring if available.
+
+        Scans machine.wiring for qubit drive lines and automatically determines
+        the drive type (IQ or MW) based on the port configuration.
+
+        Returns:
+            Dict mapping qubit_id to XY drive configuration:
+            {
+                "q1": {
+                    "type": "IQ" or "MW",
+                    "wiring_path": "#/wiring/qubits/q1/xy",
+                    "intermediate_frequency": 500e6
+                },
+                ...
+            }
+            Returns empty dict if no wiring is available.
+        """
         xy_wiring = {}
 
         if not hasattr(self.machine, "wiring") or not self.machine.wiring:
             logger.info("No wiring found on machine. Qubits will have no XY drives.")
             return xy_wiring
 
+        # Extract qubit wiring section
         qubits_wiring = self.machine.wiring.get("qubits", {})
 
+        # Process each qubit's drive configuration
         for qubit_id, line_types in qubits_wiring.items():
             drive_wiring = line_types.get(WiringLineType.DRIVE.value)
             if drive_wiring:
-                # Determine drive type (IQ or MW) from ports
-                drive_type, _ = _validate_drive_ports(drive_wiring)
+                # Determine drive type (IQ or MW) by inspecting port configuration
+                # IQ drives have opx_output_I/Q + frequency_converter_up
+                # MW drives have single opx_output port
+                drive_type = _validate_drive_ports(qubit_id, drive_wiring)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{WiringLineType.DRIVE.value}"
 
+                # Build XY drive configuration
                 xy_wiring[qubit_id] = {
-                    "type": drive_type,
-                    "wiring_path": wiring_path,
+                    "type": drive_type,  # "IQ" or "MW"
+                    "wiring_path": wiring_path,  # JSON reference to ports
                     "intermediate_frequency": drive_wiring.get(
                         "intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY
                     ),

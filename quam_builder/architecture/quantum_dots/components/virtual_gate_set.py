@@ -279,7 +279,8 @@ class VirtualGateSet(GateSet):
 
         # Check 5: The layer name must be unique
         for lyr in self.layers:
-            if layer_id == lyr.id:
+            # Allow unnamed layers (None) to stack without collision; only enforce when an id is provided
+            if layer_id is not None and layer_id == lyr.id:
                 raise ValueError(
                     f"Layer name '{layer_id}' is already used in a previous layer."
                 )

@@ -9,6 +9,9 @@ from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import build_quam
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
+    LossDiVincenzoQuam,
+)
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 
 
@@ -71,7 +74,7 @@ class TestWirerBuilderIntegration:
         allocate_wiring(connectivity, instruments)
 
         # Build wiring
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -89,7 +92,7 @@ class TestWirerBuilderIntegration:
         assert "qubit_pairs" in machine.wiring
 
         # Build QuAM
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
@@ -112,7 +115,7 @@ class TestWirerBuilderIntegration:
         allocate_wiring(connectivity, instruments)
 
         # Build wiring
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -123,7 +126,7 @@ class TestWirerBuilderIntegration:
         machine = _normalize_wiring(machine)
 
         # Build QuAM
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
@@ -140,7 +143,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -149,7 +152,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify virtual gate set was created
@@ -167,7 +170,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -176,13 +179,13 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have XY drives
         for qubit_name, qubit in machine_loaded.qubits.items():
-            # Check if qubit has an xy attribute (may be None if no MW-FEM allocated)
-            assert hasattr(qubit, 'xy')
+            # Check if qubit has an xy_channel attribute (may be None if no MW-FEM allocated)
+            assert hasattr(qubit, 'xy_channel')
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
@@ -191,7 +194,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -200,7 +203,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify sensor dots have resonators
@@ -214,7 +217,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -223,14 +226,14 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have pulses (if they have xy channels)
         for qubit_name, qubit in machine_loaded.qubits.items():
-            if hasattr(qubit, 'xy') and qubit.xy is not None:
+            if hasattr(qubit, 'xy_channel') and qubit.xy_channel is not None:
                 # Should have XY operations
-                assert len(qubit.xy.operations) > 0
+                assert len(qubit.xy_channel.operations) > 0
 
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""
@@ -239,7 +242,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="192.168.1.100",
@@ -264,7 +267,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -273,7 +276,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
+        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify active lists are populated

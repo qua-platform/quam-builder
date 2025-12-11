@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, TYPE_CHECKING
 
-from qualang_tools.wirer.connectivity.element import ElementReference
+from qualang_tools.wirer.connectivity.element import ElementId
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 
@@ -25,7 +25,7 @@ class WiringContext:
         line_type: The type of wiring line (drive, flux, coupler, etc.)
         channels: List of instrument channels for this element/line combination
     """
-    element_id: ElementReference
+    element_id: ElementId
     line_type: WiringLineType
     channels: List[AnyInstrumentChannel]
 

@@ -180,8 +180,9 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
     Returns:
         Configured resonator instance with default readout pulse.
     """
+    sensor_number = _extract_qubit_number(sensor_id)
     return resonator_cls(
-        id=f"{sensor_id}_resonator",
+        id=f"readout_resonator_{sensor_number}",
         frequency_bare=0,
         intermediate_frequency=DEFAULT_INTERMEDIATE_FREQUENCY,
         operations={
@@ -385,13 +386,15 @@ def _create_xy_drive_from_wiring(
         return XYDriveIQ(
             id=drive_id,
             intermediate_frequency=intermediate_frequency,
-            **iq_out_channel_ports(wiring_path),
+            opx_output_I=f"{wiring_path}/opx_output_I",
+            opx_output_Q=f"{wiring_path}/opx_output_Q",
+            frequency_converter_up=f"{wiring_path}/frequency_converter_up",
         )
     elif drive_type == "MW":
         return XYDriveMW(
             id=drive_id,
             intermediate_frequency=intermediate_frequency,
-            **mw_out_channel_ports(wiring_path),
+            opx_output=f"{wiring_path}/opx_output",
         )
     else:
         raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ' or 'MW'.")

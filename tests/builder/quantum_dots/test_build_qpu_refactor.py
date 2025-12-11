@@ -3,6 +3,9 @@ import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
+    LossDiVincenzoQuam,
+)
 from quam_builder.builder.qop_connectivity.channel_ports import mw_out_channel_ports
 from quam_builder.builder.quantum_dots.build_qpu import DEFAULT_GATE_SET_ID, _QpuBuilder
 
@@ -25,7 +28,7 @@ def _plunger_ports(qubit_id: str) -> dict:
 
 class TestQpuBuilderValidation:
     def test_missing_drive_ports_raise(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q1": {
@@ -39,7 +42,7 @@ class TestQpuBuilderValidation:
             _QpuBuilder(machine).build()
 
     def test_missing_resonator_for_sensor_raises(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "readout": {
                 "s1": {WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/8"}}
@@ -58,7 +61,7 @@ class TestQpuBuilderValidation:
 
 class TestQpuBuilderBehavior:
     def test_element_aliases_register_sensor_dot(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "sensor_dots": {
                 "s1": {
@@ -84,7 +87,7 @@ class TestQpuBuilderBehavior:
         assert "virtual_sensor_1" in machine.sensor_dots
 
     def test_qubit_ordering_is_deterministic(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q2": {
@@ -106,7 +109,7 @@ class TestQpuBuilderBehavior:
         assert builder.assembly.plunger_virtual_names["plunger_2"] == "virtual_dot_2"
 
     def test_barrier_virtual_mapping_used_for_pairs(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q1": {
@@ -136,7 +139,7 @@ class TestQpuBuilderBehavior:
         assert DEFAULT_GATE_SET_ID in machine.virtual_gate_sets
 
     def test_qubit_pair_hyphenated_id_converts(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q1": {
@@ -164,7 +167,7 @@ class TestQpuBuilderBehavior:
         assert "q1_q2" in machine.qubit_pairs
 
     def test_qubit_pair_sensor_mapping_applied(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "readout": {
                 "s1": {
@@ -212,7 +215,7 @@ class TestQpuBuilderBehavior:
         assert sensor_ids == {"virtual_sensor_2"}
 
     def test_qubit_pair_sensor_mapping_aliases(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "readout": {
                 "s1": {
@@ -260,7 +263,7 @@ class TestQpuBuilderBehavior:
         assert sensor_ids == {"virtual_sensor_1", "virtual_sensor_2"}
 
     def test_qubit_pair_sensor_mapping_empty_warns(self, caplog):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q1": {
@@ -275,7 +278,7 @@ class TestQpuBuilderBehavior:
             builder.build()
 
     def test_qubit_pair_sensor_mapping_non_dict_raises(self):
-        machine = BaseQuamQD()
+        machine = LossDiVincenzoQuam()
         machine.wiring = {
             "qubits": {
                 "q1": {

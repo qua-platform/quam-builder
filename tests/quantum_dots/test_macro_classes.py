@@ -18,6 +18,8 @@ from quam_builder.architecture.quantum_dots.macros.point_macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,
+)
+from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
 )
 

@@ -14,9 +14,6 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
-
-
 @quam_dataclass
 class XYDriveBase:
     """
@@ -39,7 +36,7 @@ class XYDriveBase:
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
 
-__all__ = ["XYDrive"]
+__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
 
 @quam_dataclass
 class XYDrive(MWChannel):

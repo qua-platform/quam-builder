@@ -4,9 +4,7 @@ from quam.components.channels import SingleChannel
 
 from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
     VirtualGateSet,
-)
-from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer import (
-    VirtualisationLayer,
+    VirtualizationLayer,
 )
 
 
@@ -39,7 +37,7 @@ def test_add_layer_success_first_layer(virtual_gate_set_fixture):
     vgs = virtual_gate_set_fixture
     layer = vgs.add_layer(source_gates=["virt1"], target_gates=["P1"], matrix=[[1.0]])
     assert len(vgs.layers) == 1
-    assert isinstance(vgs.layers[0], VirtualisationLayer)
+    assert isinstance(vgs.layers[0], VirtualizationLayer)
     assert vgs.layers[0] == layer
     assert layer.source_gates == ["virt1"]
     assert layer.target_gates == ["P1"]
@@ -139,7 +137,7 @@ def test_resolve_voltages_one_layer(virtual_gate_set_fixture):
     # v_g1 = 2.0 * P1 => P1 = 0.5 * v_g1
     vgs.add_layer(source_gates=["v_g1"], target_gates=["P1"], matrix=[[2.0]])
 
-    # To avoid KeyError with current `VirtualisationLayer.resolve_voltages`'s `+=`,
+    # To avoid KeyError with current `VirtualizationLayer.resolve_voltages`'s `+=`,
     # ensure target physical gates are in the input dict if they are targeted.
     # P1 is a target. P2, P3 are other physical gates.
     input_voltages = {"v_g1": 1.0, "P1": 0.0, "P2": 0.5, "P3": 0.0}

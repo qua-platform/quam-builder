@@ -9,7 +9,7 @@ from qualang_tools.wirer.connectivity.wiring_spec import (
 from qualang_tools.wirer.wirer.channel_specs import *
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_quam
+from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam, build_quam
 
 # from quam_config import Quam
 ########################################################################################################################
@@ -85,15 +85,95 @@ machine = build_quam_wiring(
     cluster_name,
     machine,
 )
-#
-# machine.generate_config()
-#
-# # Example: map qubit pairs to specific sensor dots (supports multiple sensors per pair).
-# # Pair keys: q1_q2 or q1-2. Sensor ids: virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1).
-# qubit_pair_sensor_map = {
-#     "q1_q2": ["sensor_1"],
-#     "q2_q3": ["sensor_1", "sensor_2"],
-#     "q3_q4": ["sensor_2"],
+
+########################################################################################################################
+# %%                              Build QUAM using Two-Stage Approach (Recommended)
+########################################################################################################################
+
+# STAGE 1: Build BaseQuamQD with physical quantum dots
+# This creates the quantum dot layer without qubits, allowing you to:
+# - Configure cross-compensation matrices
+# - Calibrate quantum dot parameters
+# - Save the state for later qubit configuration
+
+machine = build_base_quam(
+    machine,
+    connect_qdac=True,  # Connect to external QDAC for voltage control
+    qdac_ip="172.16.33.101",  # QDAC IP address
+    save=True,  # Save the BaseQuamQD state
+)
+
+# At this point, you can:
+# - Calibrate quantum dots
+# - Update cross-compensation matrix
+# - Add voltage points
+# Then save and load later for Stage 2
+
+# STAGE 2: Convert to LossDiVincenzoQuam and add qubits
+# This is independent of Stage 1 and can be done later by loading the saved state
+# Qubits are mapped implicitly: q1 → virtual_dot_1, q2 → virtual_dot_2, etc.
+
+# Example: map qubit pairs to specific sensor dots (supports multiple sensors per pair)
+# Pair keys: q1_q2 or q1-2. Sensor ids: virtual_sensor_<n>, sensor_<n>, or s<n>
+qubit_pair_sensor_map = {
+    "q1_q2": ["sensor_1"],
+    "q2_q3": ["sensor_1", "sensor_2"],
+    "q3_q4": ["sensor_2"],
+}
+
+machine = build_loss_divincenzo_quam(
+    machine,  # Can also load from file: "path/to/base_quam_state"
+    qubit_pair_sensor_map=qubit_pair_sensor_map,
+    implicit_mapping=True,  # q1 → virtual_dot_1 mapping
+    save=True,
+)
+
+# Now machine has both quantum dots AND qubits
+# Access quantum dots: machine.quantum_dots["virtual_dot_1"]
+# Access qubits: machine.qubits["q1"]
+# Access qubit pairs: machine.qubit_pairs["q1_q2"]
+
+########################################################################################################################
+# %%                    Advanced: Manual XY Drive Wiring (Optional)
+########################################################################################################################
+
+# Normally, XY drives are extracted automatically from machine.wiring.
+# But you can manually specify them if needed (e.g., when loading from file without wiring):
+
+# xy_drive_wiring = {
+#     "q1": {
+#         "type": "IQ",  # IQ mixer drive
+#         "wiring_path": "#/wiring/qubits/q1/xy",
+#         "intermediate_frequency": 500e6,  # Optional, defaults to 500 MHz
+#     },
+#     "q2": {
+#         "type": "MW",  # Microwave FEM drive
+#         "wiring_path": "#/wiring/qubits/q2/xy",
+#     },
 # }
 #
-# build_quam(machine, qubit_pair_sensor_map=qubit_pair_sensor_map)
+# machine = build_loss_divincenzo_quam(
+#     "path/to/base_quam_state",
+#     xy_drive_wiring=xy_drive_wiring,  # Manually specify XY drives
+#     save=True,
+# )
+
+########################################################################################################################
+# %%                         Alternative: Single-Call Convenience Wrapper
+########################################################################################################################
+
+# If you don't need the flexibility of two stages, use the convenience wrapper:
+# machine = build_quam(
+#     machine,
+#     qubit_pair_sensor_map=qubit_pair_sensor_map,
+#     connect_qdac=True,
+#     qdac_ip="172.16.33.101",
+#     save=True,
+# )
+
+########################################################################################################################
+# %%                                      Generate QM Configuration
+########################################################################################################################
+
+# Generate the configuration for the Quantum Machines OPX
+machine.generate_config()
