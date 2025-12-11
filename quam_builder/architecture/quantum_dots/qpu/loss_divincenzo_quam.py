@@ -87,7 +87,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         if not hasattr(instance, 'b_field'):
             instance.b_field = 0
         if not hasattr(instance, 'qpu'):
-            instance.qpu = field(default_factory=QPU)
+            instance.qpu = QPU()
         if not hasattr(instance, 'qubits'):
             instance.qubits = {}
         if not hasattr(instance, 'qubit_pairs'):
