@@ -38,11 +38,11 @@ class _QubitPairCrossDriveHelpers:
 
     # ---- Phase shifts (common ZI / IZ corrections) ----
     def _qc_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
-        if phi:
+        if phi is not None:
             self._qc.xy.frame_rotation_2pi(phi)
 
     def _qt_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
-        if phi:
+        if phi is not None:
             self._qt.xy.frame_rotation_2pi(phi)
 
     # ---- Low-level play helper (common) ----
@@ -104,6 +104,14 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
             cr_cancel_phase = self._cr.cancel_phase
         else:
             cr_cancel_phase += self._cr.cancel_phase
+        if qc_correction_phase is None:
+            qc_correction_phase = self._cr.qc_correction_phase
+        else:
+            qc_correction_phase = self._cr.qc_correction_phase
+        if qt_correction_phase is None:
+            qt_correction_phase = self._cr.qt_correction_phase
+        else:
+            qt_correction_phase += self._cr.qt_correction_phase
 
         params = self._merge_params(
             dict(
