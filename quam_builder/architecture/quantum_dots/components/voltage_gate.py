@@ -1,9 +1,9 @@
-from typing import Optional
+from typing import Optional, Dict
 
-from quam.components import SingleChannel
+from quam.components import SingleChannel, Channel
 from quam.core import quam_dataclass
 
-__all__ = ["VoltageGate"]
+__all__ = ["VoltageGate", "QdacTrigger"]
 
 
 @quam_dataclass
@@ -37,7 +37,7 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     qdac_channel: int = None
-    
+    qdac_trigger: "QdacTrigger" = None
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
@@ -58,3 +58,7 @@ class VoltageGate(SingleChannel):
         self._offset_parameter = value
         if self.offset_parameter is not None: 
             self.current_external_voltage = self.offset_parameter()
+
+@quam_dataclass
+class QdacTrigger(Channel): 
+    pass
