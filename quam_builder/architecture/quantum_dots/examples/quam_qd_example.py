@@ -29,7 +29,8 @@ Workflow:
 
 from quam.components import (
     StickyChannelAddon, 
-    pulses
+    pulses, 
+    DigitalOutputChannel,
 ) 
 from quam.components.ports import (
     LFFEMAnalogOutputPort, 
@@ -40,7 +41,7 @@ from quam.components.ports import (
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacTrigger
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
@@ -114,11 +115,16 @@ machine.register_channel_elements(
     sensor_channels_resonators = [(s1, resonator)], 
 )
 
+for ch_name, ch_obj in machine.physical_channels.items(): 
+    if isinstance(ch_obj, VoltageGate) and hasattr(ch_obj, "qdac_channel"): 
+        ch_obj.qdac_trigger = QdacTrigger(digital_outputs = {"trigger": DigitalOutputChannel(opx_output = ("con1", lf_fem, ch_obj.qdac_channel), delay = 0, buffer = 0)}, 
+                                          operations = {"trigger": pulses.Pulse(length = 100, digital_marker = "ON")})
+
 ##################################################################
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = False
+qdac_connect = True
 if qdac_connect: 
     qdac_ip = "172.16.33.101"
     machine.network.update({"qdac_ip": qdac_ip})
