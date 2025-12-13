@@ -14,6 +14,7 @@ from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.serialisation import JSONSerialiser
 
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
 
@@ -54,6 +55,7 @@ class BaseQuam(QuamRoot):
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
     mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
+    twpas: Dict[str, TWPA] = field(default_factory=dict)
 
     qubits: Dict[str, AnyTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, AnyTransmonPair] = field(default_factory=dict)

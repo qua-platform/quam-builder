@@ -8,6 +8,7 @@ from quam_builder.architecture.quantum_dots.components import (
     GateSet,
     VirtualGateSet,
     VirtualizationLayer,
+    VoltageGate,
 )
 from qm import QuantumMachinesManager
 import numpy as np
@@ -37,19 +38,22 @@ def machine():
         gate_set=GateSet(
             id="test_gate_set",
             channels={
-                "ch1": SingleChannel(
+                "ch1": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 6, upsampling_mode="pulse"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
                 ),
-                "ch2": SingleChannel(
+                "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 3, upsampling_mode="pulse"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
                 ),
             },
+            adjust_for_attenuation=True,
         ),
     )
     return machine
@@ -62,17 +66,19 @@ def virtual_machine():
         virtual_gate_set=VirtualGateSet(
             id="test_virtual_gate_set",
             channels={
-                "ch1": SingleChannel(
+                "ch1": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 6, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
                 ),
-                "ch2": SingleChannel(
+                "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 3, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
                 ),
             },
             layers=[
@@ -82,6 +88,7 @@ def virtual_machine():
                     matrix=virt_matrix.tolist(),
                 )
             ],
+            adjust_for_attenuation=True,
         )
     )
 

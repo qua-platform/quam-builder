@@ -315,17 +315,16 @@ class BaseTransmon(Qubit):
         assign(state, I > pulse.threshold)
         wait(self.resonator.depletion_time // 2, self.resonator.name)
         self.xy.play(pi_pulse_name, condition=state)
-        self.align()
         with while_((I > pulse.rus_exit_threshold) & (attempts < max_attempts)):
-            self.align()
+            self.xy.align(self.resonator.name)
             self.resonator.measure("readout", qua_vars=(I, Q))
             assign(state, I > pulse.threshold)
             wait(self.resonator.depletion_time // 2, self.resonator.name)
             self.xy.play(pi_pulse_name, condition=state)
-            self.align()
+            self.xy.align(self.resonator.name)
             assign(attempts, attempts + 1)
         wait(500, self.xy.name)
-        self.align()
+        self.xy.align(self.resonator.name)
         if save_qua_var is not None:
             save(attempts, save_qua_var)
 
