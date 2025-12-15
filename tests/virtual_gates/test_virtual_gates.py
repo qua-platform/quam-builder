@@ -248,12 +248,12 @@ def test_matrix_validation_non_square_matrix(virtual_gate_set_fixture):
     """Test that non-square matrices are rejected."""
     vgs = virtual_gate_set_fixture
     non_square_matrix = [[1.0, 0.5], [0.0, 1.0], [0.5, 0.0]]  # 3x2 matrix
-    
+
     with pytest.raises(ValueError) as excinfo:
         vgs.add_layer(
-            source_gates=["v1", "v2"], 
-            target_gates=["P1", "P2"], 
-            matrix=non_square_matrix
+            source_gates=["v1", "v2"],
+            target_gates=["P1", "P2"],
+            matrix=non_square_matrix,
         )
     assert "Matrix must be square" in str(excinfo.value)
 
@@ -262,12 +262,10 @@ def test_matrix_validation_non_invertible_matrix(virtual_gate_set_fixture):
     """Test that non-invertible matrices are rejected."""
     vgs = virtual_gate_set_fixture
     singular_matrix = [[1.0, 2.0], [2.0, 4.0]]  # Determinant = 0
-    
+
     with pytest.raises(ValueError) as excinfo:
         vgs.add_layer(
-            source_gates=["v1", "v2"], 
-            target_gates=["P1", "P2"], 
-            matrix=singular_matrix
+            source_gates=["v1", "v2"], target_gates=["P1", "P2"], matrix=singular_matrix
         )
     assert "Matrix is not invertible" in str(excinfo.value)
 
@@ -276,11 +274,9 @@ def test_matrix_validation_valid_matrix(virtual_gate_set_fixture):
     """Test that valid square invertible matrices are accepted."""
     vgs = virtual_gate_set_fixture
     valid_matrix = [[1.0, 0.5], [0.0, 1.0]]  # Square and invertible
-    
+
     layer = vgs.add_layer(
-        source_gates=["v1", "v2"], 
-        target_gates=["P1", "P2"], 
-        matrix=valid_matrix
+        source_gates=["v1", "v2"], target_gates=["P1", "P2"], matrix=valid_matrix
     )
     assert len(vgs.layers) == 1
     assert layer.matrix == valid_matrix

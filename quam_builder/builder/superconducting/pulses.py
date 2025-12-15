@@ -262,7 +262,7 @@ def add_Square_pulses(
 
 
 def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
+    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
 ):
     """Adds default pulses to a transmon qubit:
         * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
@@ -292,7 +292,7 @@ def add_default_transmon_pulses(
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
