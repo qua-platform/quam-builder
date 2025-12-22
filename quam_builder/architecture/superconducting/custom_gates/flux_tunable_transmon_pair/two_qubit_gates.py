@@ -335,7 +335,8 @@ class CZGate(QubitPairMacro):
         
         
         with if_(with_rc_qua):
-            pauli_before_idx = declare(int, initial_value=Random().rand_int(20))
+            pauli_before_idx = declare(int)
+            pauli_before_idx=Random().rand_int(20)
             pauli_after_idx = declare(int)
             assign(pauli_after_idx, 19 - pauli_before_idx)
             
