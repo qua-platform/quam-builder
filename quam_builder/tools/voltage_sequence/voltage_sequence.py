@@ -279,9 +279,13 @@ class VoltageSequence:
 
         if is_qua_type(delta_v) or is_qua_type(ramp_duration):
             ramp_rate = self._get_temp_qua_var(f"{channel.name}_ramp_rate")
-            inv_ramp_dur = self._get_temp_qua_var(f"{channel.name}_inv_ramp_dur", fixed)
-            assign(inv_ramp_dur, Math.div(1, ramp_duration))
-            assign(ramp_rate, delta_v * inv_ramp_dur)
+            if not is_qua_type(ramp_duration) and py_ramp_duration > 0:
+                inv_ramp_dur_py = 1.0 / py_ramp_duration
+                assign(ramp_rate, delta_v * inv_ramp_dur_py)
+            else:
+                inv_ramp_dur = self._get_temp_qua_var(f"{channel.name}_inv_ramp_dur", fixed)
+                assign(inv_ramp_dur, Math.div(1, ramp_duration))
+                assign(ramp_rate, delta_v * inv_ramp_dur)
             channel.play(
                 ramp(ramp_rate),
                 duration=ramp_duration_cycles,
@@ -701,12 +705,8 @@ class VoltageSequence:
                 2.5 if hasattr(channel_obj.opx_output, "output_mode") and channel_obj.opx_output.output_mode == "amplified" else 0.5
             )
 
-            if self.gate_set.adjust_for_attenuation:
-                attenuation_scale = (
-                    10 ** (channel_obj.attenuation / 20)
-                    if hasattr(channel_obj, "attenuation")
-                    else 1
-                )
+            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
+                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
                 if max_voltage * attenuation_scale > opx_voltage_limit:
                     raise ValueError(
                         f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"

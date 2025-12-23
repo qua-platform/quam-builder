@@ -1,6 +1,7 @@
 from .voltage_gate import *
 from .barrier_gate import *
 from .virtual_gate_set import *
+from .virtual_dc_set import *
 from .gate_set import *
 from .mixin import *
 
@@ -18,6 +19,7 @@ __all__ = [
     *voltage_gate.__all__,
     *virtual_gate_set.__all__,
     *gate_set.__all__,
+    *virtual_dc_set.__all__,
     *quantum_dot.__all__,
     *sensor_dot.__all__,
     *readout_resonator.__all__,
