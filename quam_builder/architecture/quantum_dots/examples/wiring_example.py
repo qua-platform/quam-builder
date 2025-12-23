@@ -15,9 +15,9 @@ from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divinc
 ########################################################################################################################
 # %%                                              Define static parameters
 ########################################################################################################################
-host_ip = "127.0.0.1"  # QOP IP address
+host_ip = "172.16.33.115"  # QOP IP address
 port = None  # QOP Port
-cluster_name = "Cluster_1"  # Name of the cluster
+cluster_name = "CS_3"  # Name of the cluster
 
 ########################################################################################################################
 # %%                                      Define the available instrument setup
@@ -98,8 +98,8 @@ machine = build_quam_wiring(
 
 machine = build_base_quam(
     machine,
-    connect_qdac=True,  # Connect to external QDAC for voltage control
-    qdac_ip="172.16.33.101",  # QDAC IP address
+    connect_qdac=False,  # Connect to external QDAC for voltage control
+    # qdac_ip="172.16.33.101",  # QDAC IP address
     save=True,  # Save the BaseQuamQD state
 )
 
@@ -121,12 +121,12 @@ qubit_pair_sensor_map = {
     "q3_q4": ["sensor_2"],
 }
 
-machine = build_loss_divincenzo_quam(
-    machine,  # Can also load from file: "path/to/base_quam_state"
-    qubit_pair_sensor_map=qubit_pair_sensor_map,
-    implicit_mapping=True,  # q1 → virtual_dot_1 mapping
-    save=True,
-)
+# machine = build_loss_divincenzo_quam(
+#     machine,  # Can also load from file: "path/to/base_quam_state"
+#     qubit_pair_sensor_map=qubit_pair_sensor_map,
+#     implicit_mapping=True,  # q1 → virtual_dot_1 mapping
+#     save=True,
+# )
 
 # Now machine has both quantum dots AND qubits
 # Access quantum dots: machine.quantum_dots["virtual_dot_1"]
