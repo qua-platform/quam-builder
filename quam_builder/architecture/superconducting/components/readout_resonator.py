@@ -160,16 +160,3 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         return set_output_power_mw_channel(
             self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
         )
-        
-    # def measure(
-    #     self,
-    #     pulse_name: str,
-    #     amplitude_scale: Optional[Union[ScalarFloat, Sequence[ScalarFloat]]] = None,
-    #     qua_vars: Tuple[QuaVariableFloat, QuaVariableFloat] = None,
-    #     stream=None,
-    # ) -> Tuple[QuaVariableFloat, QuaVariableFloat]
-        
-        
-    #     # measurment twirl logic
-        
-    #     super("InOutMWChannel").super("_InOutMWChannel").measure()
