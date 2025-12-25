@@ -39,7 +39,7 @@ class BaseQuam(QuamRoot):
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
         # _data_handler (ClassVar[DataHandler]): The data handler. # Unused
         qmm (Optional[QuantumMachinesManager]): The Quantum Machines Manager.
-
+        extras (dict): Additional attributes for the QUAM.
     Methods:
         get_serialiser: Get the serialiser for the QuamRoot class.
         get_octave_config: Return the Octave configuration.
@@ -68,6 +68,8 @@ class BaseQuam(QuamRoot):
     ports: Optional[Union[FEMPortsContainer, OPXPlusPortsContainer]] = None
 
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
+    
+    extras: dict = field(default_factory=dict)
 
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
