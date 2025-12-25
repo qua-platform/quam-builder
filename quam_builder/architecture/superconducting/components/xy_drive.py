@@ -100,6 +100,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
 @quam_dataclass
 class XYDriveMW(MWChannel, XYDriveBase):
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
+    target_detuning_from_sweet_spot: float = 0.0
 
     @property
     def upconverter_frequency(self):
