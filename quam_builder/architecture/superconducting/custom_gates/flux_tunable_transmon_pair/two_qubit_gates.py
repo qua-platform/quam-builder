@@ -223,26 +223,25 @@ class CZGate(QubitPairMacro):
             Index (0-19) specifying which Pauli combination to apply.
             Note: Assumes "x180" and "y180" operations exist in qubit.xy.operations.
         """
-        # Align qubits before applying Pauli gates
-        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target])
         
-        with switch_(pauli_idx):
+        with switch_(pauli_idx, unsafe=True):
             # Case 0: I⊗I
             with case_(0):
-                wait(4)
+                self.qubit_pair.qubit_control.wait(4)
+                self.qubit_pair.qubit_target.wait(4)
             
             # Case 1: I⊗Z
             with case_(1):
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 2: Z⊗I
             with case_(2):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
             
             # Case 3: Z⊗Z
             with case_(3):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 4: I⊗X
             with case_(4):
@@ -273,7 +272,7 @@ class CZGate(QubitPairMacro):
             # Case 10: Y⊗Z
             with case_(10):
                 self.qubit_pair.qubit_control.xy.play("y180")
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 11: Y⊗X
             with case_(11):
@@ -288,34 +287,35 @@ class CZGate(QubitPairMacro):
             # Case 13: X⊗Z
             with case_(13):
                 self.qubit_pair.qubit_control.xy.play("x180")
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 14: Z⊗Y
             with case_(14):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
                 self.qubit_pair.qubit_target.xy.play("y180")
             
             # Case 15: Z⊗X
             with case_(15):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
                 self.qubit_pair.qubit_target.xy.play("x180")
             
             # Case 16: Z⊗Z
             with case_(16):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 17: Z⊗I
             with case_(17):
-                self.qubit_pair.qubit_control.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_control.xy.frame_rotation(np.pi)
             
             # Case 18: I⊗Z
             with case_(18):
-                self.qubit_pair.qubit_target.xy.frame_rotation_2pi(0.5)
+                self.qubit_pair.qubit_target.xy.frame_rotation(np.pi)
             
             # Case 19: I⊗I
             with case_(19):
-                wait(4)
+                self.qubit_pair.qubit_control.wait(4)
+                self.qubit_pair.qubit_target.wait(4)
 
     def apply(
         self,
@@ -330,18 +330,16 @@ class CZGate(QubitPairMacro):
         
     ) -> None:
         
-        with_rc_qua = declare(bool, initial_value=with_rc)
-               
         
-        
-        with if_(with_rc_qua):
-            pauli_before_idx = declare(int)
-            pauli_before_idx=Random().rand_int(20)
-            pauli_after_idx = declare(int)
-            assign(pauli_after_idx, 19 - pauli_before_idx)
+        # if with_rc:
+        #     rand = Random(seed=111)
+        #     pauli_before_idx = declare(int)
+        #     pauli_after_idx = declare(int)
+        #     pauli_before_idx = rand.rand_int(1)
+        #     assign(pauli_after_idx, 19 - pauli_before_idx)
             
-            self.qubit_pair.align()
-            self.play_rc_paulis(pauli_before_idx)
+        #     self.qubit_pair.align()
+        #     self.play_rc_paulis(pauli_before_idx)
                 
         # Build list of spectator qubits and their pulse names
         spectator_qubits_list = []
@@ -399,8 +397,8 @@ class CZGate(QubitPairMacro):
         # Final alignment
         self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
         
-        with if_(with_rc_qua):
-            self.play_rc_paulis(pauli_after_idx)
-            self.qubit_pair.align()
+        # if with_rc:
+        #     self.play_rc_paulis(pauli_after_idx)
+        #     self.qubit_pair.align()
             
         
