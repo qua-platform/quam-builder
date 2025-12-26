@@ -6,7 +6,7 @@ from qm.qua._expressions import QuaExpression, QuaVariable
 from quam.components.macro import QubitPairMacro
 from quam.core import quam_dataclass
 
-__all__ = ["CRGate", "StarkInducedCZGate"]
+__all__ = ["CrossResonanceGate"]
 
 qua_T = Union[QuaVariable, QuaExpression]
 _tuple = Tuple[Union[float, qua_T]]
@@ -16,7 +16,7 @@ _list = List[Union[float, qua_T]]
 # ============================================================================
 # Shared helpers for 2-qubit gates (no dataclass fields here; just utilities)
 # ============================================================================
-class _QubitPairCrossDriveHelpers:
+class _QubitPairCrossResonanceHelpers:
     # ---- Small helpers (common) ----
     @property
     def _qc(self):
@@ -35,6 +35,22 @@ class _QubitPairCrossDriveHelpers:
             else:
                 out[k] = v
         return out
+
+    # If override is None -> use base, else multiply by base
+    @staticmethod
+    def _multiply_or_default(
+        override: Optional[Union[float, qua_T]],
+        base: Union[float, qua_T],
+    ) -> Union[float, qua_T]:
+        return base if override is None else override * base
+
+    # If override is None -> use base, else add base
+    @staticmethod
+    def _add_or_default(
+        override: Optional[Union[float, qua_T]],
+        base: Union[float, qua_T],
+    ) -> Union[float, qua_T]:
+        return base if override is None else override + base
 
     # ---- Phase shifts (common ZI / IZ corrections) ----
     def _qc_shift_correction_phase(self, phi: Optional[float | qua_T]) -> None:
@@ -69,7 +85,7 @@ class _QubitPairCrossDriveHelpers:
 # Cross-Resonance (CR) Gate
 # ============================================================================
 @quam_dataclass
-class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
+class CrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMacro):
     # Gate-level parameters (composite CR, stored under macros)
     qc_correction_phase: Optional[float] = None  # ZI correction
     qt_correction_phase: Optional[float] = None  # IZ correction
@@ -78,7 +94,7 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
     def apply(
         self,
         cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
-        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
+        wf_type: Optional[Literal["square", "flattop"]] = "flattop",
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
         cr_drive_phase: Optional[float | qua_T] = None,
@@ -88,44 +104,31 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         qt_correction_phase: Optional[float | qua_T] = None,
     ) -> None:
         # Relative to the stored CrossResonance component parameters
-        if cr_drive_amp_scaling is None:
-            cr_drive_amp_scaling = self._cr.drive_amplitude_scaling
-        else:
-            cr_drive_amp_scaling *= self._cr.drive_amplitude_scaling
-        if cr_drive_phase is None:
-            cr_drive_phase = self._cr.drive_phase
-        else:
-            cr_drive_phase += self._cr.drive_phase
-        if cr_cancel_amp_scaling is None:
-            cr_cancel_amp_scaling = self._cr.cancel_amplitude_scaling
-        else:
-            cr_cancel_amp_scaling *= self._cr.cancel_amplitude_scaling
-        if cr_cancel_phase is None:
-            cr_cancel_phase = self._cr.cancel_phase
-        else:
-            cr_cancel_phase += self._cr.cancel_phase
-        if qc_correction_phase is None:
-            qc_correction_phase = self._cr.qc_correction_phase
-        else:
-            qc_correction_phase += self._cr.qc_correction_phase
-        if qt_correction_phase is None:
-            qt_correction_phase = self._cr.qt_correction_phase
-        else:
-            qt_correction_phase += self._cr.qt_correction_phase
+        cr_drive_amp_scaling = self._multiply_or_default(cr_drive_amp_scaling, self._cr.drive_amplitude_scaling)
+        cr_drive_phase = self._add_or_default(cr_drive_phase, self._cr.drive_phase)
 
+        cr_cancel_amp_scaling = self._multiply_or_default(cr_cancel_amp_scaling, self._cr.cancel_amplitude_scaling)
+        cr_cancel_phase = self._add_or_default(cr_cancel_phase, self._cr.cancel_phase)
+
+        qc_correction_phase = self._add_or_default(qc_correction_phase, self._cr.qc_correction_phase)
+        qt_correction_phase = self._add_or_default(qt_correction_phase, self._cr.qt_correction_phase)
+
+        # Overwrite the stored CrossResonance component parameters if not None
         params = self._merge_params(
-            dict(
+            defaults=dict(
                 qc_correction_phase=self.qc_correction_phase,
                 qt_correction_phase=self.qt_correction_phase,
             ),
-            wf_type=wf_type,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            cr_drive_phase=cr_drive_phase,
-            cr_cancel_amp_scaling=cr_cancel_amp_scaling,
-            cr_cancel_phase=cr_cancel_phase,
-            qc_correction_phase=qc_correction_phase,
-            qt_correction_phase=qt_correction_phase,
+            **dict( # overrides
+                wf_type=wf_type,
+                cr_duration_clock_cycles=cr_duration_clock_cycles,
+                cr_drive_amp_scaling=cr_drive_amp_scaling,
+                cr_drive_phase=cr_drive_phase,
+                cr_cancel_amp_scaling=cr_cancel_amp_scaling,
+                cr_cancel_phase=cr_cancel_phase,
+                qc_correction_phase=qc_correction_phase,
+                qt_correction_phase=qt_correction_phase,
+            ),
         )
 
         if cr_type == "direct":
@@ -191,6 +194,8 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         )
 
     # ---- CR Implementations (one per cr_type) ----
+    
+    # Direct Only
     def _direct(
         self,
         wf_type: str,
@@ -209,12 +214,15 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         align(*self._cr_elems)
 
         # Cleanup
-        # reset_frame(self._cr.name)
         self._cr_drive_shift_phase(-cr_drive_phase)
+        align(*self._cr_elems)
+        
+        # Compenstate
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
+    # Direct + Echo
     def _direct_echo(
         self,
         wf_type: str,
@@ -243,12 +251,15 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         align(*self._cr_elems)
 
         # Cleanup
-        # reset_frame(self._cr.name)
         self._cr_drive_shift_phase(-cr_drive_phase)
+        align(*self._cr_elems)
+        
+        # Compenstate
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
+    # Direct + Cancel
     def _direct_cancel(
         self,
         wf_type: str,
@@ -271,16 +282,16 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         align(*self._cr_elems)
 
         # Cleanup
-        # reset_frame(self._cr.name)
-        # reset_frame(self._qt.xy.name)
-        align(*self._cr_elems)
-
         self._cr_drive_shift_phase(-cr_drive_phase)
         self._cr_cancel_shift_phase(-cr_cancel_phase)
+        align(*self._cr_elems)
+    
+        # Compenstate
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
 
+    # (Direct + Echo) + (Cancel + Echo)
     def _direct_cancel_echo(
         self,
         wf_type: str,
@@ -314,87 +325,11 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         align(*self._cr_elems)
 
         # Cleanup
-        # reset_frame(self._cr.name)
-        # reset_frame(self._qt.xy.name)
         self._cr_drive_shift_phase(-cr_drive_phase)
         self._cr_cancel_shift_phase(-cr_cancel_phase)
         align(*self._cr_elems)
 
+        # Compenstate
         self._qc_shift_correction_phase(qc_correction_phase)
         self._qt_shift_correction_phase(qt_correction_phase)
         align(*self._cr_elems)
-
-
-# ============================================================================
-# Stark-Induced CZ Gate
-# ============================================================================
-@quam_dataclass
-class StarkInducedCZGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
-    # Gate-level parameters (composite CR, stored under macros)
-    qc_correction_phase: Optional[float] = None  # ZI correction
-    qt_correction_phase: Optional[float] = None  # IZ correction
-
-    # ---- Public API ----
-    def apply(
-        self,
-        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
-        zz_duration_clock_cycles: Optional[Union[float, qua_T]] = None,
-        zz_control_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        zz_target_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        zz_relative_phase: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        qc_correction_phase: Optional[Union[float, qua_T]] = None,
-        qt_correction_phase: Optional[Union[float, qua_T]] = None,
-    ) -> None:
-        p = self._merge_params(
-            dict(
-                qc_correction_phase=self.qc_correction_phase,
-                qt_correction_phase=self.qt_correction_phase,
-            ),
-            wf_type=wf_type,
-            zz_duration_clock_cycles=zz_duration_clock_cycles,
-            zz_control_amp_scaling=zz_control_amp_scaling,
-            zz_target_amp_scaling=zz_target_amp_scaling,
-            zz_relative_phase=zz_relative_phase,
-            qc_correction_phase=qc_correction_phase,
-            qt_correction_phase=qt_correction_phase,
-        )
-
-        # Relative-phase pre-rotation
-        self._zz_shift_relative_phase(zz_relative_phase)
-
-        # Main lobes
-        align(self._zz.name, self._qt.xy_detuned.name)
-        self._zz_control_drive_play(wf_type, zz_control_amp_scaling, zz_duration_clock_cycles)
-        self._zz_target_drive_play(wf_type, zz_target_amp_scaling, zz_duration_clock_cycles)
-
-        # Correct and clean up
-        align(self._zz.name, self._qt.xy_detuned.name, self._qc.xy.name, self._qt.xy.name)
-        self._qc_shift_correction_phase(qc_correction_phase)  # ZI
-        self._qt_shift_correction_phase(qt_correction_phase)  # IZ
-
-    # hardware elem
-    @property
-    def _zz(self):
-        return self.qubit_pair.zz_drive
-
-    # ---- Sequence-specific helpers ----
-    def _zz_shift_relative_phase(self, phi: Optional[Union[float, qua_T, _tuple, _list]]) -> None:
-        if phi is not None:
-            self._qt.xy_detuned.frame_rotation_2pi(phi)
-
-    def _zz_control_drive_play(self, wf_type, zz_control_amp_scaling, zz_duration_clock_cycles) -> None:
-        self._play_pulse(
-            elem=self._zz,
-            wf_type=wf_type,
-            amp_scale=zz_control_amp_scaling,
-            duration=zz_duration_clock_cycles,
-        )
-
-    def _zz_target_drive_play(self, wf_type, zz_target_amp_scaling, zz_duration_clock_cycles) -> None:
-        target_wf = f"zz_{wf_type}_{self.qubit_pair.name}"
-        self._play_pulse(
-            elem=self._qt.xy_detuned,
-            wf_type=target_wf,
-            amp_scale=zz_target_amp_scaling,
-            duration=zz_duration_clock_cycles,
-        )

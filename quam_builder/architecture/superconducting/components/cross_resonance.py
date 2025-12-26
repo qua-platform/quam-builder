@@ -14,6 +14,8 @@ class CrossResonanceBase:
     """
 
     target_qubit_RF_frequency: float = None
+    detuning: float = None
+
     drive_amplitude_scaling: float = 1.0
     drive_phase: float = 0.0
     cancel_amplitude_scaling: float = 1.0
@@ -31,18 +33,21 @@ class CrossResonanceIQ(IQChannel, CrossResonanceBase):
 
     @property
     def inferred_intermediate_frequency(self):
-        return self.target_qubit_RF_frequency - self.LO_frequency
+        if self.detuning is not None:
+            return self.target_qubit_RF_frequency - self.LO_frequency + self.detuning
+        else:
+            return self.target_qubit_RF_frequency - self.LO_frequency
 
 
 @quam_dataclass
 class CrossResonanceMW(MWChannel, CrossResonanceBase):
-    @property
-    def inferred_intermediate_frequency(self):
-        return self.target_qubit_RF_frequency - self.LO_frequency
 
     @property
-    def upconverter_frequency(self):
-        return self.opx_output.upconverter_frequency
+    def inferred_intermediate_frequency(self):
+        if self.detuning is not None:
+            return self.target_qubit_RF_frequency - self.upconverter_frequency + self.detuning
+        else:
+            return self.target_qubit_RF_frequency - self.upconverter_frequency
 
     @property
     def inferred_RF_frequency(self):
