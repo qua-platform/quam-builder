@@ -317,3 +317,93 @@ def add_default_transmon_pair_pulses(
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
             )
+
+
+def add_rise_fall_pulses_cr(
+    CR: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    amplitude: float,
+    length: int,
+    digital_marker: str = None,
+):
+    """Adds a set of rise and fall pulses to a transmon qubit and sets the gate shape as 'edge_pulse'.
+    The function will create the 4 operations corresponding to the set of single qubit gates:
+    ["rise_cosine", "fall_cosine", "rise_gaussian", "fall_gaussian"].
+
+    Args:
+        transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the pulses will be added.
+        amplitude (float): The amplitude of the pulses in Volts.
+        length (int): The length of the pulses in ns. Must be above 16ns and a multiple of 4ns.
+        digital_marker (str, optional): The digital marker for the pulses. Defaults to None. Can be set to "ON".
+    """
+    if CR.cross_resonance_edge is not None:
+        CR.cross_resonance_edge.operations["rise_cosine"] = pulses.EdgePulse(
+            shape="rise",
+            envelope_type="cosine",
+            length=length,
+            amplitude=amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["fall_cosine"] = pulses.EdgePulse(
+            shape="fall",
+            envelope_type="cosine",
+            length=length,
+            amplitude=amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["rise_gaussian"] = pulses.EdgePulse(
+            shape="rise",
+            envelope_type="gaussian",
+            length=length,
+            amplitude=amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["fall_gaussian"] = pulses.EdgePulse(
+            shape="fall",
+            envelope_type="gaussian",
+            length=length,
+            amplitude=amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["rise_cosine_echo"] = pulses.EdgePulse(
+            shape="rise",
+            envelope_type="cosine",
+            length=length,
+            amplitude=-amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["fall_cosine_echo"] = pulses.EdgePulse(
+            shape="fall",
+            envelope_type="cosine",
+            length=length,
+            amplitude=-amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["rise_gaussian_echo"] = pulses.EdgePulse(
+            shape="rise",
+            envelope_type="gaussian",
+            length=length,
+            amplitude=-amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
+
+        CR.cross_resonance_edge.operations["fall_gaussian_echo"] = pulses.EdgePulse(
+            shape="fall",
+            envelope_type="gaussian",
+            length=length,
+            amplitude=-amplitude,
+            digital_marker=digital_marker,
+            axis_angle=0,
+        )
