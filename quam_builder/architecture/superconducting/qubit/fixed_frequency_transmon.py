@@ -1,6 +1,10 @@
+from typing import Union
 from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.qubit.base_transmon import BaseTransmon
-
+from quam_builder.architecture.superconducting.components.xy_drive import (
+    XYDriveIQ,
+    XYDriveMW,
+)
 __all__ = ["FixedFrequencyTransmon"]
 
 
@@ -12,5 +16,5 @@ class FixedFrequencyTransmon(BaseTransmon):
     Args:
 
     """
-
+    xy: Union[XYDriveIQ, XYDriveMW] = None
     pass

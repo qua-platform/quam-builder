@@ -37,6 +37,8 @@ class FixedFrequencyTransmonPair(QubitPair):
     qubit_target: FixedFrequencyTransmon = None
 
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    cross_resonance_edge: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    
     zz_drive: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     xy_detuned: Union[MWChannel, IQChannel] = None
 
