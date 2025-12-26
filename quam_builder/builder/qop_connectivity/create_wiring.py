@@ -35,7 +35,6 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.RESONATOR,
                 WiringLineType.DRIVE,
                 WiringLineType.FLUX,
-                WiringLineType.DETUNED_DRIVE,
                 WiringLineType.LASER,
                 WiringLineType.SPCM,
             ]:
