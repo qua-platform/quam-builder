@@ -1,6 +1,6 @@
 from typing import Optional
 from qm.qua.type_hints import QuaVariable, QuaScalarExpression, Scalar
-
+from qm.qua import declare, assign
 
 from typing import Any
 
@@ -52,3 +52,12 @@ def validate_duration(duration: Optional[DurationType], param_name: str):
                 f"minimum recommended ({MIN_PULSE_DURATION_NS}ns). This might "
                 f"lead to timing issues or gaps. Use with care."
             )
+
+
+def integer_abs(qua_int: QuaVariable):
+    """Absolute value of an integer qua variable."""
+    temp = declare(int)
+    assign(temp, qua_int >> 31)
+    assign(qua_int, qua_int ^ temp)
+    assign(qua_int, qua_int + (temp & 1))
+    return qua_int
