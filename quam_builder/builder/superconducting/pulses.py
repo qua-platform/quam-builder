@@ -320,7 +320,7 @@ def add_default_transmon_pair_pulses(
 
 
 def add_rise_fall_pulses_cr(
-    CR: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
+    CR_or_transmon: Union[FixedFrequencyTransmonPair, FixedFrequencyTransmon],
     amplitude: float,
     length: int,
     digital_marker: str = None,
@@ -335,8 +335,13 @@ def add_rise_fall_pulses_cr(
         length (int): The length of the pulses in ns. Must be above 16ns and a multiple of 4ns.
         digital_marker (str, optional): The digital marker for the pulses. Defaults to None. Can be set to "ON".
     """
-    if CR.cross_resonance_edge is not None:
-        CR.cross_resonance_edge.operations["rise_cosine"] = pulses.EdgePulse(
+    if isinstance(CR_or_transmon, FixedFrequencyTransmonPair):
+        edge_elements = CR_or_transmon.cross_resonance_edge
+    elif isinstance(CR_or_transmon, FixedFrequencyTransmon):
+        edge_elements = CR_or_transmon.xy_edge
+
+    if edge_elements is not None:
+        edge_elements.operations["rise_cosine"] = pulses.EdgePulse(
             shape="rise",
             envelope_type="cosine",
             length=length,
@@ -345,7 +350,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["fall_cosine"] = pulses.EdgePulse(
+        edge_elements.operations["fall_cosine"] = pulses.EdgePulse(
             shape="fall",
             envelope_type="cosine",
             length=length,
@@ -354,7 +359,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["rise_gaussian"] = pulses.EdgePulse(
+        edge_elements.operations["rise_gaussian"] = pulses.EdgePulse(
             shape="rise",
             envelope_type="gaussian",
             length=length,
@@ -363,7 +368,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["fall_gaussian"] = pulses.EdgePulse(
+        edge_elements.operations["fall_gaussian"] = pulses.EdgePulse(
             shape="fall",
             envelope_type="gaussian",
             length=length,
@@ -372,7 +377,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["rise_cosine_echo"] = pulses.EdgePulse(
+        edge_elements.operations["rise_cosine_echo"] = pulses.EdgePulse(
             shape="rise",
             envelope_type="cosine",
             length=length,
@@ -381,7 +386,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["fall_cosine_echo"] = pulses.EdgePulse(
+        edge_elements.operations["fall_cosine_echo"] = pulses.EdgePulse(
             shape="fall",
             envelope_type="cosine",
             length=length,
@@ -390,7 +395,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["rise_gaussian_echo"] = pulses.EdgePulse(
+        edge_elements.operations["rise_gaussian_echo"] = pulses.EdgePulse(
             shape="rise",
             envelope_type="gaussian",
             length=length,
@@ -399,7 +404,7 @@ def add_rise_fall_pulses_cr(
             axis_angle=0,
         )
 
-        CR.cross_resonance_edge.operations["fall_gaussian_echo"] = pulses.EdgePulse(
+        edge_elements.operations["fall_gaussian_echo"] = pulses.EdgePulse(
             shape="fall",
             envelope_type="gaussian",
             length=length,

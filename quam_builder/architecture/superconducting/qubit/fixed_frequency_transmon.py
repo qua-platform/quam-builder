@@ -16,5 +16,5 @@ class FixedFrequencyTransmon(BaseTransmon):
     Args:
 
     """
-    xy: Union[XYDriveIQ, XYDriveMW] = None
+    xy_edge: Union[XYDriveIQ, XYDriveMW] = None
     pass
