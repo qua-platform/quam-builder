@@ -28,9 +28,9 @@ class FixedFrequencyQuam(BaseQuam):
     """
 
     qubit_type: ClassVar[Type[FixedFrequencyTransmon]] = FixedFrequencyTransmon
-    qubit_pair_type: ClassVar[Type[FixedFrequencyTransmonPair]] = (
-        FixedFrequencyTransmonPair
-    )
+    qubit_pair_type: ClassVar[
+        Type[FixedFrequencyTransmonPair]
+    ] = FixedFrequencyTransmonPair
 
     qubits: Dict[str, FixedFrequencyTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FixedFrequencyTransmonPair] = field(default_factory=dict)
