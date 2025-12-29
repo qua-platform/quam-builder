@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
+- Add QuamMacro class `CrossResonanceGate` for fixed frequency transmons.
 - Add spectator qubit support in `CZGate` class with phase shift handling.
 - Add `duration_control` parameter to `CZGate` for better pulse handling.
 
@@ -17,9 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [0.2.0] - 2025-10-29
 ### Added
-- Macro class for the CR and CZ gate on fixed frequency transmons: `CRGate` and `StarkInducedCZGate`.
-- qpu class for `FixedFrequencyZZDriveQuam` and associated `FixedFrequencyZZDriveTransmon` and `ZZDriveIQ`, `ZZDriveMW`. 
-- Architecture components for Quantum Dots: added support for `zz_drive`, `xy_detuned_drive`.
+- Add components for `ZZDriveIQ`, `ZZDriveMW`. 
+- Architecture components for Quantum Dots.
 - Complete architecture for single NV centers. 
 - Macro class for the CZ gate on tunable transmons: `CZGate`
 - Add the `CZGate` fidelity and extras as dictionaries.
