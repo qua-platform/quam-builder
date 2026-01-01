@@ -6,7 +6,7 @@ from qm.qua._expressions import QuaExpression, QuaVariable
 from quam.components.macro import QubitPairMacro
 from quam.core import quam_dataclass
 
-__all__ = ["CrossResonanceGate"]
+__all__ = ["CrossResonanceGate", "TwoElementCrossResonanceGate"]
 
 qua_T = Union[QuaVariable, QuaExpression]
 _tuple = Tuple[Union[float, qua_T]]
