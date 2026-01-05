@@ -11,7 +11,6 @@ from quam_builder.tools.qua_tools import VoltageLevelType
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
 
 
-
 @quam_dataclass
 class VirtualizationLayer(QuamComponent):
     """
@@ -26,6 +25,7 @@ class VirtualizationLayer(QuamComponent):
             defining the transformation.
             - NOTE: Matrix elements must be python literals, not QUA variables
     """
+
     id: str = None
     source_gates: List[str]
     target_gates: List[str]
@@ -87,7 +87,9 @@ class VirtualizationLayer(QuamComponent):
 
         for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix):
             resolved_voltages.setdefault(target_gate, 0.0)
-            resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
+            resolved_voltages[target_gate] = (
+                resolved_voltages[target_gate] + inv_matrix_row @ source_voltages
+            )
 
         return resolved_voltages
 
@@ -193,7 +195,7 @@ class VirtualGateSet(GateSet):
 
     def _validate_new_layer(
         self,
-        layer_id: str, 
+        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
@@ -279,12 +281,12 @@ class VirtualGateSet(GateSet):
                     f"Source gate '{sg}' in new layer is already a target gate in a "
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
-            
+
         # Check 5: The layer name must be unique
-        for lyr in self.layers: 
-            if layer_id == lyr.id: 
+        for lyr in self.layers:
+            if layer_id == lyr.id:
                 raise ValueError(
-                f"Layer name '{layer_id}' is already used in a previous layer."
+                    f"Layer name '{layer_id}' is already used in a previous layer."
                 )
 
         matrix_array = np.array(matrix, dtype=float)
@@ -338,7 +340,7 @@ class VirtualGateSet(GateSet):
         use_pseudoinverse = matrix_array.shape[0] != matrix_array.shape[1]
 
         virtualization_layer = VirtualizationLayer(
-            id = layer_id,
+            id=layer_id,
             source_gates=source_gates,
             target_gates=target_gates,
             matrix=matrix,
@@ -362,19 +364,19 @@ class VirtualGateSet(GateSet):
 
         if not self.layers:
             return self.add_layer(
-                layer_id = layer_id,
+                layer_id=layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
             )
-        
+
         # Check: target gates should not exist in any other layers
-        for lyr in self.layers: 
+        for lyr in self.layers:
             # Skip current layer
-            if lyr.id == layer_id: 
+            if lyr.id == layer_id:
                 continue
             conflicts = set(target_gates) & set(lyr.target_gates)
-            if conflicts: 
+            if conflicts:
                 raise ValueError(
                     f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
                 )
@@ -388,12 +390,13 @@ class VirtualGateSet(GateSet):
                 f"Expected {expected_shape}, got {matrix_array.shape}"
             )
 
-        target_overlap_layer = next((lyr for lyr in self.layers if lyr.id == layer_id), None)
-
+        target_overlap_layer = next(
+            (lyr for lyr in self.layers if lyr.id == layer_id), None
+        )
 
         if target_overlap_layer is None:
             return self.add_layer(
-                layer_id = layer_id,
+                layer_id=layer_id,
                 source_gates=source_gates,
                 target_gates=target_gates,
                 matrix=matrix,
