@@ -16,7 +16,6 @@ from quam_builder.tools.qua_tools import VoltageLevelType
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
 
 
-
 @quam_dataclass
 class VirtualizationLayer(QuamComponent):
     """
@@ -31,6 +30,7 @@ class VirtualizationLayer(QuamComponent):
             defining the transformation.
             - NOTE: Matrix elements must be python literals, not QUA variables
     """
+
     id: str = None
     source_gates: List[str]
     target_gates: List[str]
@@ -280,12 +280,12 @@ class VirtualGateSet(GateSet):
                     f"Source gate '{sg}' in new layer is already a target gate in a "
                     f"previous layer. Existing target gates: {existing_target_gates}"
                 )
-            
+
         # Check 5: The layer name must be unique
-        for lyr in self.layers: 
-            if layer_id == lyr.id: 
+        for lyr in self.layers:
+            if layer_id == lyr.id:
                 raise ValueError(
-                f"Layer name '{layer_id}' is already used in a previous layer."
+                    f"Layer name '{layer_id}' is already used in a previous layer."
                 )
 
         # Check 5: The layer name must be unique
@@ -381,14 +381,14 @@ class VirtualGateSet(GateSet):
                 target_gates=target_gates,
                 matrix=matrix,
             )
-        
+
         # Check: target gates should not exist in any other layers
-        for lyr in self.layers: 
+        for lyr in self.layers:
             # Skip current layer
-            if lyr.id == layer_id: 
+            if lyr.id == layer_id:
                 continue
             conflicts = set(target_gates) & set(lyr.target_gates)
-            if conflicts: 
+            if conflicts:
                 raise ValueError(
                     f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
                 )
