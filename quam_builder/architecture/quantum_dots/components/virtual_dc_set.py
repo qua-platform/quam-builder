@@ -466,7 +466,7 @@ class VirtualDCSet(QuantumComponent):
         for name, delta in physical_deltas.items(): 
             current_physical = self.channels[name].offset_parameter()
             self.channels[name].offset_parameter(current_physical + delta)
-        self._current_levels.update(voltages)
+        self._current_levels = self.all_current_voltages.copy()
 
     def get_voltage(self, name: str, requery: bool = False) -> float:
         """
