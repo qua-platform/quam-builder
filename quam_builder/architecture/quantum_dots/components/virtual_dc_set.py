@@ -111,6 +111,7 @@ class VirtualDCSet(QuantumComponent):
             source_voltages_array = matrix_array @ target_voltages_array
             for idx, name in enumerate(source_names):
                 full_voltages_dict[name] = source_voltages_array[idx]
+        self._current_levels = full_voltages_dict.copy()
         return full_voltages_dict
 
     @property
