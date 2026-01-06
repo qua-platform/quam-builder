@@ -70,6 +70,11 @@ class VirtualDCSet(QuantumComponent):
     _current_levels: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
+        # Check for offset_parameter in all the channels
+        for channel in self.channels.values(): 
+            if channel.offset_parameter is None: 
+                raise ValueError(f"Channel {channel.id} does not have an associated offset_parameter. Set this first")
+
         # Instantiate all the physical voltages in full voltages dict
         for name, channel in self.channels.items():
             self._current_physical_voltages[name] = channel.offset_parameter()

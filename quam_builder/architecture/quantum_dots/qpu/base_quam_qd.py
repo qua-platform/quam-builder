@@ -26,7 +26,8 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
-    XYDrive
+    XYDrive, 
+    VirtualDCSet,
 )
 from quam_builder.architecture.quantum_dots.components.qpu import QPU
 from quam_builder.tools.voltage_sequence import VoltageSequence
@@ -81,6 +82,7 @@ class BaseQuamQD(QuamRoot):
     global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
 
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory=dict)
+    virtual_dc_sets: Dict[str, VirtualDCSet] = field(default_factory = dict)
     voltage_sequences: Dict[str, VoltageSequence] = field(
         default_factory=dict, metadata={"exclude": True}
     )
@@ -450,11 +452,47 @@ class BaseQuamQD(QuamRoot):
             gate_set_id
         ].new_sequence(track_integrated_voltage=True)
 
+    def create_virtual_dc_set(
+        self, 
+        gate_set_id: str,
+        matrix: List[List[float]] = None,
+    ) -> None:
+        """
+        Method to create a VirtualDCSet, using the same structure as the VirtualGateSet. 
+
+        The default matrix will be synced with the VirtualGateSet compensation layer. If a matrix is provided, it will overwrite. 
+        """
+        if gate_set_id not in self.virtual_gate_sets: 
+            raise ValueError(f"Gate set with ID {gate_set_id} not in quam. Available gate sets: {list(self.virtual_gate_sets.keys())}")
+        vgs = self.virtual_gate_sets[gate_set_id]
+
+        channel_mapping = {name: ch.get_reference() for name, ch in vgs.channels.items()}
+
+        virtual_names = list(vgs.layers[0].source_gates)
+        physical_names = list(vgs.layers[0].target_gates)
+        gate_set_matrix = [row[:] for row in vgs.layers[0].matrix] # Copy to avoid any mutability issues, just incase
+
+        allow_rectangular_matrices = vgs.allow_rectangular_matrices
+
+        self.virtual_dc_sets[gate_set_id] = VirtualDCSet(
+            id = gate_set_id, channels = channel_mapping, allow_rectangular_matrices=allow_rectangular_matrices
+        )
+        self.virtual_dc_sets[gate_set_id].add_to_layer(
+            layer_id = "compensation_layer", 
+            source_gates = virtual_names, 
+            target_gates = physical_names, 
+            matrix = gate_set_matrix
+        )
+        if matrix: 
+            self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
+
+
     def update_cross_compensation_submatrix(
         self,
         virtual_names: List[str],
         channels: List[Channel],
         matrix: Union[List[List[float]], np.ndarray],
+        target: Literal["both", "opx", "dc"] = "both",
     ) -> None:
         """
         Updates the a sub-space of the cross-compensation matrix based on the virtual_names and the associated channels.
@@ -484,28 +522,31 @@ class BaseQuamQD(QuamRoot):
                 f"Virtual Gate(s) not in VirtualGateSet {vgs.id}: {missing_virtual_names}"
             )
 
-        full_matrix = vgs.layers[0].matrix
+        def create_new_matrix(full_matrix): 
+            for subspace_j, v in enumerate(virtual_names):
+                # The corresponding index in the full compensation matrix
+                full_matrix_j = source_index[v]
+                for subspace_i, ch in enumerate(channels):
+                    # Get the virtual name associated with the channel
+                    virtual_name = self._get_virtual_name(ch)
+                    # For the first layer, there should be a 1:1 mapping of channel HW to the virtual gate name, so reuse the same indexing method
+                    full_matrix_i = source_index[virtual_name]
 
-        for subspace_j, v in enumerate(virtual_names):
-            # The corresponding index in the full compensation matrix
-            full_matrix_j = source_index[v]
+                    # Replace the matrix elemeent
+                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][
+                        subspace_j
+                    ]
+            return full_matrix
 
-            for subspace_i, ch in enumerate(channels):
-                # Get the virtual name associated with the channel
-                virtual_name = self._get_virtual_name(ch)
-                # For the first layer, there should be a 1:1 mapping of channel HW to the virtual gate name, so reuse the same indexing method
-                full_matrix_i = source_index[virtual_name]
-
-                # Replace the matrix elemeent
-                full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][
-                    subspace_j
-                ]
-
-        # Lists should be mutable, but for a sanity check, re-equate the matrix
-        vgs.layers[0].matrix = full_matrix
+        if target == "opx" or target == "both": 
+            full_matrix = create_new_matrix([row[:] for row in vgs.layers[0].matrix])
+            vgs.layers[0].matrix = full_matrix
+        if target == "dc" or target == "both":
+            full_matrix = create_new_matrix([row[:] for row in self.virtual_dc_sets[vgs.id].layers[0].matrix])
+            self.virtual_dc_sets[vgs.id].layers[0].matrix = full_matrix
 
     def update_full_cross_compensation(
-        self, compensation_matrix: List[List[float]], virtual_gate_set_name: str = None
+        self, compensation_matrix: List[List[float]], virtual_gate_set_name: str = None, target: Literal["both", "opx", "dc"] = "both", 
     ) -> None:
         """
         If an already-calculated full cross-compensation matrix exists, use this method to add.
@@ -524,9 +565,12 @@ class BaseQuamQD(QuamRoot):
         if virtual_gate_set_name is None:
             virtual_gate_set_name = next(iter(self.virtual_gate_sets.keys()))
 
-        self.virtual_gate_sets[virtual_gate_set_name].layers[
-            0
-        ].matrix = compensation_matrix
+        if target == "opx" or target == "both": 
+            self.virtual_gate_sets[virtual_gate_set_name].layers[
+                0
+            ].matrix = [row[:] for row in compensation_matrix]
+        if target == "dc" or target == "both":
+            self.virtual_dc_sets[virtual_gate_set_name].layers[0].matrix = [row[:] for row in compensation_matrix]
 
     def step_to_voltage(
         self, voltages: Dict, default_to_zero: bool = False, gate_set_name: str = None
