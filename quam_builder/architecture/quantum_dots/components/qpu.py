@@ -1,8 +1,7 @@
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
-
 from quam_builder.tools.voltage_sequence import VoltageSequence
 
 if TYPE_CHECKING:
@@ -19,7 +18,8 @@ class QPU(VoltagePointMacroMixin):
     The macros dictionary is inherited from VoltagePointMacroMixin and can be used
     to store parameterized macros that are called at programming time.
     """
-    id: Union[int, str] = 'QPU'
+
+    id: int | str = "QPU"
 
     @property
     def name(self) -> str:
