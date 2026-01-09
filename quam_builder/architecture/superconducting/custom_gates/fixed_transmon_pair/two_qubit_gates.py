@@ -350,16 +350,28 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
     # Gate-level parameters (composite CR, stored under macros)
     qc_correction_phase: Optional[float] = None  # ZI correction
     qt_correction_phase: Optional[float] = None  # IZ correction
-    
-    # def __init__(self):
-    #     super().__init__()
 
     # ---- Public API ----
     def apply(
         self,
-        cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct",
+        cr_type: Literal[
+            "direct",
+            "direct+cancel",
+            "direct+echo",
+            "direct+echo+cancel",
+        ] = "direct",
         wf_type: Optional[Literal["cosine", "gaussian"]] = "cosine",
-        sweep_type: Optional[Literal["amp", "dur", "phase", "amp+dur", "amp+phase", "dur+phase", "amp+dur+phase"]] = "amp",
+        sweep_type: Optional[
+            Literal[
+                "amp",
+                "dur",
+                "phase",
+                "amp+dur",
+                "amp+phase",
+                "dur+phase",
+                "amp+dur+phase",
+            ]
+        ] = "amp",
         sweep_duration: bool = True,
         cr_sweeping_param: Optional[Union[float | qua_T, int | qua_T]] = None,
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
@@ -370,29 +382,114 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         qc_correction_phase: Optional[float | qua_T] = None,
         qt_correction_phase: Optional[float | qua_T] = None,
     ) -> None:
+        # Normalize cr_type (fixes the common "direct+echo+cancel" vs "direct+cancel+echo" mismatch)
 
+        params = self._build_params(
+            wf_type=wf_type,
+            sweep_type=sweep_type,
+            sweep_duration=sweep_duration,
+            cr_sweeping_param=cr_sweeping_param,
+            cr_duration_clock_cycles=cr_duration_clock_cycles,
+            cr_drive_amp_scaling=cr_drive_amp_scaling,
+            cr_drive_phase=cr_drive_phase,
+            cr_cancel_amp_scaling=cr_cancel_amp_scaling,
+            cr_cancel_phase=cr_cancel_phase,
+            qc_correction_phase=qc_correction_phase,
+            qt_correction_phase=qt_correction_phase,
+        )
+
+        dispatch = {
+            "direct": (False, False),
+            "direct+echo": (False, True),
+            "direct+cancel": (True, False),
+            "direct+echo+cancel": (True, True),
+        }
+        try:
+            do_cancel, do_echo = dispatch[cr_type]
+        except KeyError as e:
+            raise ValueError(f"Unknown cr_type '{cr_type}'") from e
+
+        self._run_gate(params, do_cancel=do_cancel, do_echo=do_echo)
+
+    # -------------------------
+    # Hardware elems / timings
+    # -------------------------
+    @property
+    def _cr(self):
+        return self.qubit_pair.cross_resonance
+
+    @property
+    def _cr_edge(self):
+        return self.qubit_pair.cross_resonance_edge
+
+    @property
+    def _cr_elems(self):
+        # assumes you already have _qc and _qt properties in your helpers/base
+        return [self._qc.xy.name, self._qt.xy.name, self._cr_edge.name, self._cr.name]
+
+    def _align_cr(self) -> None:
+        align(*self._cr_elems)
+
+    @property
+    def _rise_fall_time(self):
+        return self._cr_edge.operations["rise_cosine"].length // 4
+
+    @property
+    def _flattop_time(self):
+        return self._cr.operations["square"].length // 4
+
+    # -------------------------
+    # Param building
+    # -------------------------
+    def _parse_sweep(self, sweep_type: Optional[str]):
         sweep_tokens = set(sweep_type.split("+")) if sweep_type else set()
-        has_amp   = "amp" in sweep_tokens
-        has_dur   = "dur" in sweep_tokens
+        has_amp = "amp" in sweep_tokens
+        has_dur = "dur" in sweep_tokens
         has_phase = "phase" in sweep_tokens
+        return sweep_tokens, has_amp, has_dur, has_phase
+
+    def _build_params(
+        self,
+        *,
+        wf_type,
+        sweep_type,
+        sweep_duration,
+        cr_sweeping_param,
+        cr_duration_clock_cycles,
+        cr_drive_amp_scaling,
+        cr_drive_phase,
+        cr_cancel_amp_scaling,
+        cr_cancel_phase,
+        qc_correction_phase,
+        qt_correction_phase,
+    ):
+        sweep_tokens, has_amp, has_dur, has_phase = self._parse_sweep(sweep_type)
 
         # Relative to the stored CrossResonance component parameters
-        cr_drive_amp_scaling = self._multiply_or_default(cr_drive_amp_scaling, self._cr.drive_amplitude_scaling)
+        cr_drive_amp_scaling = self._multiply_or_default(
+            cr_drive_amp_scaling, self._cr.drive_amplitude_scaling
+        )
         cr_drive_phase = self._add_or_default(cr_drive_phase, self._cr.drive_phase)
 
-        cr_cancel_amp_scaling = self._multiply_or_default(cr_cancel_amp_scaling, self._cr.cancel_amplitude_scaling)
+        cr_cancel_amp_scaling = self._multiply_or_default(
+            cr_cancel_amp_scaling, self._cr.cancel_amplitude_scaling
+        )
         cr_cancel_phase = self._add_or_default(cr_cancel_phase, self._cr.cancel_phase)
 
-        qc_correction_phase = self._add_or_default(qc_correction_phase, self._cr.qc_correction_phase)
-        qt_correction_phase = self._add_or_default(qt_correction_phase, self._cr.qt_correction_phase)
+        qc_correction_phase = self._add_or_default(
+            qc_correction_phase, self._cr.qc_correction_phase
+        )
+        qt_correction_phase = self._add_or_default(
+            qt_correction_phase, self._cr.qt_correction_phase
+        )
 
-        # Overwrite the stored CrossResonance component parameters if not None
+        # Keep your original merge semantics (important if _merge_params ignores None overrides)
         params = self._merge_params(
             defaults=dict(
                 qc_correction_phase=self.qc_correction_phase,
                 qt_correction_phase=self.qt_correction_phase,
             ),
-            **dict( # overrides
+            **dict(
                 wf_type=wf_type,
                 sweep_type=sweep_type,
                 sweep_tokens=sweep_tokens,
@@ -410,43 +507,11 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
                 qt_correction_phase=qt_correction_phase,
             ),
         )
+        return params
 
-        if cr_type == "direct":
-            self._direct(**params)
-        elif cr_type == "direct+echo":
-            self._direct_echo(**params)
-        elif cr_type == "direct+cancel":
-            self._direct_cancel(**params)
-        elif cr_type == "direct+echo+cancel":
-            self._direct_echo_cancel(**params)
-        else:
-            raise ValueError(f"Unknown cr_type '{cr_type}'")
-
-    # hardware elems
-    @property
-    def _cr(self):
-        return self.qubit_pair.cross_resonance
-
-    @property
-    def _cr_edge(self):
-        return self.qubit_pair.cross_resonance_edge
-    
-    @property
-    def _cr_elems(self):
-        return [self._qc.xy.name, self._qt.xy.name, self._cr_edge.name, self._cr.name]
-    
-    @property
-    def _rise_fall_time(self):
-        return self._cr_edge.operations["rise_cosine"].length // 4
-
-    @property
-    def _flattop_time(self):
-        return self._cr.operations["square"].length // 4
-    
-
-
-
-    # ---- Phase helpers specific to CR ----
+    # -------------------------
+    # Phase helpers specific to CR
+    # -------------------------
     def _cr_drive_shift_phase(self, phi: Optional[float | qua_T]) -> None:
         if phi is not None:
             self._cr.frame_rotation_2pi(phi)
@@ -457,81 +522,64 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             self._qt.xy.frame_rotation_2pi(phi)
             self._qt.xy_edge.frame_rotation_2pi(phi)
 
-    # ---- Play wrappers ----
-    def _cr_pulse_play(
-        self,
-        wf_type: str,
-        sweep_type: Literal["amplitude", "duration"],
-        cr_sweeping_param: Optional[Union[float | qua_T, int | qua_T]] ,
-        cancel_pulse: bool = False,
-    ) -> None:
-        if sweep_type == "amplitude":
-            self._cr_edge.play(f"rise_{wf_type}", amplitude_scale=cr_sweeping_param)
-            self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=cr_sweeping_param) if cancel_pulse else None
-            self._cr.wait(self._rise_fall_time)
-            self._qt.xy.wait(self._rise_fall_time) if cancel_pulse else None
-            self._cr.play('square',amplitude_scale=cr_sweeping_param)
-            self._qt.xy.play('const', amplitude_scale=cr_sweeping_param) if cancel_pulse else None
-            self._cr_edge.wait(self._flattop_time)
-            self._qt.xy_edge.wait(self._flattop_time) if cancel_pulse else None
-            self._cr_edge.play(f"fall_{wf_type}", amplitude_scale=cr_sweeping_param)
-            self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=cr_sweeping_param) if cancel_pulse else None
+    # -------------------------
+    # Gate runner (removes duplication)
+    # -------------------------
+    def _run_gate(self, p: dict, *, do_cancel: bool, do_echo: bool) -> None:
+        wf_type = p["wf_type"]
+        has_amp = p["has_amp"]
+        has_dur = p["has_dur"]
+        has_phase = p["has_phase"]
 
-        elif sweep_type == "duration":
-            self._cr_edge.play(f"rise_{wf_type}")
-            self._qt.xy_edge.play(f"rise_{wf_type}") if cancel_pulse else None
-            self._cr.wait(self._rise_fall_time)
-            self._qt.xy.wait(self._rise_fall_time) if cancel_pulse else None
-            self._cr.play('square',duration=cr_sweeping_param)
-            self._qt.xy.play('const', duration=cr_sweeping_param) if cancel_pulse else None
-            self._cr_edge.wait(cr_sweeping_param)
-            self._qt.xy_edge.wait(cr_sweeping_param) if cancel_pulse else None
-            self._cr_edge.play(f"fall_{wf_type}")
-            self._qt.xy_edge.play(f"fall_{wf_type}") if cancel_pulse else None
-        else:
-            raise ValueError(f"Unknown sweep_type '{sweep_type}'")
+        dur = p.get("cr_duration_clock_cycles")
+        amp = p.get("cr_drive_amp_scaling")
+        drive_phase = p.get("cr_drive_phase")
+        cancel_phase = p.get("cr_cancel_phase")
 
-    # def _cr_pulse_play_amp_dur(
-    #     self,
-    #     wf_type: str,
-    #     has_amp: bool,
-    #     has_dur: bool,
-    #     has_phase: bool,
-    #     cr_duration_clock_cycles: Optional[int | qua_T] = None,
-    #     cr_drive_amp_scaling: Optional[float | qua_T] = None,
-    #     cancel_pulse: bool = False,
-    # ) -> None:
-    #     delay = -2 if has_phase else 0
-    #     if has_dur:
-    #         delay -= 2 if has_amp else 0
-    #         print("delay after dur:", delay)
-    #         self._cr_edge.play(f"rise_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
-    #         self._cr.wait(self._rise_fall_time)
-    #         self._cr.play('square',amplitude_scale=cr_drive_amp_scaling, duration=cr_duration_clock_cycles)
-    #         self._cr_edge.wait(cr_duration_clock_cycles+delay)
-    #         self._cr_edge.play(f"fall_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
-    #         if cancel_pulse:
-    #             self._qt.xy_edge.play(f"rise_{wf_type}",amplitude_scale=cr_drive_amp_scaling) 
-    #             self._qt.xy.wait(self._rise_fall_time) 
-    #             self._qt.xy.play('const',amplitude_scale=cr_drive_amp_scaling, duration=cr_duration_clock_cycles)
-    #             if has_phase: 
-    #                 self._qt.xy_edge.wait(cr_duration_clock_cycles+delay+2)
-    #             else:
-    #                 self._qt.xy_edge.wait(cr_duration_clock_cycles+delay) 
-    #             self._qt.xy_edge.play(f"fall_{wf_type}",amplitude_scale=cr_drive_amp_scaling) 
-    #     else:
-    #         self._cr_edge.play(f"rise_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
-    #         self._cr.wait(self._rise_fall_time)
-    #         self._cr.play('square',amplitude_scale=cr_drive_amp_scaling, duration=cr_duration_clock_cycles)
-    #         self._cr_edge.wait(self._flattop_time)
-    #         self._cr_edge.play(f"fall_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
-    #         if cancel_pulse:
-    #             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=cr_drive_amp_scaling) 
-    #             self._qt.xy.wait(self._rise_fall_time) 
-    #             self._qt.xy.play('const', amplitude_scale=cr_drive_amp_scaling) 
-    #             self._qt.xy_edge.wait(self._flattop_time) 
-    #             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
+        qc_corr = p.get("qc_correction_phase")
+        qt_corr = p.get("qt_correction_phase")
 
+        # pre
+        self._cr_drive_shift_phase(drive_phase)
+        if do_cancel:
+            self._cr_cancel_shift_phase(cancel_phase)
+        self._align_cr()
+
+        # body
+        self._cr_pulse_play_amp_dur(
+            wf_type=wf_type,
+            has_amp=has_amp,
+            has_dur=has_dur,
+            has_phase=has_phase,
+            cr_duration_clock_cycles=dur,
+            cr_drive_amp_scaling=amp,
+            cancel_pulse=do_cancel,
+        )
+        if do_echo:
+            self._cr_echo_pulse_play_amp_dur(
+                wf_type=wf_type,
+                has_amp=has_amp,
+                has_dur=has_dur,
+                has_phase=has_phase,
+                cr_duration_clock_cycles=dur,
+                cr_drive_amp_scaling=amp,
+                cancel_pulse=do_cancel,
+            )
+
+        # cleanup
+        self._cr_drive_shift_phase(-drive_phase if drive_phase is not None else None)
+        if do_cancel:
+            self._cr_cancel_shift_phase(-cancel_phase if cancel_phase is not None else None)
+        self._align_cr()
+
+        # compensate
+        self._qc_shift_correction_phase(qc_corr)
+        self._qt_shift_correction_phase(qt_corr)
+        self._align_cr()
+
+    # -------------------------
+    # Play wrappers
+    # -------------------------
     def _cr_pulse_play_amp_dur(
         self,
         wf_type: str,
@@ -545,38 +593,34 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         amp = cr_drive_amp_scaling
         dur = cr_duration_clock_cycles
 
-        # ----- Timing / duration planning (behavior preserved) -----
         if has_dur:
-            # Your original code implicitly expects `dur` to exist here.
             if dur is None:
                 raise ValueError("cr_duration_clock_cycles must be provided when has_dur=True")
 
             delay = (-2 if has_phase else 0) - (2 if has_amp else 0)
-
             cr_edge_wait = dur + delay
             qt_edge_wait = dur + delay + (2 if has_phase else 0)
 
             cr_play_kwargs = {"duration": dur}
-            qt_play_kwargs = {"duration": dur}  # has_dur=True branch uses duration
-
+            qt_play_kwargs = {"duration": dur}
         else:
             cr_edge_wait = self._flattop_time
             qt_edge_wait = self._flattop_time
 
-            # Keep original behavior:
-            # - CR still uses `duration=cr_duration_clock_cycles` even though has_dur=False
+            # Behavior preserved from your original:
+            # - CR still passes duration=cr_duration_clock_cycles even if None
             # - QT const has NO duration
             cr_play_kwargs = {"duration": dur}
-            qt_play_kwargs = {}  # no duration
+            qt_play_kwargs = {}
 
-        # ----- CR shaped-square -----
+        # CR shaped-square
         self._cr_edge.play(f"rise_{wf_type}", amplitude_scale=amp)
         self._cr.wait(self._rise_fall_time)
         self._cr.play("square", amplitude_scale=amp, **cr_play_kwargs)
         self._cr_edge.wait(cr_edge_wait)
         self._cr_edge.play(f"fall_{wf_type}", amplitude_scale=amp)
 
-        # ----- Optional cancellation shaped-square on target xy -----
+        # Optional cancellation shaped-square on target xy
         if cancel_pulse:
             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=amp)
             self._qt.xy.wait(self._rise_fall_time)
@@ -584,105 +628,6 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             self._qt.xy_edge.wait(qt_edge_wait)
             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=amp)
 
-    def _cr_echo_pulse_play(
-        self,
-        wf_type: str,
-        sweep_type: Literal["amplitude", "duration"],
-        cr_sweeping_param: Optional[Union[float | qua_T, int | qua_T]] ,
-        cancel_pulse: bool = False,
-    ) -> None:
-        if sweep_type == "amplitude":
-            self._qc.xy.wait(self._rise_fall_time*2+self._flattop_time)
-            self._qc.xy.play("x180")
-            self._cr_edge.wait(self._pi_len)
-            self._qt.xy_edge.wait(self._pi_len) if cancel_pulse else None
-            self._cr_edge.play(f"rise_{wf_type}_echo", amplitude_scale=cr_sweeping_param)
-            self._qt.xy_edge.play(f"rise_{wf_type}_echo", amplitude_scale=cr_sweeping_param) if cancel_pulse else None
-            self._cr.wait(self._rise_fall_time*2+self._pi_len)
-            self._qt.xy.wait(self._rise_fall_time*2+self._pi_len) if cancel_pulse else None
-            self._cr.play('square',amplitude_scale=-cr_sweeping_param)
-            self._qt.xy.play('const', amplitude_scale=-cr_sweeping_param) if cancel_pulse else None
-            self._cr_edge.wait(self._flattop_time)
-            self._qt.xy_edge.wait(self._flattop_time) if cancel_pulse else None
-            self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=cr_sweeping_param)
-            self._qt.xy_edge.play(f"fall_{wf_type}_echo", amplitude_scale=cr_sweeping_param) if cancel_pulse else None
-            self._qc.xy.wait(self._rise_fall_time*2+self._flattop_time)
-            self._qc.xy.play("x180")
-        elif sweep_type == "duration":
-            self._qc.xy.wait(self._rise_fall_time*2+cr_sweeping_param)
-            self._qc.xy.play("x180")
-            self._cr_edge.wait(self._pi_len)
-            self._qt.xy_edge.wait(self._pi_len) if cancel_pulse else None
-            self._cr_edge.play(f"rise_{wf_type}_echo")
-            self._qt.xy_edge.play(f"rise_{wf_type}_echo") if cancel_pulse else None
-            self._cr.wait(self._rise_fall_time*2+self._pi_len)
-            self._qt.xy.wait(self._rise_fall_time*2+self._pi_len) if cancel_pulse else None
-            self._cr.play('square',duration=cr_sweeping_param,amplitude_scale=-1)
-            self._qt.xy.play('const',duration=cr_sweeping_param,amplitude_scale=-1) if cancel_pulse else None
-            self._cr_edge.wait(cr_sweeping_param)
-            self._qt.xy_edge.wait(cr_sweeping_param) if cancel_pulse else None
-            self._cr_edge.play(f"fall_{wf_type}_echo")
-            self._qt.xy_edge.play(f"fall_{wf_type}_echo") if cancel_pulse else None
-            self._qc.xy.wait(self._rise_fall_time*2+cr_sweeping_param)
-            self._qc.xy.play("x180")
-
-        else:
-            raise ValueError(f"Unknown sweep_type '{sweep_type}'")
-    
-    # def _cr_echo_pulse_play_amp_dur(
-    #     self,
-    #     wf_type: str,
-    #     has_amp: bool,
-    #     has_dur: bool,
-    #     has_phase: bool,
-    #     cr_duration_clock_cycles: Optional[int | qua_T] = None,
-    #     cr_drive_amp_scaling: Optional[float | qua_T] = None,
-    #     cancel_pulse: bool = False,
-    # ) -> None:
-    #     delay = -2 #wired but works, i don't know why no matter use phase sweep or not the delay is always should be -2. leave it now
-    #     if has_dur:
-    #         # delay -= 2 if  has_amp else 0 # still wired, leave it now
-    #         # echo pi pulse
-    #         self._qc.xy.wait(self._rise_fall_time*2+cr_duration_clock_cycles)
-    #         self._qc.xy.play("x180")
-    #         self._qc.xy.wait(self._rise_fall_time*2+cr_duration_clock_cycles)
-    #         self._qc.xy.play("x180")
-    #         #echo cr pulse
-    #         self._cr_edge.wait(self._pi_len)
-    #         self._cr_edge.play(f"rise_{wf_type}_echo", amplitude_scale=cr_drive_amp_scaling)
-    #         self._cr.wait(self._rise_fall_time*2+self._pi_len)
-    #         self._cr.play('square',amplitude_scale=-cr_drive_amp_scaling,duration=cr_duration_clock_cycles)
-    #         self._cr_edge.wait(cr_duration_clock_cycles+delay)
-    #         self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=cr_drive_amp_scaling)
-    #         if cancel_pulse:
-    #             self._qt.xy_edge.wait(self._pi_len)
-    #             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=-cr_drive_amp_scaling) 
-    #             self._qt.xy.wait(self._rise_fall_time*2+self._pi_len) 
-    #             self._qt.xy.play('const',amplitude_scale=-cr_drive_amp_scaling, duration=cr_duration_clock_cycles) 
-    #             self._qt.xy_edge.wait(cr_duration_clock_cycles
-    #                                   +delay
-    #                                   ) 
-    #             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=-cr_drive_amp_scaling) 
-    #     else:
-    #         # echo pi pulse 
-    #         self._qc.xy.wait(self._rise_fall_time*2+self._flattop_time)
-    #         self._qc.xy.play("x180")
-    #         self._qc.xy.wait(self._rise_fall_time*2+self._flattop_time)
-    #         self._qc.xy.play("x180")
-    #         # echo cr pulse
-    #         self._cr_edge.wait(self._pi_len)
-    #         self._cr_edge.play(f"rise_{wf_type}_echo", amplitude_scale=cr_drive_amp_scaling)
-    #         self._cr.wait(self._rise_fall_time*2+self._pi_len)
-    #         self._cr.play('square',amplitude_scale=-cr_drive_amp_scaling)
-    #         self._cr_edge.wait(self._flattop_time)
-    #         self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=cr_drive_amp_scaling)
-    #         if cancel_pulse:
-    #             self._qt.xy_edge.wait(self._pi_len)
-    #             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=cr_drive_amp_scaling) 
-    #             self._qt.xy.wait(self._rise_fall_time*2+self._pi_len) 
-    #             self._qt.xy.play('const', amplitude_scale=cr_drive_amp_scaling) 
-    #             self._qt.xy_edge.wait(self._flattop_time) 
-    #             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=cr_drive_amp_scaling)
     def _cr_echo_pulse_play_amp_dur(
         self,
         wf_type: str,
@@ -696,10 +641,9 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         amp = cr_drive_amp_scaling
         dur = cr_duration_clock_cycles
 
-        # Wired but works: keep behavior exactly the same
+        # Wired but works: behavior preserved exactly
         delay = -2
 
-        # ----- Plan timing & play kwargs (behavior preserved) -----
         if has_dur:
             if dur is None:
                 raise ValueError("cr_duration_clock_cycles must be provided when has_dur=True")
@@ -708,45 +652,36 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             cr_play_kwargs = {"duration": dur}
             qt_play_kwargs = {"duration": dur}
 
-            # has_dur=True branch uses negative amp on CR echo square and on QT cancel
             cr_square_amp = -amp
             qt_amp = -amp
-
-            # has_dur=True branch: QT edge rise/fall amplitude uses negative amp
             qt_edge_amp = -amp
-
         else:
             flat_cc = self._flattop_time
             cr_play_kwargs = {}
             qt_play_kwargs = {}
 
-            # has_dur=False branch also uses negative amp on CR echo square (as in your code)
             cr_square_amp = -amp
+            qt_amp = amp         # preserved from your original else-branch
+            qt_edge_amp = amp    # preserved from your original else-branch
 
-            # BUT: your original else-branch cancel pulse uses +amp (not negative)
-            qt_amp = amp
-            qt_edge_amp = amp
-
-        # ----- Echo pi pulses on control qubit (same structure, different flat_cc) -----
-        # wait (2*rise_fall + flat) -> x180 -> wait (2*rise_fall + flat) -> x180
+        # Echo pi pulses on control qubit
         qc_wait = self._rise_fall_time * 2 + flat_cc
         self._qc.xy.wait(qc_wait)
         self._qc.xy.play("x180")
         self._qc.xy.wait(qc_wait)
         self._qc.xy.play("x180")
 
-        # ----- Echo CR pulse -----
+        # Echo CR pulse
         self._cr_edge.wait(self._pi_len)
         self._cr_edge.play(f"rise_{wf_type}_echo", amplitude_scale=amp)
         self._cr.wait(self._rise_fall_time * 2 + self._pi_len)
         self._cr.play("square", amplitude_scale=cr_square_amp, **cr_play_kwargs)
 
-        # Edge fall timing: has_dur uses (dur + delay), else uses flattop_time
         cr_edge_wait = (dur + delay) if has_dur else self._flattop_time
         self._cr_edge.wait(cr_edge_wait)
         self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=amp)
 
-        # ----- Optional cancellation pulse on target xy -----
+        # Optional cancellation pulse on target xy
         if cancel_pulse:
             self._qt.xy_edge.wait(self._pi_len)
             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=qt_edge_amp)
@@ -756,161 +691,3 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             qt_edge_wait = (dur + delay) if has_dur else self._flattop_time
             self._qt.xy_edge.wait(qt_edge_wait)
             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=qt_edge_amp)
-    # ---- CR Implementations (one per cr_type) ----
-    
-    # Direct Only
-    def _direct(
-        self,
-        wf_type: str,
-        has_amp: bool,
-        has_dur: bool,
-        has_phase: bool,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
-        cr_drive_phase,
-        qc_correction_phase,
-        qt_correction_phase,
-        **_,
-    ) -> None:
-
-        self._cr_drive_shift_phase(cr_drive_phase)
-        align(*self._cr_elems)
-
-        # self._cr_pulse_play(
-        #     wf_type=wf_type,
-        #     sweep_type=sweep_type,
-        #     cr_sweeping_param=cr_sweeping_param)
-
-        # DIrect
-        self._cr_pulse_play_amp_dur(
-            wf_type=wf_type,
-            has_amp=has_amp, has_dur=has_dur, has_phase=has_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            )
-
-        # Cleanup
-        self._cr_drive_shift_phase(-cr_drive_phase)
-        align(*self._cr_elems)
-        
-        # Compenstate
-        self._qc_shift_correction_phase(qc_correction_phase)
-        self._qt_shift_correction_phase(qt_correction_phase)
-        align(*self._cr_elems)
-
-
-
-    def _direct_echo(
-        self,
-        wf_type: str,
-        has_amp: bool,
-        has_dur: bool,
-        has_phase: bool,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
-        cr_drive_phase,
-        qc_correction_phase,
-        qt_correction_phase,
-        **_,
-        ) -> None:
-
-        self._cr_drive_shift_phase(cr_drive_phase)
-        align(*self._cr_elems)
-
-        # Direct
-        self._cr_pulse_play_amp_dur(
-            wf_type=wf_type,
-            has_amp=has_amp, has_dur=has_dur, has_phase=has_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            )
-
-        # Echo
-        self._cr_echo_pulse_play_amp_dur(
-            wf_type=wf_type,
-            has_amp=has_amp, has_dur=has_dur, has_phase=has_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling
-            )
-        # Cleanup
-        self._cr_drive_shift_phase(-cr_drive_phase)
-        align(*self._cr_elems)
-        
-        # Compenstate
-        self._qc_shift_correction_phase(qc_correction_phase)
-        self._qt_shift_correction_phase(qt_correction_phase)
-        align(*self._cr_elems)
-        align(*self._cr_elems)
-
-
-
-    def _direct_cancel(
-        self,
-        wf_type: str,
-        sweep_type: str,
-        cr_sweeping_param,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
-        cr_drive_phase,
-        qc_correction_phase,
-        qt_correction_phase,
-        **_,
-        ) -> None:
-
-        align(*self._cr_elems)
-
-        self._cr_pulse_play(
-            wf_type=wf_type,
-            sweep_type=sweep_type,
-            cr_sweeping_param=cr_sweeping_param,
-            cancel_pulse=True
-            )
-
-    def _direct_echo_cancel(
-        self,
-        wf_type: str,
-        has_amp: bool,
-        has_dur: bool,
-        has_phase: bool,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
-        cr_drive_phase,
-        cr_cancel_phase,
-        qc_correction_phase,
-        qt_correction_phase,
-        **_,
-        ) -> None:
-
-        self._cr_drive_shift_phase(cr_drive_phase)
-        self._cr_cancel_shift_phase(cr_cancel_phase)
-        align(*self._cr_elems)
-
-        # Direct
-        self._cr_pulse_play_amp_dur(
-            wf_type=wf_type,
-            has_amp=has_amp, has_dur=has_dur, has_phase=has_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            cancel_pulse=True
-            )
-
-        # Echo
-        self._cr_echo_pulse_play_amp_dur(
-            wf_type=wf_type,
-            has_amp=has_amp, has_dur=has_dur, has_phase=has_phase,
-            cr_duration_clock_cycles=cr_duration_clock_cycles,
-            cr_drive_amp_scaling=cr_drive_amp_scaling,
-            cancel_pulse=True
-            )
-
-        # Cleanup
-        self._cr_drive_shift_phase(-cr_drive_phase)
-        self._cr_cancel_shift_phase(-cr_cancel_phase)
-        align(*self._cr_elems)
-
-        # Compenstate
-        self._qc_shift_correction_phase(qc_correction_phase)
-        self._qt_shift_correction_phase(qt_correction_phase)
-        align(*self._cr_elems)
-
-
