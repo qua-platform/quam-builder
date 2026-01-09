@@ -30,7 +30,7 @@ from quam_builder.architecture.quantum_dots.components import (
     XYDrive, 
     VirtualDCSet,
 )
-from quam_builder.architecture.quantum_dots.components.qpu import QPU
+
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit

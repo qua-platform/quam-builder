@@ -28,7 +28,6 @@ from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorBase,
     XYDrive
 )
-from quam_builder.architecture.quantum_dots.components.qpu import QPU
 from quam_builder.architecture.quantum_dots.qpu.base_quam_qd import BaseQuamQD
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
@@ -67,8 +66,6 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
     b_field: float = 0
 
-    qpu: QPU = field(default_factory=QPU)
-
     qubits: Dict[str, AnySpinQubit] = field(default_factory=dict)
     qubit_pairs: Dict[str, AnySpinQubitPair] = field(default_factory=dict)
 
@@ -83,11 +80,9 @@ class LossDiVincenzoQuam(BaseQuamQD):
         if type(instance) is BaseQuamQD:
             instance.__class__ = cls
         
-        # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD. 
+        # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD.
         if not hasattr(instance, 'b_field'):
             instance.b_field = 0
-        if not hasattr(instance, 'qpu'):
-            instance.qpu = QPU()
         if not hasattr(instance, 'qubits'):
             instance.qubits = {}
         if not hasattr(instance, 'qubit_pairs'):

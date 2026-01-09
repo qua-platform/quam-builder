@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring, visualize
 
@@ -12,6 +15,9 @@ from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam, build_quam
 
 # from quam_config import Quam
+
+EXAMPLES_DIR = Path(__file__).resolve().parent
+os.environ.setdefault("QUAM_STATE_PATH", str(EXAMPLES_DIR / "quam_state"))
 ########################################################################################################################
 # %%                                              Define static parameters
 ########################################################################################################################
@@ -65,14 +71,14 @@ connectivity.add_qubit_pairs(qubit_pairs=qubit_pairs)
 allocate_wiring(connectivity, instruments)
 
 # Optional: visualize wiring (requires a GUI backend). Comment out in headless environments.
-import matplotlib
-matplotlib.use("TkAgg")
-visualize(
-    connectivity.elements,
-    available_channels=instruments.available_channels,
-    use_matplotlib=True,
-)
-plt.show()
+# import matplotlib
+# matplotlib.use("TkAgg")
+# visualize(
+#     connectivity.elements,
+#     available_channels=instruments.available_channels,
+#     use_matplotlib=True,
+# )
+# plt.show()
 
 ########################################################################################################################
 # %%                                   Build the wiring and QUAM
@@ -96,12 +102,12 @@ machine = build_quam_wiring(
 # - Calibrate quantum dot parameters
 # - Save the state for later qubit configuration
 
-machine = build_base_quam(
-    machine,
-    connect_qdac=False,  # Connect to external QDAC for voltage control
-    # qdac_ip="172.16.33.101",  # QDAC IP address
-    save=True,  # Save the BaseQuamQD state
-)
+# machine = build_base_quam(
+#     machine,
+#     connect_qdac=False,  # Connect to external QDAC for voltage control
+#     # qdac_ip="172.16.33.101",  # QDAC IP address
+#     save=True,  # Save the BaseQuamQD state
+# )
 
 # At this point, you can:
 # - Calibrate quantum dots
@@ -163,13 +169,13 @@ qubit_pair_sensor_map = {
 ########################################################################################################################
 
 # If you don't need the flexibility of two stages, use the convenience wrapper:
-# machine = build_quam(
-#     machine,
-#     qubit_pair_sensor_map=qubit_pair_sensor_map,
-#     connect_qdac=True,
-#     qdac_ip="172.16.33.101",
-#     save=True,
-# )
+machine = build_quam(
+    machine,
+    qubit_pair_sensor_map=qubit_pair_sensor_map,
+    connect_qdac=False,
+    qdac_ip="172.16.33.101",
+    save=True,
+)
 
 ########################################################################################################################
 # %%                                      Generate QM Configuration
