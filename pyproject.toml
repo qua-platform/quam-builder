@@ -37,6 +37,8 @@ prerelease = "allow"
 [project.optional-dependencies]
 dev = [
     "pre-commit",
+    "black",
+    "pylint",
     "ruff",
     "mypy",
     "pytest",
@@ -78,6 +80,13 @@ ignore = [
 known-first-party = ["qm", "quam", "qualang_tools", "qualibrate"]
 force-single-line = false
 combine-as-imports = true
+
+# -----------------------------
+# Black configuration
+# -----------------------------
+[tool.black]
+line-length = 100
+target-version = ["py310"]
 
 # -----------------------------
 # Mypy configuration (optional but recommended)

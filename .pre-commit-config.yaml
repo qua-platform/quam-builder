@@ -10,20 +10,20 @@ repos:
           - id: check-yaml
           - id: check-json
 
-      # 2. Ruff: lint & format
-      - repo: https://github.com/astral-sh/ruff-pre-commit
-        rev: v0.6.8
+      # 2. Black: code formatting
+      - repo: https://github.com/psf/black
+        rev: 24.10.0
         hooks:
-          # Lint and auto-fix where safe
-          - id: ruff
-            args: [--fix]
-            # Optionally limit to Python files in src/tests:
-            # files: ^(src|tests)/.*\.py$
+          - id: black
+            language_version: python3
 
-          # Ruff formatter (Black-compatible style)
-          - id: ruff-format
-
-      # 3. Type checking – heavier, so run on push instead of every commit
+      # 3. Pylint: linting
+      - repo: https://github.com/pycqa/pylint
+        rev: v3.3.2
+        hooks:
+          - id: pylint
+            args: ["--rcfile=.pylintrc"]
+      # 4. Type checking – heavier, so run on push instead of every commit
       - repo: https://github.com/pre-commit/mirrors-mypy
         rev: v1.11.1
         hooks:
@@ -33,7 +33,7 @@ repos:
               # Add stubs/internal deps here as needed
               - types-setuptools
 
-      # 4. Conventional commit messages (commitizen)
+      # 5. Conventional commit messages (commitizen)
       - repo: https://github.com/commitizen-tools/commitizen
         rev: v3.29.0
         hooks:

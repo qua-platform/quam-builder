@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Welcome! This repository contains tools for building and analyzing calibration graphs for superconducting qubits. This guide explains how to set up your development environment, how we use pre-commit hooks, how tests are structured, and what we expect from contributions.
+Welcome! This repository contains the `quam-builder`, a Python tool for programmatically constructing QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP). This guide explains how to set up your development environment, how we use pre-commit hooks, how tests are structured, and what we expect from contributions.
 
 ---
 
@@ -9,7 +9,7 @@ Welcome! This repository contains tools for building and analyzing calibration g
 ### 1.1. Clone the repository
 
 ```bash
-git clone git@github.com:qua-platform/quam-builder.git
+git clone https://github.com/qua-platform/quam-builder.git
 cd quam-builder
 ```
 
@@ -23,7 +23,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh  # Unix/macOS
 # Or: pip install uv
 
 # Create venv and install dependencies in one command
-uv sync --extra dev
+uv sync --group dev --prerelease=allow
+source .venv/bin/activate
 ```
 
 Alternatively, with `venv`:
@@ -36,8 +37,35 @@ pip install -e ".[dev]"
 
 This installs:
 
-- Runtime deps (numpy, scipy, etc.)
+- Runtime deps (`qualang-tools`, `quam`, `qm-qua`, `xarray`, etc.)
 - Dev tools: `pre-commit`, `ruff`, `mypy`, `pytest`, `pytest-cov`, `commitizen`, etc.
+
+### 1.3. Branch naming conventions
+
+When creating a new branch, follow these naming conventions:
+
+- **`feature/`** - New features or enhancements
+  - Example: `feature/nv-center-support`, `feature/quantum-dots`
+
+- **`bugfix/`** - Bug fixes
+  - Example: `bugfix/wiring-generation`, `bugfix/port-mapping`
+
+- **`hotfix/`** - Urgent fixes for production issues
+  - Example: `hotfix/critical-quam-build`
+
+- **`chore/`** - Maintenance tasks, dependency updates, tooling
+  - Example: `chore/update-dependencies`, `chore/add-pre-commit`
+
+- **`refactor/`** - Code refactoring without changing functionality
+  - Example: `refactor/simplify-builder`, `refactor/architecture-components`
+
+- **`experiment/`** - Experimental or exploratory work
+  - Example: `experiment/new-component-type`, `experiment/alternative-wiring`
+
+- **`release/`** - Release preparation branches
+  - Example: `release/v1.0.0`, `release/v1.1.0`
+
+Use lowercase, hyphen-separated descriptions. Keep branch names concise but descriptive.
 
 ---
 
@@ -64,8 +92,8 @@ This sets up two things:
 On each commit, the following checks run (on changed files):
 
 - **Formatting and linting**
-  - **Ruff formatter** (`ruff-format`) for consistent Python formatting.
-  - **Ruff lint** (`ruff`) for style, correctness, and import order (with `--fix` to auto-fix many issues).
+  - **Black** (`black`) for consistent Python formatting (100 char line length).
+  - **Pylint** (`pylint`) for code quality checks, following the `.pylintrc` configuration.
 
 - **Generic hygiene**
   - Strip trailing whitespace.
@@ -80,7 +108,13 @@ On each **push**, an additional hook runs:
 
 ### 2.3. Running pre-commit manually
 
-Before opening a pull request, run all hooks on the whole repo:
+You can run pre-commit hooks on your staged files at any time:
+
+```bash
+pre-commit run
+```
+
+Or, if you want to check all files in the repository (useful before opening a PR):
 
 ```bash
 pre-commit run --all-files
@@ -118,9 +152,9 @@ Common types:
 
 Examples:
 
-- `feat: add rabi calibration pipeline`
-- `fix: handle NaNs in t1 analysis`
-- `refactor: simplify pulse sequence builder`
+- `feat: add NV center QPU support`
+- `fix: correct wiring generation for MW-FEM`
+- `refactor: simplify QUAM builder functions`
 
 If your commit message doesn’t follow the convention, the `commit-msg` hook will fail and show an error.
 
@@ -137,7 +171,24 @@ cz bump
 
 ## 4. Tests
 
-We use `pytest` and organize tests into tiers that reflect how the calibration and control stack is validated, from pure Python logic up to hardware-in-the-loop checks.
+We use `pytest` for testing the `quam-builder` functionality. Tests are organized to validate:
+
+- **Architecture definitions**: Ensure QUAM components (qubits, resonators, drives, etc.) are correctly defined.
+- **Builder functions**: Verify that `build_quam` and related functions properly construct QUAM objects.
+- **Wiring generation**: Test that `build_quam_wiring` correctly maps components to QOP controller ports.
+- **Component extensions**: Validate custom components and parameter additions.
+
+Run tests with:
+
+```bash
+pytest
+```
+
+For coverage reporting:
+
+```bash
+pytest --cov=quam_builder --cov-report=html
+```
 
 ---
 
@@ -145,32 +196,36 @@ We use `pytest` and organize tests into tiers that reflect how the calibration a
 
 Before opening a PR:
 
-1. Ensure your branch is up-to-date with the target branch (`main` or `develop`).
-2. Run:
+1. Ensure your branch is up-to-date with the target branch (typically `main`).
+2. Stage your changes and run:
    ```bash
-   pre-commit run --all-files
+   git add .
+   pre-commit run
    pytest
    ```
-3. Add or update tests for your changes following the tiered test structure above.
+   Note: Pre-commit will only check your staged changes. If you want to check all files, use `pre-commit run --all-files`.
+3. Add or update tests for your changes.
 4. Ensure your commit messages follow Conventional Commits.
 
 When you open the PR:
 
-- CI will run linting/formatting checks and the configured test tiers.
+- CI will run linting/formatting checks and tests.
 - At least one reviewer must approve before merging.
-- For changes that affect calibration logic, signals, or hardware interaction, please:
-  - Describe the impact on calibration workflows in the PR description.
-  - Indicate which test tiers you updated or verified.
+- For changes that affect QUAM components, architecture, or wiring generation, please:
+  - Describe the impact on existing QUAM configurations in the PR description.
+  - Indicate which tests you added or updated.
   - Link any related GitHub Issues or design docs.
+  - If adding new component types, include examples of how to use them.
 
 ---
 
 ## 6. Questions
 
-If you’re unsure about:
+If you're unsure about:
 
-- Which test tier is appropriate for your change,
-- How to structure calibration or signal validation tests,
+- How to extend existing QUAM components or create new ones,
+- How to structure tests for builder functions or wiring generation,
 - How to interpret pre-commit or CI errors,
+- Best practices for QUAM architecture design,
 
-please ask in the development channel or tag a maintainer in your PR.
+please open an issue on GitHub or tag a maintainer in your PR.
