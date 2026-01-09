@@ -19,6 +19,11 @@ from quam_builder.builder.quantum_dots.build_quam import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _set_quam_state_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUAM_STATE_PATH", str(tmp_path / "quam_state"))
+
+
 def _plunger_ports(qubit_id: str) -> dict:
     """Helper to create plunger gate wiring."""
     return {"opx_output": f"#/wiring/qubits/{qubit_id}/p/opx_output"}
@@ -98,8 +103,7 @@ class TestStage1Build:
         result = builder.build()
 
         # Find the plunger channel and verify QDAC assignment
-        virtual_gate_set = result.virtual_gate_sets["main_qpu"]
-        plunger_channel = virtual_gate_set.virtual_channels["virtual_dot_1"]
+        plunger_channel = result.physical_channels["plunger_1"]
         assert hasattr(plunger_channel, "qdac_channel")
         assert plunger_channel.qdac_channel == 5
 
@@ -118,14 +122,10 @@ class TestStage1Build:
 
         # Verify identity matrix is used
         virtual_gate_set = result.virtual_gate_sets["main_qpu"]
-        matrix = virtual_gate_set.cross_couplings.matrix
+        matrix = virtual_gate_set.layers[0].matrix
 
         # Identity matrix for 2 channels
-        assert matrix.shape == (2, 2)
-        assert matrix[0, 0] == 1.0
-        assert matrix[1, 1] == 1.0
-        assert matrix[0, 1] == 0.0
-        assert matrix[1, 0] == 0.0
+        assert matrix == [[1.0, 0.0], [0.0, 1.0]]
 
     def test_creates_quantum_dot_pairs(self):
         """Stage 1 should create quantum dot pairs with barriers."""
@@ -338,8 +338,8 @@ class TestStage2Build:
         # Verify qubit pair is created
         assert "q1_q2" in result.qubit_pairs
         pair = result.qubit_pairs["q1_q2"]
-        assert pair.qubit_control.id == "q1"
-        assert pair.qubit_target.id == "q2"
+        assert pair.qubit_control.id == "virtual_dot_1"
+        assert pair.qubit_target.id == "virtual_dot_2"
 
     def test_compensation_matrix_preserved(self):
         """Stage 2 should preserve compensation matrix from Stage 1."""
@@ -355,15 +355,17 @@ class TestStage2Build:
         machine = builder1.build()
 
         # Get original matrix
-        original_matrix = machine.virtual_gate_sets["main_qpu"].cross_couplings.matrix.copy()
+        original_matrix = [
+            row[:] for row in machine.virtual_gate_sets["main_qpu"].layers[0].matrix
+        ]
 
         # Run Stage 2
         builder2 = _LDQubitBuilder(machine)
         result = builder2.build()
 
         # Verify matrix is preserved
-        new_matrix = result.virtual_gate_sets["main_qpu"].cross_couplings.matrix
-        assert (new_matrix == original_matrix).all()
+        new_matrix = result.virtual_gate_sets["main_qpu"].layers[0].matrix
+        assert new_matrix == original_matrix
 
     def test_raises_if_no_quantum_dots(self):
         """Stage 2 should raise error if no quantum dots found."""
@@ -467,10 +469,7 @@ class TestHighLevelAPI:
         machine.wiring = {
             "qubits": {
                 "q1": {
-                    WiringLineType.PLUNGER_GATE.value: {
-                        **_plunger_ports("q1"),
-                        "qdac_channel": 3,
-                    }
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")
                 },
             }
         }

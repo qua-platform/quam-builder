@@ -8,6 +8,8 @@ from pathlib import Path
 
 from quam_builder.builder.quantum_dots.build_quam import (
     build_quam,
+    build_base_quam,
+    build_loss_divincenzo_quam,
     add_qpu,
     add_ports,
     add_pulses,
@@ -99,21 +101,8 @@ class TestAddQPU:
         """Create a machine with mock wiring for testing."""
         machine = LossDiVincenzoQuam()
 
-        class DummyGlobalGate:
-            def __init__(self, id):
-                self.id = id
-                self.name = f"global_{id}"
-                self.grid_location = None
-
         # Mock wiring structure
         machine.wiring = {
-            "global_gates": {
-                "g1": {
-                    WiringLineType.GLOBAL_GATE.value: {
-                        "opx_output": "#/wiring/global_gates/g1/g/opx_output"
-                    }
-                }
-            },
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: {
@@ -131,18 +120,8 @@ class TestAddQPU:
                         "opx_output": "#/wiring/qubits/q2/xy/opx_output"
                     }
                 }
-            },
-            "qubit_pairs": {
-                "q1_q2": {
-                    WiringLineType.BARRIER_GATE.value: {
-                        "opx_output": "#/wiring/qubit_pairs/q1_q2/b/opx_output"
-                    }
-                }
             }
         }
-
-        # Mock global_gate_type
-        machine.global_gate_type = {"g1": DummyGlobalGate}
 
         return machine
 
@@ -163,7 +142,7 @@ class TestAddQPU:
 
     def test_add_qpu_handles_sensor_dots(self):
         """Test that add_qpu correctly handles sensor dots."""
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine.wiring = {
             "sensor_dots": {
                 "s1": {
@@ -259,11 +238,10 @@ class TestBuildQuam:
 
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.add_octaves'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_external_mixers'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_ports'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_qpu'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_pulses'):
+        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
+             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+            mock_base.return_value = machine
+            mock_ld.return_value = machine
 
             result = build_quam(machine, calibration_db_path=temp_dir, save=False)
 
@@ -273,59 +251,49 @@ class TestBuildQuam:
 
     def test_build_quam_calls_all_functions(self, temp_dir):
         """Test that build_quam calls all necessary sub-functions."""
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.add_octaves') as mock_octaves, \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_external_mixers') as mock_mixers, \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_ports') as mock_ports, \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_qpu') as mock_qpu, \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_pulses') as mock_pulses:
+        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
+             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+            mock_base.return_value = machine
+            mock_ld.return_value = machine
 
             build_quam(machine, calibration_db_path=temp_dir)
 
-            # Verify all functions were called
-            mock_octaves.assert_called_once()
-            mock_mixers.assert_called_once()
-            mock_ports.assert_called_once()
-            mock_qpu.assert_called_once()
-            mock_pulses.assert_called_once()
+            mock_base.assert_called_once()
+            mock_ld.assert_called_once()
 
     def test_build_quam_saves_machine(self, temp_dir):
         """Test that build_quam saves the machine."""
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.add_octaves'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_external_mixers'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_ports'), \
-            patch('quam_builder.builder.quantum_dots.build_quam.add_qpu'), \
-            patch('quam_builder.builder.quantum_dots.build_quam.add_pulses'), \
-            patch.object(machine, 'save') as mock_save:
+        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
+             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+            mock_base.return_value = machine
+            mock_ld.return_value = machine
 
             build_quam(machine, calibration_db_path=temp_dir, save=True)
 
-            # Verify save was called
-            mock_save.assert_called_once()
+            assert mock_ld.call_args.kwargs["save"] is True
 
     def test_build_quam_can_skip_save(self, temp_dir):
         """Ensure build_quam respects save flag."""
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.add_octaves'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_external_mixers'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_ports'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_qpu'), \
-             patch('quam_builder.builder.quantum_dots.build_quam.add_pulses'), \
-             patch.object(machine, 'save') as mock_save:
+        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
+             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+            mock_base.return_value = machine
+            mock_ld.return_value = machine
 
             build_quam(machine, calibration_db_path=temp_dir, save=False)
 
-            mock_save.assert_not_called()
+            assert mock_ld.call_args.kwargs["save"] is False
 
 
 class TestCalibrationPathResolver:

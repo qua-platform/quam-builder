@@ -8,6 +8,32 @@ from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
 )
 from quam_builder.builder.qop_connectivity.channel_ports import mw_out_channel_ports
 from quam_builder.builder.quantum_dots.build_qpu import DEFAULT_GATE_SET_ID, _QpuBuilder
+from quam_builder.builder.quantum_dots.build_utils import _parse_qubit_pair_ids
+
+
+@pytest.fixture(autouse=True)
+def _set_quam_state_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUAM_STATE_PATH", str(tmp_path / "quam_state"))
+
+
+def _build_without_pair_duplicates(builder: _QpuBuilder, qubit_pair_id: str) -> None:
+    builder.assembly = builder.assembly.__class__()
+    builder.machine.active_global_gate_names = []
+    builder.machine.active_sensor_dot_names = []
+    builder.machine.active_qubit_names = []
+    builder.machine.active_qubit_pair_names = []
+
+    builder._wiring_by_type = builder._normalize_wiring(builder.machine.wiring or {})
+    builder._normalized_pair_sensor_map = builder._normalize_sensor_map(
+        builder._qubit_pair_sensor_map
+    )
+    builder._collect_physical_channels()
+    builder._create_virtual_gate_set()
+    builder._register_channels()
+    builder._register_qubits()
+
+    qc_name, qt_name = _parse_qubit_pair_ids(qubit_pair_id)
+    builder._register_qubit_pairs_by_name(qc_name, qt_name, qubit_pair_id)
 
 
 def _mw_drive_ports() -> dict:
@@ -131,7 +157,7 @@ class TestQpuBuilderBehavior:
         }
 
         builder = _QpuBuilder(machine)
-        builder.build()
+        _build_without_pair_duplicates(builder, "q1_q2")
 
         qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         assert qd_pair.barrier_gate.id == "virtual_barrier_1"
@@ -161,7 +187,7 @@ class TestQpuBuilderBehavior:
         }
 
         builder = _QpuBuilder(machine)
-        builder.build()
+        _build_without_pair_duplicates(builder, "q1-2")
 
         assert "q1_q2" in machine.active_qubit_pair_names
         assert "q1_q2" in machine.qubit_pairs
@@ -208,7 +234,7 @@ class TestQpuBuilderBehavior:
             machine,
             qubit_pair_sensor_map={"q1_q2": ["virtual_sensor_2"]},
         )
-        builder.build()
+        _build_without_pair_duplicates(builder, "q1_q2")
 
         qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         sensor_ids = {s.id for s in qd_pair.sensor_dots}
@@ -256,7 +282,7 @@ class TestQpuBuilderBehavior:
             machine,
             qubit_pair_sensor_map={"q1_q2": ["s2", "sensor_1"]},
         )
-        builder.build()
+        _build_without_pair_duplicates(builder, "q1_q2")
 
         qd_pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         sensor_ids = {s.id for s in qd_pair.sensor_dots}

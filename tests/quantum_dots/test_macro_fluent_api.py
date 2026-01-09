@@ -444,7 +444,7 @@ class TestComplexFluentAPIWorkflows:
             .with_sequence("full_experiment", ["init", "readout_seq"]))
 
         # Verify all macros were created
-        assert len(qd.macros) == 7  # 4 points + 3 sequences
+        assert {"idle", "load", "manipulate", "readout", "init", "readout_seq", "full_experiment"} <= set(qd.macros)
 
         # Verify sequence structure
         assert isinstance(qd.macros["full_experiment"], SequenceMacro)

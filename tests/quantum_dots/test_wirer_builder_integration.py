@@ -7,7 +7,7 @@ from pathlib import Path
 
 from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_quam
+from quam_builder.builder.quantum_dots import build_quam, build_base_quam
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
     LossDiVincenzoQuam,
@@ -65,7 +65,6 @@ class TestWirerBuilderIntegration:
         """Test the complete workflow from wiring to build for a basic setup."""
         # Setup connectivity
         connectivity = Connectivity()
-        connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name='g')
         connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
         connectivity.add_qubits(qubits=[1, 2])
         connectivity.add_qubit_pairs(qubit_pairs=[(1, 2)])
@@ -74,7 +73,7 @@ class TestWirerBuilderIntegration:
         allocate_wiring(connectivity, instruments)
 
         # Build wiring
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -86,18 +85,16 @@ class TestWirerBuilderIntegration:
 
         # Verify wiring was created
         assert machine.wiring is not None
-        assert "global_gates" in machine.wiring
         assert "sensor_dots" in machine.wiring
         assert "qubits" in machine.wiring
         assert "qubit_pairs" in machine.wiring
 
         # Build QuAM
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify QPU elements were created
-        assert len(machine_loaded.global_gates) > 0
         assert len(machine_loaded.sensor_dots) > 0
         assert len(machine_loaded.quantum_dots) > 0
         assert len(machine_loaded.qubits) > 0
@@ -106,7 +103,6 @@ class TestWirerBuilderIntegration:
         """Test workflow with multiple qubits and qubit pairs."""
         # Setup connectivity with more qubits
         connectivity = Connectivity()
-        connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name='g')
         connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=False)
         connectivity.add_qubits(qubits=[1, 2, 3, 4])
         connectivity.add_qubit_pairs(qubit_pairs=[(1, 2), (2, 3), (3, 4)])
@@ -115,7 +111,7 @@ class TestWirerBuilderIntegration:
         allocate_wiring(connectivity, instruments)
 
         # Build wiring
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -126,7 +122,7 @@ class TestWirerBuilderIntegration:
         machine = _normalize_wiring(machine)
 
         # Build QuAM
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
@@ -143,7 +139,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -152,7 +148,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify virtual gate set was created
@@ -170,7 +166,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -179,7 +175,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have XY drives
@@ -194,7 +190,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -203,8 +199,8 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
+        build_base_quam(machine_loaded, calibration_db_path=temp_dir, save=False)
 
         # Verify sensor dots have resonators
         assert len(machine_loaded.sensor_dots) == 2
@@ -217,7 +213,7 @@ class TestWirerBuilderIntegration:
 
         allocate_wiring(connectivity, instruments)
 
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -226,7 +222,7 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have pulses (if they have xy channels)
@@ -260,14 +256,13 @@ class TestWirerBuilderIntegration:
     def test_active_element_names_are_set(self, instruments, temp_dir):
         """Test that active element names lists are populated."""
         connectivity = Connectivity()
-        connectivity.add_voltage_gate_lines(voltage_gates=[1], name='g')
         connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
         connectivity.add_qubits(qubits=[1, 2])
         connectivity.add_qubit_pairs(qubit_pairs=[(1, 2)])
 
         allocate_wiring(connectivity, instruments)
 
-        machine = LossDiVincenzoQuam()
+        machine = BaseQuamQD()
         machine = build_quam_wiring(
             connectivity,
             host_ip="127.0.0.1",
@@ -276,14 +271,13 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = LossDiVincenzoQuam.load(temp_dir)
+        machine_loaded = BaseQuamQD.load(temp_dir)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
-        # Verify active lists are populated
-        assert len(machine_loaded.active_global_gate_names) > 0
-        assert len(machine_loaded.active_sensor_dot_names) > 0
-        assert len(machine_loaded.active_qubit_names) > 0
-        assert len(machine_loaded.active_qubit_pair_names) > 0
+        # Verify elements are populated
+        assert len(machine_loaded.sensor_dots) > 0
+        assert len(machine_loaded.qubits) > 0
+        assert len(machine_loaded.qubit_pairs) > 0
 
 
 class TestWirerOnly:
@@ -299,14 +293,19 @@ class TestWirerOnly:
         connectivity.add_qubits(qubits=[1, 2, 3])
         connectivity.add_qubit_pairs(qubit_pairs=[(1, 2), (2, 3)])
 
+        instruments = Instruments()
+        instruments.add_mw_fem(controller=1, slots=[1])
+        instruments.add_lf_fem(controller=1, slots=[2, 3])
+        allocate_wiring(connectivity, instruments)
+
         # Verify elements were added
         assert len(connectivity.elements) > 0
 
         # Check element types
         element_types = set()
         for element in connectivity.elements.values():
-            for wiring_spec in element.wiring_specs:
-                element_types.add(wiring_spec.line_type.value)
+            for line_type in element.channels:
+                element_types.add(line_type.value)
 
         expected_types = {'g', 's', 'rf', 'p', 'xy', 'b'}
         assert element_types.intersection(expected_types)

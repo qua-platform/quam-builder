@@ -5,9 +5,12 @@ from unittest.mock import MagicMock
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pulses,
     add_default_ldv_qubit_pair_pulses,
+    add_default_resonator_pulses,
 )
 from quam_builder.architecture.quantum_dots.components import XYDrive
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
+from quam.components import StickyChannelAddon
+from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
 
 class TestAddDefaultLDVQubitPulses:
@@ -32,11 +35,17 @@ class TestAddDefaultLDVQubitPulses:
     def test_add_readout_pulses_to_qubit_with_resonator(self):
         """Test that readout pulses are added when qubit has resonator."""
         qubit = MagicMock()
-        qubit.resonator = MagicMock(spec=ReadoutResonatorSingle)
-        qubit.resonator.operations = {}
+        qubit.resonator = ReadoutResonatorSingle(
+            id="readout_resonator",
+            frequency_bare=0.0,
+            opx_output=LFFEMAnalogOutputPort("con1", 1, port_id=1),
+            opx_input=LFFEMAnalogInputPort("con1", 1, port_id=2),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+            operations={},
+        )
 
         # Add default pulses
-        add_default_ldv_qubit_pulses(qubit)
+        add_default_resonator_pulses(qubit.resonator)
 
         # Verify readout pulse was added
         assert "readout" in qubit.resonator.operations
@@ -47,10 +56,17 @@ class TestAddDefaultLDVQubitPulses:
         qubit = MagicMock()
         qubit.xy_channel = XYDrive(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy_channel.operations = {}
-        qubit.resonator = MagicMock(spec=ReadoutResonatorSingle)
-        qubit.resonator.operations = {}
+        qubit.resonator = ReadoutResonatorSingle(
+            id="readout_resonator",
+            frequency_bare=0.0,
+            opx_output=LFFEMAnalogOutputPort("con1", 1, port_id=1),
+            opx_input=LFFEMAnalogInputPort("con1", 1, port_id=2),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+            operations={},
+        )
 
         add_default_ldv_qubit_pulses(qubit)
+        add_default_resonator_pulses(qubit.resonator)
 
         # Verify both XY and readout pulses were added
         assert len(qubit.xy_channel.operations) == 6  # 6 XY pulses

@@ -18,6 +18,11 @@ from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 
 
+@pytest.fixture(autouse=True)
+def _set_quam_state_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUAM_STATE_PATH", str(tmp_path / "quam_state"))
+
+
 @pytest.fixture
 def machine():
     """
