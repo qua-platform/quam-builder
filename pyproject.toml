@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
 requires-python = ">=3.9,<3.13"
 dependencies = [
-    "qualang-tools>=0.19.0",
+    "qualang-tools@git+https://github.com/qua-platform/py-qua-tools.git@feat/quantum-dots",
     "quam>=0.4.0",
     "qm-qua>=1.2.2",
     "xarray>=2024.7.0",
@@ -23,7 +23,13 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [dependency-groups]
-dev = ["ipykernel>=7.0.0a1", "pytest-mock>=3.14.0", "pytest>=8.3.5"]
+dev = [
+    "ipykernel>=7.0.0a1",
+    "pre-commit",
+    "pytest>=8.3.5",
+    "pytest-cov",
+    "pytest-mock>=3.14.0",
+]
 ast = [
     "qua-qsim@git+https://github.com/qua-platform/qua-qsim.git@bare-ast-visitor",
 ]
@@ -33,3 +39,82 @@ prerelease = "allow"
 
 [tool.uv]
 prerelease = "allow"
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "black",
+    "pylint",
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "commitizen",
+]
+
+
+# -----------------------------
+# Ruff configuration
+# -----------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# Format (ruff-format) is enabled via pre-commit; this just sets options.
+# If you want to exclude folders (generated code, build dirs):
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    "build",
+    "dist",
+]
+
+
+[tool.ruff.lint]
+# Basic rule sets: E/F/W (pyflakes/pycodestyle), I (imports), UP (pyupgrade),
+# B (bugbear), C4 (flake8-comprehensions). Adjust as your team prefers.
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+# Ignore rules that conflict with the formatter, or that you don't care about:
+ignore = [
+    "E203",  # whitespace before ':' (formatter handles)
+    "E501",  # line length (formatter handles)
+]
+
+[tool.ruff.lint.isort]
+# Import-sorting rules
+known-first-party = ["qm", "quam", "qualang_tools", "qualibrate"]
+force-single-line = false
+combine-as-imports = true
+
+# -----------------------------
+# Black configuration
+# -----------------------------
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+# -----------------------------
+# Mypy configuration (optional but recommended)
+# -----------------------------
+[tool.mypy]
+python_version = "3.10"
+packages = ["qm", "quam", "qualang_tools", "qualibrate"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+
+# -----------------------------
+# Commitizen (Conventional Commits)
+# -----------------------------
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = ["pyproject.toml:version"]
+update_changelog_on_bump = true

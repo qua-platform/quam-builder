@@ -1,0 +1,30 @@
+
+[MESSAGES CONTROL]
+# Enable ONLY:
+#   E = Errors
+#   R = Refactor suggestions
+#   C = Convention checks
+#   F = fatal
+enable=E, R, F, C
+
+# Disable W (Warnings), and I (Information)
+# Also disable specific checks that don't fit this codebase:
+#   - invalid-name: Module names start with numbers (01a_time_of_flight), variables use physics conventions (I, Q)
+#   - import-error, no-name-in-module: quam_config is project-specific, pylint can't resolve it
+#   - too-many-locals: Quantum calibration code often needs many variables
+disable=W, I, invalid-name, import-error, no-name-in-module, too-many-locals
+
+
+[REPORTS]
+# Cleaner output, no extra reports
+reports=no
+
+
+[MASTER]
+# You can add folders to ignore if needed
+ignore=venv
+
+
+[FORMAT]
+# Optional — set your preferred line length
+max-line-length=120

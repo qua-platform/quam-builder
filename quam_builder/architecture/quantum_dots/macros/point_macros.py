@@ -4,25 +4,14 @@ This module provides macros for voltage point operations following QUAM's
 Pulse → Macro → Operation pattern with reference-based serialization.
 """
 
-from dataclasses import field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
-from qm import qua
-from qm.qua._expressions import QuaVariable, Scalar, to_scalar_pb_expression
 from quam import QuamComponent
-from quam.core import QuamComponent as QuamBaseComponent
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
-from quam.core.operation.operations_registry import OperationsRegistry
 from quam.utils import string_reference
 from quam.utils.exceptions import InvalidReferenceError
-from quam.utils.qua_types import QuaVariableBool
 
-from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
-
-if TYPE_CHECKING:
-    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-    from quam_builder.tools.voltage_sequence import VoltageSequence
+# if TYPE_CHECKING:
+from quam_builder.tools.voltage_sequence import VoltageSequence
 
 __all__ = [
     "BasePointMacro",
@@ -44,8 +33,8 @@ class BasePointMacro(QuamMacro):
         macro_type: Type identifier ('step', 'ramp', etc.)
     """
 
-    point_ref: Optional[str] = None
-    hold_duration: Optional[int] = None
+    point_ref: str | None = None
+    hold_duration: int | None = None
     macro_type: str = "base"
 
     @property
@@ -83,7 +72,7 @@ class BasePointMacro(QuamMacro):
         except (InvalidReferenceError, AttributeError) as e:
             raise InvalidReferenceError(
                 f"Could not resolve point reference '{self.point_ref}' from {component}: {e}"
-            )
+            ) from e  # or 'from None' if you want to suppress the chain
 
         if not isinstance(point, VoltageTuningPoint):
             raise TypeError(
@@ -145,11 +134,11 @@ class StepPointMacro(BasePointMacro):
     macro_type: str = "step"
 
     @property
-    def inferred_duration(self) -> Optional[float]:
+    def inferred_duration(self) -> float | None:
         """Total duration of step operation (seconds)."""
         return self.hold_duration * 1e-9 if self.hold_duration is not None else None
 
-    def apply(self, *args, hold_duration: Optional[int] = None):
+    def apply(self, *args, hold_duration: int | None = None):
         """Execute step operation.
 
         Args:
@@ -178,7 +167,7 @@ class RampPointMacro(BasePointMacro):
     ramp_duration: int = 16
 
     @property
-    def inferred_duration(self) -> Optional[float]:
+    def inferred_duration(self) -> float | None:
         """Total duration of ramp + hold (seconds)."""
         if self.ramp_duration is None or self.hold_duration is None:
             return None
@@ -187,8 +176,8 @@ class RampPointMacro(BasePointMacro):
     def apply(
         self,
         *args,
-        hold_duration: Optional[int] = None,
-        ramp_duration: Optional[int] = None,
+        hold_duration: int | None = None,
+        ramp_duration: int | None = None,
     ):
         """Execute ramp operation.
 
