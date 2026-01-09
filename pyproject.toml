@@ -23,7 +23,13 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [dependency-groups]
-dev = ["ipykernel>=7.0.0a1", "pytest-mock>=3.14.0", "pytest>=8.3.5"]
+dev = [
+    "ipykernel>=7.0.0a1",
+    "pre-commit",
+    "pytest>=8.3.5",
+    "pytest-cov",
+    "pytest-mock>=3.14.0",
+]
 ast = [
     "qua-qsim@git+https://github.com/qua-platform/qua-qsim.git@bare-ast-visitor",
 ]
