@@ -424,8 +424,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
 
     @property
     def _cr_elems(self):
-        # assumes you already have _qc and _qt properties in your helpers/base
-        return [self._qc.xy.name, self._qt.xy.name, self._cr_edge.name, self._cr.name]
+        return [self._qc.xy.name, self._qt.xy.name,self._qt.xy_edge.name, self._cr_edge.name, self._cr.name]
 
     def _align_cr(self) -> None:
         align(*self._cr_elems)
