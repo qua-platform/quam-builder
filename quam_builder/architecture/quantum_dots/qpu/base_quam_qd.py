@@ -843,6 +843,41 @@ class BaseQuamQD(QuamRoot):
         if matrix:
             self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
 
+    def create_virtual_dc_set(
+        self, 
+        gate_set_id: str,
+        matrix: List[List[float]] = None,
+    ) -> None:
+        """
+        Method to create a VirtualDCSet, using the same structure as the VirtualGateSet. 
+
+        The default matrix will be synced with the VirtualGateSet compensation layer. If a matrix is provided, it will overwrite. 
+        """
+        if gate_set_id not in self.virtual_gate_sets: 
+            raise ValueError(f"Gate set with ID {gate_set_id} not in quam. Available gate sets: {list(self.virtual_gate_sets.keys())}")
+        vgs = self.virtual_gate_sets[gate_set_id]
+
+        channel_mapping = {name: ch.get_reference() for name, ch in vgs.channels.items()}
+
+        virtual_names = list(vgs.layers[0].source_gates)
+        physical_names = list(vgs.layers[0].target_gates)
+        gate_set_matrix = [row[:] for row in vgs.layers[0].matrix] # Copy to avoid any mutability issues, just incase
+
+        allow_rectangular_matrices = vgs.allow_rectangular_matrices
+
+        self.virtual_dc_sets[gate_set_id] = VirtualDCSet(
+            id = gate_set_id, channels = channel_mapping, allow_rectangular_matrices=allow_rectangular_matrices
+        )
+        self.virtual_dc_sets[gate_set_id].add_to_layer(
+            layer_id = "compensation_layer", 
+            source_gates = virtual_names, 
+            target_gates = physical_names, 
+            matrix = gate_set_matrix
+        )
+        if matrix: 
+            self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
+
+
     def update_cross_compensation_submatrix(
         self,
         virtual_names: List[str],

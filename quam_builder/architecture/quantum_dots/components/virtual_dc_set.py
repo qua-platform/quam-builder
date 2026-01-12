@@ -12,7 +12,6 @@ from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTu
 
 __all__ = ["VirtualDCSet"]
 
-
 @quam_dataclass
 class VirtualDCSet(QuantumComponent):
     """
