@@ -373,6 +373,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             ]
         ] = "amp",
         sweep_duration: bool = True,
+        sweep_cancel: bool = False,
         cr_sweeping_param: Optional[Union[float | qua_T, int | qua_T]] = None,
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
@@ -388,6 +389,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             wf_type=wf_type,
             sweep_type=sweep_type,
             sweep_duration=sweep_duration,
+            sweep_cancel=sweep_cancel,
             cr_sweeping_param=cr_sweeping_param,
             cr_duration_clock_cycles=cr_duration_clock_cycles,
             cr_drive_amp_scaling=cr_drive_amp_scaling,
@@ -453,6 +455,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         wf_type,
         sweep_type,
         sweep_duration,
+        sweep_cancel,
         cr_sweeping_param,
         cr_duration_clock_cycles,
         cr_drive_amp_scaling,
@@ -496,6 +499,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
                 has_dur=has_dur,
                 has_phase=has_phase,
                 sweep_duration=sweep_duration,
+                sweep_cancel = sweep_cancel,
                 cr_sweeping_param=cr_sweeping_param,
                 cr_duration_clock_cycles=cr_duration_clock_cycles,
                 cr_drive_amp_scaling=cr_drive_amp_scaling,
@@ -504,6 +508,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
                 cr_cancel_phase=cr_cancel_phase,
                 qc_correction_phase=qc_correction_phase,
                 qt_correction_phase=qt_correction_phase,
+
             ),
         )
         return params
@@ -529,6 +534,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         has_amp = p["has_amp"]
         has_dur = p["has_dur"]
         has_phase = p["has_phase"]
+        sweep_cancel = p["sweep_cancel"]
 
         dur = p.get("cr_duration_clock_cycles")
         amp = p.get("cr_drive_amp_scaling")
@@ -553,6 +559,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             cr_duration_clock_cycles=dur,
             cr_drive_amp_scaling=amp,
             cancel_pulse=do_cancel,
+            sweep_cancel=sweep_cancel
         )
         if do_echo:
             self._cr_echo_pulse_play_amp_dur(
@@ -588,6 +595,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
         cancel_pulse: bool = False,
+        sweep_cancel: bool = False,
     ) -> None:
         amp = cr_drive_amp_scaling
         dur = cr_duration_clock_cycles
@@ -597,8 +605,8 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
                 raise ValueError("cr_duration_clock_cycles must be provided when has_dur=True")
 
             delay = (-2 if has_phase else 0) - (2 if has_amp else 0)
-            cr_edge_wait = dur + delay
-            qt_edge_wait = dur + delay + (2 if has_phase else 0)
+            cr_edge_wait = dur + delay +(2 if sweep_cancel else 0)
+            qt_edge_wait = dur + delay + (2 if has_phase else 0) +(2 if sweep_cancel else 0)- (2 if sweep_cancel & has_phase else 0)
 
             cr_play_kwargs = {"duration": dur}
             qt_play_kwargs = {"duration": dur}
@@ -677,7 +685,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         self._cr.play("square", amplitude_scale=cr_square_amp, **cr_play_kwargs)
 
         cr_edge_wait = (dur + delay) if has_dur else self._flattop_time
-        self._cr_edge.wait(cr_edge_wait)
+        self._cr_edge.wait(cr_edge_wait )
         self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=amp)
 
         # Optional cancellation pulse on target xy
