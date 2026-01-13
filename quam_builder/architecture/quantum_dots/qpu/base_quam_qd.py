@@ -167,8 +167,8 @@ class BaseQuamQD(QuamRoot):
                 self.qdac = QDAC2.QDac2(name, visalib='@py', address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET')
 
             for channel in self.physical_channels.values(): 
-                if hasattr(channel, "qdac_channel"):
-                    qdac_port = channel.qdac_channel
+                if hasattr(channel, "qdac_spec"):
+                    qdac_port = channel.qdac_spec.qdac_output_port
                     channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
                 else: 
                     print(f"Channel {channel.id} has no Qdac channel associated. Skipping")
