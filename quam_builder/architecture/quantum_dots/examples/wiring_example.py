@@ -50,25 +50,33 @@ s3to4_res_ch = mw_fem_spec(con=1, slot=2, in_port=1, out_port=1)
 ########################################################################################################################
 # %%                Allocate the wiring to the connectivity object based on the available instruments
 ########################################################################################################################
+print("Setting up connectivity...")
 connectivity = Connectivity()
 # The readout lines
-# connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
 # Option 1
-# connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
+connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
 
 # Option 2
-connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
-connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
+# connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
+# connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
 
 # Option 1:
-# connectivity.add_qubits(qubits=qubits)
+connectivity.add_quantum_dots(quantum_dots=qubits)
 # Option 2:
-connectivity.add_qubit_voltage_gate_lines(qubits)
-connectivity.add_quantum_dot_qubit_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
+# connectivity.add_quantum_dot_voltage_gate_lines(qubits)
+# connectivity.add_quantum_dot_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
 
-connectivity.add_qubit_pairs(qubit_pairs=qubit_pairs)
-allocate_wiring(connectivity, instruments)
+connectivity.add_quantum_dot_pairs(quantum_dot_pairs=qubit_pairs)
+try:
+    allocate_wiring(connectivity, instruments)
+    print("✓ Wiring allocation successful")
+except Exception as e:
+    print(f"✗ Error in allocate_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 # Optional: visualize wiring (requires a GUI backend). Comment out in headless environments.
 # import matplotlib
@@ -83,14 +91,21 @@ allocate_wiring(connectivity, instruments)
 ########################################################################################################################
 # %%                                   Build the wiring and QUAM
 ########################################################################################################################
-machine = BaseQuamQD()
+try:
+    machine = BaseQuamQD()
 
-machine = build_quam_wiring(
-    connectivity,
-    host_ip,
-    cluster_name,
-    machine,
-)
+    machine = build_quam_wiring(
+        connectivity,
+        host_ip,
+        cluster_name,
+        machine,
+    )
+    print("✓ Wiring and QUAM build successful")
+except Exception as e:
+    print(f"✗ Error in build_quam_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 ########################################################################################################################
 # %%                              Build QUAM using Two-Stage Approach (Recommended)
@@ -169,17 +184,31 @@ qubit_pair_sensor_map = {
 ########################################################################################################################
 
 # If you don't need the flexibility of two stages, use the convenience wrapper:
-machine = build_quam(
-    machine,
-    qubit_pair_sensor_map=qubit_pair_sensor_map,
-    connect_qdac=False,
-    qdac_ip="172.16.33.101",
-    save=True,
-)
+try:
+    machine = build_quam(
+        machine,
+        qubit_pair_sensor_map=qubit_pair_sensor_map,
+        connect_qdac=False,
+        qdac_ip="172.16.33.101",
+        save=True,
+    )
+    print("✓ build_quam successful")
+except Exception as e:
+    print(f"✗ Error in build_quam: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 ########################################################################################################################
 # %%                                      Generate QM Configuration
 ########################################################################################################################
 
 # Generate the configuration for the Quantum Machines OPX
-machine.generate_config()
+try:
+    machine.generate_config()
+    print("✓ Configuration generation successful")
+except Exception as e:
+    print(f"✗ Error in generate_config: {e}")
+    import traceback
+    traceback.print_exc()
+    raise

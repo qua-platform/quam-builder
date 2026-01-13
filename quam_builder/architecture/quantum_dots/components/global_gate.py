@@ -20,6 +20,10 @@ class GlobalGate(VoltagePointMacroMixin):
     current_voltage: float = 0.0
 
     @property
+    def name(self) -> str:
+        return self.id
+
+    @property
     def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
