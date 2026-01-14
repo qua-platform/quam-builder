@@ -201,3 +201,4 @@ wiring.json
 
 # Claude Code
 .claude/
+/quam_state/
