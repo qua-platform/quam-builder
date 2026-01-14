@@ -5,6 +5,7 @@ from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
+
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
