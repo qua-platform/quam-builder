@@ -4,6 +4,8 @@ This module provides macros for voltage point operations following QUAM's
 Pulse → Macro → Operation pattern with reference-based serialization.
 """
 
+from typing import TYPE_CHECKING
+
 from quam import QuamComponent
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
