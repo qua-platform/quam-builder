@@ -164,7 +164,9 @@ class _QpuBuilder:
             normalized[canonical_type] = wiring_by_element
         return normalized
 
-    def _normalize_sensor_map(self, sensor_map: Optional[Mapping[str, Sequence[str]]]) -> Dict[str, Sequence[str]]:
+    def _normalize_sensor_map(
+        self, sensor_map: Optional[Mapping[str, Sequence[str]]]
+    ) -> Dict[str, Sequence[str]]:
         normalized: Dict[str, Sequence[str]] = {}
         if sensor_map is None:
             return normalized
@@ -174,9 +176,7 @@ class _QpuBuilder:
                 "Pair formats: q1_q2 or q1-2. Sensor formats: virtual_sensor_<n>, sensor_<n>, s<n>."
             )
         if not sensor_map:
-            msg = (
-                "qubit_pair_sensor_map is an empty dict; defaulting to all registered sensors for each pair."
-            )
+            msg = "qubit_pair_sensor_map is an empty dict; defaulting to all registered sensors for each pair."
             logger.warning(msg)
             warnings.warn(msg, UserWarning)
             return normalized
@@ -389,56 +389,57 @@ class _QpuBuilder:
                 self._register_qubit_pairs_by_name(qc_name, qt_name, qubit_pair_id)
 
     def _register_qubit_pairs_by_name(self, qc_name, qt_name, qubit_pair_id):
-            qc_plunger_id = f"plunger_{qc_name[1:]}"
-            qt_plunger_id = f"plunger_{qt_name[1:]}"
+        qc_plunger_id = f"plunger_{qc_name[1:]}"
+        qt_plunger_id = f"plunger_{qt_name[1:]}"
 
-            normalized_pair_id = f"{qc_name}_{qt_name}"
-            if normalized_pair_id in self._normalized_pair_sensor_map:
-                requested_sensors = self._normalized_pair_sensor_map[normalized_pair_id]
-                sensor_dot_ids = [self._resolve_sensor_virtual_name(normalized_pair_id, sensor) for sensor in requested_sensors]
-            else:
-                sensor_dot_ids = [
-                    name for _, name in _sorted_items(self.assembly.sensor_virtual_names)
-                ]
+        normalized_pair_id = f"{qc_name}_{qt_name}"
+        if normalized_pair_id in self._normalized_pair_sensor_map:
+            requested_sensors = self._normalized_pair_sensor_map[normalized_pair_id]
+            sensor_dot_ids = [
+                self._resolve_sensor_virtual_name(normalized_pair_id, sensor)
+                for sensor in requested_sensors
+            ]
+        else:
+            sensor_dot_ids = [name for _, name in _sorted_items(self.assembly.sensor_virtual_names)]
 
-            barrier_gate_id = None
-            physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(
-                qubit_pair_id
-            )
-            if physical_barrier_id:
-                barrier_gate_id = self.assembly.barrier_virtual_names.get(physical_barrier_id)
-                if barrier_gate_id is None:
-                    raise ValueError(
-                        f"Barrier gate '{physical_barrier_id}' has no registered virtual mapping"
-                    )
-
-            if (
-                qc_plunger_id not in self.assembly.plunger_virtual_names
-                or qt_plunger_id not in self.assembly.plunger_virtual_names
-            ):
+        barrier_gate_id = None
+        physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(qubit_pair_id)
+        if physical_barrier_id:
+            barrier_gate_id = self.assembly.barrier_virtual_names.get(physical_barrier_id)
+            if barrier_gate_id is None:
                 raise ValueError(
-                    f"Plunger gates for qubit pair '{qubit_pair_id}' not registered: "
-                    f"missing {qc_plunger_id if qc_plunger_id not in self.assembly.plunger_virtual_names else qt_plunger_id}"
+                    f"Barrier gate '{physical_barrier_id}' has no registered virtual mapping"
                 )
 
-            self.machine.register_quantum_dot_pair(
-                id=f"dot{qc_name[1:]}_dot{qt_name[1:]}_pair",
-                quantum_dot_ids=[
-                    self.assembly.plunger_virtual_names[qc_plunger_id],
-                    self.assembly.plunger_virtual_names[qt_plunger_id],
-                ],
-                sensor_dot_ids=sensor_dot_ids,
-                barrier_gate_id=barrier_gate_id,
+        if (
+            qc_plunger_id not in self.assembly.plunger_virtual_names
+            or qt_plunger_id not in self.assembly.plunger_virtual_names
+        ):
+            raise ValueError(
+                f"Plunger gates for qubit pair '{qubit_pair_id}' not registered: "
+                f"missing {qc_plunger_id if qc_plunger_id not in self.assembly.plunger_virtual_names else qt_plunger_id}"
             )
-            self.machine.register_qubit_pair(
-                id=f"{qc_name}_{qt_name}",
-                qubit_control_name=qc_name,
-                qubit_target_name=qt_name,
-            )
-            self.machine.active_qubit_pair_names.append(f"{qc_name}_{qt_name}")
+
+        self.machine.register_quantum_dot_pair(
+            id=f"dot{qc_name[1:]}_dot{qt_name[1:]}_pair",
+            quantum_dot_ids=[
+                self.assembly.plunger_virtual_names[qc_plunger_id],
+                self.assembly.plunger_virtual_names[qt_plunger_id],
+            ],
+            sensor_dot_ids=sensor_dot_ids,
+            barrier_gate_id=barrier_gate_id,
+        )
+        self.machine.register_qubit_pair(
+            id=f"{qc_name}_{qt_name}",
+            qubit_control_name=qc_name,
+            qubit_target_name=qt_name,
+        )
+        self.machine.active_qubit_pair_names.append(f"{qc_name}_{qt_name}")
 
     def _resolve_sensor_virtual_name(self, pair_id: str, sensor: str) -> str:
-        allowed_formats = "virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1)"
+        allowed_formats = (
+            "virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1)"
+        )
         if not isinstance(sensor, str):
             raise ValueError(
                 f"Sensor mapping for pair '{pair_id}' must contain string identifiers; "
@@ -459,7 +460,7 @@ class _QpuBuilder:
 
         if (
             normalized_sensor.startswith("virtual_sensor_")
-            and normalized_sensor[len("virtual_sensor_"):].isdigit()
+            and normalized_sensor[len("virtual_sensor_") :].isdigit()
         ):
             if normalized_sensor not in self.assembly.sensor_virtual_names.values():
                 raise ValueError(

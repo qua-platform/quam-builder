@@ -7,6 +7,7 @@ This module provides specific wiring strategies for:
 - Global elements
 - Readout elements
 """
+
 from typing import Dict
 
 from qualang_tools.wirer.connectivity.element import QubitPairReference
@@ -81,9 +82,7 @@ class QubitPairWiringStrategy(WiringStrategy):
             Dictionary with control_qubit and target_qubit references
         """
         if not isinstance(context.element_id, QubitPairReference):
-            raise TypeError(
-                f"Expected QubitPairReference, got {type(context.element_id)}"
-            )
+            raise TypeError(f"Expected QubitPairReference, got {type(context.element_id)}")
 
         element_id = context.element_id
         return {

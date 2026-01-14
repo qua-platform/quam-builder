@@ -26,7 +26,7 @@ from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenz
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pair_pulses,
     add_default_ldv_qubit_pulses,
-    add_default_resonator_pulses
+    add_default_resonator_pulses,
 )
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
@@ -402,9 +402,7 @@ def add_octaves(
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(
-                            reference
-                        ).split("/")[2]
+                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -432,9 +430,7 @@ def add_external_mixers(machine: AnyQuam) -> AnyQuam:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split(
-                            "/"
-                        )[2]
+                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
                         ldv_qubit_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",

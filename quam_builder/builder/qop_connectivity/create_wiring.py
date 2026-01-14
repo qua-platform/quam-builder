@@ -8,6 +8,7 @@ element types (qubits, qubit pairs, global elements, readout).
 The main entry point is create_wiring() which maintains backward compatibility
 while using the new extensible architecture internally.
 """
+
 from typing import List, Dict, Any, Optional
 from functools import reduce
 from qualang_tools.wirer import Connectivity
@@ -97,6 +98,7 @@ def create_wiring(
 # LEGACY IMPLEMENTATION (kept for backward compatibility testing)
 # ============================================================================
 
+
 def _create_wiring_legacy(connectivity: Connectivity) -> dict:
     """Legacy implementation of create_wiring.
 
@@ -116,13 +118,13 @@ def _create_wiring_legacy(connectivity: Connectivity) -> dict:
     for element_id, element in connectivity.elements.items():
         for line_type, channels in element.channels.items():
             # Get the string value for comparison (works with both WiringLineType)
-            line_type_value = line_type.value if hasattr(line_type, 'value') else line_type
+            line_type_value = line_type.value if hasattr(line_type, "value") else line_type
 
             if line_type_value in [
                 WiringLineType.RESONATOR.value,
                 WiringLineType.DRIVE.value,
                 WiringLineType.FLUX.value,
-                WiringLineType.PLUNGER.value
+                WiringLineType.PLUNGER.value,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
                     set_nested_value_with_path(
@@ -160,41 +162,40 @@ def _create_wiring_legacy(connectivity: Connectivity) -> dict:
 
     return wiring
 
+
 def readout_wiring(
-        channels: List[AnyInstrumentChannel],
-        element_id: ElementId,
-        line_type: WiringLineType,
+    channels: List[AnyInstrumentChannel],
+    element_id: ElementId,
+    line_type: WiringLineType,
 ) -> dict:
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
-            key, reference = create_external_mixer_reference(
-                channel, element_id, line_type
-            )
+            key, reference = create_external_mixer_reference(channel, element_id, line_type)
             qubit_line_wiring[key] = reference
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
             qubit_line_wiring[key] = reference
 
     return qubit_line_wiring
+
 
 def global_element_wiring(
-        channels: List[AnyInstrumentChannel],
-        element_id: ElementId,
-        line_type: WiringLineType,
+    channels: List[AnyInstrumentChannel],
+    element_id: ElementId,
+    line_type: WiringLineType,
 ) -> dict:
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
-            key, reference = create_external_mixer_reference(
-                channel, element_id, line_type
-            )
+            key, reference = create_external_mixer_reference(channel, element_id, line_type)
             qubit_line_wiring[key] = reference
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
             qubit_line_wiring[key] = reference
 
     return qubit_line_wiring
+
 
 def qubit_wiring(
     channels: List[AnyInstrumentChannel],
@@ -214,9 +215,7 @@ def qubit_wiring(
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
-            key, reference = create_external_mixer_reference(
-                channel, element_id, line_type
-            )
+            key, reference = create_external_mixer_reference(channel, element_id, line_type)
             qubit_line_wiring[key] = reference
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
@@ -225,9 +224,7 @@ def qubit_wiring(
     return qubit_line_wiring
 
 
-def qubit_pair_wiring(
-    channels: List[AnyInstrumentChannel], element_id: QubitPairReference
-) -> dict:
+def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPairReference) -> dict:
     """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
 
     Args:
@@ -249,9 +246,7 @@ def qubit_pair_wiring(
     return qubit_pair_line_wiring
 
 
-def get_channel_port(
-    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
-) -> tuple:
+def get_channel_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> tuple:
     """Determines the key and JSON reference for a given channel.
 
     Args:

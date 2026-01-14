@@ -5,6 +5,7 @@ This module provides a centralized factory for converting instrument channels
 into QUAM-compatible port references. It handles all instrument types and
 can be extended with custom port creators.
 """
+
 from typing import Callable, Tuple, TYPE_CHECKING
 
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
@@ -63,7 +64,7 @@ class ChannelPortFactory:
     def create_port_reference(
         self,
         channel: AnyInstrumentChannel,
-        context: 'WiringContext',
+        context: "WiringContext",
     ) -> Tuple[str, str]:
         """Create a port reference for the given channel.
 
@@ -102,7 +103,7 @@ class ChannelPortFactory:
     def _create_analog_port_reference(
         self,
         channel: AnyInstrumentChannel,
-        context: 'WiringContext',
+        context: "WiringContext",
     ) -> Tuple[str, str]:
         """Create port reference for analog channels.
 
@@ -202,7 +203,7 @@ class ChannelPortFactory:
             }
         """
         return {
-            'analog': list(self._analog_creators.keys()),
-            'special': list(self._special_creators.keys()),
-            'needs_channel_list': list(self._needs_channel_list),
+            "analog": list(self._analog_creators.keys()),
+            "special": list(self._special_creators.keys()),
+            "needs_channel_list": list(self._needs_channel_list),
         }

@@ -1,3 +1,5 @@
+"""Global gate component for quantum dots."""
+
 from typing import Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
@@ -11,17 +13,20 @@ if TYPE_CHECKING:
 
 __all__ = ["GlobalGate"]
 
+
 @quam_dataclass
 class GlobalGate(VoltagePointMacroMixin):
     """
     A class for a GlobalGate channel
     """
+
     id: str
     physical_channel: VoltageGate
     current_voltage: float = 0.0
 
     @property
     def name(self) -> str:
+        """Return the name of the global gate (same as id)."""
         return self.id
 
     @property

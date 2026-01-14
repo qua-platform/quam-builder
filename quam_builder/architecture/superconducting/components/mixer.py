@@ -11,4 +11,7 @@ class StandaloneMixer(Mixer):
                 return name
         raise KeyError()
 
-__all__ = ["StandaloneMixer",]
+
+__all__ = [
+    "StandaloneMixer",
+]

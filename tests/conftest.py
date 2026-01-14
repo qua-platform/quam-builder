@@ -17,11 +17,16 @@ _extra_members = {
 }
 
 if any(name not in _existing_members for name in _extra_members):
-    merged = {**_existing_members, **{k: v for k, v in _extra_members.items() if k not in _existing_members}}
+    merged = {
+        **_existing_members,
+        **{k: v for k, v in _extra_members.items() if k not in _existing_members},
+    }
     ExtendedWiringLineType = Enum("WiringLineType", merged)
 
     wiring_spec.WiringLineType = ExtendedWiringLineType
     # Ensure any future imports see the extended enum
     import sys
 
-    sys.modules["qualang_tools.wirer.connectivity.wiring_spec"].WiringLineType = ExtendedWiringLineType
+    sys.modules["qualang_tools.wirer.connectivity.wiring_spec"].WiringLineType = (
+        ExtendedWiringLineType
+    )

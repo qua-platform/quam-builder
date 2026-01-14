@@ -6,11 +6,7 @@ from quam.core.macro import QuamMacro
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import (
-    declare, 
-    fixed, 
-    declare_stream
-)
+from qm.qua import declare, fixed, declare_stream
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
@@ -27,7 +23,7 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
-    XYDrive, 
+    XYDrive,
     VirtualDCSet,
 )
 
@@ -84,7 +80,7 @@ class BaseQuamQD(QuamRoot):
     global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
 
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory=dict)
-    virtual_dc_sets: Dict[str, VirtualDCSet] = field(default_factory = dict)
+    virtual_dc_sets: Dict[str, VirtualDCSet] = field(default_factory=dict)
     voltage_sequences: Dict[str, VoltageSequence] = field(
         default_factory=dict, metadata={"exclude": True}
     )
@@ -109,9 +105,7 @@ class BaseQuamQD(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_voltage_sequence(self, gate_set_id: str) -> VoltageSequence:
         if gate_set_id not in self.voltage_sequences:
@@ -125,79 +119,92 @@ class BaseQuamQD(QuamRoot):
             self.voltage_sequences[gate_set_id] = seq
         return self.voltage_sequences[gate_set_id]
 
-    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+    def get_component(self, name: str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
         """
         Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
-        
-        Args: 
+
+        Args:
             name: The name of the object
         """
         collections = [
-            self.quantum_dots, 
-            self.sensor_dots, 
-            self.barrier_gates, 
-            self.quantum_dot_pairs, 
+            self.quantum_dots,
+            self.sensor_dots,
+            self.barrier_gates,
+            self.quantum_dot_pairs,
         ]
-        for collection in collections: 
-            if name in collection: 
+        for collection in collections:
+            if name in collection:
                 return collection[name]
-    
-        raise ValueError(f"Element {name} not found in Quam")
-    
-    def connect_to_external_source(self, channel_source_mapping: Dict[Channel, Callable] = None, reset_voltages: bool = False, external_qdac: bool = False) -> None: 
-        """
-        Binds the channels to the correct external voltage source functions. If the external voltage souce is a QDAC, then set the bool external_qdac = True. 
 
-        Args: 
+        raise ValueError(f"Element {name} not found in Quam")
+
+    def connect_to_external_source(
+        self,
+        channel_source_mapping: Dict[Channel, Callable] = None,
+        reset_voltages: bool = False,
+        external_qdac: bool = False,
+    ) -> None:
+        """
+        Binds the channels to the correct external voltage source functions. If the external voltage souce is a QDAC, then set the bool external_qdac = True.
+
+        Args:
             if external_qdac = True, then it will connect to the qdac IP saved in self.network, and it will use the qdac_ports stored in each VoltageGate.
 
             if external_qdac = False, then you must provide a channel mapping.
-                channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports. 
+                channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports.
             Example for an external source:
-                    >>> 
+                    >>>
                     >>> channel_source_mapping = {}
-                    ...     channel_object_1: voltage_source.channel_1.current_voltage, 
+                    ...     channel_object_1: voltage_source.channel_1.current_voltage,
                     ...     channel_object_2: voltage_source.channel_2.current_voltage
                     ...     }
-                    >>> 
+                    >>>
         """
-        if external_qdac: 
+        if external_qdac:
             name = "QDAC"
             from qcodes import Instrument
             from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+
             try:
                 self.qdac = Instrument.find_instrument(name)
             except KeyError:
-                self.qdac = QDAC2.QDac2(name, visalib='@py', address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET')
+                self.qdac = QDAC2.QDac2(
+                    name, visalib="@py", address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET'
+                )
 
-            for channel in self.physical_channels.values(): 
+            for channel in self.physical_channels.values():
                 if hasattr(channel, "qdac_channel"):
                     qdac_port = channel.qdac_channel
                     channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
-                else: 
+                else:
                     print(f"Channel {channel.id} has no Qdac channel associated. Skipping")
-            if reset_voltages: 
-                if hasattr(channel, "current_external_voltage") and channel.offset_parameter is not None: 
+            if reset_voltages:
+                if (
+                    hasattr(channel, "current_external_voltage")
+                    and channel.offset_parameter is not None
+                ):
                     channel.offset_parameter(channel.current_external_voltage)
-            
-        else: 
-            for channel, fn in channel_source_mapping.items(): 
+
+        else:
+            for channel, fn in channel_source_mapping.items():
                 # Ensure that the channel actually exists in the Quam.
                 chan = None
-                for ch in self.physical_channels.values(): 
-                    if ch is channel: 
+                for ch in self.physical_channels.values():
+                    if ch is channel:
                         chan = ch
                         break
 
-                if chan is None: 
+                if chan is None:
                     raise ValueError(f"Channel {channel.id} not found in Quam")
-                
-                chan.offset_parameter = fn
-                
-                if reset_voltages: 
-                    if hasattr(chan, "current_external_voltage") and chan.offset_parameter is not None: 
-                        chan.offset_parameter(chan.current_external_voltage)
 
+                chan.offset_parameter = fn
+
+                if reset_voltages:
+                    if (
+                        hasattr(chan, "current_external_voltage")
+                        and chan.offset_parameter is not None
+                    ):
+                        chan.offset_parameter(chan.current_external_voltage)
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
@@ -228,19 +235,15 @@ class BaseQuamQD(QuamRoot):
                 break  # Found it, exit loop
 
         if physical_name is None:
-            raise ValueError(
-                f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}"
-            )
+            raise ValueError(f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}")
 
-        virtual_name = vgs.layers[0].source_gates[
-            vgs.layers[0].target_gates.index(physical_name)
-        ]
+        virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
     def reset_voltage_sequence(self, gate_set_id) -> None:
-        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
-            gate_set_id
-        ].new_sequence(track_integrated_voltage=True)
+        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(
+            track_integrated_voltage=True
+        )
         return
 
     def register_global_gates(
@@ -337,31 +340,23 @@ class BaseQuamQD(QuamRoot):
         """
 
         if len(quantum_dot_ids) != 2:
-            raise ValueError(
-                f"Must be 2 QuantumDot objects. Received {len(quantum_dot_ids)}"
-            )
+            raise ValueError(f"Must be 2 QuantumDot objects. Received {len(quantum_dot_ids)}")
 
         qd_names = quantum_dot_ids
         name_check = self.find_quantum_dot_pair(qd_names[0], qd_names[1])
         if name_check is not None:
-            raise ValueError(
-                f"Quantum Dot Pairing already exists with name {name_check}"
-            )
+            raise ValueError(f"Quantum Dot Pairing already exists with name {name_check}")
 
         for name in qd_names:
             if name not in self.quantum_dots:
-                raise ValueError(
-                    f"Quantum Dot {name} not registered. Please register first"
-                )
+                raise ValueError(f"Quantum Dot {name} not registered. Please register first")
         if id is None:
             id = f"{qd_names[0]}_{qd_names[1]}"
 
         sensor_names = sensor_dot_ids
         for name in sensor_names:
             if name not in self.sensor_dots:
-                raise ValueError(
-                    f"Sensor Dot {name} not registered. Please register first"
-                )
+                raise ValueError(f"Sensor Dot {name} not registered. Please register first")
 
         if barrier_gate_id is not None:
             barrier_name = barrier_gate_id
@@ -432,9 +427,7 @@ class BaseQuamQD(QuamRoot):
                 gate_name = self.qubits[gate_name].id
             processed_voltages[gate_name] = voltage
 
-        return self.virtual_gate_sets[gate_set_id].add_point(
-            name, processed_voltages, duration
-        )
+        return self.virtual_gate_sets[gate_set_id].add_point(name, processed_voltages, duration)
 
     def create_virtual_gate_set(
         self,
@@ -462,59 +455,65 @@ class BaseQuamQD(QuamRoot):
 
             # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
             channel_mapping[physical_name] = ch.get_reference()
-        
 
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(
-            id=gate_set_id, channels=channel_mapping, allow_rectangular_matrices=allow_rectangular_matrices
+            id=gate_set_id,
+            channels=channel_mapping,
+            allow_rectangular_matrices=allow_rectangular_matrices,
         )
 
         if compensation_matrix is None:
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
         self.virtual_gate_sets[gate_set_id].add_to_layer(
-            layer_id = "compensation_layer",
+            layer_id="compensation_layer",
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,
         )
-        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
-            gate_set_id
-        ].new_sequence(track_integrated_voltage=True)
+        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(
+            track_integrated_voltage=True
+        )
 
     def create_virtual_dc_set(
-        self, 
+        self,
         gate_set_id: str,
         matrix: List[List[float]] = None,
     ) -> None:
         """
-        Method to create a VirtualDCSet, using the same structure as the VirtualGateSet. 
+        Method to create a VirtualDCSet, using the same structure as the VirtualGateSet.
 
-        The default matrix will be synced with the VirtualGateSet compensation layer. If a matrix is provided, it will overwrite. 
+        The default matrix will be synced with the VirtualGateSet compensation layer. If a matrix is provided, it will overwrite.
         """
-        if gate_set_id not in self.virtual_gate_sets: 
-            raise ValueError(f"Gate set with ID {gate_set_id} not in quam. Available gate sets: {list(self.virtual_gate_sets.keys())}")
+        if gate_set_id not in self.virtual_gate_sets:
+            raise ValueError(
+                f"Gate set with ID {gate_set_id} not in quam. Available gate sets: {list(self.virtual_gate_sets.keys())}"
+            )
         vgs = self.virtual_gate_sets[gate_set_id]
 
         channel_mapping = {name: ch.get_reference() for name, ch in vgs.channels.items()}
 
         virtual_names = list(vgs.layers[0].source_gates)
         physical_names = list(vgs.layers[0].target_gates)
-        gate_set_matrix = [row[:] for row in vgs.layers[0].matrix] # Copy to avoid any mutability issues, just incase
+        gate_set_matrix = [
+            row[:] for row in vgs.layers[0].matrix
+        ]  # Copy to avoid any mutability issues, just incase
 
         allow_rectangular_matrices = vgs.allow_rectangular_matrices
 
         self.virtual_dc_sets[gate_set_id] = VirtualDCSet(
-            id = gate_set_id, channels = channel_mapping, allow_rectangular_matrices=allow_rectangular_matrices
+            id=gate_set_id,
+            channels=channel_mapping,
+            allow_rectangular_matrices=allow_rectangular_matrices,
         )
         self.virtual_dc_sets[gate_set_id].add_to_layer(
-            layer_id = "compensation_layer", 
-            source_gates = virtual_names, 
-            target_gates = physical_names, 
-            matrix = gate_set_matrix
+            layer_id="compensation_layer",
+            source_gates=virtual_names,
+            target_gates=physical_names,
+            matrix=gate_set_matrix,
         )
-        if matrix: 
+        if matrix:
             self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
-
 
     def update_cross_compensation_submatrix(
         self,
@@ -551,7 +550,7 @@ class BaseQuamQD(QuamRoot):
                 f"Virtual Gate(s) not in VirtualGateSet {vgs.id}: {missing_virtual_names}"
             )
 
-        def create_new_matrix(full_matrix): 
+        def create_new_matrix(full_matrix):
             for subspace_j, v in enumerate(virtual_names):
                 # The corresponding index in the full compensation matrix
                 full_matrix_j = source_index[v]
@@ -562,20 +561,23 @@ class BaseQuamQD(QuamRoot):
                     full_matrix_i = source_index[virtual_name]
 
                     # Replace the matrix elemeent
-                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][
-                        subspace_j
-                    ]
+                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][subspace_j]
             return full_matrix
 
-        if target == "opx" or target == "both": 
+        if target == "opx" or target == "both":
             full_matrix = create_new_matrix([row[:] for row in vgs.layers[0].matrix])
             vgs.layers[0].matrix = full_matrix
         if target == "dc" or target == "both":
-            full_matrix = create_new_matrix([row[:] for row in self.virtual_dc_sets[vgs.id].layers[0].matrix])
+            full_matrix = create_new_matrix(
+                [row[:] for row in self.virtual_dc_sets[vgs.id].layers[0].matrix]
+            )
             self.virtual_dc_sets[vgs.id].layers[0].matrix = full_matrix
 
     def update_full_cross_compensation(
-        self, compensation_matrix: List[List[float]], virtual_gate_set_name: str = None, target: Literal["both", "opx", "dc"] = "both", 
+        self,
+        compensation_matrix: List[List[float]],
+        virtual_gate_set_name: str = None,
+        target: Literal["both", "opx", "dc"] = "both",
     ) -> None:
         """
         If an already-calculated full cross-compensation matrix exists, use this method to add.
@@ -588,18 +590,18 @@ class BaseQuamQD(QuamRoot):
             virtual_gate_set_name is not None
             and virtual_gate_set_name not in self.virtual_gate_sets
         ):
-            raise ValueError(
-                f"No such VirtualGateSet. Received {virtual_gate_set_name}"
-            )
+            raise ValueError(f"No such VirtualGateSet. Received {virtual_gate_set_name}")
         if virtual_gate_set_name is None:
             virtual_gate_set_name = next(iter(self.virtual_gate_sets.keys()))
 
-        if target == "opx" or target == "both": 
-            self.virtual_gate_sets[virtual_gate_set_name].layers[
-                0
-            ].matrix = [row[:] for row in compensation_matrix]
+        if target == "opx" or target == "both":
+            self.virtual_gate_sets[virtual_gate_set_name].layers[0].matrix = [
+                row[:] for row in compensation_matrix
+            ]
         if target == "dc" or target == "both":
-            self.virtual_dc_sets[virtual_gate_set_name].layers[0].matrix = [row[:] for row in compensation_matrix]
+            self.virtual_dc_sets[virtual_gate_set_name].layers[0].matrix = [
+                row[:] for row in compensation_matrix
+            ]
 
     def step_to_voltage(
         self, voltages: Dict, default_to_zero: bool = False, gate_set_name: str = None
@@ -609,9 +611,7 @@ class BaseQuamQD(QuamRoot):
         If default_to_zero = True, then all the unnamed qubit values will be defaulted to zero.
         If default_to_zero = False, then unnamed qubits will be kept at their last tracked level.
         """
-        if gate_set_name is not None and gate_set_name not in list(
-            self.virtual_gate_sets.keys()
-        ):
+        if gate_set_name is not None and gate_set_name not in list(self.virtual_gate_sets.keys()):
             raise ValueError("Gate Set not found in Quam")
         if gate_set_name is None:
             gate_set_name = list(self.virtual_gate_sets.keys())[0]
@@ -705,14 +705,12 @@ class BaseQuamQD(QuamRoot):
 
     def to_dict(self, follow_references=False, include_defaults=False):
         # Ensure that all the current_external_voltage values in VoltageGates are synchronised to the actual value, right before serialisation. This
-        # ensures that the right value is saved. 
+        # ensures that the right value is saved.
         for ch in self.physical_channels.values():
-            if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None: 
+            if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None:
                 ch.current_external_voltage = float(ch.offset_parameter())
 
-        d = super().to_dict(
-            follow_references=follow_references, include_defaults=include_defaults
-        )
+        d = super().to_dict(follow_references=follow_references, include_defaults=include_defaults)
 
         # We treat the voltage_sequences as a runtime helper, and not as a Quam component. That way, it does not get serialised.
         # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level.

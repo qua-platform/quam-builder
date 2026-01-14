@@ -95,6 +95,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             axis_angle=float(np.pi / 2),
         )
 
+
 def add_default_resonator_pulses(resonator: ReadoutResonatorBase) -> None:
     """Add default square readout pulse to sensor resonator.
 

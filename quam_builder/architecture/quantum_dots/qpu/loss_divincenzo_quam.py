@@ -6,11 +6,7 @@ from collections import defaultdict
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import (
-    declare, 
-    fixed, 
-    declare_stream
-)
+from qm.qua import declare, fixed, declare_stream
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
@@ -26,7 +22,7 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
-    XYDrive
+    XYDrive,
 )
 from quam_builder.architecture.quantum_dots.qpu.base_quam_qd import BaseQuamQD
 from quam_builder.tools.voltage_sequence import VoltageSequence
@@ -41,11 +37,11 @@ __all__ = ["LossDiVincenzoQuam"]
 
 
 @quam_dataclass
-class LossDiVincenzoQuam(BaseQuamQD): 
+class LossDiVincenzoQuam(BaseQuamQD):
     """
-    A Quam to build on top of BaseQuamQD. BaseQuamQD to be used for calibrating the underlying Quantum Dots, 
-    whereas use LossDiVincenzoQuam to calibrate your Loss DiVincenzo qubits. It retains all the attributes and 
-    methods of BaseQuamQD, on top of the ones listed below: 
+    A Quam to build on top of BaseQuamQD. BaseQuamQD to be used for calibrating the underlying Quantum Dots,
+    whereas use LossDiVincenzoQuam to calibrate your Loss DiVincenzo qubits. It retains all the attributes and
+    methods of BaseQuamQD, on top of the ones listed below:
 
     Attributes:
         qubits (Dict[str, AnySpinQubit]): A dictionary of the registered spin qubits.
@@ -76,65 +72,60 @@ class LossDiVincenzoQuam(BaseQuamQD):
     def load(cls, filepath, *args, **kwargs):
         """Load machine from file and convert to LossDiVincenzoQuam."""
         instance = super().load(filepath, *args, **kwargs)
-        
+
         if type(instance) is BaseQuamQD:
             instance.__class__ = cls
-        
+
         # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD.
-        if not hasattr(instance, 'b_field'):
+        if not hasattr(instance, "b_field"):
             instance.b_field = 0
-        if not hasattr(instance, 'qubits'):
+        if not hasattr(instance, "qubits"):
             instance.qubits = {}
-        if not hasattr(instance, 'qubit_pairs'):
+        if not hasattr(instance, "qubit_pairs"):
             instance.qubit_pairs = {}
-        if not hasattr(instance, 'active_qubit_names'):
+        if not hasattr(instance, "active_qubit_names"):
             instance.active_qubit_names = []
-        if not hasattr(instance, 'active_qubit_pair_names'):
+        if not hasattr(instance, "active_qubit_pair_names"):
             instance.active_qubit_pair_names = []
-        
+
         return instance
 
-
-
-    def get_component(self, name:str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]: 
+    def get_component(self, name: str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
         """
         Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
-        
-        Args: 
+
+        Args:
             name: The name of the object
         """
         collections = [
-            self.qubits, 
-            self.quantum_dots, 
-            self.sensor_dots, 
-            self.barrier_gates, 
-            self.quantum_dot_pairs, 
-            self.qubit_pairs
+            self.qubits,
+            self.quantum_dots,
+            self.sensor_dots,
+            self.barrier_gates,
+            self.quantum_dot_pairs,
+            self.qubit_pairs,
         ]
-        for collection in collections: 
-            if name in collection: 
+        for collection in collections:
+            if name in collection:
                 return collection[name]
-    
+
         raise ValueError(f"Element {name} not found in Quam")
 
-    def register_qubit(self, 
-                       quantum_dot_id: str,
-                       qubit_name: str,
-                       xy_channel: XYDrive = None, 
-                       readout_quantum_dot: str = None,
-                       ) -> None: 
+    def register_qubit(
+        self,
+        quantum_dot_id: str,
+        qubit_name: str,
+        xy_channel: XYDrive = None,
+        readout_quantum_dot: str = None,
+    ) -> None:
         """
         Instantiates a Loss-DiVincenzo qubit based on the associated quantum dot.
         """
 
         d = quantum_dot_id
-        dot = self.quantum_dots[d] # Assume a single quantum dot for a LD Qubit
-        qubit = LDQubit(
-            id = d, 
-            quantum_dot = dot.get_reference(), 
-            xy_channel = xy_channel
-        )
-        if readout_quantum_dot is not None: 
+        dot = self.quantum_dots[d]  # Assume a single quantum dot for a LD Qubit
+        qubit = LDQubit(id=d, quantum_dot=dot.get_reference(), xy_channel=xy_channel)
+        if readout_quantum_dot is not None:
             qubit.preferred_readout_quantum_dot = readout_quantum_dot
 
         self.qubits[qubit_name] = qubit
@@ -169,9 +160,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
             id=id,
             qubit_control=qubit_control.get_reference(),
             qubit_target=qubit_target.get_reference(),
-            quantum_dot_pair=self.quantum_dot_pairs[
-                quantum_dot_pair
-            ].get_reference(),
+            quantum_dot_pair=self.quantum_dot_pairs[quantum_dot_pair].get_reference(),
         )
 
         self.qubit_pairs[id] = qubit_pair
@@ -188,9 +177,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
             try:
                 qubit.calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {qubit.id}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {qubit.id}. Skipping calibration.")
 
     @property
     def active_qubits(self) -> List[AnySpinQubit]:

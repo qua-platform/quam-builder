@@ -50,9 +50,15 @@ class TestSetDefaultGridLocation:
         """Test grid locations for nine qubits (3x3 grid)."""
         locations = [_set_default_grid_location(i, 9) for i in range(9)]
         assert locations == [
-            "0,0", "0,1", "0,2",
-            "1,0", "1,1", "1,2",
-            "2,0", "2,1", "2,2",
+            "0,0",
+            "0,1",
+            "0,2",
+            "1,0",
+            "1,1",
+            "1,2",
+            "2,0",
+            "2,1",
+            "2,2",
         ]
 
 
@@ -71,9 +77,7 @@ class TestAddPorts:
         # Create mock wiring structure
         machine.wiring = {
             "qubits": {
-                "q1": {
-                    WiringLineType.DRIVE.value: DummyRef({"opx_output": "#/ports/con1/1"})
-                }
+                "q1": {WiringLineType.DRIVE.value: DummyRef({"opx_output": "#/ports/con1/1"})}
             }
         }
 
@@ -108,18 +112,14 @@ class TestAddQPU:
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q1/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {
-                        "opx_output": "#/wiring/qubits/q1/xy/opx_output"
-                    }
+                    WiringLineType.DRIVE.value: {"opx_output": "#/wiring/qubits/q1/xy/opx_output"},
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q2/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {
-                        "opx_output": "#/wiring/qubits/q2/xy/opx_output"
-                    }
-                }
+                    WiringLineType.DRIVE.value: {"opx_output": "#/wiring/qubits/q2/xy/opx_output"},
+                },
             }
         }
 
@@ -151,8 +151,8 @@ class TestAddQPU:
                     },
                     WiringLineType.RF_RESONATOR.value: {
                         "opx_output": "#/wiring/sensor_dots/s1/rf/opx_output",
-                        "opx_input": "#/wiring/sensor_dots/s1/rf/opx_input"
-                    }
+                        "opx_input": "#/wiring/sensor_dots/s1/rf/opx_input",
+                    },
                 }
             }
         }
@@ -238,8 +238,12 @@ class TestBuildQuam:
 
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
-             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+        with (
+            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
+            ) as mock_ld,
+        ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
 
@@ -255,8 +259,12 @@ class TestBuildQuam:
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
-             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+        with (
+            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
+            ) as mock_ld,
+        ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
 
@@ -271,8 +279,12 @@ class TestBuildQuam:
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
-             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+        with (
+            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
+            ) as mock_ld,
+        ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
 
@@ -286,8 +298,12 @@ class TestBuildQuam:
         machine.wiring = {}
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
-        with patch('quam_builder.builder.quantum_dots.build_quam.build_base_quam') as mock_base, \
-             patch('quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam') as mock_ld:
+        with (
+            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
+            ) as mock_ld,
+        ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
 

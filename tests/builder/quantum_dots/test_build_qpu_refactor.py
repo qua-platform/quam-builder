@@ -70,9 +70,7 @@ class TestQpuBuilderValidation:
     def test_missing_resonator_for_sensor_raises(self):
         machine = LossDiVincenzoQuam()
         machine.wiring = {
-            "readout": {
-                "s1": {WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/8"}}
-            },
+            "readout": {"s1": {WiringLineType.SENSOR_GATE.value: {"opx_output": "#/ports/con1/8"}}},
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),

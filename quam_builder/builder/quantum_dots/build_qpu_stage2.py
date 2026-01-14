@@ -96,8 +96,7 @@ class _LDQubitBuilder:
         # Validate quantum dots exist
         if not self.machine.quantum_dots:
             raise ValueError(
-                "No quantum dots found in machine. "
-                "Please run Stage 1 (build_base_quam) first."
+                "No quantum dots found in machine. " "Please run Stage 1 (build_base_quam) first."
             )
 
         # Extract XY drive wiring if not provided
@@ -221,9 +220,7 @@ class _LDQubitBuilder:
 
         # If no qubit IDs found, infer from quantum dots
         if not qubit_ids:
-            logger.info(
-                "No qubit IDs found in wiring. Inferring from quantum dot names."
-            )
+            logger.info("No qubit IDs found in wiring. Inferring from quantum dot names.")
             # Extract numbers from virtual_dot_N to create qN
             for dot_id in self.machine.quantum_dots.keys():
                 try:
@@ -263,9 +260,7 @@ class _LDQubitBuilder:
 
         # If no qubit pair IDs in wiring, infer from quantum dot pairs
         if not qubit_pair_ids:
-            logger.info(
-                "No qubit pair IDs found in wiring. Inferring from quantum dot pairs."
-            )
+            logger.info("No qubit pair IDs found in wiring. Inferring from quantum dot pairs.")
             for dot_pair_id in self.machine.quantum_dot_pairs.keys():
                 # Parse quantum dot pair ID to get qubit numbers
                 # e.g., "virtual_dot_1_virtual_dot_2_pair" → "q1_q2"

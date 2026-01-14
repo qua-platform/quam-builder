@@ -12,7 +12,11 @@ from qualang_tools.wirer.connectivity.wiring_spec import (
 from qualang_tools.wirer.wirer.channel_specs import *
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam, build_quam
+from quam_builder.builder.quantum_dots import (
+    build_base_quam,
+    build_loss_divincenzo_quam,
+    build_quam,
+)
 
 # from quam_config import Quam
 
@@ -75,6 +79,7 @@ try:
 except Exception as e:
     print(f"✗ Error in allocate_wiring: {e}")
     import traceback
+
     traceback.print_exc()
     raise
 
@@ -104,6 +109,7 @@ try:
 except Exception as e:
     print(f"✗ Error in build_quam_wiring: {e}")
     import traceback
+
     traceback.print_exc()
     raise
 
@@ -196,6 +202,7 @@ try:
 except Exception as e:
     print(f"✗ Error in build_quam: {e}")
     import traceback
+
     traceback.print_exc()
     raise
 
@@ -210,5 +217,6 @@ try:
 except Exception as e:
     print(f"✗ Error in generate_config: {e}")
     import traceback
+
     traceback.print_exc()
     raise

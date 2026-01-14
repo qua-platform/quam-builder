@@ -3,6 +3,7 @@ Utility functions for wiring generation.
 
 This module contains helper functions used across the wiring generation system.
 """
+
 from functools import reduce
 from typing import Dict, Any
 

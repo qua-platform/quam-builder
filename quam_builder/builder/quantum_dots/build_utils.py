@@ -213,7 +213,9 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
     has_mw = all(key in ports for key in mw_out_channel_ports)
 
     if has_iq and has_mw:
-        raise ValueError(f"Qubit {qubit_id} wiring is ambiguous: matches both IQ and MW drive ports")
+        raise ValueError(
+            f"Qubit {qubit_id} wiring is ambiguous: matches both IQ and MW drive ports"
+        )
     if not has_iq and not has_mw:
         raise ValueError(
             f"Qubit {qubit_id} wiring is incomplete: missing IQ ports {iq_out_channel_ports} "
@@ -267,6 +269,7 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
         raise ValueError(
             f"Qubit pair id '{qubit_pair_id}' is invalid: expected '-' or '_' delimiter"
         )
+
     def _ensure_q_prefix(qubit_token: str) -> str:
         return qubit_token if qubit_token.startswith("q") else f"q{qubit_token}"
 
@@ -330,7 +333,7 @@ def _extract_qubit_number(qubit_id: str) -> int:
         >>> _extract_qubit_number('qubit_5')
         5
     """
-    match = re.search(r'(\d+)', qubit_id)
+    match = re.search(r"(\d+)", qubit_id)
     if not match:
         raise ValueError(f"Cannot extract number from qubit_id: {qubit_id}")
     return int(match.group(1))

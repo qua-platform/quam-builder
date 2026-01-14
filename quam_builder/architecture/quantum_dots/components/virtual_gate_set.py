@@ -108,9 +108,7 @@ class VirtualizationLayer(QuamComponent):
         Returns:
             A dictionary representation of the VirtualizationLayer.
         """
-        d = super().to_dict(
-            follow_references=follow_references, include_defaults=include_defaults
-        )
+        d = super().to_dict(follow_references=follow_references, include_defaults=include_defaults)
         if isinstance(d["matrix"], np.ndarray):
             d["matrix"] = d["matrix"].tolist()
         return d
@@ -233,11 +231,7 @@ class VirtualGateSet(GateSet):
         if self.layers:  # Not the first layer
             # Get all source gates from previous layers
             all_previous_source_gates = set()
-            for (
-                lyr
-            ) in (
-                self.layers
-            ):  # Iterate through existing layers before adding the new one
+            for lyr in self.layers:  # Iterate through existing layers before adding the new one
                 all_previous_source_gates.update(lyr.source_gates)
 
             # Combine with physical channels for the very first layer's target check
@@ -281,9 +275,7 @@ class VirtualGateSet(GateSet):
         for lyr in self.layers:
             # Allow unnamed layers (None) to stack without collision; only enforce when an id is provided
             if layer_id is not None and layer_id == lyr.id:
-                raise ValueError(
-                    f"Layer name '{layer_id}' is already used in a previous layer."
-                )
+                raise ValueError(f"Layer name '{layer_id}' is already used in a previous layer.")
 
         matrix_array = np.array(matrix, dtype=float)
         expected_shape = (len(source_gates), len(target_gates))
@@ -305,9 +297,7 @@ class VirtualGateSet(GateSet):
             try:
                 det = np.linalg.det(matrix_array)
                 if abs(det) < 1e-10:  # Use small tolerance for floating point
-                    raise ValueError(
-                        f"Matrix is not invertible (determinant ≈ 0): {det}"
-                    )
+                    raise ValueError(f"Matrix is not invertible (determinant ≈ 0): {det}")
             except np.linalg.LinAlgError as e:
                 raise ValueError(f"Matrix inversion failed: {e}")
 
@@ -386,9 +376,7 @@ class VirtualGateSet(GateSet):
                 f"Expected {expected_shape}, got {matrix_array.shape}"
             )
 
-        target_overlap_layer = next(
-            (lyr for lyr in self.layers if lyr.id == layer_id), None
-        )
+        target_overlap_layer = next((lyr for lyr in self.layers if lyr.id == layer_id), None)
 
         if target_overlap_layer is None:
             return self.add_layer(
@@ -492,13 +480,9 @@ class VirtualGateSet(GateSet):
         # Apply each virtualization layer in reverse order (from highest to lowest)
         # Each layer resolves its virtual gates to the next lower layer
         for layer in reversed(self.layers):
-            resolved_voltages = layer.resolve_voltages(
-                resolved_voltages, allow_extra_entries=True
-            )
+            resolved_voltages = layer.resolve_voltages(resolved_voltages, allow_extra_entries=True)
 
         # Finally, resolve any remaining voltages using the base class method
         # For example, add any voltages to channels that are undefined
-        resolved_voltages = super().resolve_voltages(
-            resolved_voltages, allow_extra_entries=True
-        )
+        resolved_voltages = super().resolve_voltages(resolved_voltages, allow_extra_entries=True)
         return resolved_voltages

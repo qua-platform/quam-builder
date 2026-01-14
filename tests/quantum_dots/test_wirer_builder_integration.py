@@ -1,9 +1,10 @@
 """Integration tests for the wirer and builder working together."""
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from quam_builder.builder.qop_connectivity import build_quam_wiring
@@ -181,7 +182,7 @@ class TestWirerBuilderIntegration:
         # Verify qubits have XY drives
         for qubit_name, qubit in machine_loaded.qubits.items():
             # Check if qubit has an xy_channel attribute (may be None if no MW-FEM allocated)
-            assert hasattr(qubit, 'xy_channel')
+            assert hasattr(qubit, "xy_channel")
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
@@ -227,7 +228,7 @@ class TestWirerBuilderIntegration:
 
         # Verify qubits have pulses (if they have xy channels)
         for qubit_name, qubit in machine_loaded.qubits.items():
-            if hasattr(qubit, 'xy_channel') and qubit.xy_channel is not None:
+            if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
                 # Should have XY operations
                 assert len(qubit.xy_channel.operations) > 0
 
@@ -288,7 +289,7 @@ class TestWirerOnly:
         connectivity = Connectivity()
 
         # Add various element types
-        connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name='g')
+        connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name="g")
         connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=True)
         connectivity.add_qubits(qubits=[1, 2, 3])
         connectivity.add_qubit_pairs(qubit_pairs=[(1, 2), (2, 3)])
@@ -307,7 +308,7 @@ class TestWirerOnly:
             for line_type in element.channels:
                 element_types.add(line_type.value)
 
-        expected_types = {'g', 's', 'rf', 'p', 'xy', 'b'}
+        expected_types = {"g", "s", "rf", "p", "xy", "b"}
         assert element_types.intersection(expected_types)
 
     def test_allocate_wiring_creates_channels(self):

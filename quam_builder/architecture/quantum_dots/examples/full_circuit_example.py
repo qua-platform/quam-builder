@@ -29,11 +29,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.architecture.quantum_dots.macros import (
-    AlignMacro,
-    WaitMacro,
-    MeasureMacro
-)
+from quam_builder.architecture.quantum_dots.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
 
@@ -48,23 +44,19 @@ CONFIG_Q1_Q2 = {
         "measure_point": {
             "virtual_dot_0": -0.12,
             "virtual_dot_1": -0.12,
-            "virtual_barrier_1": -0.0
+            "virtual_barrier_1": -0.0,
         },
-        "load_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.0
-        },
+        "load_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.0},
         "exchange_point": {
             "virtual_dot_0": 0.12,
             "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.9  # High barrier for exchange
-        }
+            "virtual_barrier_1": 0.9,  # High barrier for exchange
+        },
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
     "timing": {"hold_duration": 100, "wait_duration": 240},
-    "threshold": 0.05
+    "threshold": 0.05,
 }
 
 # Configuration for Q2-Q3 pair (Read Init 3)
@@ -73,28 +65,20 @@ CONFIG_Q2_Q3 = {
         "measure_point": {
             "virtual_dot_0": -0.12,
             "virtual_dot_1": -0.12,
-            "virtual_barrier_1": -0.0
+            "virtual_barrier_1": -0.0,
         },
-        "load_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.0
-        },
-        "exchange_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.95
-        }
+        "load_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.0},
+        "exchange_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.95},
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
     "timing": {"hold_duration": 100, "wait_duration": 240},
-    "threshold": 0.05
+    "threshold": 0.05,
 }
 
 # Exchange gate timing parameters
 EXCHANGE_PARAMS = {
-    "ramp_duration": 50,      # Time to ramp barrier up (ns)
+    "ramp_duration": 50,  # Time to ramp barrier up (ns)
     "exchange_duration": 300,  # Time at high barrier (ns)
 }
 
@@ -103,56 +87,63 @@ EXCHANGE_PARAMS = {
 # Register Operations
 # ============================================================================
 
+
 @operations_registry.register_operation
 def measure(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Measure qubit state."""
     pass
+
 
 @operations_registry.register_operation
 def x180(qubit: Qubit, **kwargs):
     """Apply π-pulse (bit flip)."""
     pass
 
+
 @operations_registry.register_operation
 def reset(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Perform conditional reset."""
     pass
+
 
 @operations_registry.register_operation
 def init_sequence(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute full initialization sequence."""
     pass
 
+
 @operations_registry.register_operation
 def measure_init(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute measure and return to load point."""
     pass
+
 
 @operations_registry.register_operation
 def exchange(qubit_pair: QubitPair, **kwargs):
     """Execute two-qubit exchange gate."""
     pass
 
+
 @operations_registry.register_operation
 def full_circuit(qubit_pair: QubitPair, **kwargs):
     """Execute full circuit: init + operation + readout."""
     pass
+
 
 @operations_registry.register_operation
 def psb(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """PSB (Pauli Spin Blockade) measurement."""
     pass
 
+
 @operations_registry.register_operation
 def init3(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     pass
 
+
 @operations_registry.register_operation
 def correlated_init(
-    psb_pair: QubitPair,
-    individual_qubit: Qubit,
-    exchange_pair: QubitPair,
-    **kwargs
+    psb_pair: QubitPair, individual_qubit: Qubit, exchange_pair: QubitPair, **kwargs
 ) -> QuaVariableBool:
     """
     Generalized correlated initialization sequence.
@@ -178,12 +169,20 @@ def correlated_init(
 # Configuration Helper Functions
 # ============================================================================
 
+
 @quam_dataclass
 class CorrelatedInitMacro(QuamMacro):
     """Runtime-created correlated init macro."""
+
     invert: bool = False
 
-    def apply(self, exchange_pair:QuamComponent=None, psb_pair:QuamComponent=None, target_qubit: QuamComponent=None, **kwargs):
+    def apply(
+        self,
+        exchange_pair: QuamComponent = None,
+        psb_pair: QuamComponent = None,
+        target_qubit: QuamComponent = None,
+        **kwargs,
+    ):
         # Step 1: Exchange
         exchange_pair.exchange()
         qua.align()
@@ -199,6 +198,7 @@ class CorrelatedInitMacro(QuamMacro):
         qua.align()
 
         return state
+
 
 def configure_qubit_pair_for_reset(qubit_pair, config):
     """
@@ -222,11 +222,12 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     qubit_pair.macros["wait"] = WaitMacro(duration=wait_duration)
 
     # Readout system configuration
-    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
+    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[
+        0
+    ].readout_resonator.get_reference()
     qubit_pair.resonator.operations["readout"] = pulses.SquareReadoutPulse(**readout_params)
     qubit_pair.macros["measure"] = MeasureMacro(
-        threshold=measure_threshold,
-        component=qubit_pair.resonator.get_reference()
+        threshold=measure_threshold, component=qubit_pair.resonator.get_reference()
     )
 
     # X180 pulse configuration
@@ -236,52 +237,44 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     )
 
     # Build Complete Configuration Using Fluent API Chain
-    return (qubit_pair
+    return (
+        qubit_pair
         # Configure step points
         .with_step_point("measure_point", hold_duration=hold_duration)
         .with_step_point("load_point", hold_duration=hold_duration)
-        .with_ramp_point("exchange_point", hold_duration=16, ramp_duration=EXCHANGE_PARAMS["exchange_duration"])
-
+        .with_ramp_point(
+            "exchange_point", hold_duration=16, ramp_duration=EXCHANGE_PARAMS["exchange_duration"]
+        )
         # PSB (Pauli Spin Blockade) measurement - just measure at measurement point
         .with_sequence(
-            'psb',
-            ['measure_point', 'align', 'measure', 'align', 'load_point', 'align'],
-            return_index=2
+            "psb",
+            ["measure_point", "align", "measure", "align", "load_point", "align"],
+            return_index=2,
         )
-
         # Measure-and-return-to-load sequence
         .with_sequence(
-            'measure_init',
-            ['measure_point', 'align', 'measure', 'align', 'load_point', 'align'],
-            return_index=2
+            "measure_init",
+            ["measure_point", "align", "measure", "align", "load_point", "align"],
+            return_index=2,
         )
-
         # Conditional reset macro
         .with_conditional_macro(
-            name='reset',
-            measurement_macro='measure_init',
+            name="reset",
+            measurement_macro="measure_init",
             conditional_macro=qubit_pair.qubit_target.macros["x180"].get_reference(),
-            invert_condition=False
+            invert_condition=False,
         )
-
         # Full initialization sequence
         .with_sequence(
-            'init_sequence',
-            ['reset', 'align', 'wait', 'align', 'measure_init'],
-            return_index=-1
+            "init_sequence", ["reset", "align", "wait", "align", "measure_init"], return_index=-1
         )
-
         # Exchange gate sequence (ramp to exchange point and back)
-        .with_sequence(
-            'exchange',
-            ['exchange_point', 'align', 'load_point', 'align']
-        )
-
+        .with_sequence("exchange", ["exchange_point", "align", "load_point", "align"])
         # Full circuit: init + exchange + readout
         .with_sequence(
-            'full_circuit',
-            ['init_sequence', 'align', 'exchange', 'align', 'measure_init'],
-            return_index=-1
+            "full_circuit",
+            ["init_sequence", "align", "exchange", "align", "measure_init"],
+            return_index=-1,
         )
     )
 
@@ -291,13 +284,13 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
 # ============================================================================
 
 # Get qubit pairs
-q1 = machine.qubits[f'Q{0}']
-q2 = machine.qubits[f'Q{1}']
-q3 = machine.qubits[f'Q{2}']
+q1 = machine.qubits[f"Q{0}"]
+q2 = machine.qubits[f"Q{1}"]
+q3 = machine.qubits[f"Q{2}"]
 
 
-qp_12 = machine.qubit_pairs[f'{q1.id}_{q2.id}']  # Represents Q1-Q2
-qp_23 = machine.qubit_pairs[f'{q2.id}_{q3.id}']
+qp_12 = machine.qubit_pairs[f"{q1.id}_{q2.id}"]  # Represents Q1-Q2
+qp_23 = machine.qubit_pairs[f"{q2.id}_{q3.id}"]
 
 # Configure each qubit pair with their specific settings
 configure_qubit_pair_for_reset(qp_12, config=CONFIG_Q1_Q2)
@@ -306,7 +299,7 @@ configure_qubit_pair_for_reset(qp_23, config=CONFIG_Q2_Q3)
 # Create the correlated_init macro for Read Init 3 sequence
 # This sequence involves Q1-Q2 (PSB), Q3 (conditional X180), and Q2-Q3 (exchange)
 # Create and add the macro (don't call it yet - that happens in the QUA program)
-machine.qpu.macros['init3'] = CorrelatedInitMacro()
+machine.qpu.macros["init3"] = CorrelatedInitMacro()
 
 # ============================================================================
 # Generate QM Configuration
@@ -323,7 +316,7 @@ if __name__ == "__main__":
     import matplotlib
     import matplotlib.pyplot as plt
 
-    matplotlib.use('TkAgg')
+    matplotlib.use("TkAgg")
     # -----------------------------------------------------------------------
     # Define Full Circuit QUA Program
     # -----------------------------------------------------------------------
@@ -347,11 +340,7 @@ if __name__ == "__main__":
             # Read Init 3: Correlated initialization of Q1, Q2, Q3
             # Uses the init3 macro stored in machine.qpu
             # ---------------------------------------------------------------
-            state_12_psb = machine.qpu.init3(
-                exchange_pair=qp_23,
-                psb_pair=qp_12,
-                target_qubit=q3
-            )
+            state_12_psb = machine.qpu.init3(exchange_pair=qp_23, psb_pair=qp_12, target_qubit=q3)
             qua.align()
 
             # ---------------------------------------------------------------
@@ -405,7 +394,7 @@ if __name__ == "__main__":
         # with stream_processing():
         #     state_12_st.save("state_q12")
         #     state_23_st.save("state_q23")
-            # state_45_st.save("state_q45")
+        # state_45_st.save("state_q45")
 
     # -----------------------------------------------------------------------
     # Execute Circuit

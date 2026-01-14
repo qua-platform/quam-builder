@@ -4,6 +4,7 @@ Registry for mapping line types to element categories and strategies.
 This module provides centralized configuration for how different line types
 (drive, flux, coupler, etc.) map to element categories and wiring strategies.
 """
+
 from enum import Enum
 from typing import Dict, Type, Union
 
@@ -23,6 +24,7 @@ class ElementCategory(Enum):
 
     Each category corresponds to a different wiring strategy and path structure.
     """
+
     QUBIT = "qubit"
     QUBIT_PAIR = "qubit_pair"
     GLOBAL_ELEMENT = "global_element"
@@ -99,9 +101,7 @@ class LineTypeRegistry:
         }
 
     def register(
-        self,
-        line_type: Union[WiringLineType, WiringLineType],
-        category: ElementCategory
+        self, line_type: Union[WiringLineType, WiringLineType], category: ElementCategory
     ) -> None:
         """Register a line type to category mapping.
 
@@ -110,7 +110,7 @@ class LineTypeRegistry:
             category: The element category it belongs to
         """
         # Store by string value for compatibility between WiringLineType and WiringLineType
-        self._mappings[line_type.value if hasattr(line_type, 'value') else line_type] = category
+        self._mappings[line_type.value if hasattr(line_type, "value") else line_type] = category
 
     def get_category(self, line_type: Union[WiringLineType, WiringLineType]) -> ElementCategory:
         """Get the element category for a line type.
@@ -125,18 +125,14 @@ class LineTypeRegistry:
             ValueError: If the line type is not registered
         """
         # Look up by string value for compatibility
-        key = line_type.value if hasattr(line_type, 'value') else line_type
+        key = line_type.value if hasattr(line_type, "value") else line_type
         if key not in self._mappings:
             raise ValueError(
-                f"Unknown line type: {line_type}. "
-                f"Please register it using registry.register()"
+                f"Unknown line type: {line_type}. " f"Please register it using registry.register()"
             )
         return self._mappings[key]
 
-    def get_strategy_class(
-        self,
-        category: ElementCategory
-    ) -> Type[WiringStrategy]:
+    def get_strategy_class(self, category: ElementCategory) -> Type[WiringStrategy]:
         """Get the strategy class for an element category.
 
         Args:
@@ -156,9 +152,7 @@ class LineTypeRegistry:
         return self._strategy_map[category]
 
     def register_custom_strategy(
-        self,
-        category: ElementCategory,
-        strategy_class: Type[WiringStrategy]
+        self, category: ElementCategory, strategy_class: Type[WiringStrategy]
     ) -> None:
         """Register a custom strategy for a category.
 
@@ -193,9 +187,7 @@ class LineTypeRegistry:
                 ...
             }
         """
-        result: Dict[ElementCategory, list[str]] = {
-            category: [] for category in ElementCategory
-        }
+        result: Dict[ElementCategory, list[str]] = {category: [] for category in ElementCategory}
 
         for line_type, category in self._mappings.items():
             result[category].append(line_type)

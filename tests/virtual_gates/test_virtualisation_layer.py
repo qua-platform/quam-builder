@@ -1,3 +1,5 @@
+"""Tests for virtualization layer."""
+
 import pytest
 import numpy as np
 
@@ -27,9 +29,7 @@ def test_calculate_inverse_matrix():
     )
     # M = [[2, 0], [0, 0.5]] => M_inv = [[0.5, 0], [0, 2.0]]
     expected_inverse = np.array([[0.5, 0.0], [0.0, 2.0]])
-    np.testing.assert_array_almost_equal(
-        vl.calculate_inverse_matrix(), expected_inverse
-    )
+    np.testing.assert_array_almost_equal(vl.calculate_inverse_matrix(), expected_inverse)
 
 
 def test_resolve_voltages_simple_1_to_1():

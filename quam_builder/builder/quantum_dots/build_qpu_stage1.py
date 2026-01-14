@@ -266,9 +266,7 @@ class _BaseQpuBuilder:
                 continue
 
             if not barrier_virtual:
-                logger.warning(
-                    f"Skipping quantum dot pair {pair_id}: barrier gate not found"
-                )
+                logger.warning(f"Skipping quantum dot pair {pair_id}: barrier gate not found")
                 continue
 
             # Find associated sensor dots (if any)

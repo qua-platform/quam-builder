@@ -4,6 +4,7 @@ Main orchestrator for wiring generation.
 This module provides the WiringGenerator class that coordinates the entire
 wiring generation process using the strategy pattern.
 """
+
 from typing import Dict, Optional
 
 from qualang_tools.wirer import Connectivity

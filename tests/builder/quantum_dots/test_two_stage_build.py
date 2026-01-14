@@ -355,9 +355,7 @@ class TestStage2Build:
         machine = builder1.build()
 
         # Get original matrix
-        original_matrix = [
-            row[:] for row in machine.virtual_gate_sets["main_qpu"].layers[0].matrix
-        ]
+        original_matrix = [row[:] for row in machine.virtual_gate_sets["main_qpu"].layers[0].matrix]
 
         # Run Stage 2
         builder2 = _LDQubitBuilder(machine)
@@ -468,9 +466,7 @@ class TestHighLevelAPI:
         machine = BaseQuamQD()
         machine.wiring = {
             "qubits": {
-                "q1": {
-                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")
-                },
+                "q1": {WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")},
             }
         }
 

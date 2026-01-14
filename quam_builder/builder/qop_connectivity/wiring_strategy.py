@@ -4,6 +4,7 @@ Base strategy classes for wiring generation.
 This module provides the abstract base class and context for different
 wiring strategies used in quantum element configuration.
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, TYPE_CHECKING
@@ -25,6 +26,7 @@ class WiringContext:
         line_type: The type of wiring line (drive, flux, coupler, etc.)
         channels: List of instrument channels for this element/line combination
     """
+
     element_id: ElementId
     line_type: WiringLineType
     channels: List[AnyInstrumentChannel]
@@ -38,7 +40,7 @@ class WiringStrategy(ABC):
     (qubit, qubit pair, global element, readout).
     """
 
-    def __init__(self, port_factory: 'ChannelPortFactory'):
+    def __init__(self, port_factory: "ChannelPortFactory"):
         """Initialize the strategy with a port factory.
 
         Args:
@@ -91,9 +93,7 @@ class WiringStrategy(ABC):
 
         for channel in context.channels:
             if self._should_process_channel(channel):
-                key, reference = self.port_factory.create_port_reference(
-                    channel, context
-                )
+                key, reference = self.port_factory.create_port_reference(channel, context)
                 wiring[key] = reference
 
         return wiring
