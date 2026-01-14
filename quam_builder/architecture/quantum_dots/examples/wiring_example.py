@@ -22,7 +22,6 @@ from quam_builder.builder.quantum_dots import (
 
 EXAMPLES_DIR = Path(__file__).resolve().parent
 os.environ.setdefault("QUAM_STATE_PATH", str(EXAMPLES_DIR / "quam_state"))
-
 ########################################################################################################################
 # %%                                              Define static parameters
 ########################################################################################################################
