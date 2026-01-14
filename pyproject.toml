@@ -10,6 +10,7 @@ dependencies = [
     "quam>=0.4.0",
     "qm-qua>=1.2.2",
     "xarray>=2024.7.0",
+    "qcodes-contrib-drivers>=0.22.0",
 ]
 
 [build-system]
