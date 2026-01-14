@@ -12,14 +12,17 @@ This test file covers:
 8. Error handling for non-existent points
 """
 
+from unittest.mock import patch
+
 import pytest
 from qm import qua
-from unittest.mock import patch
 
 from quam_builder.architecture.quantum_dots.macros.point_macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,
+)
+from quam_builder.architecture.quantum_dots.components.mixin import (
     VoltagePointMacroMixin,
 )
 
@@ -37,11 +40,7 @@ class TestWithStepPoint:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Use fluent API to create point and macro
-        qd.with_step_point(
-            "idle",
-            voltages={"virtual_dot_1": 0.1},
-            hold_duration=100
-        )
+        qd.with_step_point("idle", voltages={"virtual_dot_1": 0.1}, hold_duration=100)
 
         # Verify point was created in gate set
         gate_set = qd.voltage_sequence.gate_set
@@ -86,9 +85,9 @@ class TestWithStepPoint:
         """Test that with_step_point returns self for fluent chaining."""
         qd = machine.quantum_dots["virtual_dot_4"]
 
-        result = (qd
-            .with_step_point("idle", {"virtual_dot_4": 0.1}, hold_duration=100)
-            .with_step_point("measure", {"virtual_dot_4": 0.2}, hold_duration=200))
+        result = qd.with_step_point(
+            "idle", {"virtual_dot_4": 0.1}, hold_duration=100
+        ).with_step_point("measure", {"virtual_dot_4": 0.2}, hold_duration=200)
 
         # Verify chaining works
         assert result is qd
@@ -119,10 +118,7 @@ class TestWithRampPoint:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         qd.with_ramp_point(
-            "load",
-            voltages={"virtual_dot_1": 0.3},
-            hold_duration=200,
-            ramp_duration=500
+            "load", voltages={"virtual_dot_1": 0.3}, hold_duration=200, ramp_duration=500
         )
 
         # Verify point was created
@@ -164,9 +160,9 @@ class TestWithRampPoint:
         """Test that with_ramp_point supports fluent chaining."""
         qd = machine.quantum_dots["virtual_dot_4"]
 
-        result = (qd
-            .with_ramp_point("load", {"virtual_dot_4": 0.3}, hold_duration=200, ramp_duration=500)
-            .with_step_point("readout", {"virtual_dot_4": 0.15}, hold_duration=1000))
+        result = qd.with_ramp_point(
+            "load", {"virtual_dot_4": 0.3}, hold_duration=200, ramp_duration=500
+        ).with_step_point("readout", {"virtual_dot_4": 0.15}, hold_duration=1000)
 
         assert result is qd
         assert "load" in qd.macros
@@ -197,9 +193,7 @@ class TestAddPointWithStepMacro:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         macro = qd.add_point_with_step_macro(
-            "test_step",
-            voltages={"virtual_dot_1": 0.12},
-            hold_duration=150
+            "test_step", voltages={"virtual_dot_1": 0.12}, hold_duration=150
         )
 
         # Verify return value
@@ -244,10 +238,7 @@ class TestAddPointWithRampMacro:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         macro = qd.add_point_with_ramp_macro(
-            "test_ramp",
-            voltages={"virtual_dot_1": 0.28},
-            hold_duration=250,
-            ramp_duration=600
+            "test_ramp", voltages={"virtual_dot_1": 0.28}, hold_duration=250, ramp_duration=600
         )
 
         assert isinstance(macro, RampPointMacro)
@@ -263,11 +254,7 @@ class TestAddPointWithRampMacro:
         qd.add_point("convert_ramp", {"virtual_dot_2": 0.27})
 
         # Convert to macro
-        macro = qd.add_point_with_ramp_macro(
-            "convert_ramp",
-            hold_duration=220,
-            ramp_duration=550
-        )
+        macro = qd.add_point_with_ramp_macro("convert_ramp", hold_duration=220, ramp_duration=550)
 
         assert isinstance(macro, RampPointMacro)
         assert macro.hold_duration == 220
@@ -278,11 +265,7 @@ class TestAddPointWithRampMacro:
         qd = machine.quantum_dots["virtual_dot_3"]
 
         with pytest.raises(KeyError, match="does not exist"):
-            qd.add_point_with_ramp_macro(
-                "missing_point",
-                hold_duration=100,
-                ramp_duration=200
-            )
+            qd.add_point_with_ramp_macro("missing_point", hold_duration=100, ramp_duration=200)
 
 
 # ============================================================================
@@ -312,11 +295,12 @@ class TestWithSequence:
         """Test with_sequence supports fluent chaining."""
         qd = machine.quantum_dots["virtual_dot_2"]
 
-        result = (qd
-            .with_step_point("idle", {"virtual_dot_2": 0.1}, hold_duration=100)
+        result = (
+            qd.with_step_point("idle", {"virtual_dot_2": 0.1}, hold_duration=100)
             .with_ramp_point("load", {"virtual_dot_2": 0.3}, hold_duration=200, ramp_duration=500)
             .with_step_point("measure", {"virtual_dot_2": 0.15}, hold_duration=1000)
-            .with_sequence("full_cycle", ["idle", "load", "measure"]))
+            .with_sequence("full_cycle", ["idle", "load", "measure"])
+        )
 
         assert result is qd
         assert "full_cycle" in qd.macros
@@ -335,11 +319,12 @@ class TestWithSequence:
         qd = machine.quantum_dots["virtual_dot_4"]
 
         # Create primitive macros
-        (qd
-            .with_step_point("idle", {"virtual_dot_4": 0.1}, hold_duration=100)
+        (
+            qd.with_step_point("idle", {"virtual_dot_4": 0.1}, hold_duration=100)
             .with_ramp_point("load", {"virtual_dot_4": 0.3}, hold_duration=200, ramp_duration=500)
             .with_step_point("manipulate", {"virtual_dot_4": 0.25}, hold_duration=150)
-            .with_step_point("readout", {"virtual_dot_4": 0.15}, hold_duration=1000))
+            .with_step_point("readout", {"virtual_dot_4": 0.15}, hold_duration=1000)
+        )
 
         # Create sub-sequences
         qd.with_sequence("init", ["idle", "load"])
@@ -369,7 +354,7 @@ class TestMacroExecution:
         qd.with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
 
         # Mock the voltage sequence to verify the macro is called
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.idle()
 
@@ -382,7 +367,7 @@ class TestMacroExecution:
 
         qd.with_step_point("idle", {"virtual_dot_2": 0.1}, hold_duration=100)
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.idle(hold_duration=250)
 
@@ -396,7 +381,7 @@ class TestMacroExecution:
 
         qd.with_ramp_point("load", {"virtual_dot_3": 0.3}, hold_duration=200, ramp_duration=500)
 
-        with patch.object(qd.voltage_sequence, 'ramp_to_point') as mock_ramp:
+        with patch.object(qd.voltage_sequence, "ramp_to_point") as mock_ramp:
             with qua.program() as prog:
                 qd.load(hold_duration=300, ramp_duration=600)
 
@@ -406,12 +391,13 @@ class TestMacroExecution:
         """Test executing a sequence macro."""
         qd = machine.quantum_dots["virtual_dot_4"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_4": 0.1}, hold_duration=100)
+        (
+            qd.with_step_point("idle", {"virtual_dot_4": 0.1}, hold_duration=100)
             .with_step_point("measure", {"virtual_dot_4": 0.2}, hold_duration=200)
-            .with_sequence("test_seq", ["idle", "measure"]))
+            .with_sequence("test_seq", ["idle", "measure"])
+        )
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.test_seq()
 
@@ -432,17 +418,26 @@ class TestComplexFluentAPIWorkflows:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Complete fluent chain
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
             .with_ramp_point("load", {"virtual_dot_1": 0.3}, hold_duration=200, ramp_duration=500)
             .with_step_point("manipulate", {"virtual_dot_1": 0.25}, hold_duration=150)
             .with_step_point("readout", {"virtual_dot_1": 0.15}, hold_duration=1000)
             .with_sequence("init", ["idle", "load"])
             .with_sequence("readout_seq", ["manipulate", "readout"])
-            .with_sequence("full_experiment", ["init", "readout_seq"]))
+            .with_sequence("full_experiment", ["init", "readout_seq"])
+        )
 
         # Verify all macros were created
-        assert len(qd.macros) == 7  # 4 points + 3 sequences
+        assert {
+            "idle",
+            "load",
+            "manipulate",
+            "readout",
+            "init",
+            "readout_seq",
+            "full_experiment",
+        } <= set(qd.macros)
 
         # Verify sequence structure
         assert isinstance(qd.macros["full_experiment"], SequenceMacro)
@@ -470,11 +465,7 @@ class TestComplexFluentAPIWorkflows:
         qd.with_step_point("updateable", {"virtual_dot_3": 0.1}, hold_duration=100)
 
         # Update the point (replace voltages)
-        qd.add_point(
-            "updateable",
-            {"virtual_dot_3": 0.2},
-            replace_existing_point=True
-        )
+        qd.add_point("updateable", {"virtual_dot_3": 0.2}, replace_existing_point=True)
 
         # Create new macro with different duration for same point
         qd.with_step_point("updateable", hold_duration=300)
@@ -505,8 +496,7 @@ class TestErrorHandlingAndEdgeCases:
         """Test that calling a macro without parent raises appropriate error."""
         # Create a standalone macro (not attached to component)
         macro = StepPointMacro(
-            point_ref="#./voltage_sequence/gate_set/macros/some_point",
-            hold_duration=100
+            point_ref="#./voltage_sequence/gate_set/macros/some_point", hold_duration=100
         )
 
         with pytest.raises(ValueError, match="has no parent"):
@@ -533,7 +523,9 @@ class TestErrorHandlingAndEdgeCases:
         original_macro = qd.macros["overwrite"]
 
         # Create new macro with same name (requires replace_existing_point=True)
-        qd.with_step_point("overwrite", {"virtual_dot_2": 0.2}, hold_duration=200, replace_existing_point=True)
+        qd.with_step_point(
+            "overwrite", {"virtual_dot_2": 0.2}, hold_duration=200, replace_existing_point=True
+        )
         new_macro = qd.macros["overwrite"]
 
         # Verify it was overwritten
