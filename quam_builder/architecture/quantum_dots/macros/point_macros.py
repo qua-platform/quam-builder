@@ -4,19 +4,26 @@ This module provides macros for voltage point operations following QUAM's
 Pulse → Macro → Operation pattern with reference-based serialization.
 """
 
+from typing import TYPE_CHECKING
+
 from quam import QuamComponent
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
 from quam.utils import string_reference
 from quam.utils.exceptions import InvalidReferenceError
 
-# if TYPE_CHECKING:
-from quam_builder.tools.voltage_sequence import VoltageSequence
+from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
+from .composable_macros import SequenceMacro
+
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+    from quam_builder.tools.voltage_sequence import VoltageSequence
 
 __all__ = [
     "BasePointMacro",
     "StepPointMacro",
     "RampPointMacro",
+    "SequenceMacro",
 ]
 
 

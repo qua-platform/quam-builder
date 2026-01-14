@@ -75,6 +75,7 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
         """Add or update a pulse in the drive operations"""
         self.operations[name] = pulse
 
+
 class XYDriveIQ(IQChannel, XYDriveBase):
     """
     QUAM component for a XY drive line through an IQ channel.
