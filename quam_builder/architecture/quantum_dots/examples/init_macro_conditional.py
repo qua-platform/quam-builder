@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 """
 Improved Initialization Macro with Conditional Reset
 
@@ -47,11 +49,7 @@ from quam.components.quantum_components import Qubit, QubitPair
 from quam.utils.qua_types import QuaVariableBool
 
 from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.architecture.quantum_dots.macros import (
-    AlignMacro,
-    WaitMacro,
-    MeasureMacro
-)
+from quam_builder.architecture.quantum_dots.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
 
@@ -61,6 +59,7 @@ from quam_qd_generator_example import machine
 # These decorators register operations that can be called as functions.
 # The 'pass' statements are intentional - the decorator handles dispatching
 # to the actual macro implementations on the quantum components.
+
 
 @operations_registry.register_operation
 def measure(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
@@ -91,9 +90,11 @@ def measure_init(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute measure and return to load point."""
     pass
 
+
 # ============================================================================
 # Configuration Helper Function
 # ============================================================================
+
 
 def configure_qubit_pair_for_reset(qubit_pair, config):
     """
@@ -141,11 +142,12 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     qubit_pair.macros["wait"] = WaitMacro(duration=wait_duration)
 
     # Readout system configuration
-    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
+    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[
+        0
+    ].readout_resonator.get_reference()
     qubit_pair.resonator.operations["readout"] = pulses.SquareReadoutPulse(**readout_params)
     qubit_pair.macros["measure"] = MeasureMacro(
-        threshold=measure_threshold,
-        component=qubit_pair.resonator.get_reference()
+        threshold=measure_threshold, component=qubit_pair.resonator.get_reference()
     )
 
     # X180 pulse configuration for conditional reset
@@ -157,31 +159,30 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     # ----------------------------------------------------------------------------
     # Build Complete Configuration Using Fluent API Chain
     # ----------------------------------------------------------------------------
-    (qubit_pair
+    (
+        qubit_pair
         # Configure step points with hold durations
-        .with_step_point("measure_point", hold_duration=hold_duration)
-        .with_step_point("load_point", hold_duration=hold_duration)
-
+        .with_step_point("measure_point", hold_duration=hold_duration).with_step_point(
+            "load_point", hold_duration=hold_duration
+        )
         # Create measure-and-return-to-load sequence
         .with_sequence(
-            'measure_init',
-            ['measure_point', 'align', 'measure', 'align', 'load_point', 'align'],
-            return_index=2  # Return measurement result
+            "measure_init",
+            ["measure_point", "align", "measure", "align", "load_point", "align"],
+            return_index=2,  # Return measurement result
         )
-
         # Create conditional reset macro (measure + conditional X180)
         .with_conditional_macro(
-            name='reset',
-            measurement_macro='measure_init',
+            name="reset",
+            measurement_macro="measure_init",
             conditional_macro=qubit_pair.qubit_target.macros["x180"].get_reference(),
-            invert_condition=False  # Apply X180 when in ground state
+            invert_condition=False,  # Apply X180 when in ground state
         )
-
         # Create full initialization sequence (reset + wait + measure)
         .with_sequence(
-            'init_sequence',
-            ['reset', 'align', 'wait', 'align', 'measure_init'],
-            return_index=-1  # Return final measurement result
+            "init_sequence",
+            ["reset", "align", "wait", "align", "measure_init"],
+            return_index=-1,  # Return final measurement result
         )
     )
 
@@ -195,12 +196,12 @@ custom_config = {
     "voltage_points": {
         "measure_point": {"virtual_dot_0": -0.4, "virtual_dot_1": -0.6, "virtual_barrier_1": -0.5},
         "load_point": {"virtual_dot_0": 0.3, "virtual_dot_1": 0.5, "virtual_barrier_1": 0.4},
-        "operate": {"virtual_dot_0": 0.6, "virtual_dot_1": 0.8, "virtual_barrier_1": 0.8}
+        "operate": {"virtual_dot_0": 0.6, "virtual_dot_1": 0.8, "virtual_barrier_1": 0.8},
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
     "timing": {"hold_duration": 100, "wait_duration": 240},
-    "threshold": 0.05
+    "threshold": 0.05,
 }
 
 for qubit_pair in machine.quantum_dot_pairs.values():
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     # Configure matplotlib for interactive plotting
-    matplotlib.use('TkAgg')
+    matplotlib.use("TkAgg")
 
     # -----------------------------------------------------------------------
     # Define QUA Program

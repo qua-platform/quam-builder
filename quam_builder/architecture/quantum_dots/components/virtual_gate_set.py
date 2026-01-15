@@ -1,5 +1,10 @@
+"""Virtual gate set definitions for quantum dot architectures."""
+
+# pylint: disable=bad-reversed-sequence,invalid-field-call,no-member,not-an-iterable
+# pylint: disable=unsubscriptable-object
+
 from dataclasses import field
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 import warnings
 import numpy as np
 
@@ -192,7 +197,7 @@ class VirtualGateSet(GateSet):
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
-    ):
+    ):  # pylint: disable=too-many-branches
         """
         Validates the new layer to be added to the VirtualGateSet.
 
@@ -342,6 +347,8 @@ class VirtualGateSet(GateSet):
         matrix: List[List[float]],
         layer_id: str | None = None,
     ) -> VirtualizationLayer:
+        """Add gates to an existing layer, or create a new layer if needed."""
+        # pylint: disable=too-many-branches,too-many-statements
         if not self.allow_rectangular_matrices:
             raise ValueError(
                 "add_to_layer requires allow_rectangular_matrices=True to enable "

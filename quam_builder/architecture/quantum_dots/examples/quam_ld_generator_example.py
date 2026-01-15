@@ -1,3 +1,7 @@
+# pylint: skip-file
+
+"""Example script for generating a Loss-DiVincenzo QPU."""
+
 from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
@@ -7,9 +11,7 @@ from quam.components.ports import (
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
-from quam.components.ports import (
-    MWFEMAnalogOutputPort
-)
+from quam.components.ports import MWFEMAnalogOutputPort
 from qm.qua import *
 
 import numpy as np
@@ -29,17 +31,23 @@ for i in range(num_qubits):
     machine.register_qubit(
         quantum_dot_id=f"virtual_dot_{i}",
         qubit_name=f"Q{i}",
-        xy_channel = XYDrive(
-            id = f"Q{i}_xy", opx_output = MWFEMAnalogOutputPort(
+        xy_channel=XYDrive(
+            id=f"Q{i}_xy",
+            opx_output=MWFEMAnalogOutputPort(
                 "con1",
                 mw_fem,
                 port_id=mw_start_port + i,
-                upconverter_frequency = 5e9,
-                band = 2,
-                full_scale_power_dbm=10),
-                intermediate_frequency = 5e6 + 1e6 * i,
-                operations = {"x90": pulses.GaussianPulse(length = 200, id= "x90_Gaussian", digital_marker = None, amplitude = 0.02, sigma = 50)}
-        )
+                upconverter_frequency=5e9,
+                band=2,
+                full_scale_power_dbm=10,
+            ),
+            intermediate_frequency=5e6 + 1e6 * i,
+            operations={
+                "x90": pulses.GaussianPulse(
+                    length=200, id="x90_Gaussian", digital_marker=None, amplitude=0.02, sigma=50
+                )
+            },
+        ),
     )
 
 ########################################

@@ -1,10 +1,14 @@
 """Helpers for voltage-gate sequence validation against a server."""
 
+# pylint: disable=wrong-import-position,line-too-long,missing-function-docstring
+# pylint: disable=import-outside-toplevel,use-implicit-booleaness-not-comparison-to-zero
+
 # from configuration import *
 
 import pytest
 
 from qm import SimulationConfig, QuantumMachinesManager, generate_qua_script
+
 pytest.importorskip("qm_saas")
 from qm_saas import QOPVersion, QmSaas
 import matplotlib.pyplot as plt
@@ -13,9 +17,7 @@ import numpy as np
 
 def simulate_program(qmm, machine, prog, simulation_duration=10000):
     # Simulates the QUA program for the specified duration
-    simulation_config = SimulationConfig(
-        duration=simulation_duration // 4
-    )  # In clock cycles = 4ns
+    simulation_config = SimulationConfig(duration=simulation_duration // 4)  # In clock cycles = 4ns
     # Simulate blocks python until the simulation is done
     config = machine.generate_config()
     print(generate_qua_script(prog, config))
@@ -56,16 +58,10 @@ def validate_program(samples, requested_wf_p, requested_wf_m):
     print(
         f"Relative sum after compensation (-): {np.sum(wf_m[:t1+1]) / np.sum(wf_p[:len(requested_wf_m)]) * 100:.2f} %"
     )
-    print(
-        f"Max gradient during compensation (+): {max(np.diff(wf_p[:t1+1])) * 1000:.2f} mV"
-    )
-    print(
-        f"Max gradient during compensation (-): {max(np.diff(wf_m[:t1+1])) * 1000:.2f} mV"
-    )
+    print(f"Max gradient during compensation (+): {max(np.diff(wf_p[:t1+1])) * 1000:.2f} mV")
+    print(f"Max gradient during compensation (-): {max(np.diff(wf_m[:t1+1])) * 1000:.2f} mV")
     # Success criteria
-    assert (
-        np.mean((wf_p[: len(requested_wf_p)] - requested_wf_p) / requested_wf_p) < 0.1
-    ) & (
+    assert (np.mean((wf_p[: len(requested_wf_p)] - requested_wf_p) / requested_wf_p) < 0.1) & (
         np.mean((wf_m[: len(requested_wf_m)] - requested_wf_m) / requested_wf_m) < 0.1
     ), "Simulated wf doesn't match requested wf."
     # assert (np.sum(wf_p[: t1 + 1]) / np.sum(wf_p[: len(requested_wf_p)]) * 100 < 1) & (
@@ -93,8 +89,7 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
     if num_points <= 1:
         return [start_value] * num_points
     ramp = [
-        start_value + (end_value - start_value) * (i + 1) / num_points
-        for i in range(num_points)
+        start_value + (end_value - start_value) * (i + 1) / num_points for i in range(num_points)
     ]
     return [point for point in ramp for _ in range(sampling_rate)]
 

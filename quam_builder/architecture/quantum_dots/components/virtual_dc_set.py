@@ -1,6 +1,7 @@
 """Virtual DC gate set for quantum dot systems."""
 
 # pylint: disable=access-member-before-definition,invalid-field-call,no-member,not-an-iterable
+# pylint: disable=unsubscriptable-object
 # pylint: disable=too-many-branches,too-many-statements,unsupported-assignment-operation
 
 from dataclasses import field

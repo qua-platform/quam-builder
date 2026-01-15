@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 """
 Full Multi-Qubit Circuit Implementation
 
@@ -30,14 +32,9 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.architecture.quantum_dots.macros import (
-    AlignMacro,
-    WaitMacro,
-    MeasureMacro
-)
+from quam_builder.architecture.quantum_dots.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
-
 
 # ============================================================================
 # Configuration Parameters
@@ -49,23 +46,19 @@ CONFIG_Q1_Q2 = {
         "measure_point": {
             "virtual_dot_0": -0.12,
             "virtual_dot_1": -0.12,
-            "virtual_barrier_1": -0.0
+            "virtual_barrier_1": -0.0,
         },
-        "load_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.0
-        },
+        "load_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.0},
         "exchange_point": {
             "virtual_dot_0": 0.12,
             "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.9  # High barrier for exchange
-        }
+            "virtual_barrier_1": 0.9,  # High barrier for exchange
+        },
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
     "timing": {"hold_duration": 100, "wait_duration": 240},
-    "threshold": 0.05
+    "threshold": 0.05,
 }
 
 # Configuration for Q2-Q3 pair (Read Init 3)
@@ -74,30 +67,23 @@ CONFIG_Q2_Q3 = {
         "measure_point": {
             "virtual_dot_0": -0.12,
             "virtual_dot_1": -0.12,
-            "virtual_barrier_1": -0.0
+            "virtual_barrier_1": -0.0,
         },
-        "load_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.0
-        },
-        "exchange_point": {
-            "virtual_dot_0": 0.12,
-            "virtual_dot_1": 0.12,
-            "virtual_barrier_1": 0.95
-        }
+        "load_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.0},
+        "exchange_point": {"virtual_dot_0": 0.12, "virtual_dot_1": 0.12, "virtual_barrier_1": 0.95},
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
     "timing": {"hold_duration": 100, "wait_duration": 240},
-    "threshold": 0.05
+    "threshold": 0.05,
 }
 
 # Exchange gate timing parameters
 EXCHANGE_PARAMS = {
-    "ramp_duration": 50,      # Time to ramp barrier up (ns)
+    "ramp_duration": 50,  # Time to ramp barrier up (ns)
     "exchange_duration": 300,  # Time at high barrier (ns)
 }
+
 
 def configure_qubit_pair_for_reset(qubit_pair, config):
     """
@@ -121,11 +107,12 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     qubit_pair.macros["wait"] = WaitMacro(duration=wait_duration)
 
     # Readout system configuration
-    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[0].readout_resonator.get_reference()
+    qubit_pair.resonator = qubit_pair.quantum_dot_pair.sensor_dots[
+        0
+    ].readout_resonator.get_reference()
     qubit_pair.resonator.operations["readout"] = pulses.SquareReadoutPulse(**readout_params)
     qubit_pair.macros["measure"] = MeasureMacro(
-        threshold=measure_threshold,
-        component=qubit_pair.resonator.get_reference()
+        threshold=measure_threshold, component=qubit_pair.resonator.get_reference()
     )
 
     # X180 pulse configuration
@@ -139,32 +126,44 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     )
 
     # Build Complete Configuration Using Fluent API Chain
-    return (qubit_pair
+    return (
+        qubit_pair
         # Configure step points
-        .with_step_point("load", {'virtual_dot_1': 0.1},  hold_duration=hold_duration)
-        .with_ramp_point("cnot", {'virtual_dot_1': 0.1, 'virtual_dot_2':0.3}, hold_duration=16, ramp_duration=EXCHANGE_PARAMS["exchange_duration"])
-            )
+        .with_step_point(
+            "load", {"virtual_dot_1": 0.1}, hold_duration=hold_duration
+        ).with_ramp_point(
+            "cnot",
+            {"virtual_dot_1": 0.1, "virtual_dot_2": 0.3},
+            hold_duration=16,
+            ramp_duration=EXCHANGE_PARAMS["exchange_duration"],
+        )
+    )
 
-q1 = machine.get_component('Q1')
-q2 = machine.get_component('Q2')
-q3 = machine.get_component('Q3')
-q4 = machine.get_component('Q4')
-q5 = machine.get_component('Q5')
 
-q3.with_step_point('load', {'virtual_dot_1': 0.1, 'virtual_dot_2': 0.3, 'virtual_dot_3': 0.4}, hold_duration=16)
+q1 = machine.get_component("Q1")
+q2 = machine.get_component("Q2")
+q3 = machine.get_component("Q3")
+q4 = machine.get_component("Q4")
+q5 = machine.get_component("Q5")
 
-configure_qubit_pair_for_reset(q1@q2, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q2@q3, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q3@q4, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q4@q5, config=CONFIG_Q2_Q3)
+q3.with_step_point(
+    "load", {"virtual_dot_1": 0.1, "virtual_dot_2": 0.3, "virtual_dot_3": 0.4}, hold_duration=16
+)
+
+configure_qubit_pair_for_reset(q1 @ q2, config=CONFIG_Q2_Q3)
+configure_qubit_pair_for_reset(q2 @ q3, config=CONFIG_Q2_Q3)
+configure_qubit_pair_for_reset(q3 @ q4, config=CONFIG_Q2_Q3)
+configure_qubit_pair_for_reset(q4 @ q5, config=CONFIG_Q2_Q3)
 
 
 @quam_dataclass
 class Init12Macro(QuamMacro):
     q1: str
     q2: str
+
     def _get_component(self, id):
         return self.parent.parent.machine.get_component(id)
+
     def apply(self, **kwargs):
         """Execute conditional operation.
         Returns:
@@ -188,8 +187,10 @@ class Init3Macro(QuamMacro):
     q1: str
     q2: str
     q3: str
+
     def _get_component(self, id):
         return self.parent.parent.machine.get_component(id)
+
     def apply(self, **kwargs):
         """Execute conditional operation.
         Returns:
@@ -215,6 +216,7 @@ class Init3Macro(QuamMacro):
         q1_q2.load()
         return state
 
+
 @quam_dataclass
 class InitAllMacro(QuamMacro):
     q1: str
@@ -222,8 +224,10 @@ class InitAllMacro(QuamMacro):
     q3: str
     q4: str
     q5: str
+
     def _get_component(self, id):
         return self.parent.parent.machine.get_component(id)
+
     def apply(self, **kwargs):
         # Declare streams for saving results
         state_12_st = declare_stream()
@@ -251,22 +255,23 @@ class InitAllMacro(QuamMacro):
             state_3 = qpu.init12()
             save(state_12, state_12_st)
             save(state_3, state_3_st)
-        #Init45
+        # Init45
         state_45 = qpu.init45()
         save(state_45, state_45_st)
         return state_12_st, state_3_st, state_45_st
 
-machine.qpu.macros['initAll'] = InitAllMacro(
-    q1='Q1', q2='Q2', q3='Q3', q4='Q4', q5='Q5'
-)
+
+machine.qpu.macros["initAll"] = InitAllMacro(q1="Q1", q2="Q2", q3="Q3", q4="Q4", q5="Q5")
 
 
 @quam_dataclass
 class Init12Macro(QuamMacro):
     q1: str
     q2: str
+
     def _get_component(self, id):
         return self.parent.parent.machine.get_component(id)
+
     def apply(self, **kwargs):
         """Execute conditional operation.
         Returns:
@@ -284,14 +289,15 @@ class Init12Macro(QuamMacro):
             q1.x180()
         return state
 
+
 # -----------------------------------------------------------------------
 # Define Full Circuit QUA Program
 # -----------------------------------------------------------------------
-q1 = machine.quantum_dots['Q1']
-q2 = machine.quantum_dots['Q2']
-q3 = machine.quantum_dots['Q3']
-q4 = machine.quantum_dots['Q4']
-q5 = machine.quantum_dots['Q5']
+q1 = machine.quantum_dots["Q1"]
+q2 = machine.quantum_dots["Q2"]
+q3 = machine.quantum_dots["Q3"]
+q4 = machine.quantum_dots["Q4"]
+q5 = machine.quantum_dots["Q5"]
 
 q1_q2 = q1 @ q2
 q2_q3 = q2 @ q3
@@ -321,7 +327,7 @@ with program() as prog:
         save(state_12, state_12_st)
         save(state_3, state_3_st)
 
-    #Init45
+    # Init45
     state_45 = machine.qpu.init45()
     save(state_45, state_45_st)
 
@@ -339,8 +345,10 @@ class InitAllMacro(QuamMacro):
     q3: str
     q4: str
     q5: str
+
     def _get_component(self, id):
         return self.parent.parent.machine.get_component(id)
+
     def apply(self, **kwargs):
         # Declare streams for saving results
         state_12_st = declare_stream()
@@ -368,14 +376,13 @@ class InitAllMacro(QuamMacro):
             state_3 = qpu.init12()
             save(state_12, state_12_st)
             save(state_3, state_3_st)
-        #Init45
+        # Init45
         state_45 = qpu.init45()
         save(state_45, state_45_st)
         return state_12_st, state_3_st, state_45_st
 
-machine.qpu.macros['initAll'] = InitAllMacro(
-    q1='Q1', q2='Q2', q3='Q3', q4='Q4', q5='Q5'
-)
+
+machine.qpu.macros["initAll"] = InitAllMacro(q1="Q1", q2="Q2", q3="Q3", q4="Q4", q5="Q5")
 
 with program() as prog_init:
     machine.qpu.initAll()
@@ -387,6 +394,7 @@ with program() as prog_init:
 
 
 from qm import generate_qua_script
-sourceFile = open('debug.py', 'w')
+
+sourceFile = open("debug.py", "w")
 print(generate_qua_script(prog), file=sourceFile)
 sourceFile.close()

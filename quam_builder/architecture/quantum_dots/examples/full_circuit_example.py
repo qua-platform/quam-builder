@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 """
 Full Multi-Qubit Circuit Implementation
 
@@ -32,7 +34,6 @@ from quam_builder.architecture.quantum_dots.examples.operations import operation
 from quam_builder.architecture.quantum_dots.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
-
 
 # ============================================================================
 # Configuration Parameters
