@@ -33,16 +33,18 @@ cluster_name = "CS_3"  # Name of the cluster
 # %%                                      Define the available instrument setup
 ########################################################################################################################
 instruments = Instruments()
-instruments.add_mw_fem(controller=1, slots=[1])
-instruments.add_lf_fem(controller=1, slots=[2, 3])
+instruments.add_mw_fem(controller=1, slots=[1])  # MW-FEM for RF drive lines (if using RF)
+instruments.add_lf_fem(controller=1, slots=[2, 3])  # LF-FEM for DC gates and resonators
+# Note: If you need more RF channels, add more MW-FEM slots:
+# instruments.add_mw_fem(controller=1, slots=[1, 2])
 
 ########################################################################################################################
-# %%                                 Define which qubit ids are present in the system
+# %%                                 Define which quantum dot ids are present in the system
 ########################################################################################################################
 global_gates = [1, 2]
 sensor_dots = [1, 2]
-qubits = [1, 2, 3, 4, 5]
-qubit_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
+quantum_dots = [1, 2, 3, 4, 5]
+quantum_dot_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
 
 ########################################################################################################################
 # %%                                 Define any custom/hardcoded channel addresses
@@ -52,171 +54,265 @@ s1to2_res_ch = mw_fem_spec(con=1, slot=1, in_port=1, out_port=1)
 s3to4_res_ch = mw_fem_spec(con=1, slot=2, in_port=1, out_port=1)
 
 ########################################################################################################################
-# %%                Allocate the wiring to the connectivity object based on the available instruments
+# %%                    EXAMPLE 1: Two-Stage Workflow (Recommended for Calibration)
 ########################################################################################################################
-print("Setting up connectivity...")
-connectivity = Connectivity()
-# The readout lines
-connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+# This workflow separates the dot-layer wiring (Stage 1) from qubit drive lines (Stage 2),
+# allowing you to calibrate quantum dots before adding qubit drive lines.
 
-# Option 1
-# connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
+print("=" * 80)
+print("EXAMPLE 1: Two-Stage Workflow")
+print("=" * 80)
 
-# Option 2
-connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
-connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
+# ============================================================================
+# STAGE 1: Create connectivity WITHOUT drive lines (dot-layer only)
+# ============================================================================
+print("\n--- STAGE 1: Setting up connectivity WITHOUT drive lines ---")
+connectivity_stage1 = Connectivity()
 
-# Option 1:
-# connectivity.add_quantum_dots(quantum_dots=qubits)
-# Option 2:
-connectivity.add_quantum_dot_voltage_gate_lines(qubits)
-connectivity.add_quantum_dot_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
+# Add global gates (readout bias lines)
+connectivity_stage1.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
-connectivity.add_quantum_dot_pairs(quantum_dot_pairs=qubit_pairs)
+# Add sensor dots (voltage gates + resonator lines)
+# Using convenience method that adds both voltage gates and resonator lines
+connectivity_stage1.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+
+# Add quantum dots with plunger gates ONLY (no drive lines)
+# Note: add_drive_lines=False is the default, so we're only adding plunger gates
+connectivity_stage1.add_quantum_dots(quantum_dots=quantum_dots, add_drive_lines=False)
+
+# Add quantum dot pairs (barrier gates)
+connectivity_stage1.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
+
+# Allocate wiring
+print("Allocating wiring for Stage 1...")
 try:
-    allocate_wiring(connectivity, instruments)
-    print("✓ Wiring allocation successful")
+    allocate_wiring(connectivity_stage1, instruments)
+    print("✓ Stage 1 wiring allocation successful")
 except Exception as e:
     print(f"✗ Error in allocate_wiring: {e}")
     import traceback
-
     traceback.print_exc()
     raise
 
-# Optional: visualize wiring (requires a GUI backend). Comment out in headless environments.
-import matplotlib
-matplotlib.use("TkAgg")
-visualize(
-    connectivity.elements,
-    available_channels=instruments.available_channels,
-    use_matplotlib=True,
-)
-plt.show()
-
-########################################################################################################################
-# %%                                   Build the wiring and QUAM
-########################################################################################################################
+# Build wiring and QUAM for Stage 1
+print("\nBuilding QUAM for Stage 1 (dot-layer only)...")
 try:
-    machine = BaseQuamQD()
-
-    machine = build_quam_wiring(
-        connectivity,
+    machine_stage1 = BaseQuamQD()
+    machine_stage1 = build_quam_wiring(
+        connectivity_stage1,
         host_ip,
         cluster_name,
-        machine,
+        machine_stage1,
     )
-    print("✓ Wiring and QUAM build successful")
+    print("✓ Stage 1 wiring and QUAM build successful")
 except Exception as e:
     print(f"✗ Error in build_quam_wiring: {e}")
     import traceback
-
     traceback.print_exc()
     raise
 
-########################################################################################################################
-# %%                              Build QUAM using Two-Stage Approach (Recommended)
-########################################################################################################################
+# Build BaseQuamQD (quantum dots only, no qubits)
+print("\nBuilding BaseQuamQD (quantum dots only)...")
+try:
+    machine_stage1 = build_base_quam(
+        machine_stage1,
+        connect_qdac=False,
+        # qdac_ip="172.16.33.101",  # QDAC IP address
+        save=True,  # Save the BaseQuamQD state
+    )
+    print("✓ Stage 1 BaseQuamQD build successful")
+    print("  → You can now calibrate quantum dots, update cross-compensation matrix, etc.")
+    print("  → Saved state can be loaded later for Stage 2")
+except Exception as e:
+    print(f"✗ Error in build_base_quam: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
-# STAGE 1: Build BaseQuamQD with physical quantum dots
-# This creates the quantum dot layer without qubits, allowing you to:
-# - Configure cross-compensation matrices
-# - Calibrate quantum dot parameters
-# - Save the state for later qubit configuration
+# ============================================================================
+# STAGE 2: Recreate connectivity WITH drive lines, then build full QUAM
+# ============================================================================
+print("\n" + "=" * 80)
+print("--- STAGE 2: Setting up connectivity WITH drive lines ---")
+print("=" * 80)
 
-machine = build_base_quam(
-    machine,
-    connect_qdac=False,  # Connect to external QDAC for voltage control
-    # qdac_ip="172.16.33.101",  # QDAC IP address
-    save=True,  # Save the BaseQuamQD state
+# Recreate instruments for Stage 2 (channels from Stage 1 may have been marked as used)
+# Alternatively, you can reuse the same instruments object if block_used_channels=False
+instruments_stage2 = Instruments()
+instruments_stage2.add_mw_fem(controller=1, slots=[1])
+instruments_stage2.add_lf_fem(controller=1, slots=[2, 3])
+
+# Recreate connectivity with the same dot-layer wiring, but now add drive lines
+connectivity_stage2 = Connectivity()
+
+# Add the same dot-layer components as Stage 1
+connectivity_stage2.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+connectivity_stage2.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+connectivity_stage2.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
+
+# Add quantum dots WITH drive lines this time
+# Using convenience method that adds both plunger gates and drive lines
+connectivity_stage2.add_quantum_dots(
+    quantum_dots=quantum_dots,
+    add_drive_lines=True,  # ← Key: Add drive lines in Stage 2
+    use_mw_fem=True,  # Use MW-FEM for drive (set to False for LF-FEM)
+    shared_drive_line=True,  # Share drive line across ALL quantum dots (saves channels - only needs 1 channel)
 )
 
-# At this point, you can:
-# - Calibrate quantum dots
-# - Update cross-compensation matrix
-# - Add voltage points
-# Then save and load later for Stage 2
+# Allocate wiring
+print("Allocating wiring for Stage 2...")
+try:
+    allocate_wiring(connectivity_stage2, instruments_stage2)
+    print("✓ Stage 2 wiring allocation successful")
+except Exception as e:
+    print(f"✗ Error in allocate_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
-# STAGE 2: Convert to LossDiVincenzoQuam and add qubits
-# This is independent of Stage 1 and can be done later by loading the saved state
-# Qubits are mapped implicitly: q1 → virtual_dot_1, q2 → virtual_dot_2, etc.
+# Build wiring and QUAM for Stage 2
+print("\nBuilding QUAM for Stage 2 (with drive lines)...")
+try:
+    machine_stage2 = build_quam_wiring(
+        connectivity_stage2,
+        host_ip,
+        cluster_name,
+        machine_stage1,
+    )
+    print("✓ Stage 2 wiring and QUAM build successful")
+except Exception as e:
+    print(f"✗ Error in build_quam_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
-# Example: map qubit pairs to specific sensor dots (supports multiple sensors per pair)
-# Pair keys: q1_q2 or q1-2. Sensor ids: virtual_sensor_<n>, sensor_<n>, or s<n>
+# Build full QUAM with qubits
+print("\nBuilding LossDiVincenzoQuam (with qubits)...")
 qubit_pair_sensor_map = {
     "q1_q2": ["sensor_1"],
     "q2_q3": ["sensor_1", "sensor_2"],
     "q3_q4": ["sensor_2"],
 }
 
-machine = build_loss_divincenzo_quam(
-    machine,  # Can also load from file: "path/to/base_quam_state"
-    qubit_pair_sensor_map=qubit_pair_sensor_map,
-    implicit_mapping=True,  # q1 → virtual_dot_1 mapping
-    save=True,
+try:
+    machine_stage2 = build_loss_divincenzo_quam(
+        machine_stage2,
+        qubit_pair_sensor_map=qubit_pair_sensor_map,
+        implicit_mapping=True,  # q1 → virtual_dot_1 mapping
+        save=True,
+    )
+    print("✓ Stage 2 LossDiVincenzoQuam build successful")
+    print("  → Machine now has both quantum dots AND qubits with drive lines")
+except Exception as e:
+    print(f"✗ Error in build_loss_divincenzo_quam: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+########################################################################################################################
+# %%                    EXAMPLE 2: Combined Workflow (Single-Stage)
+########################################################################################################################
+# This workflow creates connectivity with all components (including drive lines) in one go.
+# Use this when you don't need to calibrate quantum dots separately.
+
+print("\n" + "=" * 80)
+print("EXAMPLE 2: Combined Workflow (Single-Stage)")
+print("=" * 80)
+print("\n--- Setting up connectivity WITH all components (including drive lines) ---")
+
+# Create fresh instruments for the combined workflow
+instruments_combined = Instruments()
+instruments_combined.add_mw_fem(controller=1, slots=[1])
+instruments_combined.add_lf_fem(controller=1, slots=[2, 3])
+
+# Create connectivity with everything at once
+connectivity_combined = Connectivity()
+
+# Add global gates
+connectivity_combined.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+
+# Add sensor dots
+connectivity_combined.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+
+# Add quantum dots WITH drive lines in a single call
+connectivity_combined.add_quantum_dots(
+    quantum_dots=quantum_dots,
+    add_drive_lines=True,  # Include drive lines from the start
+    use_mw_fem=True,  # Use MW-FEM for drive (set to False for LF-FEM)
+    shared_drive_line=True,  # Share drive line across quantum dots (only needs 1 channel)
 )
 
-# Now machine has both quantum dots AND qubits
-# Access quantum dots: machine.quantum_dots["virtual_dot_1"]
-# Access qubits: machine.qubits["q1"]
-# Access qubit pairs: machine.qubit_pairs["q1_q2"]
+# Add quantum dot pairs
+connectivity_combined.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
 
-########################################################################################################################
-# %%                    Advanced: Manual XY Drive Wiring (Optional)
-########################################################################################################################
-
-# Normally, XY drives are extracted automatically from machine.wiring.
-# But you can manually specify them if needed (e.g., when loading from file without wiring):
-
-# xy_drive_wiring = {
-#     "q1": {
-#         "type": "IQ",  # IQ mixer drive
-#         "wiring_path": "#/wiring/qubits/q1/xy",
-#         "intermediate_frequency": 500e6,  # Optional, defaults to 500 MHz
-#     },
-#     "q2": {
-#         "type": "MW",  # Microwave FEM drive
-#         "wiring_path": "#/wiring/qubits/q2/xy",
-#     },
-# }
-#
-# machine = build_loss_divincenzo_quam(
-#     "path/to/base_quam_state",
-#     xy_drive_wiring=xy_drive_wiring,  # Manually specify XY drives
-#     save=True,
-# )
-
-########################################################################################################################
-# %%                         Alternative: Single-Call Convenience Wrapper
-########################################################################################################################
-
-# If you don't need the flexibility of two stages, use the convenience wrapper:
+# Allocate wiring
+print("Allocating wiring...")
 try:
-    machine = build_quam(
-        machine,
+    allocate_wiring(connectivity_combined, instruments_combined)
+    print("✓ Combined wiring allocation successful")
+except Exception as e:
+    print(f"✗ Error in allocate_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+# Build wiring and QUAM
+print("\nBuilding QUAM (combined approach)...")
+try:
+    machine_combined = BaseQuamQD()
+    machine_combined = build_quam_wiring(
+        connectivity_combined,
+        host_ip,
+        cluster_name,
+        machine_combined,
+    )
+    print("✓ Combined wiring and QUAM build successful")
+except Exception as e:
+    print(f"✗ Error in build_quam_wiring: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+# Build full QUAM using convenience wrapper
+print("\nBuilding full QUAM using convenience wrapper...")
+try:
+    machine_combined = build_quam(
+        machine_combined,
         qubit_pair_sensor_map=qubit_pair_sensor_map,
         connect_qdac=False,
         qdac_ip="172.16.33.101",
         save=True,
     )
-    print("✓ build_quam successful")
+    print("✓ Combined QUAM build successful")
 except Exception as e:
     print(f"✗ Error in build_quam: {e}")
     import traceback
-
     traceback.print_exc()
     raise
+
+########################################################################################################################
+# %%                    Optional: Visualize Wiring
+########################################################################################################################
+# Uncomment to visualize wiring (requires a GUI backend)
+# import matplotlib
+# matplotlib.use("TkAgg")
+# visualize(
+#     connectivity_combined.elements,
+#     available_channels=instruments_combined.available_channels,
+#     use_matplotlib=True,
+# )
+# plt.show()
 
 ########################################################################################################################
 # %%                                      Generate QM Configuration
 ########################################################################################################################
-
 # Generate the configuration for the Quantum Machines OPX
-try:
-    machine.generate_config()
-    print("✓ Configuration generation successful")
-except Exception as e:
-    print(f"✗ Error in generate_config: {e}")
-    import traceback
-
-    traceback.print_exc()
-    raise
+# Uncomment to generate config:
+# try:
+#     machine_combined.generate_config()
+#     print("✓ Configuration generation successful")
+# except Exception as e:
+#     print(f"✗ Error in generate_config: {e}")
+#     import traceback
+#     traceback.print_exc()
+#     raise
