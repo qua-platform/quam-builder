@@ -12,7 +12,7 @@ enable=E, R, F, C
 #   - invalid-name: Module names start with numbers (01a_time_of_flight), variables use physics conventions (I, Q)
 #   - import-error, no-name-in-module: quam_config is project-specific, pylint can't resolve it
 #   - too-many-locals: Quantum calibration code often needs many variables
-disable=W, I, invalid-name, import-error, no-name-in-module, too-many-locals
+disable=W, I, invalid-name, import-error, no-name-in-module, too-many-locals, undefined-all-variable, duplicate-code
 
 
 [REPORTS]

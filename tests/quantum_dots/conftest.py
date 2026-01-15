@@ -1,4 +1,11 @@
+"""Fixtures for quantum dot tests."""
+
+# pylint: disable=unsubscriptable-object
+
+from typing import cast
+
 import pytest
+from quam.components import pulses
 from quam.components import StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
@@ -39,49 +46,67 @@ def machine():
     machine = LossDiVincenzoQuam()
     lf_fem = 6
 
+    def _make_offset_parameter(initial_value: float = 0.0):
+        current_value = initial_value
+
+        def _offset_parameter(value: float | None = None):
+            nonlocal current_value
+            if value is None:
+                return current_value
+            current_value = value
+            return current_value
+
+        return _offset_parameter
+
     # Create Physical Channels
     p1 = VoltageGate(
         id="plunger_1",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=1),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    p1.offset_parameter = _make_offset_parameter()
     p2 = VoltageGate(
         id="plunger_2",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=2),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    p2.offset_parameter = _make_offset_parameter()
     p3 = VoltageGate(
         id="plunger_3",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=3),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    p3.offset_parameter = _make_offset_parameter()
     p4 = VoltageGate(
         id="plunger_4",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=4),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    p4.offset_parameter = _make_offset_parameter()
     b1 = VoltageGate(
         id="barrier_1",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=5),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    b1.offset_parameter = _make_offset_parameter()
     b2 = VoltageGate(
         id="barrier_2",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=6),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    b2.offset_parameter = _make_offset_parameter()
     b3 = VoltageGate(
         id="barrier_3",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=7),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+    b3.offset_parameter = _make_offset_parameter()
     s1 = VoltageGate(
         id="sensor_DC",
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=8),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
-
-    from quam.components import pulses
+    s1.offset_parameter = _make_offset_parameter()
 
     readout_pulse = pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)
     resonator = ReadoutResonatorSingle(
@@ -108,6 +133,7 @@ def machine():
         },
         gate_set_id="main_qpu",
     )
+    machine.create_virtual_dc_set(gate_set_id="main_qpu")
 
     # Register Quantum Dots, Sensors and Barriers
     machine.register_channel_elements(
@@ -137,10 +163,11 @@ def machine():
     )
 
     # Define detuning axes for both QuantumDotPairs
-    machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
+    quantum_dot_pairs = cast(dict[str, QuantumDotPair], machine.quantum_dot_pairs)
+    quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
         matrix=[[1, -1]], detuning_axis_name="dot1_dot2_epsilon"
     )
-    machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
+    quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
         matrix=[[1, -1]], detuning_axis_name="dot3_dot4_epsilon"
     )
 

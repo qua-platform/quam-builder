@@ -278,18 +278,18 @@ class VirtualGateSet(GateSet):
                 raise ValueError(f"Layer name '{layer_id}' is already used in a previous layer.")
 
         matrix_array = np.array(matrix, dtype=float)
-        expected_shape = (len(source_gates), len(target_gates))
-        if matrix_array.shape != expected_shape:
-            raise ValueError(
-                "Matrix dimensions do not match source/target gate counts. "
-                f"Expected {expected_shape}, got {matrix_array.shape}"
-            )
-
         is_square = matrix_array.shape[0] == matrix_array.shape[1]
         if not is_square and not self.allow_rectangular_matrices:
             raise ValueError(
                 f"Matrix must be square when allow_rectangular_matrices is False. "
                 f"Got shape {matrix_array.shape}"
+            )
+
+        expected_shape = (len(source_gates), len(target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
             )
 
         if is_square:
@@ -337,16 +337,19 @@ class VirtualGateSet(GateSet):
 
     def add_to_layer(
         self,
-        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
+        layer_id: str | None = None,
     ) -> VirtualizationLayer:
         if not self.allow_rectangular_matrices:
             raise ValueError(
                 "add_to_layer requires allow_rectangular_matrices=True to enable "
                 "non-square virtual gate layers."
             )
+
+        if layer_id is None and self.layers:
+            layer_id = self.layers[-1].id
 
         if not self.layers:
             return self.add_layer(

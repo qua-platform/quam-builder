@@ -4,10 +4,10 @@ Tests both Stage 1 (BaseQuamQD with quantum dots) and Stage 2
 (LossDiVincenzoQuam with qubits), as well as the integration between them.
 """
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder

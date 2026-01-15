@@ -1,3 +1,5 @@
+"""Test-wide fixtures and helpers."""
+
 from enum import Enum
 
 from qualang_tools.wirer.connectivity import wiring_spec

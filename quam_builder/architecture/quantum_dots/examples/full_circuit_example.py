@@ -284,13 +284,13 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
 # ============================================================================
 
 # Get qubit pairs
-q1 = machine.qubits[f"Q{0}"]
-q2 = machine.qubits[f"Q{1}"]
-q3 = machine.qubits[f"Q{2}"]
+q1 = machine.quantum_dots[f"Q{0}"]
+q2 = machine.quantum_dots[f"Q{1}"]
+q3 = machine.quantum_dots[f"Q{2}"]
 
 
-qp_12 = machine.qubit_pairs[f"{q1.id}_{q2.id}"]  # Represents Q1-Q2
-qp_23 = machine.qubit_pairs[f"{q2.id}_{q3.id}"]
+qp_12 = machine.quantum_dot_pairs[f"{q1.id}_{q2.id}"]  # Represents Q1-Q2
+qp_23 = machine.quantum_dot_pairs[f"{q2.id}_{q3.id}"]
 
 # Configure each qubit pair with their specific settings
 configure_qubit_pair_for_reset(qp_12, config=CONFIG_Q1_Q2)

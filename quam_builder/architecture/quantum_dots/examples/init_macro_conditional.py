@@ -203,7 +203,7 @@ custom_config = {
     "threshold": 0.05
 }
 
-for qubit_pair in machine.qubit_pairs.values():
+for qubit_pair in machine.quantum_dot_pairs.values():
     configure_qubit_pair_for_reset(qubit_pair, config=custom_config)
 
 # ============================================================================
@@ -235,7 +235,7 @@ if __name__ == "__main__":
         print("Executing conditional reset sequence...")
 
         # Execute initialization sequence on all qubit pairs
-        for qp_id, qubit_pair in machine.qubit_pairs.items():
+        for qp_id, qubit_pair in machine.quantum_dot_pairs.items():
             # Option 1: function based
             state = init_sequence(qubit_pair)
             # Option 2: method based

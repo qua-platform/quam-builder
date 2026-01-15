@@ -1,6 +1,11 @@
+"""Helpers for voltage-gate sequence validation against a server."""
+
 # from configuration import *
 
+import pytest
+
 from qm import SimulationConfig, QuantumMachinesManager, generate_qua_script
+pytest.importorskip("qm_saas")
 from qm_saas import QOPVersion, QmSaas
 import matplotlib.pyplot as plt
 import numpy as np

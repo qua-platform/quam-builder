@@ -1,6 +1,9 @@
+"""Wiring allocation example for quantum dot systems."""
+
 import os
 from pathlib import Path
 
+import matplotlib
 import matplotlib.pyplot as plt
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring, visualize
 
@@ -9,7 +12,7 @@ from qualang_tools.wirer.connectivity.wiring_spec import (
     WiringIOType,
     WiringLineType,
 )
-from qualang_tools.wirer.wirer.channel_specs import *
+from qualang_tools.wirer.wirer.channel_specs import mw_fem_spec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import (
@@ -41,8 +44,8 @@ instruments.add_lf_fem(controller=1, slots=[2, 3])
 ########################################################################################################################
 global_gates = [1, 2]
 sensor_dots = [1, 2]
-qubits = [1, 2, 3, 4, 5]
-qubit_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
+quantum_dots = [1, 2, 3, 4, 5]
+quantum_dot_pairs = [(1, 2), (2, 3), (3, 4), (4, 5)]
 
 ########################################################################################################################
 # %%                                 Define any custom/hardcoded channel addresses
@@ -60,19 +63,23 @@ connectivity = Connectivity()
 connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
 # Option 1
-# connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
+connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
 
 # Option 2
-connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
+connectivity.add_sensor_dot_resonator_line(
+    sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC
+)
 connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
 
 # Option 1:
-# connectivity.add_quantum_dots(quantum_dots=qubits)
+connectivity.add_quantum_dots(quantum_dots=quantum_dots)
 # Option 2:
-connectivity.add_quantum_dot_voltage_gate_lines(qubits)
-connectivity.add_quantum_dot_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
+connectivity.add_quantum_dot_voltage_gate_lines(quantum_dots)
+connectivity.add_quantum_dot_drive_lines(
+    quantum_dots, wiring_frequency=WiringFrequency.RF, shared_line=True
+)
 
-connectivity.add_quantum_dot_pairs(quantum_dot_pairs=qubit_pairs)
+connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
 try:
     allocate_wiring(connectivity, instruments)
     print("✓ Wiring allocation successful")
@@ -84,7 +91,6 @@ except Exception as e:
     raise
 
 # Optional: visualize wiring (requires a GUI backend). Comment out in headless environments.
-import matplotlib
 matplotlib.use("TkAgg")
 visualize(
     connectivity.elements,

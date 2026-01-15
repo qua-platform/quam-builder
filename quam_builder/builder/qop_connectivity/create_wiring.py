@@ -168,6 +168,7 @@ def readout_wiring(
     element_id: ElementId,
     line_type: WiringLineType,
 ) -> dict:
+    """Build wiring entries for readout elements (sensors and resonators)."""
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
@@ -185,6 +186,7 @@ def global_element_wiring(
     element_id: ElementId,
     line_type: WiringLineType,
 ) -> dict:
+    """Build wiring entries for global gate elements."""
     qubit_line_wiring = {}
     for channel in channels:
         if channel.instrument_id == "external-mixer":
@@ -202,7 +204,7 @@ def qubit_wiring(
     element_id: QubitReference,
     line_type: WiringLineType,
 ) -> dict:
-    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit and the same line type.
+    """Generate QUAM JSON references for a qubit's channels with a single line type.
 
     Args:
         channels (List[AnyInstrumentChannel]): The list of instrument channels.
@@ -225,7 +227,7 @@ def qubit_wiring(
 
 
 def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPairReference) -> dict:
-    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a single qubit pair and the same line type.
+    """Generate QUAM JSON references for a qubit pair's channels with a single line type.
 
     Args:
         channels (List[AnyInstrumentChannel]): The list of instrument channels.

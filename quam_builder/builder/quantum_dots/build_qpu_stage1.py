@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Stage 1 QPU builder for quantum dot systems - BaseQuamQD only.
 
 This module provides the Stage 1 QPU building functionality that creates
 BaseQuamQD with physical quantum dots, but does NOT create qubits.
 """
+
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -17,7 +17,16 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
-from quam_builder.builder.quantum_dots.build_utils import *
+from quam_builder.builder.quantum_dots.build_utils import (
+    _build_virtual_mapping,
+    _extract_qdac_channel,
+    _extract_qubit_number,
+    _make_resonator,
+    _make_voltage_gate_with_qdac,
+    _normalize_element_type,
+    _parse_qubit_pair_ids,
+    _validate_line_type,
+)
 from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
 
 __all__ = ["_BaseQpuBuilder"]
@@ -25,7 +34,7 @@ __all__ = ["_BaseQpuBuilder"]
 logger = logging.getLogger(__name__)
 
 
-class _BaseQpuBuilder:
+class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
     """Stage 1: Builds BaseQuamQD with quantum dots only (no qubits).
 
     This builder creates:

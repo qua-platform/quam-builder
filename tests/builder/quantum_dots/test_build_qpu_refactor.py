@@ -1,3 +1,7 @@
+"""Tests for the quantum dot QPU builder refactor."""
+
+# pylint: disable=missing-class-docstring,missing-function-docstring,unsubscriptable-object,unsupported-membership-test
+
 import pytest
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType

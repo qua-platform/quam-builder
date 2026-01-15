@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 from qm import qua
+from quam.utils.exceptions import InvalidReferenceError
 
 from quam_builder.architecture.quantum_dots.macros.point_macros import (
     SequenceMacro,
@@ -205,7 +206,7 @@ class TestSequenceMacro:
         seq = SequenceMacro(name="test_seq", macro_refs=())
 
         assert seq.name == "test_seq"
-        assert seq.macro_refs == ()
+        assert not seq.macro_refs
         assert seq.description is None
 
     def test_sequence_macro_with_description(self):
@@ -226,7 +227,7 @@ class TestSequenceMacro:
         assert new_seq is not seq
         assert new_seq.macro_refs == ("#./macros/idle",)
         # Original unchanged
-        assert seq.macro_refs == ()
+        assert not seq.macro_refs
 
     def test_sequence_macro_with_multiple_references(self):
         """Test chaining with_reference() calls."""
@@ -238,10 +239,11 @@ class TestSequenceMacro:
             .with_reference("#./macros/measure")
         )
 
-        assert len(new_seq.macro_refs) == 3
-        assert new_seq.macro_refs[0] == "#./macros/idle"
-        assert new_seq.macro_refs[1] == "#./macros/load"
-        assert new_seq.macro_refs[2] == "#./macros/measure"
+        macro_refs = list(new_seq.macro_refs)
+        assert len(macro_refs) == 3
+        assert macro_refs[0] == "#./macros/idle"
+        assert macro_refs[1] == "#./macros/load"
+        assert macro_refs[2] == "#./macros/measure"
 
     def test_sequence_macro_with_macro_helper(self, machine):
         """Test SequenceMacro.with_macro() helper method."""
@@ -254,8 +256,9 @@ class TestSequenceMacro:
         seq = SequenceMacro(name="test_seq", macro_refs=())
         new_seq = seq.with_macro(qd, "idle")
 
-        assert len(new_seq.macro_refs) == 1
-        assert "#./macros/idle" in new_seq.macro_refs[0]
+        macro_refs = list(new_seq.macro_refs)
+        assert len(macro_refs) == 1
+        assert "#./macros/idle" in macro_refs[0]
 
     def test_sequence_macro_with_macros_helper(self, machine):
         """Test SequenceMacro.with_macros() helper method."""
@@ -408,9 +411,10 @@ class TestMacroReferenceSystem:
         seq_macro = qd.macros["test_seq"]
 
         # Sequence should store reference string
-        assert len(seq_macro.macro_refs) == 1
-        assert isinstance(seq_macro.macro_refs[0], str)
-        assert "#./macros/idle" in seq_macro.macro_refs[0]
+        macro_refs = list(seq_macro.macro_refs)
+        assert len(macro_refs) == 1
+        assert isinstance(macro_refs[0], str)
+        assert "#./macros/idle" in macro_refs[0]
 
     def test_reference_resolution_after_modification(self, machine):
         """Test that references resolve correctly even after point modification."""
@@ -455,8 +459,6 @@ class TestMacroErrorHandling:
         # Manually create sequence with invalid reference
         seq = SequenceMacro(name="bad_seq", macro_refs=("#./macros/nonexistent",))
         qd.macros["bad_seq"] = seq
-
-        from quam.utils.exceptions import InvalidReferenceError
 
         with pytest.raises(InvalidReferenceError):
             with qua.program() as prog:

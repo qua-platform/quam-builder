@@ -13,14 +13,22 @@ from typing import Any, Dict, List, Mapping, Optional, Union, cast
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 
-from quam_builder.builder.quantum_dots.build_utils import *
+from quam_builder.builder.quantum_dots.build_utils import (
+    DEFAULT_INTERMEDIATE_FREQUENCY,
+    _create_xy_drive_from_wiring,
+    _extract_qubit_number,
+    _implicit_qubit_to_dot_mapping,
+    _natural_sort_key,
+    _parse_qubit_pair_ids,
+    _validate_drive_ports,
+)
 
 __all__ = ["_LDQubitBuilder"]
 
 logger = logging.getLogger(__name__)
 
 
-class _LDQubitBuilder:
+class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
     """Stage 2: Builds qubits from existing quantum dots.
 
     This builder converts BaseQuamQD to LossDiVincenzoQuam and creates:
@@ -81,7 +89,9 @@ class _LDQubitBuilder:
             LossDiVincenzoQuam with qubits registered.
         """
         # Convert machine class if BaseQuamQD
-        if type(self.machine) is BaseQuamQD:
+        if isinstance(self.machine, BaseQuamQD) and not isinstance(
+            self.machine, LossDiVincenzoQuam
+        ):
             self.machine.__class__ = LossDiVincenzoQuam
             # Initialize LDQuam-specific fields
             if not hasattr(self.machine, "qubits"):

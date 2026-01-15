@@ -21,7 +21,7 @@ machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/.qualibrate/quam_state")
 ###### Register Qubits ######
 #############################
 mw_fem = 1
-mw_start_port = 1 
+mw_start_port = 1
 num_qubits = len(machine.quantum_dots)
 
 # Register qubits. For ST qubits, quantum_dots should be a tuple
@@ -31,13 +31,13 @@ for i in range(num_qubits):
         qubit_name=f"Q{i}",
         xy_channel = XYDrive(
             id = f"Q{i}_xy", opx_output = MWFEMAnalogOutputPort(
-                "con1",  
-                mw_fem, 
+                "con1",
+                mw_fem,
                 port_id=mw_start_port + i,
-                upconverter_frequency = 5e9, 
-                band = 2, 
-                full_scale_power_dbm=10), 
-                intermediate_frequency = 5e6 + 1e6 * i, 
+                upconverter_frequency = 5e9,
+                band = 2,
+                full_scale_power_dbm=10),
+                intermediate_frequency = 5e6 + 1e6 * i,
                 operations = {"x90": pulses.GaussianPulse(length = 200, id= "x90_Gaussian", digital_marker = None, amplitude = 0.02, sigma = 50)}
         )
     )
@@ -66,6 +66,6 @@ for i in range(len(machine.barrier_gates)):
 
 for i in range(len(machine.quantum_dots)):
     neighbor_idx = i - 1 if i == len(machine.quantum_dots) - 1 else i + 1
-    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
+    machine.quantum_dots[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
 
 config = machine.generate_config()

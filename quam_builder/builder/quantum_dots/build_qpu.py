@@ -14,40 +14,41 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import warnings
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam_builder.architecture.superconducting.components.xy_drive import (
+    XYDriveIQ,
+    XYDriveMW,
+)
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
 )
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
-from quam_builder.builder.quantum_dots.build_utils import *
-
-__all__ = [
-    "QpuAssembly",
-    "_QpuBuilder",
-    "_set_default_grid_location",
-    "_natural_sort_key",
-    "_sorted_items",
-    "_normalize_element_type",
-    "_validate_line_type",
-    "_make_sticky_channel",
-    "_make_voltage_gate",
-    "_make_resonator",
-    "_validate_drive_ports",
-    "_build_virtual_mapping",
-    "_parse_qubit_pair_ids",
-    "DEFAULT_GATE_SET_ID",
-    "DEFAULT_STICKY_DURATION",
-    "DEFAULT_INTERMEDIATE_FREQUENCY",
-    "DEFAULT_READOUT_LENGTH",
-    "DEFAULT_READOUT_AMPLITUDE",
-]
+from quam_builder.builder.quantum_dots.build_utils import (
+    DEFAULT_GATE_SET_ID,
+    DEFAULT_INTERMEDIATE_FREQUENCY,
+    DEFAULT_READOUT_AMPLITUDE,
+    DEFAULT_READOUT_LENGTH,
+    DEFAULT_STICKY_DURATION,
+    _build_virtual_mapping,
+    _extract_qubit_number,
+    _make_resonator,
+    _make_sticky_channel,
+    _make_voltage_gate,
+    _natural_sort_key,
+    _normalize_element_type,
+    _parse_qubit_pair_ids,
+    _set_default_grid_location,
+    _sorted_items,
+    _validate_drive_ports,
+    _validate_line_type,
+)
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class QpuAssembly:
+class QpuAssembly:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
     """Container for intermediate QPU components during build process.
 
     Stores physical channels, resonators, and mappings between physical and virtual
@@ -94,7 +95,7 @@ class QpuAssembly:
     gate_set_id: str = DEFAULT_GATE_SET_ID
 
 
-class _QpuBuilder:
+class _QpuBuilder:  # pylint: disable=too-few-public-methods
     """Orchestrates QPU construction from wiring specifications.
 
     Translates wiring specifications into physical components, creates virtual gate
@@ -327,11 +328,6 @@ class _QpuBuilder:
         ]
 
     def _register_qubits(self):
-        from quam_builder.architecture.superconducting.components.xy_drive import (
-            XYDriveIQ,
-            XYDriveMW,
-        )
-
         if not self.assembly.plunger_channels:
             if self._wiring_by_type.get("qubits"):
                 raise ValueError("No plunger gates collected while qubit wiring is defined")
@@ -415,9 +411,14 @@ class _QpuBuilder:
             qc_plunger_id not in self.assembly.plunger_virtual_names
             or qt_plunger_id not in self.assembly.plunger_virtual_names
         ):
+            missing_plunger = (
+                qc_plunger_id
+                if qc_plunger_id not in self.assembly.plunger_virtual_names
+                else qt_plunger_id
+            )
             raise ValueError(
                 f"Plunger gates for qubit pair '{qubit_pair_id}' not registered: "
-                f"missing {qc_plunger_id if qc_plunger_id not in self.assembly.plunger_virtual_names else qt_plunger_id}"
+                f"missing {missing_plunger}"
             )
 
         self.machine.register_quantum_dot_pair(
@@ -473,3 +474,27 @@ class _QpuBuilder:
             f"Sensor identifier '{sensor}' for pair '{pair_id}' is invalid. "
             f"Supported formats: {allowed_formats}"
         )
+
+
+# pylint: disable=undefined-all-variable
+__all__ = [
+    "QpuAssembly",
+    "_QpuBuilder",
+    "_set_default_grid_location",
+    "_natural_sort_key",
+    "_sorted_items",
+    "_normalize_element_type",
+    "_validate_line_type",
+    "_make_sticky_channel",
+    "_make_voltage_gate",
+    "_make_resonator",
+    "_validate_drive_ports",
+    "_build_virtual_mapping",
+    "_parse_qubit_pair_ids",
+    "DEFAULT_GATE_SET_ID",
+    "DEFAULT_STICKY_DURATION",
+    "DEFAULT_INTERMEDIATE_FREQUENCY",
+    "DEFAULT_READOUT_LENGTH",
+    "DEFAULT_READOUT_AMPLITUDE",
+]
+# pylint: enable=undefined-all-variable

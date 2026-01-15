@@ -1,5 +1,7 @@
 """Integration tests for the wirer and builder working together."""
 
+# pylint: disable=too-few-public-methods
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -185,7 +187,9 @@ class TestWirerBuilderIntegration:
         assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine_loaded.qubits.items():
             # Check if qubit has an xy_channel attribute
-            assert hasattr(qubit, "xy_channel"), f"Qubit {qubit_name} should have xy_channel attribute"
+            assert hasattr(
+                qubit, "xy_channel"
+            ), f"Qubit {qubit_name} should have xy_channel attribute"
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""

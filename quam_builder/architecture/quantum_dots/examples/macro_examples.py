@@ -137,7 +137,7 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
     reuse the same macro definition with different timing parameters.
     """
     # Define base macros
-    
+
     (quantum_dot
         .with_step_point("idle", {"virtual_dot_0": 0.1}, hold_duration=100)
         .with_ramp_point("load", {"virtual_dot_0": 0.3},
@@ -313,8 +313,8 @@ def example_06_operations_registry(machine) -> None:
     machine.operations_registry = operations_registry
 
     # === SETUP: Configure qubits with pulse and voltage macros ===
-    qubit = machine.qubits["Q0"]
-    qubit2 = machine.qubits["Q1"]
+    qubit = machine.quantum_dots["Q0"]
+    qubit2 = machine.quantum_dots["Q1"]
 
     for q in [qubit, qubit2]:
         # Add pulse operations
@@ -369,7 +369,7 @@ def example_06_operations_registry(machine) -> None:
 
 if __name__ == "__main__":
     from quam_qd_generator_example import machine
-    qubit = machine.qubits["Q0"]
+    qubit = machine.quantum_dots["Q0"]
     quantum_dot = qubit.quantum_dot
 
     example_01_fluent_api(

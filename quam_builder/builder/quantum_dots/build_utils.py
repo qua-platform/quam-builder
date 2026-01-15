@@ -9,22 +9,24 @@ This module provides helper functions for:
 - Qubit pair ID parsing
 """
 
+# pylint: disable=undefined-all-variable
+
 import re
-from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam.components import StickyChannelAddon, pulses
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
 )
+from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ, XYDriveMW
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
     mw_out_channel_ports,
 )
-from quam.components import StickyChannelAddon, pulses
 
 # Default configuration constants for quantum dot systems
 DEFAULT_GATE_SET_ID = "main_qpu"
@@ -381,8 +383,6 @@ def _create_xy_drive_from_wiring(
     Raises:
         ValueError: If drive_type is not 'IQ' or 'MW'.
     """
-    from quam_builder.architecture.quantum_dots.components import XYDriveIQ, XYDriveMW
-
     drive_id = f"{qubit_id}_xy"
 
     if drive_type == "IQ":
@@ -393,16 +393,17 @@ def _create_xy_drive_from_wiring(
             opx_output_Q=f"{wiring_path}/opx_output_Q",
             frequency_converter_up=f"{wiring_path}/frequency_converter_up",
         )
-    elif drive_type == "MW":
+    if drive_type == "MW":
         return XYDriveMW(
             id=drive_id,
             intermediate_frequency=intermediate_frequency,
             opx_output=f"{wiring_path}/opx_output",
         )
-    else:
-        raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ' or 'MW'.")
+
+    raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ' or 'MW'.")
 
 
+# pylint: disable=undefined-all-variable
 __all__ = [
     "DEFAULT_GATE_SET_ID",
     "DEFAULT_STICKY_DURATION",
@@ -426,3 +427,4 @@ __all__ = [
     "_implicit_qubit_to_dot_mapping",
     "_create_xy_drive_from_wiring",
 ]
+# pylint: enable=undefined-all-variable

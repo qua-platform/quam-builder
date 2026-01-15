@@ -30,19 +30,6 @@ from quam_builder.builder.quantum_dots.pulses import (
 )
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
-__all__ = [
-    "build_quam",
-    "build_base_quam",
-    "build_loss_divincenzo_quam",
-    "add_octaves",
-    "add_external_mixers",
-    "add_ports",
-    "add_qpu",
-    "add_pulses",
-    "_resolve_calibration_db_path",
-    "_set_default_grid_location",
-]
-
 
 def build_base_quam(
     machine: BaseQuamQD,
@@ -110,6 +97,22 @@ def build_base_quam(
     return machine
 
 
+# pylint: disable=undefined-all-variable
+__all__ = [
+    "build_quam",
+    "build_base_quam",
+    "build_loss_divincenzo_quam",
+    "add_octaves",
+    "add_external_mixers",
+    "add_ports",
+    "add_qpu",
+    "add_pulses",
+    "_resolve_calibration_db_path",
+    "_set_default_grid_location",
+]
+# pylint: enable=undefined-all-variable
+
+
 def build_loss_divincenzo_quam(
     machine: Union[BaseQuamQD, LossDiVincenzoQuam, str, Path],
     xy_drive_wiring: Optional[dict] = None,
@@ -156,7 +159,7 @@ def build_loss_divincenzo_quam(
         >>> # Assuming base_machine is a BaseQuamQD from Stage 1 with wiring
         >>> ld_machine = build_loss_divincenzo_quam(base_machine)
         >>> # XY drives are automatically extracted from base_machine.wiring
-        >>> print(ld_machine.qubits.keys())  # ['q1', 'q2', ...]
+        >>> print(ld_machine.quantum_dots.keys())  # ['q1', 'q2', ...]
 
     Example (from file with manual XY drives):
         >>> # Load Stage 1 result from file (may not have wiring)
@@ -191,6 +194,7 @@ def build_loss_divincenzo_quam(
     return machine
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def build_quam(
     machine: Union[BaseQuamQD, LossDiVincenzoQuam],
     calibration_db_path: Optional[Union[Path, str]] = None,
@@ -198,7 +202,7 @@ def build_quam(
     qdac_ip: Optional[str] = None,
     connect_qdac: bool = False,
     save: bool = True,
-) -> LossDiVincenzoQuam:
+) -> LossDiVincenzoQuam:  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Build complete QuAM configuration using two-stage process.
 
     This is a convenience wrapper that executes both stages:
@@ -224,7 +228,7 @@ def build_quam(
         >>> machine = BaseQuamQD()
         >>> # ... configure wiring ...
         >>> machine = build_quam(machine, connect_qdac=True, qdac_ip="172.16.33.101")
-        >>> print(machine.qubits.keys())  # ['q1', 'q2', ...]
+        >>> print(machine.quantum_dots.keys())  # ['q1', 'q2', ...]
 
     For more control (two separate stages):
         >>> # Stage 1: Physical quantum dots
@@ -435,10 +439,14 @@ def add_external_mixers(machine: AnyQuam) -> AnyQuam:
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",
                         }
+                        mixer_path = (
+                            f"#/qubits/{qubit}/{ldv_qubit_channel[line_type]}"
+                            "/intermediate_frequency"
+                        )
                         frequency_converter = FrequencyConverter(
                             local_oscillator=LocalOscillator(),
                             mixer=StandaloneMixer(
-                                intermediate_frequency=f"#/qubits/{qubit}/{ldv_qubit_channel[line_type]}/intermediate_frequency",
+                                intermediate_frequency=mixer_path,
                             ),
                         )
                         machine.mixers[mixer_name] = frequency_converter

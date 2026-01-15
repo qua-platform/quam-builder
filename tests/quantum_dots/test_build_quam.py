@@ -1,11 +1,19 @@
 """Unit tests for the build_quam function and related helpers."""
 
-import pytest
-import tempfile
+# pylint: disable=missing-class-docstring,missing-function-docstring
+
 import shutil
+import tempfile
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 
+import pytest
+from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
+    LossDiVincenzoQuam,
+)
 from quam_builder.builder.quantum_dots.build_quam import (
     build_quam,
     build_base_quam,
@@ -16,14 +24,6 @@ from quam_builder.builder.quantum_dots.build_quam import (
     _resolve_calibration_db_path,
     _set_default_grid_location,
 )
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
-    LossDiVincenzoQuam,
-)
-from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
-    LossDiVincenzoQuam,
-)
-from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 
 
 class TestSetDefaultGridLocation:

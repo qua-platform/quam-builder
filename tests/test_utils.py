@@ -1,8 +1,13 @@
+"""Utilities for AST comparisons in tests."""
+
 from typing import Any
+
 import numpy as np
+import pytest
 
 # Assuming 'quaqsim' is an installed dependency.
 # These imports are for type hinting and potentially for isinstance checks if needed.
+pytest.importorskip("quaqsim")
 from quaqsim.program_ast.node import Node
 from quaqsim.program_ast.expressions.expression import Expression
 from quaqsim.program_ast.expressions.definition import Definition

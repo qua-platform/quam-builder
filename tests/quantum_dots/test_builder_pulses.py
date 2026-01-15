@@ -1,16 +1,19 @@
 """Unit tests for quantum dot pulse generation."""
 
-import pytest
+# pylint: disable=too-few-public-methods
+
 from unittest.mock import MagicMock
+
+import pytest
+from quam.components import StickyChannelAddon
+from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
+
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDrive
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pulses,
     add_default_ldv_qubit_pair_pulses,
     add_default_resonator_pulses,
 )
-from quam_builder.architecture.quantum_dots.components import XYDrive
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
-from quam.components import StickyChannelAddon
-from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
 
 class TestAddDefaultLDVQubitPulses:
@@ -93,7 +96,7 @@ class TestAddDefaultLDVQubitPulses:
         x180 = qubit.xy_channel.operations["x180"]
         assert x180.length == 1000
         assert x180.amplitude == 0.2
-        assert x180.axis_angle == 0.0
+        assert x180.axis_angle == pytest.approx(0.0)
 
         # Check y90 pulse properties
         y90 = qubit.xy_channel.operations["y90"]

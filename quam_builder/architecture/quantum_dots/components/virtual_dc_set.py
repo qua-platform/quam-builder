@@ -1,7 +1,13 @@
-import numpy as np
-from typing import Dict, List
+"""Virtual DC gate set for quantum dot systems."""
+
+# pylint: disable=access-member-before-definition,invalid-field-call,no-member,not-an-iterable
+# pylint: disable=too-many-branches,too-many-statements,unsupported-assignment-operation
+
 from dataclasses import field
 import warnings
+from typing import Dict, List
+
+import numpy as np
 
 from quam.core import quam_dataclass, macro
 from quam.components import QuantumComponent
@@ -11,6 +17,7 @@ from quam_builder.architecture.quantum_dots.virtual_gates import VirtualizationL
 from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTuningPoint
 
 __all__ = ["VirtualDCSet"]
+
 
 @quam_dataclass
 class VirtualDCSet(QuantumComponent):
@@ -68,10 +75,13 @@ class VirtualDCSet(QuantumComponent):
     _current_levels: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
+        """Initialize current voltage tracking and validate channel offsets."""
         # Check for offset_parameter in all the channels
-        for channel in self.channels.values(): 
-            if channel.offset_parameter is None: 
-                raise ValueError(f"Channel {channel.id} does not have an associated offset_parameter. Set this first")
+        for channel in self.channels.values():
+            if channel.offset_parameter is None:
+                raise ValueError(
+                    f"Channel {channel.id} does not have an associated offset_parameter. Set this first"
+                )
 
         # Instantiate all the physical voltages in full voltages dict
         for name, channel in self.channels.items():
@@ -82,6 +92,7 @@ class VirtualDCSet(QuantumComponent):
 
     @property
     def name(self):
+        """Return the VirtualDCSet identifier."""
         return self.id
 
     @property
@@ -93,7 +104,7 @@ class VirtualDCSet(QuantumComponent):
 
     @property
     def all_current_voltages(self) -> Dict[str, float]:
-        """A property to return a dict of the current virtual voltages, as constructed by the current physical voltages"""
+        """Return a dict of virtual voltages derived from the physical voltages."""
         full_voltages_dict = self.current_physical_voltages.copy()
 
         # Build the dict layer by layer. First layer should always be mapped to the physical anyway
@@ -102,9 +113,7 @@ class VirtualDCSet(QuantumComponent):
         for layer in self.layers:
             target_names = layer.target_gates
             source_names = layer.source_gates
-            target_voltages_array = np.array(
-                [full_voltages_dict[name] for name in target_names]
-            )
+            target_voltages_array = np.array([full_voltages_dict[name] for name in target_names])
             matrix_array = np.asarray(layer.matrix, dtype=float)
             source_voltages_array = matrix_array @ target_voltages_array
             for idx, name in enumerate(source_names):
@@ -114,12 +123,14 @@ class VirtualDCSet(QuantumComponent):
 
     @property
     def valid_channel_names(self) -> list[str]:
+        """Return the list of physical and virtual gate names."""
         # Collect all virtual gate names from all layers
         virtual_channels = set(ch for layer in self.layers for ch in layer.source_gates)
         # Combine physical and virtual gate names
         return list(self.channels) + list(virtual_channels)
 
     def add_point(self, name: str, voltages: Dict[str, float], duration: int) -> None:
+        """Register a named voltage point macro for this virtual gate set."""
         invalid_channel_names = set(voltages) - set(self.valid_channel_names)
 
         if invalid_channel_names:
@@ -179,9 +190,7 @@ class VirtualDCSet(QuantumComponent):
         if self.layers:  # Not the first layer
             # Get all source gates from previous layers
             all_previous_source_gates = set()
-            for lyr in (
-                self.layers
-            ):  # Iterate through existing layers before adding the new one
+            for lyr in self.layers:  # Iterate through existing layers before adding the new one
                 all_previous_source_gates.update(lyr.source_gates)
 
             # Combine with physical channels for the very first layer's target check
@@ -224,18 +233,9 @@ class VirtualDCSet(QuantumComponent):
         # Check 5: The layer name must be unique
         for lyr in self.layers:
             if layer_id == lyr.id:
-                raise ValueError(
-                    f"Layer name '{layer_id}' is already used in a previous layer."
-                )
+                raise ValueError(f"Layer name '{layer_id}' is already used in a previous layer.")
 
         matrix_array = np.array(matrix, dtype=float)
-        expected_shape = (len(source_gates), len(target_gates))
-        if matrix_array.shape != expected_shape:
-            raise ValueError(
-                "Matrix dimensions do not match source/target gate counts. "
-                f"Expected {expected_shape}, got {matrix_array.shape}"
-            )
-
         is_square = matrix_array.shape[0] == matrix_array.shape[1]
         if not is_square and not self.allow_rectangular_matrices:
             raise ValueError(
@@ -243,14 +243,19 @@ class VirtualDCSet(QuantumComponent):
                 f"Got shape {matrix_array.shape}"
             )
 
+        expected_shape = (len(source_gates), len(target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
+            )
+
         if is_square:
             # Check 6: Matrix must be invertible (non-zero determinant)
             try:
                 det = np.linalg.det(matrix_array)
                 if abs(det) < 1e-10:  # Use small tolerance for floating point
-                    raise ValueError(
-                        f"Matrix is not invertible (determinant ≈ 0): {det}"
-                    )
+                    raise ValueError(f"Matrix is not invertible (determinant ≈ 0): {det}")
             except np.linalg.LinAlgError as e:
                 raise ValueError(f"Matrix inversion failed: {e}")
 
@@ -294,16 +299,20 @@ class VirtualDCSet(QuantumComponent):
 
     def add_to_layer(
         self,
-        layer_id: str,
         source_gates: List[str],
         target_gates: List[str],
         matrix: List[List[float]],
+        layer_id: str | None = None,
     ) -> VirtualizationLayer:
+        """Extend an existing layer with additional gates and mappings."""
         if not self.allow_rectangular_matrices:
             raise ValueError(
                 "add_to_layer requires allow_rectangular_matrices=True to enable "
                 "non-square virtual gate layers."
             )
+
+        if layer_id is None and self.layers:
+            layer_id = self.layers[-1].id
 
         if not self.layers:
             return self.add_layer(
@@ -333,9 +342,7 @@ class VirtualDCSet(QuantumComponent):
                 f"Expected {expected_shape}, got {matrix_array.shape}"
             )
 
-        target_overlap_layer = next(
-            (lyr for lyr in self.layers if lyr.id == layer_id), None
-        )
+        target_overlap_layer = next((lyr for lyr in self.layers if lyr.id == layer_id), None)
 
         if target_overlap_layer is None:
             return self.add_layer(
@@ -440,10 +447,8 @@ class VirtualDCSet(QuantumComponent):
 
         # Apply each virtualization layer in reverse order (from highest to lowest)
         # Each layer resolves its virtual gates to the next lower layer
-        for layer in reversed(self.layers):
-            resolved_voltages = layer.resolve_voltages(
-                resolved_voltages, allow_extra_entries=True
-            )
+        for layer in reversed(list(self.layers)):
+            resolved_voltages = layer.resolve_voltages(resolved_voltages, allow_extra_entries=True)
 
         base_resolved_voltages = {}
         for ch_name in self.channels:
@@ -453,16 +458,15 @@ class VirtualDCSet(QuantumComponent):
 
     def set_voltages(self, voltages: Dict[str, float]) -> None:
         """
-        Input a dict of {name: voltage}, and internally this will resolve to a set of physical voltages
-        to be applied.
+        Input a dict of {name: voltage} and resolve to physical voltages to apply.
         """
         self._current_levels = self.all_current_voltages.copy()
         deltas = {}
-        for name, new_value in voltages.items(): 
+        for name, new_value in voltages.items():
             old_value = self._current_levels.get(name, 0.0)
             deltas[name] = new_value - old_value
         physical_deltas = self.resolve_voltages(deltas)
-        for name, delta in physical_deltas.items(): 
+        for name, delta in physical_deltas.items():
             current_physical = self.channels[name].offset_parameter()
             self.channels[name].offset_parameter(current_physical + delta)
         self._current_levels = self.all_current_voltages.copy()
@@ -483,6 +487,7 @@ class VirtualDCSet(QuantumComponent):
         return self._current_levels.get(name, 0.0)
 
     def go_to_point(self, name: str) -> None:
+        """Apply a registered voltage point by name."""
         if name not in self.macros:
             raise ValueError(
                 f"Point name {name} not in registered macros: {list(self.macros.keys())}"

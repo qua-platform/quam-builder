@@ -287,11 +287,11 @@ class Init12Macro(QuamMacro):
 # -----------------------------------------------------------------------
 # Define Full Circuit QUA Program
 # -----------------------------------------------------------------------
-q1 = machine.qubits['Q1']
-q2 = machine.qubits['Q2']
-q3 = machine.qubits['Q3']
-q4 = machine.qubits['Q4']
-q5 = machine.qubits['Q5']
+q1 = machine.quantum_dots['Q1']
+q2 = machine.quantum_dots['Q2']
+q3 = machine.quantum_dots['Q3']
+q4 = machine.quantum_dots['Q4']
+q5 = machine.quantum_dots['Q5']
 
 q1_q2 = q1 @ q2
 q2_q3 = q2 @ q3
