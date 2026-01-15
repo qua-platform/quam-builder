@@ -60,17 +60,17 @@ connectivity = Connectivity()
 connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
 # Option 1
-connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
+# connectivity.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=True)
 
 # Option 2
-# connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
-# connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
+connectivity.add_sensor_dot_resonator_line(sensor_dots, shared_line=False, wiring_frequency=WiringFrequency.DC)
+connectivity.add_sensor_dot_voltage_gate_lines(sensor_dots)
 
 # Option 1:
-connectivity.add_quantum_dots(quantum_dots=qubits)
+# connectivity.add_quantum_dots(quantum_dots=qubits)
 # Option 2:
-# connectivity.add_quantum_dot_voltage_gate_lines(qubits)
-# connectivity.add_quantum_dot_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
+connectivity.add_quantum_dot_voltage_gate_lines(qubits)
+connectivity.add_quantum_dot_drive_lines(qubits, wiring_frequency=WiringFrequency.RF, shared_line=True)
 
 connectivity.add_quantum_dot_pairs(quantum_dot_pairs=qubit_pairs)
 try:
@@ -84,14 +84,14 @@ except Exception as e:
     raise
 
 # Optional: visualize wiring (requires a GUI backend). Comment out in headless environments.
-# import matplotlib
-# matplotlib.use("TkAgg")
-# visualize(
-#     connectivity.elements,
-#     available_channels=instruments.available_channels,
-#     use_matplotlib=True,
-# )
-# plt.show()
+import matplotlib
+matplotlib.use("TkAgg")
+visualize(
+    connectivity.elements,
+    available_channels=instruments.available_channels,
+    use_matplotlib=True,
+)
+plt.show()
 
 ########################################################################################################################
 # %%                                   Build the wiring and QUAM
@@ -123,12 +123,12 @@ except Exception as e:
 # - Calibrate quantum dot parameters
 # - Save the state for later qubit configuration
 
-# machine = build_base_quam(
-#     machine,
-#     connect_qdac=False,  # Connect to external QDAC for voltage control
-#     # qdac_ip="172.16.33.101",  # QDAC IP address
-#     save=True,  # Save the BaseQuamQD state
-# )
+machine = build_base_quam(
+    machine,
+    connect_qdac=False,  # Connect to external QDAC for voltage control
+    # qdac_ip="172.16.33.101",  # QDAC IP address
+    save=True,  # Save the BaseQuamQD state
+)
 
 # At this point, you can:
 # - Calibrate quantum dots
@@ -148,12 +148,12 @@ qubit_pair_sensor_map = {
     "q3_q4": ["sensor_2"],
 }
 
-# machine = build_loss_divincenzo_quam(
-#     machine,  # Can also load from file: "path/to/base_quam_state"
-#     qubit_pair_sensor_map=qubit_pair_sensor_map,
-#     implicit_mapping=True,  # q1 → virtual_dot_1 mapping
-#     save=True,
-# )
+machine = build_loss_divincenzo_quam(
+    machine,  # Can also load from file: "path/to/base_quam_state"
+    qubit_pair_sensor_map=qubit_pair_sensor_map,
+    implicit_mapping=True,  # q1 → virtual_dot_1 mapping
+    save=True,
+)
 
 # Now machine has both quantum dots AND qubits
 # Access quantum dots: machine.quantum_dots["virtual_dot_1"]
