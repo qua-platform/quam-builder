@@ -4,7 +4,7 @@ from typing import Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 

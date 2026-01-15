@@ -1,8 +1,9 @@
 from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.components import VoltagePointMacroMixin, QuantumDot
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
 
 
 @quam_dataclass

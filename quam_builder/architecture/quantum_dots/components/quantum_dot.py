@@ -11,7 +11,7 @@ from quam.utils.qua_types import (
     ScalarBool,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
