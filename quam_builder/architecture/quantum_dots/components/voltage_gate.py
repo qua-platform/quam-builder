@@ -42,7 +42,7 @@ class VoltageGate(SingleChannel):
         if hasattr(self.opx_output, "upsampling_mode"): 
             self.opx_output.upsampling_mode = "pulse"
         self._offset_parameter = None
-        self.opx_external_ratio: float = 10**(self.attenuation / 20)
+        self.opx_external_ratio: float = 10**(- self.attenuation / 20)
 
     @property
     def physical_channel(self):

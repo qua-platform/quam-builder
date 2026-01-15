@@ -136,6 +136,7 @@ if qdac_connect:
     qdac_ip = "172.16.33.101"
     machine.network.update({"qdac_ip": qdac_ip})
     machine.connect_to_external_source(external_qdac = True)
+    machine.create_virtual_dc_set("main_qpu")
 
 ########################################
 ###### Register Quantum Dot Pairs ######
@@ -176,7 +177,8 @@ machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
 machine.update_cross_compensation_submatrix(
     virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
     channels = [p4], 
-    matrix = [[0.1, 0.5]]
+    matrix = [[0.1, 0.5]], 
+    target = "both"
 )
 
 machine.update_cross_compensation_submatrix(
@@ -185,7 +187,8 @@ machine.update_cross_compensation_submatrix(
     matrix = [[1, 0.1, 0.1, 0.3], 
               [0.2, 1, 0.6, 0.8], 
               [0.1, 0.3, 1, 0.3], 
-              [0.2, 0.5, 0.1, 1]]
+              [0.2, 0.5, 0.1, 1]], 
+    target = "both"
 )
 
 ###########################

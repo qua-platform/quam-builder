@@ -1,30 +1,33 @@
-from typing import TYPE_CHECKING
+"""Global gate component for quantum dots."""
+
+from typing import Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
+
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
-__all__ = ["QPU"]
+__all__ = ["GlobalGate"]
 
 
 @quam_dataclass
-class QPU(VoltagePointMacroMixin):
+class GlobalGate(VoltagePointMacroMixin):
     """
-    Quam component for the QPU
-
-    The macros dictionary is inherited from VoltagePointMacroMixin and can be used
-    to store parameterized macros that are called at programming time.
+    A class for a GlobalGate channel
     """
 
-    id: int | str = "QPU"
+    id: str
+    physical_channel: VoltageGate
+    current_voltage: float = 0.0
 
     @property
     def name(self) -> str:
-        """Return the name of the QPU (required by QuantumComponent)"""
-        return str(self.id)
+        """Return the name of the global gate (same as id)."""
+        return self.id
 
     @property
     def machine(self) -> "BaseQuamQD":
@@ -44,9 +47,8 @@ class QPU(VoltagePointMacroMixin):
         except (AttributeError, ValueError, KeyError):
             return None
 
-    # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
-    # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    def _update_current_voltage(self, voltage: float):
+        """Update the tracked current voltage."""
+        self.current_voltage = voltage
 
-    def get_offset(self):
-        v = getattr(self.physical_channel, "offset_parameter", None)
-        return float(v()) if callable(v) else 0.0
+    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltagePointMacroMixin

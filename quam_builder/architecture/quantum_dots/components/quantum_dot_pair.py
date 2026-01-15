@@ -74,7 +74,7 @@ class QuantumDotPair(VoltagePointMacroMixin):
     def name(self) -> str:
         return self.id
 
-    def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None) -> None: 
+    def define_detuning_axis(self, matrix: List[List[float]], detuning_axis_name: str = None, set_dc_virtual_axis: bool = True) -> None: 
         
         # If no name is given, ensure that it is the default
         if detuning_axis_name is None: 
@@ -102,6 +102,14 @@ class QuantumDotPair(VoltagePointMacroMixin):
             source_gates = source_gates, 
             matrix = matrix
         )
+        if set_dc_virtual_axis: 
+            virtual_dc_set = self.machine.virtual_dc_sets[virtual_gate_set.id]
+            virtual_dc_set.add_to_layer(
+                layer_id = "quantum_dot_pair_detuning_matrix", 
+                target_gates = target_gates, 
+                source_gates = source_gates, 
+                matrix = matrix
+            )
     
     def go_to_detuning(self, voltage: float, duration:int = 16) -> None: 
         """To be used in a simultaneous block to step/ramp detuning to specified value. Can only be used after define_detuning_axis."""
