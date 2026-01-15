@@ -161,7 +161,7 @@ class TestWirerBuilderIntegration:
         assert len(vgs.channels) >= 3  # At least 3 plunger gates
 
     def test_qubit_registration_with_xy_drives(self, instruments, temp_dir):
-        """Test that qubits are registered with their XY drives."""
+        """Test that qubits are registered with their XY drives in Stage 2."""
         connectivity = Connectivity()
         connectivity.add_quantum_dots(quantum_dots=[1, 2])
 
@@ -177,12 +177,15 @@ class TestWirerBuilderIntegration:
         )
 
         machine_loaded = BaseQuamQD.load(temp_dir)
+        # build_quam does both Stage 1 and Stage 2, creating qubits with XY drives
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
-        # Verify qubits have XY drives
-        for qubit_name, qubit in machine_loaded.quantum_dots.items():
-            # Check if qubit has an xy_channel attribute (may be None if no MW-FEM allocated)
-            assert hasattr(qubit, "xy_channel")
+        # Verify qubits (Stage 2) have XY drives
+        # Note: qubits are in machine_loaded.qubits, not quantum_dots
+        assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
+        for qubit_name, qubit in machine_loaded.qubits.items():
+            # Check if qubit has an xy_channel attribute
+            assert hasattr(qubit, "xy_channel"), f"Qubit {qubit_name} should have xy_channel attribute"
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
@@ -208,7 +211,7 @@ class TestWirerBuilderIntegration:
         # Note: Resonator attachment depends on wiring allocation
 
     def test_pulses_are_added(self, instruments, temp_dir):
-        """Test that default pulses are added to qubits."""
+        """Test that default pulses are added to qubits in Stage 2."""
         connectivity = Connectivity()
         connectivity.add_quantum_dots(quantum_dots=[1, 2])
 
@@ -224,10 +227,12 @@ class TestWirerBuilderIntegration:
         )
 
         machine_loaded = BaseQuamQD.load(temp_dir)
+        # build_quam does both Stage 1 and Stage 2, creating qubits with XY drives
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
-        # Verify qubits have pulses (if they have xy channels)
-        for qubit_name, qubit in machine_loaded.quantum_dots.items():
+        # Verify qubits (Stage 2) have pulses (if they have xy channels)
+        assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
+        for qubit_name, qubit in machine_loaded.qubits.items():
             if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
                 # Should have XY operations
                 assert len(qubit.xy_channel.operations) > 0
