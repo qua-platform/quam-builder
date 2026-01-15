@@ -1,8 +1,5 @@
 """Utilities for AST comparisons in tests."""
 
-# pylint: disable=wrong-import-position,too-many-branches,too-many-statements
-# pylint: disable=too-many-return-statements,no-else-return
-
 from typing import Any
 
 import numpy as np

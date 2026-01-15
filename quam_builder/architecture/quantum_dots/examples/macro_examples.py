@@ -384,7 +384,6 @@ def example_06_operations_registry(machine) -> None:
 
 if __name__ == "__main__":
     from quam_qd_generator_example import machine
-
     qubit = machine.quantum_dots["Q0"]
     quantum_dot = qubit.quantum_dot
 
