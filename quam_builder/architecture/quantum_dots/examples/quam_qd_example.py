@@ -29,7 +29,9 @@ Workflow:
 
 from quam.components import (
     StickyChannelAddon, 
-    pulses
+    pulses, 
+    DigitalOutputChannel,
+    Channel,
 ) 
 from quam.components.ports import (
     LFFEMAnalogOutputPort, 
@@ -40,7 +42,7 @@ from quam.components.ports import (
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacSpec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
@@ -60,14 +62,14 @@ machine.network = {
 ###### Instantiate Physical Channels ######
 ###########################################
 
-p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), qdac_channel = 1, sticky = StickyChannelAddon(duration = 16, digital = False))
-p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), qdac_channel = 2, sticky = StickyChannelAddon(duration = 16, digital = False))
-p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), qdac_channel = 3, sticky = StickyChannelAddon(duration = 16, digital = False))
-p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), qdac_channel = 4, sticky = StickyChannelAddon(duration = 16, digital = False))
-b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), qdac_channel = 5, sticky = StickyChannelAddon(duration = 16, digital = False))
-b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), qdac_channel = 6, sticky = StickyChannelAddon(duration = 16, digital = False))
-b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), qdac_channel = 7, sticky = StickyChannelAddon(duration = 16, digital = False))
-s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), qdac_channel = 8, sticky = StickyChannelAddon(duration = 16, digital = False))
+p1 = VoltageGate(id = f"plunger_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 1), sticky = StickyChannelAddon(duration = 16, digital = False))
+p2 = VoltageGate(id = f"plunger_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 2), sticky = StickyChannelAddon(duration = 16, digital = False))
+p3 = VoltageGate(id = f"plunger_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 3), sticky = StickyChannelAddon(duration = 16, digital = False))
+p4 = VoltageGate(id = f"plunger_4", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 4), sticky = StickyChannelAddon(duration = 16, digital = False))
+b1 = VoltageGate(id = f"barrier_1", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 5), sticky = StickyChannelAddon(duration = 16, digital = False))
+b2 = VoltageGate(id = f"barrier_2", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 6), sticky = StickyChannelAddon(duration = 16, digital = False))
+b3 = VoltageGate(id = f"barrier_3", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 7), sticky = StickyChannelAddon(duration = 16, digital = False))
+s1 = VoltageGate(id = f"sensor_DC", opx_output = LFFEMAnalogOutputPort("con1", lf_fem, port_id = 8), sticky = StickyChannelAddon(duration = 16, digital = False))
 
 
 
@@ -120,6 +122,17 @@ machine.register_channel_elements(
 
 qdac_connect = True
 if qdac_connect: 
+    # Set up the QDAC port specs 
+    for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()): 
+        if isinstance(ch_obj, VoltageGate): 
+            ch_obj.qdac_spec = QdacSpec(
+                opx_trigger_out = Channel(
+                    id = f"{ch_name}_qdac_trigger", 
+                    digital_outputs={"trigger": DigitalOutputChannel(opx_output = ("con1", lf_fem, i+1), delay = 0, buffer = 0)}, 
+                    operations = {"trigger": pulses.Pulse(length = 100, digital_marker = "ON")}), 
+                qdac_output_port=i+1,
+            )
+
     qdac_ip = "172.16.33.101"
     machine.network.update({"qdac_ip": qdac_ip})
     machine.connect_to_external_source(external_qdac = True)

@@ -1,9 +1,9 @@
-from typing import Optional
+from typing import Optional, Dict
 
-from quam.components import SingleChannel
-from quam.core import quam_dataclass
+from quam.components import SingleChannel, Channel
+from quam.core import quam_dataclass, QuamComponent
 
-__all__ = ["VoltageGate"]
+__all__ = ["VoltageGate", "QdacSpec"]
 
 
 @quam_dataclass
@@ -36,8 +36,7 @@ class VoltageGate(SingleChannel):
     attenuation: float = 0.0
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
-    qdac_channel: int = None
-    
+    qdac_spec: "QdacSpec" = None
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
@@ -58,3 +57,14 @@ class VoltageGate(SingleChannel):
         self._offset_parameter = value
         if self.offset_parameter is not None: 
             self.current_external_voltage = self.offset_parameter()
+
+@quam_dataclass
+class QdacSpec(QuamComponent): 
+    """
+    Quam Component for a QDAC Channel, to be parented by VoltageGate. 
+    Attributes: 
+        - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the Qdac. 
+        - qdac_output_port: The QDAC port associated with the VoltageGate DC component. 
+    """
+    opx_trigger_out: Channel = None
+    qdac_output_port: int
