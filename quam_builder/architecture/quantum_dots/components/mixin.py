@@ -4,12 +4,18 @@ Mixin classes for voltage point macro functionality.
 This module provides mixin classes that implement common voltage point macro methods
 to reduce code duplication across quantum dot components.
 """
+
 from quam.core.macro import QuamMacro
 from typing import Dict, TYPE_CHECKING, Optional, List, Any
 from dataclasses import field
 from copy import deepcopy
 
-from quam_builder.architecture.quantum_dots.macros import SequenceMacro, StepPointMacro, RampPointMacro, ConditionalMacro
+from quam_builder.architecture.quantum_dots.macros import (
+    SequenceMacro,
+    StepPointMacro,
+    RampPointMacro,
+    ConditionalMacro,
+)
 from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import QuantumComponent
@@ -28,6 +34,7 @@ if TYPE_CHECKING:
 __all__ = [
     "VoltagePointMacroMixin",
 ]
+
 
 @quam_dataclass
 class VoltagePointMacroMixin(QuantumComponent):
@@ -124,9 +131,7 @@ class VoltagePointMacroMixin(QuantumComponent):
         except AttributeError:
             # Check if it's a registered macro
             try:
-                macros_dict = object.__getattribute__(self, "__dict__").get(
-                    "macros", {}
-                )
+                macros_dict = object.__getattribute__(self, "__dict__").get("macros", {})
                 if macros_dict and name in macros_dict:
                     # Return a bound method-like callable
                     # Note: apply() uses self.parent internally, no need to pass component
@@ -194,9 +199,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                 f"Valid channel names: {list(valid_channel_names)}"
             )
 
-    def go_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ) -> None:
+    def go_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType) -> None:
         """
         Agnostic function to set voltage in a sequence.simultaneous block.
 
@@ -779,17 +782,17 @@ class VoltagePointMacroMixin(QuantumComponent):
                 )
 
         # Create and register the sequence
-        sequence = SequenceMacro(name=name, description=description, return_index=return_index).with_macros(
-            self, macro_names
-        )
+        sequence = SequenceMacro(
+            name=name, description=description, return_index=return_index
+        ).with_macros(self, macro_names)
         self.macros[name] = sequence
 
         return self
 
     def with_macro(
-            self,
-            name: str,
-            macro: QuamMacro,
+        self,
+        name: str,
+        macro: QuamMacro,
     ):
 
         # Store in macros dict
@@ -859,7 +862,7 @@ class VoltagePointMacroMixin(QuantumComponent):
                     component.init_with_reset()  # Full sequence
         """
         # Handle measurement_macro: check if it's a reference or macro name
-        if measurement_macro.startswith('#'):
+        if measurement_macro.startswith("#"):
             # Already a reference string
             measurement_ref = measurement_macro
         else:
@@ -873,7 +876,7 @@ class VoltagePointMacroMixin(QuantumComponent):
             measurement_ref = f"#../{measurement_macro}"
 
         # Handle conditional_macro: check if it's a reference or macro name
-        if conditional_macro.startswith('#'):
+        if conditional_macro.startswith("#"):
             # Already a reference string
             conditional_ref = conditional_macro
         else:
@@ -898,3 +901,6 @@ class VoltagePointMacroMixin(QuantumComponent):
         self.macros[name] = macro
 
         return self
+
+
+# Replace the placeholder export in point_macros with the real mixin class

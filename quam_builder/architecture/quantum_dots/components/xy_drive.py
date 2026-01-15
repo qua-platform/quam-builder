@@ -14,9 +14,6 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
-
-
 @quam_dataclass
 class XYDriveBase:
     """
@@ -24,9 +21,7 @@ class XYDriveBase:
     """
 
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -39,40 +34,35 @@ class XYDriveBase:
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
 
-__all__ = ["XYDrive"]
+
+__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
+
 
 @quam_dataclass
 class XYDrive(MWChannel):
     """
     Microwave drive channel for EDSR/ESR control of Qubits
     """
-    add_default_pulses:bool = True
+
+    add_default_pulses: bool = True
 
     def __post_init__(self):
         super().__post_init__()
         if self.add_default_pulses:
             if "gaussian" not in self.operations:
                 self.operations["gaussian"] = pulses.GaussianPulse(
-                    length = 100,
-                    amplitude = 0.2,
-                    sigma = 40
+                    length=100, amplitude=0.2, sigma=40
                 )
             if "pi" not in self.operations:
-                self.operations["pi"] = pulses.SquarePulse(
-                    length=104,
-                    amplitude=0.2
-                )
+                self.operations["pi"] = pulses.SquarePulse(length=104, amplitude=0.2)
 
             if "pi_half" not in self.operations:
-                self.operations["pi_half"] = pulses.SquarePulse(
-                    length=52,
-                    amplitude=0.2
-                )
-
+                self.operations["pi_half"] = pulses.SquarePulse(length=52, amplitude=0.2)
 
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""
         self.operations[name] = pulse
+
 
 class XYDriveIQ(IQChannel, XYDriveBase):
     """
@@ -108,7 +98,6 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             raise ValueError(f"Pulse {name} not found in operations")
         return self.operations[name]
 
-
     def set_output_power(
         self,
         power_in_dbm: float,
@@ -134,9 +123,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass
