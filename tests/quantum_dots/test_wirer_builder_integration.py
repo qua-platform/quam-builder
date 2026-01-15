@@ -67,8 +67,8 @@ class TestWirerBuilderIntegration:
         # Setup connectivity
         connectivity = Connectivity()
         connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
-        connectivity.add_qubits(qubits=[1, 2])
-        connectivity.add_qubit_pairs(qubit_pairs=[(1, 2)])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
         # Allocate wiring
         allocate_wiring(connectivity, instruments)
@@ -98,15 +98,15 @@ class TestWirerBuilderIntegration:
         # Verify QPU elements were created
         assert len(machine_loaded.sensor_dots) > 0
         assert len(machine_loaded.quantum_dots) > 0
-        assert len(machine_loaded.qubits) > 0
+        assert len(machine_loaded.quantum_dots) > 0
 
     def test_workflow_with_multiple_qubits(self, instruments, temp_dir):
         """Test workflow with multiple qubits and qubit pairs."""
         # Setup connectivity with more qubits
         connectivity = Connectivity()
         connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=False)
-        connectivity.add_qubits(qubits=[1, 2, 3, 4])
-        connectivity.add_qubit_pairs(qubit_pairs=[(1, 2), (2, 3), (3, 4)])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3, 4])
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3), (3, 4)])
 
         # Allocate wiring
         allocate_wiring(connectivity, instruments)
@@ -128,15 +128,15 @@ class TestWirerBuilderIntegration:
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify correct number of elements
-        assert len(machine_loaded.qubits) == 4
         assert len(machine_loaded.quantum_dots) == 4
-        assert len(machine_loaded.qubit_pairs) == 3
+        assert len(machine_loaded.quantum_dots) == 4
+        assert len(machine_loaded.quantum_dot_pairs) == 3
         assert len(machine_loaded.sensor_dots) == 2
 
     def test_virtual_gate_set_creation(self, instruments, temp_dir):
         """Test that virtual gate set is correctly created."""
         connectivity = Connectivity()
-        connectivity.add_qubits(qubits=[1, 2, 3])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
 
         allocate_wiring(connectivity, instruments)
 
@@ -163,7 +163,7 @@ class TestWirerBuilderIntegration:
     def test_qubit_registration_with_xy_drives(self, instruments, temp_dir):
         """Test that qubits are registered with their XY drives."""
         connectivity = Connectivity()
-        connectivity.add_qubits(qubits=[1, 2])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
 
         allocate_wiring(connectivity, instruments)
 
@@ -180,7 +180,7 @@ class TestWirerBuilderIntegration:
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have XY drives
-        for qubit_name, qubit in machine_loaded.qubits.items():
+        for qubit_name, qubit in machine_loaded.quantum_dots.items():
             # Check if qubit has an xy_channel attribute (may be None if no MW-FEM allocated)
             assert hasattr(qubit, "xy_channel")
 
@@ -210,7 +210,7 @@ class TestWirerBuilderIntegration:
     def test_pulses_are_added(self, instruments, temp_dir):
         """Test that default pulses are added to qubits."""
         connectivity = Connectivity()
-        connectivity.add_qubits(qubits=[1, 2])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
 
         allocate_wiring(connectivity, instruments)
 
@@ -227,7 +227,7 @@ class TestWirerBuilderIntegration:
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify qubits have pulses (if they have xy channels)
-        for qubit_name, qubit in machine_loaded.qubits.items():
+        for qubit_name, qubit in machine_loaded.quantum_dots.items():
             if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
                 # Should have XY operations
                 assert len(qubit.xy_channel.operations) > 0
@@ -235,7 +235,7 @@ class TestWirerBuilderIntegration:
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""
         connectivity = Connectivity()
-        connectivity.add_qubits(qubits=[1])
+        connectivity.add_quantum_dots(quantum_dots=[1])
 
         allocate_wiring(connectivity, instruments)
 
@@ -258,8 +258,8 @@ class TestWirerBuilderIntegration:
         """Test that active element names lists are populated."""
         connectivity = Connectivity()
         connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
-        connectivity.add_qubits(qubits=[1, 2])
-        connectivity.add_qubit_pairs(qubit_pairs=[(1, 2)])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
         allocate_wiring(connectivity, instruments)
 
@@ -277,8 +277,8 @@ class TestWirerBuilderIntegration:
 
         # Verify elements are populated
         assert len(machine_loaded.sensor_dots) > 0
-        assert len(machine_loaded.qubits) > 0
-        assert len(machine_loaded.qubit_pairs) > 0
+        assert len(machine_loaded.quantum_dots) > 0
+        assert len(machine_loaded.quantum_dot_pairs) > 0
 
 
 class TestWirerOnly:
@@ -291,8 +291,8 @@ class TestWirerOnly:
         # Add various element types
         connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name="g")
         connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=True)
-        connectivity.add_qubits(qubits=[1, 2, 3])
-        connectivity.add_qubit_pairs(qubit_pairs=[(1, 2), (2, 3)])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3)])
 
         instruments = Instruments()
         instruments.add_mw_fem(controller=1, slots=[1])
@@ -318,7 +318,7 @@ class TestWirerOnly:
         instruments.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity = Connectivity()
-        connectivity.add_qubits(qubits=[1, 2])
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
 
         # Allocate wiring
         allocate_wiring(connectivity, instruments)
