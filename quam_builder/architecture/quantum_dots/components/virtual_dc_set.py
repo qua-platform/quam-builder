@@ -5,10 +5,8 @@ import warnings
 
 from quam.core import quam_dataclass, macro
 from quam.components import QuantumComponent
-from quam_builder.architecture.quantum_dots.components import (
-    VirtualizationLayer,
-    VoltageGate,
-)
+from .virtual_gate_set import VirtualizationLayer
+from .voltage_gate import VoltageGate
 
 from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTuningPoint
 

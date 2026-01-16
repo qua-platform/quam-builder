@@ -2,7 +2,7 @@ from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
-from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from .mixin import VoltagePointMacroMixin
 from quam.utils.qua_types import (
     ChirpType,
     StreamType,
@@ -11,7 +11,7 @@ from quam.utils.qua_types import (
     ScalarBool,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from .voltage_gate import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

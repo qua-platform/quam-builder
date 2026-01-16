@@ -8,12 +8,12 @@ from qm import logger
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
-from quam_builder.architecture.quantum_dots.components import (
+from .readout_resonator import (
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
     ReadoutResonatorSingle
 )
-from quam_builder.architecture.quantum_dots.components import QuantumDot
+from .quantum_dot import QuantumDot
 
 __all__ = ["SensorDot", "Projector"]
 
