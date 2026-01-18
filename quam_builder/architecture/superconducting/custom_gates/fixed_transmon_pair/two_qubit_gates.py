@@ -408,6 +408,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         }
         try:
             do_cancel, do_echo = dispatch[cr_type]
+            # print(f"CR TYPE: {cr_type} | CANCEL: {do_cancel} | ECHO: {do_echo}")
         except KeyError as e:
             raise ValueError(f"Unknown cr_type '{cr_type}'") from e
 
@@ -520,11 +521,13 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         if phi is not None:
             self._cr.frame_rotation_2pi(phi)
             self._cr_edge.frame_rotation_2pi(phi)
+            # print("DRIVE PHASE SHIFTED:", phi)
 
     def _cr_cancel_shift_phase(self, phi: Optional[float | qua_T]) -> None:
         if phi is not None:
             self._qt.xy.frame_rotation_2pi(phi)
             self._qt.xy_edge.frame_rotation_2pi(phi)
+            # print("CANCEL PHASE SHIFTED:", phi)
 
     # -------------------------
     # Gate runner (removes duplication)
@@ -538,6 +541,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
 
         dur = p.get("cr_duration_clock_cycles")
         amp = p.get("cr_drive_amp_scaling")
+        cancel_amp = p.get("cr_cancel_amp_scaling")
         drive_phase = p.get("cr_drive_phase")
         cancel_phase = p.get("cr_cancel_phase")
 
@@ -547,7 +551,11 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         # pre
         self._cr_drive_shift_phase(drive_phase)
         if do_cancel:
+            # print("APPLYING CANCEL PHASE SHIFT:", cancel_phase)
             self._cr_cancel_shift_phase(cancel_phase)
+        # else:
+        #     pass
+        #     # print("NO CANCEL PHASE SHIFT APPLIED")
         self._align_cr()
 
         # body
@@ -558,6 +566,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
             has_phase=has_phase,
             cr_duration_clock_cycles=dur,
             cr_drive_amp_scaling=amp,
+            cr_cancel_amp_scaling=cancel_amp,
             cancel_pulse=do_cancel,
             sweep_cancel=sweep_cancel
         )
@@ -569,7 +578,10 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
                 has_phase=has_phase,
                 cr_duration_clock_cycles=dur,
                 cr_drive_amp_scaling=amp,
+                cr_cancel_amp_scaling=cancel_amp,
                 cancel_pulse=do_cancel,
+                sweep_cancel=sweep_cancel,
+                
             )
 
         # cleanup
@@ -594,10 +606,12 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         has_phase: bool,
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
+        cr_cancel_amp_scaling: Optional[float | qua_T] = None,
         cancel_pulse: bool = False,
         sweep_cancel: bool = False,
     ) -> None:
         amp = cr_drive_amp_scaling
+        cancel_amp= cr_cancel_amp_scaling
         dur = cr_duration_clock_cycles
 
         if has_dur:
@@ -610,6 +624,7 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
 
             cr_play_kwargs = {"duration": dur}
             qt_play_kwargs = {"duration": dur}
+            # print(f"CR EDGE WAIT: {cr_edge_wait}, QT EDGE WAIT: {qt_edge_wait}")
         else:
             cr_edge_wait = self._flattop_time
             qt_edge_wait = self._flattop_time
@@ -629,11 +644,22 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
 
         # Optional cancellation shaped-square on target xy
         if cancel_pulse:
+            # if cancel_amp is None:
+            amp = cancel_amp if sweep_cancel else amp
             self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=amp)
             self._qt.xy.wait(self._rise_fall_time)
             self._qt.xy.play("const", amplitude_scale=amp, **qt_play_kwargs)
-            self._qt.xy_edge.wait(qt_edge_wait)
+
+            delay = -2 if sweep_cancel else 0
+            delay += 2 if has_phase and sweep_cancel else 0
+            self._qt.xy_edge.wait(qt_edge_wait+delay)
             self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=amp)
+            # else:
+            #     self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=cancel_amp)
+            #     self._qt.xy.wait(self._rise_fall_time)
+            #     self._qt.xy.play("const", amplitude_scale=cancel_amp, **qt_play_kwargs)
+            #     self._qt.xy_edge.wait(qt_edge_wait+delay)
+            #     self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=cancel_amp)
 
     def _cr_echo_pulse_play_amp_dur(
         self,
@@ -641,11 +667,14 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         has_amp: bool,
         has_dur: bool,
         has_phase: bool,
+        sweep_cancel: bool = False,
         cr_duration_clock_cycles: Optional[int | qua_T] = None,
         cr_drive_amp_scaling: Optional[float | qua_T] = None,
+        cr_cancel_amp_scaling: Optional[float | qua_T] = None,
         cancel_pulse: bool = False,
     ) -> None:
         amp = cr_drive_amp_scaling
+        cancel_amp = cr_cancel_amp_scaling
         dur = cr_duration_clock_cycles
 
         # Wired but works: behavior preserved exactly
@@ -683,18 +712,17 @@ class TwoElementCrossResonanceGate(_QubitPairCrossResonanceHelpers, QubitPairMac
         self._cr_edge.play(f"rise_{wf_type}_echo", amplitude_scale=amp)
         self._cr.wait(self._rise_fall_time * 2 + self._pi_len)
         self._cr.play("square", amplitude_scale=cr_square_amp, **cr_play_kwargs)
-
         cr_edge_wait = (dur + delay) if has_dur else self._flattop_time
         self._cr_edge.wait(cr_edge_wait )
         self._cr_edge.play(f"fall_{wf_type}_echo", amplitude_scale=amp)
 
         # Optional cancellation pulse on target xy
         if cancel_pulse:
+            amp = -cancel_amp if sweep_cancel else -amp
             self._qt.xy_edge.wait(self._pi_len)
-            self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=qt_edge_amp)
+            self._qt.xy_edge.play(f"rise_{wf_type}", amplitude_scale=amp)
             self._qt.xy.wait(self._rise_fall_time * 2 + self._pi_len)
-            self._qt.xy.play("const", amplitude_scale=qt_amp, **qt_play_kwargs)
-
+            self._qt.xy.play("const", amplitude_scale=amp, **qt_play_kwargs)
             qt_edge_wait = (dur + delay) if has_dur else self._flattop_time
             self._qt.xy_edge.wait(qt_edge_wait)
-            self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=qt_edge_amp)
+            self._qt.xy_edge.play(f"fall_{wf_type}", amplitude_scale=amp)
