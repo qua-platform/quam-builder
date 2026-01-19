@@ -9,41 +9,13 @@ from pathlib import Path
 import pytest
 
 from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
+from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import build_quam, build_base_quam
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
     LossDiVincenzoQuam,
 )
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-
-
-def _normalize_wiring(machine: BaseQuamQD) -> BaseQuamQD:
-    """Adapts wirer output keys to what build_quam expects."""
-
-    class _DummyGlobalGate:
-        def __init__(self, id):
-            self.id = id
-            self.name = f"global_{id}"
-            self.grid_location = None
-
-    wiring = machine.wiring
-    if "globals" in wiring and "global_gates" not in wiring:
-        wiring["global_gates"] = wiring["globals"]
-        wiring.pop("globals")
-    if "readout" in wiring and "sensor_dots" not in wiring:
-        wiring["sensor_dots"] = wiring["readout"]
-        wiring.pop("readout")
-    if "qubit_pairs" in wiring:
-        qp_mapping = wiring["qubit_pairs"]
-        for qp_id in list(qp_mapping.keys()):
-            new_id = qp_id.replace("-", "_")
-            if new_id != qp_id:
-                qp_mapping[new_id] = qp_mapping[qp_id]
-                qp_mapping.pop(qp_id)
-    if "global_gates" in wiring:
-        machine.global_gate_type = {gid: _DummyGlobalGate for gid in wiring["global_gates"].keys()}
-    return machine
 
 
 class TestWirerBuilderIntegration:
@@ -68,8 +40,17 @@ class TestWirerBuilderIntegration:
         """Test the complete workflow from wiring to build for a basic setup."""
         # Setup connectivity
         connectivity = Connectivity()
-        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
-        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_sensor_dots(
+            sensor_dots=[1],
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
         # Allocate wiring
@@ -84,17 +65,15 @@ class TestWirerBuilderIntegration:
             quam_instance=machine,
             path=temp_dir,
         )
-        machine = _normalize_wiring(machine)
 
         # Verify wiring was created
         assert machine.wiring is not None
-        assert "sensor_dots" in machine.wiring
+        assert "readout" in machine.wiring
         assert "qubits" in machine.wiring
         assert "qubit_pairs" in machine.wiring
 
         # Build QuAM
         machine_loaded = BaseQuamQD.load(temp_dir)
-        _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify QPU elements were created
@@ -106,8 +85,17 @@ class TestWirerBuilderIntegration:
         """Test workflow with multiple qubits and qubit pairs."""
         # Setup connectivity with more qubits
         connectivity = Connectivity()
-        connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=False)
-        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3, 4])
+        connectivity.add_sensor_dots(
+            sensor_dots=[1, 2],
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2, 3, 4],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3), (3, 4)])
 
         # Allocate wiring
@@ -122,11 +110,9 @@ class TestWirerBuilderIntegration:
             quam_instance=machine,
             path=temp_dir,
         )
-        machine = _normalize_wiring(machine)
 
         # Build QuAM
         machine_loaded = BaseQuamQD.load(temp_dir)
-        _normalize_wiring(machine_loaded)
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
         # Verify correct number of elements
@@ -138,7 +124,10 @@ class TestWirerBuilderIntegration:
     def test_virtual_gate_set_creation(self, instruments, temp_dir):
         """Test that virtual gate set is correctly created."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2, 3],
+            add_drive_lines=False,
+        )
 
         allocate_wiring(connectivity, instruments)
 
@@ -165,7 +154,12 @@ class TestWirerBuilderIntegration:
     def test_qubit_registration_with_xy_drives(self, instruments, temp_dir):
         """Test that qubits are registered with their XY drives in Stage 2."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
 
         allocate_wiring(connectivity, instruments)
 
@@ -194,7 +188,11 @@ class TestWirerBuilderIntegration:
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
         connectivity = Connectivity()
-        connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=False)
+        connectivity.add_sensor_dots(
+            sensor_dots=[1, 2],
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
 
         allocate_wiring(connectivity, instruments)
 
@@ -217,7 +215,12 @@ class TestWirerBuilderIntegration:
     def test_pulses_are_added(self, instruments, temp_dir):
         """Test that default pulses are added to qubits in Stage 2."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
 
         allocate_wiring(connectivity, instruments)
 
@@ -244,7 +247,10 @@ class TestWirerBuilderIntegration:
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(quantum_dots=[1])
+        connectivity.add_quantum_dots(
+            quantum_dots=[1],
+            add_drive_lines=False,
+        )
 
         allocate_wiring(connectivity, instruments)
 
@@ -266,8 +272,17 @@ class TestWirerBuilderIntegration:
     def test_active_element_names_are_set(self, instruments, temp_dir):
         """Test that active element names lists are populated."""
         connectivity = Connectivity()
-        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
-        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_sensor_dots(
+            sensor_dots=[1],
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
         allocate_wiring(connectivity, instruments)
@@ -299,8 +314,17 @@ class TestWirerOnly:
 
         # Add various element types
         connectivity.add_voltage_gate_lines(voltage_gates=[1, 2], name="g")
-        connectivity.add_sensor_dots(sensor_dots=[1, 2], shared_resonator_line=True)
-        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
+        connectivity.add_sensor_dots(
+            sensor_dots=[1, 2],
+            shared_resonator_line=True,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2, 3],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3)])
 
         instruments = Instruments()
@@ -317,7 +341,14 @@ class TestWirerOnly:
             for line_type in element.channels:
                 element_types.add(line_type.value)
 
-        expected_types = {"g", "s", "rf", "p", "xy", "b"}
+        expected_types = {
+            WiringLineType.GLOBAL_GATE.value,
+            WiringLineType.SENSOR_GATE.value,
+            WiringLineType.RF_RESONATOR.value,
+            WiringLineType.PLUNGER_GATE.value,
+            WiringLineType.DRIVE.value,
+            WiringLineType.BARRIER_GATE.value,
+        }
         assert element_types.intersection(expected_types)
 
     def test_allocate_wiring_creates_channels(self):
@@ -327,7 +358,12 @@ class TestWirerOnly:
         instruments.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dots(
+            quantum_dots=[1, 2],
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
 
         # Allocate wiring
         allocate_wiring(connectivity, instruments)
