@@ -124,7 +124,7 @@ def _create_wiring_legacy(connectivity: Connectivity) -> dict:
                 WiringLineType.RESONATOR.value,
                 WiringLineType.DRIVE.value,
                 WiringLineType.FLUX.value,
-                WiringLineType.PLUNGER.value,
+                WiringLineType.PLUNGER_GATE.value,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
                     set_nested_value_with_path(
@@ -135,7 +135,7 @@ def _create_wiring_legacy(connectivity: Connectivity) -> dict:
                 WiringLineType.COUPLER.value,
                 WiringLineType.CROSS_RESONANCE.value,
                 WiringLineType.ZZ_DRIVE.value,
-                WiringLineType.BARRIER.value,
+                WiringLineType.BARRIER_GATE.value,
             ]:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
                     set_nested_value_with_path(
