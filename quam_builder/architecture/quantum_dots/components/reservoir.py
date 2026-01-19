@@ -6,6 +6,8 @@ from quam_builder.architecture.quantum_dots.components import VoltageGate
 from .mixins import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 
+from .mixin import VoltagePointMacroMixin
+from .quantum_dot import QuantumDot
 
 @quam_dataclass
 class ReservoirBase(VoltageMacroMixin):
