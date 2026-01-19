@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 
 from quam.core import QuamComponent, quam_dataclass
-from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
+from .gate_set import GateSet
 from quam_builder.tools.qua_tools import VoltageLevelType
 
 

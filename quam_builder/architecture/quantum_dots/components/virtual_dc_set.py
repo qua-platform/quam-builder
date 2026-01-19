@@ -5,10 +5,8 @@ import warnings
 
 from quam.core import quam_dataclass, macro
 from quam.components import QuantumComponent
-from quam_builder.architecture.quantum_dots.components import (
-    VirtualizationLayer,
-    VoltageGate,
-)
+from .virtual_gate_set import VirtualizationLayer
+from .voltage_gate import VoltageGate
 
 from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTuningPoint
 
@@ -70,17 +68,21 @@ class VirtualDCSet(QuantumComponent):
     _current_levels: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
-        # Check for offset_parameter in all the channels
-        for channel in self.channels.values(): 
-            if channel.offset_parameter is None: 
-                raise ValueError(f"Channel {channel.id} does not have an associated offset_parameter. Set this first")
+        # Checks removed for now. Once flow is more defined, will re-instate. 
 
-        # Instantiate all the physical voltages in full voltages dict
-        for name, channel in self.channels.items():
-            self._current_physical_voltages[name] = channel.offset_parameter()
-        all_voltages = self.all_current_voltages
-        for name in self.valid_channel_names:
-            self._current_levels[name] = all_voltages[name]
+        # # Check for offset_parameter in all the channels
+        # for channel in self.channels.values(): 
+        #     if channel.offset_parameter is None: 
+        #         import warnings
+        #         warnings.warn(f"Channel {channel.id} does not have an associated offset_parameter. Set this first")
+
+        # # Instantiate all the physical voltages in full voltages dict
+        # for name, channel in self.channels.items():
+        #     self._current_physical_voltages[name] = channel.offset_parameter()
+        # all_voltages = self.all_current_voltages
+        # for name in self.valid_channel_names:
+        #     self._current_levels[name] = all_voltages[name]
+        pass
 
     @property
     def name(self):

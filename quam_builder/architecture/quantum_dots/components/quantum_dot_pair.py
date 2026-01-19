@@ -4,11 +4,11 @@ from dataclasses import field
 from quam.core import quam_dataclass
 
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
-from quam_builder.architecture.quantum_dots.components.quantum_dot import QuantumDot
-from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
-from quam_builder.architecture.quantum_dots.components.barrier_gate import BarrierGate
-from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
-from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+from .quantum_dot import QuantumDot
+from .sensor_dot import SensorDot
+from .barrier_gate import BarrierGate
+from .mixin import VoltagePointMacroMixin
+from .voltage_gate import VoltageGate
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

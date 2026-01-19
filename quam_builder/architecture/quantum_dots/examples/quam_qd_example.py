@@ -42,9 +42,9 @@ from quam.components.ports import (
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot, VoltageGate, SensorDot, BarrierGate, XYDrive
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacSpec
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate, QdacSpec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components.readout_resonator import ReadoutResonatorSingle
 from qm.qua import *
 
 
@@ -113,7 +113,7 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels = [p1, p2, p3, p4], 
     barrier_channels = [b1, b2, b3], 
-    sensor_channels_resonators = [(s1, resonator)], 
+    sensor_resonator_mappings = {s1 : resonator}, 
 )
 
 ##################################################################

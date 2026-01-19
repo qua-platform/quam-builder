@@ -1,9 +1,9 @@
 from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.components import VoltagePointMacroMixin, QuantumDot
 
+from .mixin import VoltagePointMacroMixin
+from .quantum_dot import QuantumDot
 
 @quam_dataclass
 class ReservoirBase(VoltagePointMacroMixin):

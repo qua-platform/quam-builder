@@ -141,7 +141,7 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels=ps,
     barrier_channels=bs,
-    sensor_channels_resonators=[(s, r) for s, r in zip(ss, rs)],
+    sensor_resonator_mappings={s: r for s, r in zip(ss, rs)},
 )
 
 
@@ -159,6 +159,6 @@ for i in range(barrier_gates):
         barrier_gate_id=f"virtual_barrier_{i}",
     )
 
-    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]])
+    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]], set_dc_virtual_axis = False)
 
 config = machine.generate_config()
