@@ -51,7 +51,7 @@ class BaseQuamQD(QuamRoot):
         barrier_gates (Dict[str, BarrierGate]): A dictionary of the BarrierGate objects.
         virtual_gate_sets (Dict[str, VirtualGateSet]): A dictionary of the VirtualGateSet instances covering your QPU.
         voltage_sequences (Dict[str, VoltageSequence]): A dictionary of the VoltageSequence object associated to each VirtualGateSet. Uniquely mapped.
-        global_gates (VoltageGate): The channel objects associated with global gates such as the back gate, reservoirs, or splitter gates.
+        global_gates (Dict[str, GlobalGate]): Global gate components associated with back gate, reservoirs, or splitter gates.
         wiring (dict): The wiring configuration.
         network (dict): The network configuration.
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
@@ -77,7 +77,7 @@ class BaseQuamQD(QuamRoot):
     """
 
     physical_channels: Dict[str, Channel] = field(default_factory=dict)
-    global_gates: Dict[str, VoltageGate] = field(default_factory=dict)
+    global_gates: Dict[str, GlobalGate] = field(default_factory=dict)
 
     virtual_gate_sets: Dict[str, VirtualGateSet] = field(default_factory=dict)
     virtual_dc_sets: Dict[str, VirtualDCSet] = field(default_factory=dict)

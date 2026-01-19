@@ -11,7 +11,11 @@ import pytest
 from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_quam, build_base_quam
+from quam_builder.builder.quantum_dots import (
+    build_quam,
+    build_base_quam,
+    build_loss_divincenzo_quam,
+)
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
     LossDiVincenzoQuam,
@@ -20,6 +24,45 @@ from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
 
 class TestWirerBuilderIntegration:
     """Integration tests for the complete wiring and building workflow."""
+
+    EXAMPLE_GLOBAL_GATES = [1]
+    EXAMPLE_SENSOR_DOTS = [1, 2]
+    EXAMPLE_QUANTUM_DOTS = [1, 2, 3]
+    EXAMPLE_QUANTUM_DOT_PAIRS = [(1, 2), (2, 3)]
+
+    @staticmethod
+    def _make_stage1_connectivity(global_gates, sensor_dots, quantum_dots, quantum_dot_pairs):
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+        connectivity.add_sensor_dots(
+            sensor_dots=sensor_dots,
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dots(
+            quantum_dots=quantum_dots,
+            add_drive_lines=False,
+        )
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
+        return connectivity
+
+    @staticmethod
+    def _make_stage2_connectivity(global_gates, sensor_dots, quantum_dots, quantum_dot_pairs):
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
+        connectivity.add_sensor_dots(
+            sensor_dots=sensor_dots,
+            shared_resonator_line=False,
+            use_mw_fem=False,
+        )
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
+        connectivity.add_quantum_dots(
+            quantum_dots=quantum_dots,
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
+        return connectivity
 
     @pytest.fixture
     def temp_dir(self):
@@ -40,6 +83,7 @@ class TestWirerBuilderIntegration:
         """Test the complete workflow from wiring to build for a basic setup."""
         # Setup connectivity
         connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(voltage_gates=[1], name="rb")
         connectivity.add_sensor_dots(
             sensor_dots=[1],
             shared_resonator_line=False,
@@ -80,6 +124,160 @@ class TestWirerBuilderIntegration:
         assert len(machine_loaded.sensor_dots) > 0
         assert len(machine_loaded.quantum_dots) > 0
         assert len(machine_loaded.quantum_dots) > 0
+
+    def test_example_two_stage_workflow(self, temp_dir):
+        """Exercise the two-stage flow used in wiring_example."""
+        qubit_pair_sensor_map = {"q1_q2": ["sensor_1"], "q2_q3": ["sensor_2"]}
+
+        instruments_stage1 = Instruments()
+        instruments_stage1.add_mw_fem(controller=1, slots=[1])
+        instruments_stage1.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity_stage1 = self._make_stage1_connectivity(
+            self.EXAMPLE_GLOBAL_GATES,
+            self.EXAMPLE_SENSOR_DOTS,
+            self.EXAMPLE_QUANTUM_DOTS,
+            self.EXAMPLE_QUANTUM_DOT_PAIRS,
+        )
+        allocate_wiring(connectivity_stage1, instruments_stage1)
+
+        machine_stage1 = BaseQuamQD()
+        machine_stage1 = build_quam_wiring(
+            connectivity_stage1,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine_stage1,
+            path=temp_dir,
+        )
+        machine_stage1 = build_base_quam(
+            machine_stage1,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        instruments_stage2 = Instruments()
+        instruments_stage2.add_mw_fem(controller=1, slots=[1])
+        instruments_stage2.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity_stage2 = self._make_stage2_connectivity(
+            self.EXAMPLE_GLOBAL_GATES,
+            self.EXAMPLE_SENSOR_DOTS,
+            self.EXAMPLE_QUANTUM_DOTS,
+            self.EXAMPLE_QUANTUM_DOT_PAIRS,
+        )
+        allocate_wiring(connectivity_stage2, instruments_stage2)
+
+        machine_stage2 = build_quam_wiring(
+            connectivity_stage2,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine_stage1,
+            path=temp_dir,
+        )
+        machine_stage2 = build_loss_divincenzo_quam(
+            machine_stage2,
+            qubit_pair_sensor_map=qubit_pair_sensor_map,
+            implicit_mapping=True,
+            save=False,
+        )
+
+        assert len(machine_stage2.quantum_dots) == len(self.EXAMPLE_QUANTUM_DOTS)
+        assert len(machine_stage2.sensor_dots) == len(self.EXAMPLE_SENSOR_DOTS)
+        assert len(machine_stage2.qubits) == len(self.EXAMPLE_QUANTUM_DOTS)
+        assert len(machine_stage2.quantum_dot_pairs) == len(self.EXAMPLE_QUANTUM_DOT_PAIRS)
+
+    def test_example_combined_workflow(self, temp_dir):
+        """Exercise the combined flow used in wiring_example."""
+        qubit_pair_sensor_map = {"q1_q2": ["sensor_1"]}
+
+        instruments_combined = Instruments()
+        instruments_combined.add_mw_fem(controller=1, slots=[1])
+        instruments_combined.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity_combined = self._make_stage2_connectivity(
+            self.EXAMPLE_GLOBAL_GATES,
+            self.EXAMPLE_SENSOR_DOTS,
+            self.EXAMPLE_QUANTUM_DOTS,
+            self.EXAMPLE_QUANTUM_DOT_PAIRS,
+        )
+        allocate_wiring(connectivity_combined, instruments_combined)
+
+        machine_combined = BaseQuamQD()
+        machine_combined = build_quam_wiring(
+            connectivity_combined,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine_combined,
+            path=temp_dir,
+        )
+        machine_combined = build_quam(
+            machine_combined,
+            calibration_db_path=temp_dir,
+            qubit_pair_sensor_map=qubit_pair_sensor_map,
+            connect_qdac=False,
+            save=False,
+        )
+
+        assert len(machine_combined.qubits) == len(self.EXAMPLE_QUANTUM_DOTS)
+        assert len(machine_combined.quantum_dot_pairs) == len(self.EXAMPLE_QUANTUM_DOT_PAIRS)
+
+    def test_example_incremental_drive_lines(self, temp_dir):
+        """Exercise incremental drive-line flow from wiring_example."""
+        qubit_pair_sensor_map = {"q1_q2": ["sensor_1"]}
+
+        instruments_stage1 = Instruments()
+        instruments_stage1.add_mw_fem(controller=1, slots=[1])
+        instruments_stage1.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity_stage1 = self._make_stage1_connectivity(
+            self.EXAMPLE_GLOBAL_GATES,
+            self.EXAMPLE_SENSOR_DOTS,
+            self.EXAMPLE_QUANTUM_DOTS,
+            self.EXAMPLE_QUANTUM_DOT_PAIRS,
+        )
+        allocate_wiring(connectivity_stage1, instruments_stage1)
+
+        machine_stage1 = BaseQuamQD()
+        machine_stage1 = build_quam_wiring(
+            connectivity_stage1,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine_stage1,
+            path=temp_dir,
+        )
+        machine_stage1 = build_base_quam(
+            machine_stage1,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        connectivity_drive_lines = Connectivity()
+        connectivity_drive_lines.add_quantum_dot_drive_lines(
+            quantum_dots=self.EXAMPLE_QUANTUM_DOTS,
+            use_mw_fem=True,
+            shared_line=True,
+        )
+        allocate_wiring(connectivity_drive_lines, instruments_stage1)
+
+        machine_stage2 = build_quam_wiring(
+            connectivity_drive_lines,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine_stage1,
+            path=temp_dir,
+        )
+        machine_stage2 = build_loss_divincenzo_quam(
+            machine_stage2,
+            qubit_pair_sensor_map=qubit_pair_sensor_map,
+            implicit_mapping=True,
+            save=False,
+        )
+
+        assert len(machine_stage2.qubits) == len(self.EXAMPLE_QUANTUM_DOTS)
+        for qubit in machine_stage2.qubits.values():
+            assert getattr(qubit, "xy_channel", None) is not None
 
     def test_workflow_with_multiple_qubits(self, instruments, temp_dir):
         """Test workflow with multiple qubits and qubit pairs."""
