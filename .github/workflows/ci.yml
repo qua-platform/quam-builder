@@ -34,6 +34,19 @@ jobs:
         enable-cache: true
         cache-dependency-glob: "pyproject.toml"
 
+    - name: Create Qualibrate config
+      run: |
+        mkdir -p "$HOME/.qualibrate/storage"
+        cat > "$HOME/.qualibrate/config.toml" <<'EOF'
+        [qualibrate]
+        version = 5
+        project = "ci"
+
+        [qualibrate.storage]
+        type = "local_storage"
+        location = "/home/runner/.qualibrate/storage"
+        EOF
+
     - name: Install dependencies
       run: |
         uv sync --group dev --prerelease=allow
