@@ -11,6 +11,7 @@ dependencies = [
     "qm-qua>=1.2.2",
     "xarray>=2024.7.0",
     "qcodes-contrib-drivers>=0.22.0",
+    "qm-saas>=1.1.7",
 ]
 
 [build-system]

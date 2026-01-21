@@ -656,6 +656,8 @@ class VoltagePointMacroMixin(QuantumComponent):
                     component.readout()
                     component.init()
         """
+        ## To do, remove point_duration vs hold_duration redundancy
+
         self.add_point_with_step_macro(
             macro_name=name,
             voltages=voltages,
