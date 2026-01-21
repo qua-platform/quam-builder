@@ -548,8 +548,8 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Cloud Simulator Configuration (QM SaaS Dev Server)
     # -------------------------------------------------------------------------
-    EMAIL = "sebastian.orbell@quantum-machines.co"
-    PASSWORD = "mugzoc-juFgez-matbe5"
+    EMAIL = "email"
+    PASSWORD = "password"
 
     print("\nConnecting to QM SaaS cloud simulator...")
     client = qm_saas.QmSaas(
