@@ -27,7 +27,8 @@ repos:
             entry: python -m pylint
             language: system
             types: [python]
-            exclude: ^pylint_qua_plugin/
+            # Exclude the pylint plugin and its test files (which contain intentional lint violations)
+            exclude: ^(pylint_qua_plugin|tests/pylint_plugin)/
       # 4. Type checking – heavier, so run on push instead of every commit
       - repo: https://github.com/pre-commit/mirrors-mypy
         rev: v1.11.1

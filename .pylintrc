@@ -5,7 +5,8 @@ init-hook=import sys, os; d = os.getcwd(); exec('while d != os.path.dirname(d):\
 load-plugins=pylint_qua_plugin
 
 # Folders to ignore
-ignore=venv,.venv
+# tests/pylint_plugin contains intentional lint violations for testing the plugin
+ignore=venv,.venv,pylint_qua_plugin,tests/pylint_plugin
 
 
 [MESSAGES CONTROL]
