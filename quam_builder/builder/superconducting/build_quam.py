@@ -181,12 +181,12 @@ def add_cavities(machine: AnyQuam):
 
         for line_type, ports in wiring_by_line_type.items():
             wiring_path = f"#/wiring/cavities/{cavity_id}/{line_type}"
-            if line_type == WiringLineType.DRIVE.value:
+            if line_type == WiringLineType.CAVITY.value:
                 add_cavity_drive_component(cavity, wiring_path, ports)
             else:
                 raise ValueError(
                     f"Unknown line type for cavity: {line_type}. "
-                    f"Cavities only support DRIVE line type."
+                    f"Cavities only support CAVITY line type."
                 )
         machine.active_cavity_names.append(cavity.name)
 

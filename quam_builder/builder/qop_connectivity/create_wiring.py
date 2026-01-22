@@ -43,6 +43,12 @@ def create_wiring(connectivity: Connectivity) -> dict:
                         wiring, f"qubits/{element_id}/{line_type.value}/{k}", v
                     )
 
+            elif line_type == WiringLineType.CAVITY:
+                for k, v in qubit_wiring(channels, element_id, line_type).items():
+                    set_nested_value_with_path(
+                        wiring, f"cavities/{element_id}/{line_type.value}/{k}", v
+                    )
+
             elif line_type in [
                 WiringLineType.COUPLER,
                 WiringLineType.CROSS_RESONANCE,
