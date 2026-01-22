@@ -17,12 +17,16 @@ repos:
           - id: black
             language_version: python3
 
-      # 3. Pylint: linting
-      - repo: https://github.com/pycqa/pylint
-        rev: v3.3.2
+      # 3. Pylint: linting with QUA plugin for suppressing false positives in QUA contexts
+      # Uses language: system to access the local pylint_qua_plugin package
+      - repo: local
         hooks:
           - id: pylint
-            args: ["--rcfile=.pylintrc"]
+            name: pylint
+            entry: python -m pylint
+            language: system
+            types: [python]
+            exclude: ^pylint_qua_plugin/
       # 4. Type checking – heavier, so run on push instead of every commit
       - repo: https://github.com/pre-commit/mirrors-mypy
         rev: v1.11.1
