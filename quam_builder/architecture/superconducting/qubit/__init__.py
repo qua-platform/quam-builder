@@ -5,12 +5,15 @@ from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon im
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
+from quam_builder.architecture.superconducting.qubit.bosonic_mode import BosonicMode
 from typing import Union
 
 __all__ = [
     *base_transmon.__all__,
     *fixed_frequency_transmon.__all__,
     *flux_tunable_transmon.__all__,
+    "BosonicMode",
 ]
 
 AnyTransmon = Union[BaseTransmon, FixedFrequencyTransmon, FluxTunableTransmon]
+AnyCavity = Union[BosonicMode]
