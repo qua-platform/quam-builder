@@ -3,6 +3,7 @@ from qualang_tools.units import unit
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
     FluxTunableTransmon,
+    BosonicMode,
 )
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
@@ -316,4 +317,25 @@ def add_default_transmon_pair_pulses(
         if transmon_pair.zz_drive is not None:
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
+            )
+
+
+def add_default_cavity_pulses(cavity: BosonicMode):
+    """Adds default pulses to a bosonic cavity.
+
+    For harmonic cavity modes, the primary operation is a saturation pulse
+    used for spectroscopy and initial characterization. Unlike transmons,
+    cavities do not require DRAG corrections since they are harmonic oscillators
+    with equally spaced energy levels.
+
+    Default pulse:
+        * cavity.xy.operations["saturation"] = SquarePulse(amplitude=0.25, length=20us)
+
+    Args:
+        cavity (BosonicMode): The bosonic cavity to which the pulses will be added.
+    """
+    if hasattr(cavity, "xy"):
+        if cavity.xy is not None:
+            cavity.xy.operations["saturation"] = pulses.SquarePulse(
+                amplitude=0.25, length=20 * u.us, axis_angle=0
             )
