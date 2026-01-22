@@ -6,9 +6,13 @@ from quam_builder.architecture.superconducting.components.mixer import Standalon
 from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
+    add_default_cavity_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
+)
+from quam_builder.builder.superconducting.add_cavity_drive_component import (
+    add_cavity_drive_component,
 )
 from quam_builder.builder.superconducting.add_transmon_flux_component import (
     add_transmon_flux_component,
@@ -41,6 +45,7 @@ def build_quam(
     add_external_mixers(machine)
     add_ports(machine)
     add_transmons(machine)
+    add_cavities(machine)
     add_pulses(machine)
 
     machine.save()
@@ -141,8 +146,53 @@ def add_transmons(machine: AnyQuam):
                     machine.active_qubit_pair_names.append(transmon_pair.name)
 
 
+def add_cavities(machine: AnyQuam):
+    """Adds bosonic cavities to the machine based on the wiring configuration.
+
+    Bosonic cavities are harmonic oscillators controlled via XY drives.
+    This function processes cavity wiring and creates BosonicMode instances
+    with their associated drive components.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the cavities will be added.
+    """
+    if "cavities" not in machine.wiring:
+        return
+
+    if not hasattr(machine, "cavities"):
+        return
+
+    if not hasattr(machine, "cavity_type"):
+        return
+
+    machine.active_cavity_names = []
+    wiring_by_element = machine.wiring["cavities"]
+    number_of_cavities = len(wiring_by_element.items())
+    cavity_number = 0
+
+    for cavity_id, wiring_by_line_type in wiring_by_element.items():
+        cavity_class = machine.cavity_type
+        cavity = cavity_class(id=cavity_id)
+        machine.cavities[cavity_id] = cavity
+        machine.cavities[cavity_id].grid_location = _set_default_grid_location(
+            cavity_number, number_of_cavities
+        )
+        cavity_number += 1
+
+        for line_type, ports in wiring_by_line_type.items():
+            wiring_path = f"#/wiring/cavities/{cavity_id}/{line_type}"
+            if line_type == WiringLineType.DRIVE.value:
+                add_cavity_drive_component(cavity, wiring_path, ports)
+            else:
+                raise ValueError(
+                    f"Unknown line type for cavity: {line_type}. "
+                    f"Cavities only support DRIVE line type."
+                )
+        machine.active_cavity_names.append(cavity.name)
+
+
 def add_pulses(machine: AnyQuam):
-    """Adds default pulses to the transmon qubits and qubit pairs in the machine.
+    """Adds default pulses to the transmon qubits, cavities, and qubit pairs in the machine.
 
     Args:
         machine (AnyQuam): The QuAM to which the pulses will be added.
@@ -150,6 +200,10 @@ def add_pulses(machine: AnyQuam):
     if hasattr(machine, "qubits"):
         for transmon in machine.qubits.values():
             add_default_transmon_pulses(transmon)
+
+    if hasattr(machine, "cavities"):
+        for cavity in machine.cavities.values():
+            add_default_cavity_pulses(cavity)
 
     if hasattr(machine, "qubit_pairs"):
         for qubit_pair in machine.qubit_pairs.values():
