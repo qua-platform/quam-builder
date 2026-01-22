@@ -7,6 +7,7 @@ repos:
           - id: end-of-file-fixer
           - id: check-merge-conflict
           - id: check-added-large-files
+            exclude: ^uv\.lock$
           - id: check-yaml
           - id: check-json
 
