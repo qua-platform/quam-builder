@@ -1109,7 +1109,7 @@ class BaseQuamQD(QuamRoot):
         # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level.
         d.pop("voltage_sequences", None)
         return d
-
+    
     @classmethod
     def load(
         cls,
