@@ -18,5 +18,5 @@ class FluxTunableTransmonSideBand(FluxTunableTransmon):
     Args:
 
     """
-    sideband1: Union[SideBandIQ, SideBandMW] = None
-    sideband2: Union[SideBandIQ, SideBandMW] = None
+    sideband1: Union[XYDriveIQ, XYDriveMW] = None
+    sideband2: Union[XYDriveIQ, XYDriveMW] = None

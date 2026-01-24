@@ -21,5 +21,5 @@ class FluxTunableTransmonCavity(FluxTunableTransmonSideBand):
     Args:
 
     """
-    alice: Union[CavityIQ, CavityMW] = None
-    bob: Union[CavityIQ, CavityMW] = None
+    alice: Union[XYDriveIQ, XYDriveMW] = None
+    bob: Union[XYDriveIQ, XYDriveMW] = None
