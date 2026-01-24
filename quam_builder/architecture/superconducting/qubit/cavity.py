@@ -8,13 +8,13 @@ from quam_builder.architecture.superconducting.qubit.flux_tunable_side_band impo
 from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 
-__all__ = ["FluxTunableTransmonCavity"]
+__all__ = ["Cavity"]
 
 
 
 
 @quam_dataclass
-class FluxTunableTransmonCavity(FluxTunableTransmonSideBand):
+class Cavity(FluxTunableTransmonSideBand):
     """
     Example QUAM component for a flux tunable transmon qubit.
 

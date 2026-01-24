@@ -15,6 +15,7 @@ __all__ = [
     *base_quam.__all__,
     *fixed_frequency_quam.__all__,
     *flux_tunable_quam.__all__,
+    *cavity_quam.__all__,
 ]
 
 AnyQuam = Union[BaseQuam, FixedFrequencyQuam, FluxTunableQuam, CavityQuam]
