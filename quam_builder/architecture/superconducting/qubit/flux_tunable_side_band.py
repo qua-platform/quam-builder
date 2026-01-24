@@ -5,6 +5,7 @@ from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
+from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 __all__ = ["FluxTunableTransmonSideBand"]
 
