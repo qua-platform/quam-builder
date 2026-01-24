@@ -2,24 +2,24 @@ from typing import Union
 
 from quam.core import quam_dataclass
 
-from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
-    FluxTunableTransmon,
+from quam_builder.architecture.superconducting.qubit.flux_tunable_side_band import (
+    FluxTunableTransmonSideBand,
 )
 from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 
-__all__ = ["FluxTunableTransmonSideBand"]
+__all__ = ["FluxTunableTransmonCavity"]
 
 
 
 
 @quam_dataclass
-class FluxTunableTransmonSideBand(FluxTunableTransmon):
+class FluxTunableTransmonCavity(FluxTunableTransmonSideBand):
     """
     Example QUAM component for a flux tunable transmon qubit.
 
     Args:
 
     """
-    sideband1: Union[XYDriveIQ, XYDriveMW] = None
-    sideband2: Union[XYDriveIQ, XYDriveMW] = None
+    alice: Union[CavityIQ, CavityMW] = None
+    bob: Union[CavityIQ, CavityMW] = None

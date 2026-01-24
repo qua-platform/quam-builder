@@ -6,8 +6,6 @@ from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon im
     FixedFrequencyTransmon,
 )
 from quam_builder.architecture.superconducting.components.flux_line import FluxLine
-from quam_builder.architecture.superconducting.components.cavity import CavityIQ, CavityMW
-from quam_builder.architecture.superconducting.components.side_band import SideBandIQ, SideBandMW
 
 __all__ = ["FluxTunableTransmon"]
 

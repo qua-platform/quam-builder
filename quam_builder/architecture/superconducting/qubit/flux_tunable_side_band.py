@@ -8,24 +8,12 @@ from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon impor
 from quam_builder.architecture.superconducting.components.cavity import CavityIQ, CavityMW
 from quam_builder.architecture.superconducting.components.side_band import SideBandIQ, SideBandMW
 
-__all__ = ["FluxTunableTransmonCavity", "FluxTunableTransmonCavitySideBand"]
+__all__ = ["FluxTunableTransmonSideBand"]
 
 
 
 @quam_dataclass
-class FluxTunableTransmonCavity(FluxTunableTransmon):
-    """
-    Example QUAM component for a flux tunable transmon qubit.
-
-    Args:
-
-    """
-    alice: Union[CavityIQ, CavityMW] = None
-    bob: Union[CavityIQ, CavityMW] = None
-
-
-@quam_dataclass
-class FluxTunableTransmonCavitySideBand(FluxTunableTransmonCavity):
+class FluxTunableTransmonSideBand(FluxTunableTransmon):
     """
     Example QUAM component for a flux tunable transmon qubit.
 
