@@ -9,7 +9,7 @@ from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon,
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 from quam_builder.architecture.superconducting.qpu.flux_tunable_quam import FluxTunableQuam
-
+from quam_builder.architecture.superconducting.qubit.cavity import Cavity
 __all__ = ["CavityQuam", "FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
 
 
@@ -38,7 +38,7 @@ class CavityQuam(FluxTunableQuam):
 
     qubits: Dict[str, FluxTunableTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
-    cavities: Dict[str, FixedFrequencyTransmon] = field(default_factory=dict)
+    cavities: Dict[str, Cavity] = field(default_factory=dict)
 
     @classmethod
     def load(cls, *args, **kwargs) -> "FluxTunableQuam":
