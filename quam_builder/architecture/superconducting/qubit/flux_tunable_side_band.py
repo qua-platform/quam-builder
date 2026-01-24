@@ -5,8 +5,6 @@ from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
-from quam_builder.architecture.superconducting.components.cavity import CavityIQ, CavityMW
-from quam_builder.architecture.superconducting.components.side_band import SideBandIQ, SideBandMW
 
 __all__ = ["FluxTunableTransmonSideBand"]
 
