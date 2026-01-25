@@ -7,6 +7,7 @@ from qm.qua import update_frequency
 
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 
@@ -30,11 +31,12 @@ class FluxTunableQuam(BaseQuam):
         apply_all_flux_to_min: Apply the offsets that bring all the active qubits to the minimum frequency point.
         apply_all_flux_to_zero: Apply the offsets that bring all the active qubits to the zero bias point.
         set_all_fluxes: Set the fluxes to the specified point for the target qubit or qubit pair.
-        initialize_qpu: Initialize the QPU with the calibrated TWPA pumping points and with the specified flux point and target .
+        initialize_qpu: Initialize the QPU with the specified flux point and target.
     """
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
     qubit_pair_type: ClassVar[Type[FluxTunableTransmonPair]] = FluxTunableTransmonPair
+    twpa_type: ClassVar[Type[TWPA]] = TWPA
 
     qubits: Dict[str, FluxTunableTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
@@ -55,17 +57,13 @@ class FluxTunableQuam(BaseQuam):
             if q.z is not None:
                 q.z.to_joint_idle()
             else:
-                warnings.warn(
-                    f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle"
-                )
+                warnings.warn(f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle")
         for q in self.qubits:
             if self.qubits[q] not in self.active_qubits:
                 if self.qubits[q].z is not None:
                     self.qubits[q].z.to_min()
                 else:
-                    warnings.warn(
-                        f"Didn't find z-element on qubit {q}, didn't set to min"
-                    )
+                    warnings.warn(f"Didn't find z-element on qubit {q}, didn't set to min")
         self.apply_all_couplers_to_min()
 
     def apply_all_flux_to_min(self) -> None:
@@ -94,13 +92,13 @@ class FluxTunableQuam(BaseQuam):
             target (Union[FluxTunableTransmon, FluxTunableTransmonPair]): The target qubit or qubit pair.
         """
         if flux_point == "independent":
-            assert isinstance(
-                target, FluxTunableTransmon
-            ), "Independent flux point is only supported for individual transmons"
+            assert isinstance(target, FluxTunableTransmon), (
+                "Independent flux point is only supported for individual transmons"
+            )
         elif flux_point == "pairwise":
-            assert isinstance(
-                target, FluxTunableTransmonPair
-            ), "Pairwise flux point is only supported for transmon pairs"
+            assert isinstance(target, FluxTunableTransmonPair), (
+                "Pairwise flux point is only supported for transmon pairs"
+            )
 
         target_bias = None
         if flux_point == "joint":
@@ -124,7 +122,6 @@ class FluxTunableQuam(BaseQuam):
         target.align()
         return target_bias
 
- 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
@@ -134,14 +131,7 @@ class FluxTunableQuam(BaseQuam):
             target: The qubit under study.
         """
         for twpa in self.twpas.values():
-            twpa.initialize() 
+            twpa.initialize()
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
-
-    
-        
-
-        
-
-        
