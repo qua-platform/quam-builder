@@ -84,6 +84,11 @@ resonator = ReadoutResonatorSingle(
     sticky = StickyChannelAddon(duration = 16, digital = False), 
 )
 
+from quam_builder.architecture.quantum_dots.components import ReadoutTransportSingle
+transport_readout = ReadoutTransportSingle(
+    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 1)
+)
+
 #####################################
 ###### Create Virtual Gate Set ######
 #####################################
@@ -113,14 +118,14 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels = [p1, p2, p3, p4], 
     barrier_channels = [b1, b2, b3], 
-    sensor_resonator_mappings = {s1 : resonator}, 
+    sensor_readout_mappings = {s1 : transport_readout}, 
 )
 
 ##################################################################
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = False
 if qdac_connect: 
     # Set up the QDAC port specs 
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()): 
@@ -160,12 +165,14 @@ machine.register_quantum_dot_pair(
 # Define the detuning axes for both QuantumDotPairs
 machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
     matrix = [[1,-1]], 
-    detuning_axis_name = "dot1_dot2_pair_epsilon"
+    detuning_axis_name = "dot1_dot2_pair_epsilon", 
+    set_dc_virtual_axis=False,
 )
 
 machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix = [[1,-1]], 
-    detuning_axis_name = "dot3_dot4_pair_epsilon"
+    detuning_axis_name = "dot3_dot4_pair_epsilon", 
+    set_dc_virtual_axis=False,
 )
 
 
@@ -178,7 +185,7 @@ machine.update_cross_compensation_submatrix(
     virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
     channels = [p4], 
     matrix = [[0.1, 0.5]], 
-    target = "both"
+    target = "opx"
 )
 
 machine.update_cross_compensation_submatrix(
@@ -188,7 +195,7 @@ machine.update_cross_compensation_submatrix(
               [0.2, 1, 0.6, 0.8], 
               [0.1, 0.3, 1, 0.3], 
               [0.2, 0.5, 0.1, 1]], 
-    target = "both"
+    target = "opx"
 )
 
 ###########################
