@@ -2,7 +2,7 @@ from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callab
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
-
+from pathlib import Path
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
@@ -69,9 +69,19 @@ class LossDiVincenzoQuam(BaseQuamQD):
     active_qubit_pair_names: List[str] = field(default_factory=list)
 
     @classmethod
-    def load(cls, filepath, *args, **kwargs):
-        """Load machine from file and convert to LossDiVincenzoQuam."""
-        instance = super().load(filepath, *args, **kwargs)
+    def load(
+        cls, 
+        filepath_or_dict: Optional[Union[str, Path, dict]] = None, 
+        validate_type: bool = True, 
+        fix_attrs: bool = True,
+    ): 
+        """Load machine from file and recreate voltage sequences"""
+        instance = super().load(
+            filepath_or_dict=filepath_or_dict, 
+            validate_type=validate_type, 
+            fix_attrs=fix_attrs,
+        )
+        instance.voltage_sequences = {}
 
         if type(instance) is BaseQuamQD:
             instance.__class__ = cls
