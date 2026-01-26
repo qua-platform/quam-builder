@@ -9,6 +9,7 @@ from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
 from .readout_resonator import (
+    ReadoutResonatorBase,
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
     ReadoutResonatorSingle
@@ -105,7 +106,7 @@ class SensorDot(QuantumDot):
     
     @property
     def readout_resonator(self): 
-        if not isinstance(self.physical_channel.readout, "ReadoutResonatorBase"): 
+        if not isinstance(self.physical_channel.readout, ReadoutResonatorBase): 
             raise ValueError("The associated readout mechanism is not a Resonator.")
         return self.physical_channel.readout
     
