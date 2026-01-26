@@ -123,6 +123,11 @@ transport_readout = ReadoutTransportSingle(
     opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 1)
 )
 
+from quam_builder.architecture.quantum_dots.components import ReadoutTransportSingle
+transport_readout = ReadoutTransportSingle(
+    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 1)
+)
+
 #####################################
 ###### Create Virtual Gate Set ######
 #####################################
