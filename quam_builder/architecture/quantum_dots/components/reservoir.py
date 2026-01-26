@@ -4,6 +4,9 @@ from quam.core import quam_dataclass, QuamComponent
 
 from .mixin import VoltagePointMacroMixin
 from .quantum_dot import QuantumDot
+from .voltage_gate import VoltageGate
+
+__all__ = ["ReservoirBase", "Drain"]
 
 @quam_dataclass
 class ReservoirBase(VoltagePointMacroMixin):
@@ -27,5 +30,11 @@ class ReservoirBase(VoltagePointMacroMixin):
     def name(self) -> str:
         return self.id
 
+@quam_dataclass
+class Drain(ReservoirBase): 
+    """
+    Quam component for the drain ohmic contact of a QD Device.
+    """
 
+    physical_channel: VoltageGate = None
 

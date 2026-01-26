@@ -1,5 +1,7 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 
+from quam_builder.architecture.quantum_dots.components.readout_resonator import ReadoutResonatorBase
+from quam_builder.architecture.quantum_dots.components.readout_transport import ReadoutTransportBase
 from quam.components import SingleChannel, Channel
 from quam.core import quam_dataclass, QuamComponent
 
@@ -37,6 +39,7 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     qdac_spec: "QdacSpec" = None
+    readout: Union[ReadoutTransportBase, ReadoutResonatorBase] = None
 
     def __post_init__(self):
         if hasattr(self.opx_output, "upsampling_mode"): 
