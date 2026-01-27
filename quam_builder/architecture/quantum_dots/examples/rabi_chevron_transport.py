@@ -8,13 +8,13 @@ and pulse duration to find the optimal qubit drive parameters, revealing the qub
 resonance frequency and Rabi oscillation characteristics.
 
 Readout in this example uses AC demodulated current sensing: a square-wave
-modulation is applied to the charge sensor plunger gate and the resulting AC
-current is demodulated in the OPX using integration weights matched to the
-square wave.
+modulation is applied to the drain (ohmic) gate to modulate the device bias,
+and the resulting AC current is demodulated in the OPX using integration weights
+matched to the square wave.
 
 Workflow Overview:
 ------------------
-1. **Create Machine**: Set up physical channels (plungers, sensor, XY drive)
+1. **Create Machine**: Set up physical channels (plungers, sensor, drain, XY drive)
 2. **Register Components**: Use register_channel_elements() and register_qubit()
 3. **Define Macros**: Add drive() and measure() macros using the QuamMacro pattern
 4. **Create QUA Program**: Build the experiment with voltage point navigation
@@ -26,6 +26,7 @@ Key Concepts Demonstrated:
 - Virtual gate sets with cross-capacitance compensation
 - Qubit registration with XY drive and sensor dot association
 - Custom macros (DriveMacro, MeasureMacro) following the QuamMacro pattern
+- AC transport demodulation with square-wave readout pulse
 - Voltage point navigation using step_to_point()
 - Cloud simulator execution via qm_saas
 
@@ -33,6 +34,8 @@ Requirements:
 - Qubit with voltage points: init, operate, readout
 - Drive macro for applying MW pulses with variable duration
 - Measure macro returning demodulated transport current values
+- Drain gate connected to an LF output to modulate the device bias
+- Readout output mapped to the same drain LF port to emit the square wave
 - Voltage sequence with compensation pulse capability
 """
 
@@ -68,6 +71,7 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
     XYDrive,
+    Drain,
 )
 from quam_builder.architecture.quantum_dots.components.readout_transport import (
     ReadoutTransportSingleIO,
@@ -133,8 +137,8 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     This function sets up the hardware abstraction layer following the recommended
     pattern from quam_qd_example.py and quam_ld_example.py:
 
-    1. Create physical VoltageGate channels (plungers + sensor DC)
-    2. Create transport readout channel for the sensor
+    1. Create physical VoltageGate channels (plungers + sensor DC + drain)
+    2. Create transport readout channel for the sensor (AC demod)
     3. Create XY drive channel for qubit control
     4. Create virtual gate set with cross-capacitance compensation
     5. Register all channel elements using register_channel_elements()
@@ -180,33 +184,47 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # Sensor DC Channel
     # -------------------------------------------------------------------------
     # Dedicated VoltageGate for the sensor dot (DC bias only)
-    # Note: the readout element below uses the same physical output port.
-    sensor_output_port = LFFEMAnalogOutputPort(
-        controller_id=controller,
-        fem_id=lf_fem_slot,
-        port_id=4,
-        output_mode="direct",
-    )
     sensor_dc = VoltageGate(
         id="sensor_DC",
-        opx_output=sensor_output_port,
+        opx_output=LFFEMAnalogOutputPort(
+            controller_id=controller,
+            fem_id=lf_fem_slot,
+            port_id=4,
+            output_mode="direct",
+        ),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
+
+    # -------------------------------------------------------------------------
+    # Drain Reservoir (AC modulation across the device)
+    # -------------------------------------------------------------------------
+    drain_gate = VoltageGate(
+        id="drain_gate",
+        opx_output=LFFEMAnalogOutputPort(
+            controller_id=controller,
+            fem_id=lf_fem_slot,
+            port_id=3,
+            output_mode="direct",
+        ),
+        sticky=StickyChannelAddon(duration=16, digital=False),
+    )
+
+    machine.physical_channels[drain_gate.id] = drain_gate
 
     # -------------------------------------------------------------------------
     # Transport Readout
     # -------------------------------------------------------------------------
     # Transport readout demodulates the AC current using square-wave weights
-    readout_length = 1000  # ns
-    square_period = 40  # ns
+    readout_length = 1000  # samples
+    square_period = 40  # samples
     ac_square_amplitude = 0.05
     transport_readout = ReadoutTransportSingleIO(
         id="charge_sensor",
-        # Use the same physical output port as the sensor plunger gate
+        # Use the drain gate output to modulate the device bias
         opx_output=LFFEMAnalogOutputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
-            port_id=4,
+            port_id=3,
             output_mode="direct",
         ),
         opx_input=LFFEMAnalogInputPort(
@@ -277,6 +295,14 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         sensor_readout_mappings={sensor_dc: transport_readout},
         barrier_channels=[],
     )
+
+    # Register drain reservoir after quantum dots exist (use references to avoid reparenting)
+    drain = Drain(
+        id="drain",
+        physical_channel=drain_gate.get_reference(),
+        quantum_dots=[qd.get_reference() for qd in machine.quantum_dots.values()],
+    )
+    machine.reservoirs[drain.id] = drain
 
     # -------------------------------------------------------------------------
     # Register Quantum Dot Pair
@@ -370,7 +396,7 @@ def add_qubit_macros(qubit: LDQubit):
 
     Macros defined:
     - DriveMacro: Applies MW pulse with optional duration override (for Rabi sweep)
-    - MeasureMacro: Performs measurement and returns I, Q variables
+    - MeasureMacro: Performs measurement and returns the demodulated current
 
     The sensor_dot is accessed through qubit.sensor_dots[0], following the pattern:
         machine.qubits["Q1"].sensor_dots[0].physical_channel.readout.measure("readout")
