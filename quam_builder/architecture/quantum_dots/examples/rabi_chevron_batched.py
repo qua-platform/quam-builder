@@ -52,6 +52,7 @@ from qm.qua import (
     if_,
     else_,
     assign,
+    Cast,
 )
 from qm import SimulationConfig, QuantumMachinesManager
 import qm_saas
@@ -67,6 +68,7 @@ from quam.components.ports import (
     LFFEMAnalogInputPort,
 )
 from quam.components.channels import StickyChannelAddon
+from quam.components.hardware import FrequencyConverter, LocalOscillator
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
 from quam.utils.qua_types import QuaVariableBool
@@ -77,7 +79,7 @@ from quam_builder.architecture.quantum_dots.components import (
     XYDrive,
 )
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
-    ReadoutResonatorSingle,
+    ReadoutResonatorIQ,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -101,10 +103,10 @@ class InitializeMacro(QuamMacro):  # pylint: disable=too-few-public-methods
     where longer initialization may be needed.
 
     Attributes:
-        default_duration: Default hold duration at init point (ns)
+        default_duration: Default hold duration at initialize point (ns)
     """
 
-    default_duration: int = 500
+    duration: int = 500
 
     def apply(self, duration: int = None, **kwargs) -> None:
         """Execute initialization sequence.
@@ -112,13 +114,13 @@ class InitializeMacro(QuamMacro):  # pylint: disable=too-few-public-methods
         Args:
             duration: Override for hold duration at init point (ns)
         """
-        hold_duration = duration if duration is not None else self.default_duration
+        hold_duration = duration if duration is not None else self.duration
 
         # Navigate to the qubit: self.parent is macros dict, parent.parent is qubit
         parent_qubit = self.parent.parent
 
         # Step to initialization point
-        parent_qubit.step_to_point("init", duration=hold_duration)
+        parent_qubit.step_to_point("initialize", duration=hold_duration)
 
 
 @quam_dataclass
@@ -137,25 +139,13 @@ class X180Macro(QuamMacro):  # pylint: disable=too-few-public-methods
     pulse_name: str = "X180"
     amplitude_scale: float = None
 
-    def apply(self, duration: int = None, point_duration: int = None, **kwargs) -> None:
+    def apply(self, duration: int = None, **kwargs) -> None:
         """Execute X180 gate sequence.
 
         Args:
             duration: Pulse duration in clock cycles (4ns each)
-            point_duration: Override for voltage point hold duration (ns)
         """
         parent_qubit = self.parent.parent
-
-        # Calculate point duration to accommodate the drive pulse
-        # Default: 4 * (pulse_duration + 40) to ensure voltage is held
-        if point_duration is None and duration is not None:
-            point_duration = 4 * (duration + 40)
-
-        # Step to operate point
-        if point_duration is not None:
-            parent_qubit.step_to_point("operate", duration=point_duration)
-        else:
-            parent_qubit.step_to_point("operate")
 
         # Apply X180 pulse if duration specified
         if duration is not None and parent_qubit.xy_channel is not None:
@@ -332,25 +322,39 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         opx_output=LFFEMAnalogOutputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
-            port_id=4,
+            port_id=5,
             output_mode="direct",
         ),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
 
-    # Readout Resonator
-    readout_resonator = ReadoutResonatorSingle(
+    # Readout Resonator (IQ)
+    readout_resonator = ReadoutResonatorIQ(
         id="sensor_resonator",
-        opx_output=LFFEMAnalogOutputPort(
+        opx_output_I=LFFEMAnalogOutputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
             port_id=3,
             output_mode="direct",
         ),
-        opx_input=LFFEMAnalogInputPort(
+        opx_output_Q=LFFEMAnalogOutputPort(
+            controller_id=controller,
+            fem_id=lf_fem_slot,
+            port_id=4,
+            output_mode="direct",
+        ),
+        opx_input_I=LFFEMAnalogInputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
             port_id=1,
+        ),
+        opx_input_Q=LFFEMAnalogInputPort(
+            controller_id=controller,
+            fem_id=lf_fem_slot,
+            port_id=2,
+        ),
+        frequency_converter_up=FrequencyConverter(
+            local_oscillator=LocalOscillator(frequency=5e9),
         ),
         intermediate_frequency=50e6,
         operations={
@@ -453,7 +457,7 @@ def register_qubit_with_points(
     # Define Voltage Points
     (
         qubit.with_step_point(
-            name="init",
+            name="initialize",
             voltages={"virtual_dot_1": 0.05},
             point_duration=500,
         )
@@ -470,7 +474,7 @@ def register_qubit_with_points(
     )
 
     # Register custom macros
-    qubit.macros["initialize"] = InitializeMacro(default_duration=500)
+    # qubit.macros["initialize"] = InitializeMacro(default_duration=500)
     qubit.macros["x180"] = X180Macro(pulse_name="X180")
     qubit.macros["measure"] = MeasureMacro(
         pulse_name="readout",
@@ -523,8 +527,9 @@ def create_rabi_chevron_program_batched(
         I, I_st, Q, Q_st, n, n_st = machine.declare_qua_variables(num_IQ_pairs=num_qubits)
 
         # Additional variables for pre/post measurement comparison
-        p1 = [declare(bool) for _ in range(num_qubits)]
-        p2 = [declare(bool) for _ in range(num_qubits)]
+        # Use int instead of bool so we can average in stream processing
+        p1 = [declare(int) for _ in range(num_qubits)]
+        p2 = [declare(int) for _ in range(num_qubits)]
         pdiff = [declare(int) for _ in range(num_qubits)]
 
         p1_st = [declare_stream() for _ in range(num_qubits)]
@@ -548,7 +553,8 @@ def create_rabi_chevron_program_batched(
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
                             # Measure initial state (includes step_to('readout'))
-                            assign(p1[i], qubit.measure())
+                            # Cast bool to int for stream averaging
+                            assign(p1[i], Cast.to_int(qubit.measure()))
 
                             # Set drive frequency for this iteration
                             update_frequency(qubit.xy_channel.name, frequency)
@@ -578,7 +584,8 @@ def create_rabi_chevron_program_batched(
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
                             # Measure macro handles step_to('readout') + measurement
-                            assign(p2[i], qubit.measure())
+                            # Cast bool to int for stream averaging
+                            assign(p2[i], Cast.to_int(qubit.measure()))
 
                         # Synchronize before compensation
                         align()
@@ -663,9 +670,11 @@ if __name__ == "__main__":
 
     config = machine.generate_config()
 
+    from configs import EMAIL, PASSWORD
+
     # Cloud Simulator Configuration
-    EMAIL = "email"
-    PASSWORD = "password"
+    # EMAIL = "email"
+    # PASSWORD = "password"
 
     print("\nConnecting to QM SaaS cloud simulator...")
     client = qm_saas.QmSaas(
