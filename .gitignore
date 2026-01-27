@@ -202,3 +202,6 @@ wiring.json
 # Claude Code
 .claude/
 /quam_state/
+
+# Local config for examples
+quam_builder/architecture/quantum_dots/examples/configs.py
