@@ -43,3 +43,8 @@ class Drain(ReservoirBase):
     """
 
     physical_channel: VoltageGate = None
+    gate_set_id: str = "main_qpu"
+
+    @property
+    def voltage_sequence(self):
+        return self.machine.get_voltage_sequence(self.gate_set_id)
