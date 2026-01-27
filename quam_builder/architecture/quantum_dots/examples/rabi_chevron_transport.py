@@ -7,6 +7,11 @@ QuAM quantum dots framework. A Rabi chevron experiment sweeps both drive frequen
 and pulse duration to find the optimal qubit drive parameters, revealing the qubit's
 resonance frequency and Rabi oscillation characteristics.
 
+Readout in this example uses AC demodulated current sensing: a square-wave
+modulation is applied to the charge sensor plunger gate and the resulting AC
+current is demodulated in the OPX using integration weights matched to the
+square wave.
+
 Workflow Overview:
 ------------------
 1. **Create Machine**: Set up physical channels (plungers, sensor, XY drive)
@@ -27,7 +32,7 @@ Key Concepts Demonstrated:
 Requirements:
 - Qubit with voltage points: init, operate, readout
 - Drive macro for applying MW pulses with variable duration
-- Measure macro returning transport current values
+- Measure macro returning demodulated transport current values
 - Voltage sequence with compensation pulse capability
 """
 
@@ -36,6 +41,7 @@ from typing import List
 import matplotlib
 import matplotlib.pyplot as plt
 import qm_saas
+import numpy as np
 from qm.qua import (
     program,
     for_,
@@ -67,6 +73,52 @@ from quam_builder.architecture.quantum_dots.components.readout_transport import 
     ReadoutTransportSingleIO,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
+
+
+# =============================================================================
+# Local pulse definition for AC demodulated transport readout
+# =============================================================================
+
+
+@quam_dataclass
+class SquareWaveReadoutPulse(pulses.ReadoutPulse):
+    """
+    Readout pulse that outputs a bipolar square wave and sets matching demod weights.
+
+    Args:
+        length: Total pulse length in samples.
+        amplitude: Peak amplitude of the square wave (bipolar).
+        period: Square-wave period in samples. Must evenly divide length.
+        duty_cycle: Fraction of period spent in the positive state (default 0.5).
+    """
+
+    length: int
+    amplitude: float
+    period: int
+    duty_cycle: float = 0.5
+
+    def __post_init__(self):
+        if self.period <= 0 or self.length <= 0:
+            raise ValueError("SquareWaveReadoutPulse requires positive length and period.")
+        if self.period % 2 != 0:
+            raise ValueError("SquareWaveReadoutPulse period must be even.")
+        if self.length % self.period != 0:
+            raise ValueError("SquareWaveReadoutPulse length must be a multiple of period.")
+        if not (0.0 < self.duty_cycle < 1.0):
+            raise ValueError("SquareWaveReadoutPulse duty_cycle must be between 0 and 1.")
+
+        high_len = int(round(self.period * self.duty_cycle))
+        low_len = self.period - high_len
+        if high_len <= 0 or low_len <= 0:
+            raise ValueError("SquareWaveReadoutPulse duty_cycle yields invalid segment.")
+
+        one_period = [self.amplitude] * high_len + [-self.amplitude] * low_len
+        repeats = self.length // self.period
+        self._waveform = one_period * repeats
+        self.integration_weights = [(1.0, high_len), (-1.0, low_len)] * repeats
+
+    def waveform_function(self):
+        return np.array(self._waveform, dtype=float)
 
 
 # =============================================================================
@@ -127,28 +179,34 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # -------------------------------------------------------------------------
     # Sensor DC Channel
     # -------------------------------------------------------------------------
-    # Dedicated VoltageGate for the sensor dot
+    # Dedicated VoltageGate for the sensor dot (DC bias only)
+    # Note: the readout element below uses the same physical output port.
+    sensor_output_port = LFFEMAnalogOutputPort(
+        controller_id=controller,
+        fem_id=lf_fem_slot,
+        port_id=4,
+        output_mode="direct",
+    )
     sensor_dc = VoltageGate(
         id="sensor_DC",
-        opx_output=LFFEMAnalogOutputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=4,
-            output_mode="direct",
-        ),
+        opx_output=sensor_output_port,
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
 
     # -------------------------------------------------------------------------
     # Transport Readout
     # -------------------------------------------------------------------------
-    # Transport readout measures DC current through the sensor dot
+    # Transport readout demodulates the AC current using square-wave weights
+    readout_length = 1000  # ns
+    square_period = 40  # ns
+    ac_square_amplitude = 0.05
     transport_readout = ReadoutTransportSingleIO(
         id="charge_sensor",
+        # Use the same physical output port as the sensor plunger gate
         opx_output=LFFEMAnalogOutputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
-            port_id=3,
+            port_id=4,
             output_mode="direct",
         ),
         opx_input=LFFEMAnalogInputPort(
@@ -157,9 +215,11 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             port_id=1,
         ),
         operations={
-            "readout": pulses.SquareReadoutPulse(
-                length=1000,  # 1us readout pulse
-                amplitude=0.0,
+            "readout": SquareWaveReadoutPulse(
+                length=readout_length,
+                amplitude=ac_square_amplitude,
+                period=square_period,
+                duty_cycle=0.5,
             )
         },
     )
@@ -276,19 +336,19 @@ def register_qubit_with_points(
         .with_step_point(
             name="init",
             voltages={"virtual_dot_1": 0.05},
-            point_duration=500,  # 500ns hold time
+            duration=500,  # 500ns hold time
         )
         # Operate point: Move to manipulation sweet spot
         .with_step_point(
             name="operate",
             voltages={"virtual_dot_1": 0.15},
-            point_duration=2000,  # 2us hold time (will be overridden by drive duration)
+            duration=2000,  # 2us hold time (will be overridden by drive duration)
         )
         # Readout point: Configure for PSB readout
         .with_step_point(
             name="readout",
-            voltages={"virtual_dot_1": -0.05},
-            point_duration=2000,  # 2us readout window
+            voltages={"virtual_dot_1": -0.05, "virtual_sensor_1": 0.1},
+            duration=2000,  # 2us readout window
         )
     )
 
@@ -372,7 +432,7 @@ def add_qubit_macros(qubit: LDQubit):
     @quam_dataclass
     class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
         """
-        Macro for performing measurement and returning I, Q quadrature values.
+        Macro for performing AC demodulated current sensing.
 
         This macro accesses the sensor dot through the qubit's sensor_dots
         property, which is populated when the quantum dot pair is registered.
@@ -385,7 +445,7 @@ def add_qubit_macros(qubit: LDQubit):
 
         def apply(self, **kwargs):
             """
-            Perform measurement and return the transport current.
+            Perform AC demodulated measurement and return the transport current.
 
             Returns:
                 I QUA variable containing measurement result
@@ -400,12 +460,11 @@ def add_qubit_macros(qubit: LDQubit):
             parent_qubit = self.parent.parent
             sensor_dot = parent_qubit.sensor_dots[0]
 
-            # Wait for transients, then perform measurement
-            sensor_dot.physical_channel.readout.wait(64)
-            sensor_dot.physical_channel.readout.measure(
-                pulse,
-                qua_vars=(current, _unused_q),
-            )
+            readout = sensor_dot.physical_channel.readout
+
+            # Wait for transients, then perform demodulated measurement
+            readout.wait(64)
+            readout.measure(pulse, qua_vars=(current, _unused_q))
 
             return current
 
@@ -572,37 +631,40 @@ if __name__ == "__main__":
     # Close any stale instances (limit is 3 per user)
     client.close_all()
 
-    # # Run simulation using context manager (auto-closes instance on exit)
-    # with client.simulator(client.latest_version()) as instance:
-    #     print('\nSimulating Rabi Chevron...')
-    #
-    #     # Create QuantumMachinesManager connected to the cloud instance
-    #     qmm = QuantumMachinesManager(
-    #         host=instance.host,
-    #         port=instance.port,
-    #         connection_headers=instance.default_connection_headers
-    #     )
-    #
-    #     # Run the simulation
-    #     simulation_config = SimulationConfig(duration=8000)
-    #     job = qmm.simulate(config, rabi_chevron_program, simulation_config)
-    #     job.wait_until("Done", timeout=10)
-    #
-    #     # Retrieve results
-    #     simulated_samples = job.get_simulated_samples()
-    #     waveform_report = job.get_simulated_waveform_report()
+    # Run simulation using context manager (auto-closes instance on exit)
+    with client.simulator(client.latest_version()) as instance:
+        print("\nSimulating Rabi Chevron...")
+
+        # Create QuantumMachinesManager connected to the cloud instance
+        qmm = QuantumMachinesManager(
+            host=instance.host,
+            port=instance.port,
+            connection_headers=instance.default_connection_headers,
+        )
+
+        # Run the simulation
+        simulation_config = SimulationConfig(duration=8000)
+        job = qmm.simulate(config, rabi_chevron_program, simulation_config)
+        job.wait_until("Done", timeout=10)
+
+        # Retrieve results
+        simulated_samples = job.get_simulated_samples()
+        waveform_report = job.get_simulated_waveform_report()
 
     # Run the simulation
-    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
-    simulation_config = SimulationConfig(duration=4000)
-    job = qmm.simulate(config, rabi_chevron_program, simulation_config)
-    job.wait_until("Done", timeout=20)
-
-    # Retrieve results
-    simulated_samples = job.get_simulated_samples()
-    waveform_report = job.get_simulated_waveform_report()
+    # qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
+    # simulation_config = SimulationConfig(duration=4000)
+    # job = qmm.simulate(config, rabi_chevron_program, simulation_config)
+    # job.wait_until("Done", timeout=20)
+    #
+    # # Retrieve results
+    # simulated_samples = job.get_simulated_samples()
+    # waveform_report = job.get_simulated_waveform_report()
 
     # Plot the results
+    import matplotlib
+
+    matplotlib.use("TkAgg")
     waveform_report.create_plot(simulated_samples, plot=True)
 
     print("Retrieving simulated samples...")
@@ -613,4 +675,4 @@ if __name__ == "__main__":
 
     print("\nRabi Chevron simulation completed successfully!")
 
-    qmm.close_all_qms()
+    # qmm.close_all_qms()

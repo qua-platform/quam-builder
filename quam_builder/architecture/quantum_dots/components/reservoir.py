@@ -6,16 +6,17 @@ from quam_builder.architecture.quantum_dots.components import VoltageGate
 from .mixins import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 from .voltage_gate import VoltageGate
 
 __all__ = ["ReservoirBase", "Drain"]
 
+
 @quam_dataclass
-class ReservoirBase(VoltagePointMacroMixin):
+class ReservoirBase(VoltageMacroMixin):
     """
-    Base class for a reservoir in a quantum dot device. 
+    Base class for a reservoir in a quantum dot device.
     """
 
     id: str = None
@@ -34,11 +35,11 @@ class ReservoirBase(VoltagePointMacroMixin):
     def name(self) -> str:
         return self.id
 
+
 @quam_dataclass
-class Drain(ReservoirBase): 
+class Drain(ReservoirBase):
     """
     Quam component for the drain ohmic contact of a QD Device.
     """
 
     physical_channel: VoltageGate = None
-
