@@ -2,13 +2,14 @@ from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
 
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 
+
 @quam_dataclass
-class ReservoirBase(VoltagePointMacroMixin):
+class ReservoirBase(VoltageMacroMixin):
     """
-    Base class for a reservoir in a quantum dot device. 
+    Base class for a reservoir in a quantum dot device.
     """
 
     id: str = None
@@ -26,6 +27,3 @@ class ReservoirBase(VoltagePointMacroMixin):
     @property
     def name(self) -> str:
         return self.id
-
-
-

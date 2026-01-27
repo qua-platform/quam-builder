@@ -2,7 +2,7 @@ from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from quam.utils.qua_types import (
     ChirpType,
     StreamType,
@@ -13,6 +13,7 @@ from quam.utils.qua_types import (
 
 from .voltage_gate import VoltageGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
+
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
@@ -20,52 +21,53 @@ __all__ = ["QuantumDot"]
 
 
 @quam_dataclass
-class QuantumDot(VoltagePointMacroMixin):
+class QuantumDot(VoltageMacroMixin):
     """
     Quam component for a single Quantum Dot
-    Attributes: 
+    Attributes:
         id (str): The id of the QuantumDot
         physical_channel (VoltageGate): The VoltageGate instance directly coupled to the QuantumDot.
-        current_voltage (float): The current voltage offset of the QuantumDot via the OPX. Default is zero. 
+        current_voltage (float): The current voltage offset of the QuantumDot via the OPX. Default is zero.
         voltage_sequence (VoltageSeqence): The VoltageSequence object of the associated VirtualGateSet.
         charge_number (int): The integer number of charges currently on the QuantumDot.
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
-    Methods: 
+    Methods:
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
-        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.  
-        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.  
-        get_offset: Returns the current value of the external voltage source. 
+        step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.
+        ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
+        get_offset: Returns the current value of the external voltage source.
         set_offset: Sets the external voltage source to the new value.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can NOT accept qubit names 
-        step_to_point: Steps to a pre-defined point in the internal points dict. 
-        ramp_to_point: Ramps to a pre-defined point in the internal points dict. 
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can NOT accept qubit names
+        step_to_point: Steps to a pre-defined point in the internal points dict.
+        ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
+
     id: Union[int, str]
     physical_channel: VoltageGate
     charge_number: int = 0
     current_voltage: float = 0.0
 
     @property
-    def name(self) -> str: 
+    def name(self) -> str:
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
-    
+
     @property
     def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
-        while obj.parent is not None: 
+        while obj.parent is not None:
             obj = obj.parent
         machine = obj
         return machine
 
     @property
-    def voltage_sequence(self) -> VoltageSequence: 
+    def voltage_sequence(self) -> VoltageSequence:
         machine = self.machine
-        try: 
+        try:
             virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
             return machine.get_voltage_sequence(virtual_gate_set_name)
-        except (AttributeError, ValueError, KeyError): 
+        except (AttributeError, ValueError, KeyError):
             return None
 
     def _update_current_voltage(self, voltage: float):
@@ -73,7 +75,7 @@ class QuantumDot(VoltagePointMacroMixin):
         self.current_voltage = voltage
 
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
-    # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    # add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin
 
     def get_offset(self):
         v = getattr(self.physical_channel, "offset_parameter", None)
@@ -85,8 +87,7 @@ class QuantumDot(VoltagePointMacroMixin):
             return
         raise ValueError("External offset source not connected")
 
-
-    def play(    
+    def play(
         self,
         pulse_name: str,
         amplitude_scale: Optional[Union[ScalarFloat, Sequence[ScalarFloat]]] = None,
@@ -97,17 +98,18 @@ class QuantumDot(VoltagePointMacroMixin):
         timestamp_stream: StreamType = None,
         continue_chirp: bool = False,
         target: str = "",
-        validate: bool = True): 
+        validate: bool = True,
+    ):
 
         return self.physical_channel.play(
-            pulse_name = pulse_name,
-            amplitude_scale = amplitude_scale,
-            duration = duration,
-            condition = condition,
-            chirp = chirp,
-            truncate = truncate,
-            timestamp_stream = timestamp_stream,
-            continue_chirp = continue_chirp,
-            target = target,
-            validate = validate,
+            pulse_name=pulse_name,
+            amplitude_scale=amplitude_scale,
+            duration=duration,
+            condition=condition,
+            chirp=chirp,
+            truncate=truncate,
+            timestamp_stream=timestamp_stream,
+            continue_chirp=continue_chirp,
+            target=target,
+            validate=validate,
         )

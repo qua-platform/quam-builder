@@ -6,11 +6,9 @@ from quam.components import QubitPair
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
-from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate
-)
+from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import (
-    VoltagePointMacroMixin,
+    VoltageMacroMixin,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -21,7 +19,7 @@ __all__ = ["LDQubitPair"]
 
 
 @quam_dataclass
-class LDQubitPair(QubitPair, VoltagePointMacroMixin):
+class LDQubitPair(QubitPair, VoltageMacroMixin):
     """
     Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.
@@ -54,18 +52,18 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
         return self.quantum_dot_pair.physical_channel
 
     @property
-    def detuning_axis_name(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def detuning_axis_name(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.detuning_axis_name
-    
+
     @property
-    def voltage_sequence(self): 
-        if self.quantum_dot_pair is None: 
-            raise ValueError("No QuantumDotPair in LDQubitPair") 
+    def voltage_sequence(self):
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.voltage_sequence
-    
-    @property 
+
+    @property
     def machine(self) -> "BaseQuamQD":
         return self.quantum_dot_pair.machine
 
@@ -78,4 +76,4 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
         """
         return self.detuning_axis_name
 
-    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin

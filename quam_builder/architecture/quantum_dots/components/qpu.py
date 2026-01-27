@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from quam.core import quam_dataclass
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 
 if TYPE_CHECKING:
@@ -11,11 +11,11 @@ __all__ = ["QPU"]
 
 
 @quam_dataclass
-class QPU(VoltagePointMacroMixin):
+class QPU(VoltageMacroMixin):
     """
     Quam component for the QPU
 
-    The macros dictionary is inherited from VoltagePointMacroMixin and can be used
+    The macros dictionary is inherited from VoltageMacroMixin and can be used
     to store parameterized macros that are called at programming time.
     """
 
@@ -45,7 +45,7 @@ class QPU(VoltagePointMacroMixin):
             return None
 
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
-    # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    # add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin
 
     def get_offset(self):
         v = getattr(self.physical_channel, "offset_parameter", None)

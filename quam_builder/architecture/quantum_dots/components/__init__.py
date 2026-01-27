@@ -12,6 +12,7 @@ from . import barrier_gate
 from . import quantum_dot_pair
 from . import xy_drive
 from . import mixin
+from . import mixins
 from . import qpu
 
 from .voltage_gate import *
