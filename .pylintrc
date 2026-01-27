@@ -1,3 +1,13 @@
+[MAIN]
+# Load the QUA plugin for suppressing false positives in QUA contexts
+# The init-hook finds the repo root (where pyproject.toml lives) and adds it to sys.path
+init-hook=import sys, os; d = os.getcwd(); exec('while d != os.path.dirname(d):\n if os.path.isfile(os.path.join(d, "pyproject.toml")): sys.path.insert(0, d); break\n d = os.path.dirname(d)')
+load-plugins=pylint_qua_plugin
+
+# Folders to ignore
+# tests/pylint_plugin contains intentional lint violations for testing the plugin
+ignore=venv,.venv,pylint_qua_plugin,tests/pylint_plugin
+
 
 [MESSAGES CONTROL]
 # Enable ONLY:
@@ -18,11 +28,6 @@ disable=W, I, invalid-name, import-error, no-name-in-module, too-many-locals
 [REPORTS]
 # Cleaner output, no extra reports
 reports=no
-
-
-[MASTER]
-# You can add folders to ignore if needed
-ignore=venv
 
 
 [FORMAT]

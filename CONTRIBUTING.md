@@ -93,7 +93,8 @@ On each commit, the following checks run (on changed files):
 
 - **Formatting and linting**
   - **Black** (`black`) for consistent Python formatting (100 char line length).
-  - **Pylint** (`pylint`) for code quality checks, following the `.pylintrc` configuration.
+  - **Pylint** (`pylint`) for code quality checks, following the `pyproject.toml` configuration.
+    - Includes the `pylint_qua_plugin` which suppresses false positive warnings inside QUA code contexts (e.g., `with program()` blocks and QUA functions like `if_()`, `while_()`, `assign()`).
 
 - **Generic hygiene**
   - Strip trailing whitespace.
