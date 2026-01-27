@@ -1,35 +1,3 @@
-# from typing import Union
-# 
-# from quam.core import quam_dataclass
-# 
-# from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (
-#     FixedFrequencyTransmon,
-# )
-# from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
-# 
-# 
-# __all__ = ["Cavity"]
-# 
-# 
-# 
-# 
-# @quam_dataclass
-# class Cavity(FixedFrequencyTransmon):
-#     """
-#     Example QUAM component for a cavity.
-# 
-#     Args:
-# 
-#     """
-#     alice: Union[XYDriveIQ, XYDriveMW] = None
-#     bob: Union[XYDriveIQ, XYDriveMW] = None
-#     alice_f0g1: Union[XYDriveIQ, XYDriveMW] = None
-#     bob_f0g1: Union[XYDriveIQ, XYDriveMW] = None
-# 
-
-
-
-
 from typing import Callable, Dict, Any, Union, Optional, Literal, Tuple
 from dataclasses import field
 from logging import getLogger
