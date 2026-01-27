@@ -7,6 +7,7 @@ from quam.core import quam_dataclass
 from .voltage_gate import VoltageGate
 from .mixins import VoltageMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
+
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
@@ -18,6 +19,7 @@ class BarrierGate(VoltageMacroMixin):
     """
     A class for a BarrierGate channel
     """
+
     id: str
     physical_channel: VoltageGate
     current_voltage: float = 0.0
@@ -30,7 +32,7 @@ class BarrierGate(VoltageMacroMixin):
     def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
-        while obj.parent is not None: 
+        while obj.parent is not None:
             obj = obj.parent
         machine = obj
         return machine

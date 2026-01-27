@@ -68,6 +68,7 @@ from quam_builder.architecture.quantum_dots.qubit import LDQubit
 # SECTION 1: Create Machine and Physical Channels
 # =============================================================================
 
+
 def create_minimal_machine() -> LossDiVincenzoQuam:
     """
     Create a minimal machine configuration for the Rabi chevron experiment.
@@ -231,6 +232,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
 # SECTION 2: Register Qubit with Voltage Points
 # =============================================================================
 
+
 def register_qubit_with_points(
     machine: LossDiVincenzoQuam,
     xy_drive: XYDrive,
@@ -294,6 +296,7 @@ def register_qubit_with_points(
 # SECTION 3: Define Custom Macros (Drive and Measure)
 # =============================================================================
 
+
 def add_qubit_macros(qubit: LDQubit):
     """
     Add drive and measure macros to the qubit using the QuamMacro pattern.
@@ -331,6 +334,7 @@ def add_qubit_macros(qubit: LDQubit):
             pulse_name: Name of the pulse operation to play (default: "drive")
             amplitude_scale: Optional amplitude scaling factor
         """
+
         pulse_name: str = "drive"
         amplitude_scale: float = None
 
@@ -375,6 +379,7 @@ def add_qubit_macros(qubit: LDQubit):
         Attributes:
             pulse_name: Name of the readout pulse operation (default: "readout")
         """
+
         pulse_name: str = "readout"
 
         def apply(self, **kwargs) -> Tuple:
@@ -411,6 +416,7 @@ def add_qubit_macros(qubit: LDQubit):
 # =============================================================================
 # SECTION 4: Create the Rabi Chevron QUA Program
 # =============================================================================
+
 
 def create_rabi_chevron_program(qubits: List[LDQubit]):
     """
@@ -498,6 +504,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 # =============================================================================
 # SECTION 5: Main Entry Point and Experiment Setup
 # =============================================================================
+
 
 def setup_rabi_chevron_experiment():
     """

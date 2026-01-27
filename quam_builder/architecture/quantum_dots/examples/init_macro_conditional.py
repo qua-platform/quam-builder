@@ -57,6 +57,7 @@ from quam_qd_generator_example import machine
 # The 'pass' statements are intentional - the decorator handles dispatching
 # to the actual macro implementations on the quantum components.
 
+
 @operations_registry.register_operation
 def measure(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Measure qubit state. Returns True if excited."""
@@ -86,9 +87,11 @@ def measure_init(qubit_pair: QubitPair, **kwargs) -> QuaVariableBool:
     """Execute measure and return to load point."""
     pass
 
+
 # ============================================================================
 # Configuration Helper Function
 # ============================================================================
+
 
 def configure_qubit_pair_for_reset(qubit_pair, config):
     """

@@ -84,6 +84,7 @@ EXCHANGE_PARAMS = {
     "exchange_duration": 300,  # Time at high barrier (ns)
 }
 
+
 def configure_qubit_pair_for_reset(qubit_pair, config):
     """
     Configure a qubit pair with voltage points, readout, and conditional reset.
@@ -212,6 +213,7 @@ class Init3Macro(QuamMacro):
         # Reload dots
         q1_q2.load()
         return state
+
 
 @quam_dataclass
 class InitAllMacro(QuamMacro):

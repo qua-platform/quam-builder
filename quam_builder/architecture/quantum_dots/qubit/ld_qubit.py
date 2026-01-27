@@ -10,10 +10,7 @@ from quam_builder.architecture.quantum_dots.macros.point_macros import VoltagePo
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
-from qm.qua import (
-    wait,
-    frame_rotation_2pi
-)
+from qm.qua import wait, frame_rotation_2pi
 
 from quam_builder.architecture.quantum_dots.components import XYDrive
 
@@ -24,7 +21,7 @@ __all__ = ["LDQubit"]
 
 
 @quam_dataclass
-class LDQubit(Qubit, VoltagePointMacroMixin):
+class LDQubit(Qubit, VoltageMacroMixin):
     """
     An example QUAM component for a Loss DiVincenzo Qubit
 
@@ -102,28 +99,36 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
     
     def _validate_readout_quantum_dot(self, qd_name): 
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
-        if qd_name not in self.machine.quantum_dots: 
+        if qd_name not in self.machine.quantum_dots:
             raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
         qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
-        if qd_pair is None: 
-            raise ValueError(f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first")
-    
+        if qd_pair is None:
+            raise ValueError(
+                f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
+            )
+
     @property
-    def preferred_readout_quantum_dot(self) -> str: 
+    def preferred_readout_quantum_dot(self) -> str:
         return self._preferred_readout_quantum_dot
-    
+
     @preferred_readout_quantum_dot.setter
-    def preferred_readout_quantum_dot(self, value: str): 
-        if value is not None and not isinstance(self.quantum_dot, str): 
+    def preferred_readout_quantum_dot(self, value: str):
+        if value is not None and not isinstance(self.quantum_dot, str):
             self._validate_readout_quantum_dot(value)
         self._preferred_readout_quantum_dot = value
 
     @property
-    def sensor_dots(self) -> List[SensorDot]: 
-        if self._preferred_readout_quantum_dot is None: 
-            raise ValueError(f"No preferred_readout_quantum_dot set for qubit '{self.id}'. Please set first")
+    def sensor_dots(self) -> List[SensorDot]:
+        if self._preferred_readout_quantum_dot is None:
+            raise ValueError(
+                f"No preferred_readout_quantum_dot set for qubit '{self.id}'. Please set first"
+            )
         self._validate_readout_quantum_dot(self._preferred_readout_quantum_dot)
-        qd_pair = self.machine.quantum_dot_pairs[self.machine.find_quantum_dot_pair(self.quantum_dot.id, self.preferred_readout_quantum_dot)]
+        qd_pair = self.machine.quantum_dot_pairs[
+            self.machine.find_quantum_dot_pair(
+                self.quantum_dot.id, self.preferred_readout_quantum_dot
+            )
+        ]
         sensors = qd_pair.sensor_dots
         return sensors
 
@@ -151,9 +156,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         self,
         QM: QuantumMachine,
         calibrate_drive: bool = True,
-    ) -> Tuple[
-        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
-    ]:
+    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (EDSR and possible resonator) linked to this qubit for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 

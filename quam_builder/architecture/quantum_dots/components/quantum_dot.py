@@ -60,12 +60,12 @@ class QuantumDot(VoltageMacroMixin):
     @property
     def name(self) -> str:
         return self.id if isinstance(self.id, str) else f"dot{self.id}"
-    
+
     @property
     def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
-        while obj.parent is not None: 
+        while obj.parent is not None:
             obj = obj.parent
         machine = obj
         return machine

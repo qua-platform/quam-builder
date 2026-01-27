@@ -10,6 +10,7 @@ The OperationsRegistry allows you to:
 3. Get type checking and IDE autocomplete support
 4. Write cleaner QUA code
 """
+
 from quam import QuamComponent
 from typing import TYPE_CHECKING
 
@@ -116,6 +117,7 @@ def readout(component: VoltageMacroMixin, **kwargs):
 # ============================================================================
 # Pulse Operations
 # ============================================================================
+
 
 @operations_registry.register_operation
 def x180(qubit: LDQubit, **kwargs):
