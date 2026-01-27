@@ -9,8 +9,9 @@ from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon,
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 from quam_builder.architecture.superconducting.qpu.flux_tunable_quam import FluxTunableQuam
-from quam_builder.architecture.superconducting.qubit.cavity import Cavity
-__all__ = ["CavityQuam", "FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+from quam_builder.architecture.superconducting.cavity.cavity import Cavity
+
+__all__ = ["CavityQuam", "FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair", "Cavity"]
 
 
 @quam_dataclass
