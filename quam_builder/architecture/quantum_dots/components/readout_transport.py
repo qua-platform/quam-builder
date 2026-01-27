@@ -1,21 +1,41 @@
-
+"""Transport readout channel components."""
 
 from quam.core import quam_dataclass
-from quam.components.channels import InSingleChannel, InMWChannel, InIQChannel
+from quam.components.channels import InSingleChannel, InOutSingleChannel, InMWChannel, InIQChannel
 
 
-__all__ = ["ReadoutTransportBase", "ReadoutTransportSingle"]
+__all__ = ["ReadoutTransportBase", "ReadoutTransportSingle", "ReadoutTransportSingleIO"]
+
 
 @quam_dataclass
-class ReadoutTransportBase:
+class ReadoutTransportBase:  # pylint: disable=too-few-public-methods
     """
-    Quam component for a transport measurement. 
+    Quam component for a transport measurement.
     """
+
     pass
 
+
 @quam_dataclass
-class ReadoutTransportSingle(InSingleChannel, ReadoutTransportBase): 
+class ReadoutTransportSingle(
+    InSingleChannel, ReadoutTransportBase
+):  # pylint: disable=too-few-public-methods
     """
-    A Quam component for a transport measurement setup using the LF-FEM. 
+    A Quam component for a transport measurement setup using the LF-FEM.
     """
+
+    pass
+
+
+@quam_dataclass
+class ReadoutTransportSingleIO(
+    InOutSingleChannel, ReadoutTransportBase
+):  # pylint: disable=too-few-public-methods
+    """
+    A transport measurement channel with both input and output.
+
+    This is useful when a measurement pulse is required for configuration, even if
+    the output amplitude is set to zero in practice.
+    """
+
     pass
