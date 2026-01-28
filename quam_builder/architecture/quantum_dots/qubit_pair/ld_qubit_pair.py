@@ -1,6 +1,4 @@
-"""Loss-DiVincenzo Qubit Pair component for quantum dot architectures."""
-
-from typing import Union, TYPE_CHECKING
+from typing import Union, Dict, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
@@ -10,7 +8,7 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixin import (
-    VoltagePointMacroMixin,
+    VoltageMacroMixin,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -21,7 +19,7 @@ __all__ = ["LDQubitPair"]
 
 
 @quam_dataclass
-class LDQubitPair(QubitPair, VoltagePointMacroMixin):
+class LDQubitPair(QubitPair, VoltageMacroMixin):
     """
     Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.
@@ -33,8 +31,7 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     Methods:
         add_quantum_dot_pair: Adds the QuantumDotPair associated with the Qubit instances.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers
-            said point in the internal points attribute. Can accept qubit names.
+        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
@@ -52,12 +49,10 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
 
     @property
     def physical_channel(self) -> VoltageGate:
-        """Return the physical voltage gate channel from the quantum dot pair."""
         return self.quantum_dot_pair.physical_channel
 
     @property
-    def detuning_axis_name(self) -> str:
-        """Return the detuning axis name from the quantum dot pair."""
+    def detuning_axis_name(self):
         if self.quantum_dot_pair is None:
             raise ValueError("No QuantumDotPair in LDQubitPair")
         return self.quantum_dot_pair.detuning_axis_name
@@ -81,4 +76,4 @@ class LDQubitPair(QubitPair, VoltagePointMacroMixin):
         """
         return self.detuning_axis_name
 
-    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin

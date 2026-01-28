@@ -3,36 +3,35 @@ Rabi Chevron Experiment Example - Batched Qubits Version
 =========================================================
 
 This example demonstrates a Rabi chevron experiment using the batched qubits pattern
-with integrated initialize and measure macros. This version follows the node-based
-workflow pattern:
+with voltage point macros. It shows how to:
 
-    with program() as node.namespace["qua_program"]:
-        p1, p2, pdiff, p1_st, p2_st, pdiff_st, n, n_st = node.machine.declare_qua_variables()
+1. Configure a minimal quantum dot machine with virtual gates
+2. Define voltage points and associated step macros
+3. Create custom X180 and Measure macros
+4. Build a QUA program using the batched qubit iteration pattern
 
 Key Features:
 -------------
-- Uses `node.machine.declare_qua_variables()` pattern
-- `InitializeMacro`: Steps to 'init' point to load electron
-- `X180Macro`: Steps to 'operate' point and applies X180 (pi) pulse
-- `MeasureMacro`: Steps to 'readout' point, measures I/Q, applies projector and threshold
+- Uses `machine.declare_qua_variables()` for standardized variable declaration
+- `StepPointMacro` (via add_point_with_step_macro): Steps to voltage points
+- `X180Macro`: Applies X180 (pi) pulse with variable duration
+- `MeasureMacro`: Steps to 'readout' point, measures I/Q, thresholds I component
 
-Thresholding with Projector:
-----------------------------
-The MeasureMacro uses the sensor_dot's calibrated projector and threshold:
-    projected = wI * I + wQ * Q + offset
-    state = projected > threshold
+Thresholding:
+-------------
+The MeasureMacro uses the sensor_dot's calibrated threshold on the I component:
+    state = I > threshold
 
-This allows for arbitrary rotation of the I/Q plane to align with the measurement
-axis and apply appropriate thresholding for parity readout.
-
-Workflow Overview:
-------------------
-1. Pre-measure: Get initial state p1 (for comparison)
-2. Initialize: Step to init point and load electron
-3. X180: Step to operate point and apply pi pulse with variable duration
-4. Measure: Step to readout point, measure, threshold → parity p2
-5. Compensate: Apply compensation pulse to reset DC bias
-6. Save: p1, p2, and pdiff (state difference)
+Experiment Sequence:
+--------------------
+1. Set drive frequency and reset phase
+2. Empty: Step to empty point to deplete dots
+3. Pre-measure: Get initial state p1 (for comparison)
+4. Initialize: Step to initialize point and load electron (variable duration)
+5. X180: Apply pi pulse with variable duration
+6. Measure: Step to readout point, measure, threshold → parity p2
+7. Compensate: Apply compensation pulse to reset DC bias
+8. Save: p1, p2, and pdiff (state difference)
 """
 
 from typing import List
@@ -53,6 +52,7 @@ from qm.qua import (
     else_,
     assign,
     Cast,
+    reset_if_phase,
 )
 from qm import SimulationConfig, QuantumMachinesManager
 import qm_saas
@@ -92,38 +92,6 @@ from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 
 @quam_dataclass
-class InitializeMacro(QuamMacro):  # pylint: disable=too-few-public-methods
-    """Macro for qubit initialization including voltage point navigation.
-
-    This macro:
-    1. Steps to the 'init' voltage point
-    2. Holds for specified duration to load electron into dot
-
-    The duration can be overridden at call time for Rabi experiments
-    where longer initialization may be needed.
-
-    Attributes:
-        default_duration: Default hold duration at initialize point (ns)
-    """
-
-    duration: int = 500
-
-    def apply(self, duration: int = None, **kwargs) -> None:
-        """Execute initialization sequence.
-
-        Args:
-            duration: Override for hold duration at init point (ns)
-        """
-        hold_duration = duration if duration is not None else self.duration
-
-        # Navigate to the qubit: self.parent is macros dict, parent.parent is qubit
-        parent_qubit = self.parent.parent
-
-        # Step to initialization point
-        parent_qubit.step_to_point("initialize", duration=hold_duration)
-
-
-@quam_dataclass
 class X180Macro(QuamMacro):  # pylint: disable=too-few-public-methods
     """Macro for X180 gate: step to operate point and apply pi pulse.
 
@@ -138,6 +106,29 @@ class X180Macro(QuamMacro):  # pylint: disable=too-few-public-methods
 
     pulse_name: str = "X180"
     amplitude_scale: float = None
+    duration: int = None
+
+    def _validate(self, xy_channel, duration, amplitude_scale) -> None:
+        """Validate parameters for X180 gate execution.
+
+        Raises:
+            ValueError: If xy_channel is None or required parameters are missing.
+        """
+        if xy_channel is None:
+            raise ValueError(
+                "Cannot apply X180 gate: xy_channel is not configured on parent qubit."
+            )
+
+        missing = []
+        if duration is None:
+            missing.append("duration")
+        if amplitude_scale is None:
+            missing.append("amplitude_scale")
+        if missing:
+            raise ValueError(
+                f"Missing required parameter(s): {', '.join(missing)}. "
+                "Provide via kwargs or set as class attributes."
+            )
 
     def apply(self, duration: int = None, **kwargs) -> None:
         """Execute X180 gate sequence.
@@ -146,15 +137,18 @@ class X180Macro(QuamMacro):  # pylint: disable=too-few-public-methods
             duration: Pulse duration in clock cycles (4ns each)
         """
         parent_qubit = self.parent.parent
+        amp_scale = kwargs.get("amplitude_scale", self.amplitude_scale)
+        # Use positional arg if provided, otherwise check kwargs, then fall back to default
+        if duration is None:
+            duration = kwargs.get("duration", self.duration)
 
-        # Apply X180 pulse if duration specified
-        if duration is not None and parent_qubit.xy_channel is not None:
-            amp_scale = kwargs.get("amplitude_scale", self.amplitude_scale)
-            parent_qubit.xy_channel.play(
-                self.pulse_name,
-                amplitude_scale=amp_scale,
-                duration=duration,
-            )
+        self._validate(parent_qubit.xy_channel, duration, amp_scale)
+
+        parent_qubit.xy_channel.play(
+            self.pulse_name,
+            amplitude_scale=amp_scale,
+            duration=duration,
+        )
 
 
 @quam_dataclass
@@ -164,12 +158,10 @@ class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
     This macro:
     1. Steps to the 'readout' voltage point (PSB configuration)
     2. Performs demodulated measurement (I, Q)
-    3. Applies projector: projected = wI * I + wQ * Q + offset
-    4. Thresholds to get parity: state = projected > threshold
+    3. Thresholds the I component: state = I > threshold
 
-    The projector and threshold are retrieved from the sensor_dot's
-    readout_projectors and readout_thresholds dictionaries, keyed by
-    the quantum_dot_pair_id.
+    The threshold is retrieved from the sensor_dot's readout_thresholds
+    dictionary, keyed by the quantum_dot_pair_id.
 
     Attributes:
         pulse_name: Name of the readout pulse operation (default: "readout")
@@ -179,22 +171,45 @@ class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
     pulse_name: str = "readout"
     readout_duration: int = 2000
 
+    def _validate(self, parent_qubit) -> None:
+        """Validate that the qubit is properly configured for measurement.
+
+        Raises:
+            ValueError: If required components are missing or misconfigured.
+        """
+        if not parent_qubit.sensor_dots:
+            raise ValueError("Cannot measure: no sensor_dots configured on parent qubit.")
+
+        sensor_dot = parent_qubit.sensor_dots[0]
+
+        if sensor_dot.readout_resonator is None:
+            raise ValueError("Cannot measure: readout_resonator is not configured on sensor_dot.")
+
+        if parent_qubit.quantum_dot is None:
+            raise ValueError("Cannot measure: quantum_dot is not configured on parent qubit.")
+
+        if parent_qubit.preferred_readout_quantum_dot is None:
+            raise ValueError(
+                "Cannot measure: preferred_readout_quantum_dot is not set on parent qubit."
+            )
+
     def apply(self, **kwargs) -> QuaVariableBool:
         """Execute measurement sequence and return qubit state (parity).
 
-        The measurement uses the sensor_dot's calibrated projector (wI, wQ, offset)
-        and threshold to convert I/Q values to a boolean parity result.
+        The measurement thresholds the I quadrature component to determine state.
 
         Returns:
-            Boolean QUA variable indicating qubit state (True = excited/odd parity)
+            Boolean QUA variable indicating qubit state (True = I > threshold)
         """
         pulse = kwargs.get("pulse_name", self.pulse_name)
 
         # Navigate to qubit
         parent_qubit = self.parent.parent
 
+        self._validate(parent_qubit)
+
         # Step to readout point (PSB configuration) - integrated into measure
-        parent_qubit.step_to_point("readout", duration=self.readout_duration)
+        parent_qubit.step_to_point("measure", duration=self.readout_duration)
 
         # Get the associated sensor dot and quantum dot pair info
         sensor_dot = parent_qubit.sensor_dots[0]
@@ -215,23 +230,12 @@ class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
             qua_vars=(I, Q),
         )
 
-        # Get projector and threshold from sensor_dot (with defaults)
-        projector = sensor_dot.readout_projectors.get(
-            qd_pair_id, {"wI": 1.0, "wQ": 0.0, "offset": 0.0}
-        )
+        # Get threshold from sensor_dot (default to 0.0)
         threshold = sensor_dot.readout_thresholds.get(qd_pair_id, 0.0)
 
-        wI = projector.get("wI", 1.0)
-        wQ = projector.get("wQ", 0.0)
-        offset = projector.get("offset", 0.0)
-
-        # Apply projector: projected = wI * I + wQ * Q + offset
-        projected = declare(fixed)
-        assign(projected, wI * I + wQ * Q + offset)
-
-        # Threshold to get parity state
+        # Threshold I component to get state
         state = declare(bool)
-        assign(state, projected > threshold)
+        assign(state, I > threshold)
 
         return state
 
@@ -415,20 +419,12 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         id="qd_pair_1_2",
     )
 
-    # Configure readout threshold and projector for the sensor dot
-    # The projector rotates I/Q to align with the measurement axis:
-    #   projected = wI * I + wQ * Q + offset
-    # The threshold determines state discrimination:
-    #   state = projected > threshold
+    # Configure readout threshold for the sensor dot
+    # State discrimination uses: state = I > threshold
     sensor_dot = machine.sensor_dots["virtual_sensor_1"]  # pylint: disable=unsubscriptable-object
     sensor_dot._add_readout_params(
         quantum_dot_pair_id="qd_pair_1_2",
-        threshold=0.0,  # Threshold for parity discrimination
-        projector={
-            "wI": 1.0,  # Weight for I quadrature
-            "wQ": 0.0,  # Weight for Q quadrature
-            "offset": 0.0,  # DC offset correction
-        },
+        threshold=0.5,
     )
 
     return machine, xy_drive, readout_resonator
@@ -454,28 +450,17 @@ def register_qubit_with_points(
 
     qubit = machine.qubits["Q1"]
 
-    # Define Voltage Points
-    (
-        qubit.with_step_point(
-            name="initialize",
-            voltages={"virtual_dot_1": 0.05},
-            point_duration=500,
-        )
-        .with_step_point(
-            name="operate",
-            voltages={"virtual_dot_1": 0.15},
-            point_duration=2000,
-        )
-        .with_step_point(
-            name="readout",
-            voltages={"virtual_dot_1": -0.05},
-            point_duration=2000,
-        )
+    # Define Voltage Points and create step macros
+    qubit.add_point_with_step_macro(
+        "empty", voltages={"virtual_dot_1": -0.1, "virtual_dot_2": -0.1}, duration=500
     )
+    qubit.add_point_with_step_macro(
+        "initialize", voltages={"virtual_dot_1": 0.05, "virtual_dot_2": 0.05}, duration=500
+    )
+    qubit.add_point("measure", voltages={"virtual_dot_1": -0.05, "virtual_dot_2": -0.05})
 
     # Register custom macros
-    # qubit.macros["initialize"] = InitializeMacro(default_duration=500)
-    qubit.macros["x180"] = X180Macro(pulse_name="X180")
+    qubit.macros["x180"] = X180Macro(pulse_name="X180", amplitude_scale=1.0)
     qubit.macros["measure"] = MeasureMacro(
         pulse_name="readout",
         readout_duration=2000,
@@ -489,12 +474,13 @@ def register_qubit_with_points(
 # =============================================================================
 
 
-def create_rabi_chevron_program_batched(
+def create_rabi_chevron_program_batched(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     machine: LossDiVincenzoQuam,
     qubits: QubitCollection,
     n_avg: int = 1,
     pulse_durations: List[int] = None,
     frequencies: List[int] = None,
+    wait_time: int = 64,
 ):
     """
     Create the Rabi chevron QUA program using batched qubit pattern.
@@ -528,10 +514,9 @@ def create_rabi_chevron_program_batched(
 
         # Additional variables for pre/post measurement comparison
         # Use int instead of bool so we can average in stream processing
-        p1 = [declare(int) for _ in range(num_qubits)]
-        p2 = [declare(int) for _ in range(num_qubits)]
-        pdiff = [declare(int) for _ in range(num_qubits)]
-
+        p1 = declare(int, size=num_qubits)
+        p2 = declare(int, size=num_qubits)
+        pdiff = declare(int, size=num_qubits)
         p1_st = [declare_stream() for _ in range(num_qubits)]
         p2_st = [declare_stream() for _ in range(num_qubits)]
         pdiff_st = [declare_stream() for _ in range(num_qubits)]
@@ -552,25 +537,35 @@ def create_rabi_chevron_program_batched(
                         # Pre-measurement: Check initial state
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
+                            # Set drive frequency for this iteration
+                            update_frequency(qubit.xy_channel.name, frequency)
+                            reset_if_phase(qubit.xy_channel.name)
+
+                        # ---------------------------------------------------------
+                        # Step 1: Empty - step to empty point (fixed duration)
+                        # ---------------------------------------------------------
+                        align()
+
+                        for i, qubit in batched_qubits.items():
+                            qubit.empty()
+
+                        align()
+
+                        for i, qubit in batched_qubits.items():
                             # Measure initial state (includes step_to('readout'))
                             # Cast bool to int for stream averaging
                             assign(p1[i], Cast.to_int(qubit.measure()))
 
-                            # Set drive frequency for this iteration
-                            update_frequency(qubit.xy_channel.name, frequency)
-
                         # ---------------------------------------------------------
-                        # Step 1: Initialize - load electron into dot
+                        # Step 2: Initialize - load electron into dot (variable duration)
                         # ---------------------------------------------------------
-                        for i, qubit in batched_qubits.items():
-                            # Initialize with duration scaled to pulse_duration
-                            qubit.initialize(duration=4 * (pulse_duration + 40))
-
-                        # Synchronize before operation
                         align()
 
+                        for i, qubit in batched_qubits.items():
+                            qubit.initialize(hold_duration=4 * (pulse_duration + wait_time))
+
                         # ---------------------------------------------------------
-                        # Step 2: X180 - move to sweet spot and apply pi pulse
+                        # Step 3: X180 - move to sweet spot and apply pi pulse
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
                             # X180 macro handles step_to('operate') + X180 pulse
@@ -580,7 +575,7 @@ def create_rabi_chevron_program_batched(
                         align()
 
                         # ---------------------------------------------------------
-                        # Step 3: Measure - move to PSB and measure
+                        # Step 4: Measure - move to PSB and measure
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
                             # Measure macro handles step_to('readout') + measurement
@@ -591,7 +586,7 @@ def create_rabi_chevron_program_batched(
                         align()
 
                         # ---------------------------------------------------------
-                        # Step 4: Apply compensation pulse to reset DC bias
+                        # Step 5: Apply compensation pulse to reset DC bias
                         # ---------------------------------------------------------
                         for i, qubit in batched_qubits.items():
                             qubit.voltage_sequence.apply_compensation_pulse()

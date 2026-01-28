@@ -267,25 +267,27 @@ def register_qubit_with_points(
     # Define Voltage Points using Fluent API
     # -------------------------------------------------------------------------
     # Note: All durations must be multiples of 4ns (OPX clock cycles)
+    qubit.add_point(point_name="initialize", voltages={"virtual_dot_1": 0.1, "virtual_dot_2": 0.1})
+    qubit.add_point(point_name="readout", voltages={"virtual_dot_1": -0.1, "virtual_dot_2": -0.1})
     (
         qubit
         # Init point: Load electron into dot at low voltage
         .with_step_point(
             name="init",
             voltages={"virtual_dot_1": 0.05},
-            duration=500,  # 500ns hold time
+            point_duration=500,  # 500ns hold time
         )
         # Operate point: Move to manipulation sweet spot
         .with_step_point(
             name="operate",
             voltages={"virtual_dot_1": 0.15},
-            duration=2000,  # 2us hold time (will be overridden by drive duration)
+            point_duration=2000,  # 2us hold time (will be overridden by drive duration)
         )
         # Readout point: Configure for PSB readout
         .with_step_point(
             name="readout",
             voltages={"virtual_dot_1": -0.05},
-            duration=2000,  # 2us readout window
+            point_duration=2000,  # 2us readout window
         )
     )
 
@@ -559,8 +561,9 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Cloud Simulator Configuration (QM SaaS Dev Server)
     # -------------------------------------------------------------------------
-    EMAIL = "email"
-    PASSWORD = "password"
+    # EMAIL = "email"
+    # PASSWORD = "password"
+    from configs import EMAIL, PASSWORD
 
     print("\nConnecting to QM SaaS cloud simulator...")
     client = qm_saas.QmSaas(
