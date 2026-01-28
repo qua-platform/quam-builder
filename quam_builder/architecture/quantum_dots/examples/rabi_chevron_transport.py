@@ -7,10 +7,9 @@ QuAM quantum dots framework. A Rabi chevron experiment sweeps both drive frequen
 and pulse duration to find the optimal qubit drive parameters, revealing the qubit's
 resonance frequency and Rabi oscillation characteristics.
 
-Readout in this example uses AC demodulated current sensing: a square-wave
-modulation is applied to the drain (ohmic) gate to modulate the device bias,
-and the resulting AC current is demodulated in the OPX using integration weights
-matched to the square wave.
+Readout in this example uses RF reflectometry: a resonator tone at 1 MHz
+intermediate frequency is applied to the sensor resonator, and the reflected
+signal is demodulated in the OPX using integration weights matched to the tone.
 
 Workflow Overview:
 ------------------
@@ -26,7 +25,7 @@ Key Concepts Demonstrated:
 - Virtual gate sets with cross-capacitance compensation
 - Qubit registration with XY drive and sensor dot association
 - Custom macros (DriveMacro, MeasureMacro) following the QuamMacro pattern
-- AC transport demodulation with square-wave readout pulse
+- RF reflectometry readout with a 1 MHz resonator tone
 - Voltage point navigation using step_to_point()
 - Cloud simulator execution via qm_saas
 
@@ -34,8 +33,7 @@ Requirements:
 - Qubit with voltage points: init, operate, readout
 - Drive macro for applying MW pulses with variable duration
 - Measure macro returning demodulated transport current values
-- Drain gate connected to an LF output to modulate the device bias
-- Readout output mapped to the same drain LF port to emit the square wave
+- Readout resonator connected to an LF output and input for reflectometry
 - Voltage sequence with compensation pulse capability
 """
 
@@ -44,7 +42,6 @@ from typing import List
 import matplotlib
 import matplotlib.pyplot as plt
 import qm_saas
-import numpy as np
 from qm.qua import (
     program,
     for_,
@@ -53,6 +50,7 @@ from qm.qua import (
     fixed,
     update_frequency,
     align,
+    assign,
     save,
     stream_processing,
 )
@@ -71,58 +69,11 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
     XYDrive,
-    Drain,
 )
-from quam_builder.architecture.quantum_dots.components.readout_transport import (
-    ReadoutTransportSingleIO,
+from quam_builder.architecture.quantum_dots.components.readout_resonator import (
+    ReadoutResonatorSingle,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
-
-# =============================================================================
-# Local pulse definition for AC demodulated transport readout
-# =============================================================================
-
-
-@quam_dataclass
-class SquareWaveReadoutPulse(pulses.ReadoutPulse):
-    """
-    Readout pulse that outputs a bipolar square wave and sets matching demod weights.
-
-    Args:
-        length: Total pulse length in samples.
-        amplitude: Peak amplitude of the square wave (bipolar).
-        period: Square-wave period in samples. Must evenly divide length.
-        duty_cycle: Fraction of period spent in the positive state (default 0.5).
-    """
-
-    length: int
-    amplitude: float
-    period: int
-    duty_cycle: float = 0.5
-
-    def __post_init__(self):
-        if self.period <= 0 or self.length <= 0:
-            raise ValueError("SquareWaveReadoutPulse requires positive length and period.")
-        if self.period % 2 != 0:
-            raise ValueError("SquareWaveReadoutPulse period must be even.")
-        if self.length % self.period != 0:
-            raise ValueError("SquareWaveReadoutPulse length must be a multiple of period.")
-        if not (0.0 < self.duty_cycle < 1.0):
-            raise ValueError("SquareWaveReadoutPulse duty_cycle must be between 0 and 1.")
-
-        high_len = int(round(self.period * self.duty_cycle))
-        low_len = self.period - high_len
-        if high_len <= 0 or low_len <= 0:
-            raise ValueError("SquareWaveReadoutPulse duty_cycle yields invalid segment.")
-
-        one_period = [self.amplitude] * high_len + [-self.amplitude] * low_len
-        repeats = self.length // self.period
-        self._waveform = one_period * repeats
-        self.integration_weights = [(1.0, high_len), (-1.0, low_len)] * repeats
-
-    def waveform_function(self):
-        return np.array(self._waveform, dtype=float)
 
 
 # =============================================================================
@@ -137,8 +88,8 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     This function sets up the hardware abstraction layer following the recommended
     pattern from quam_qd_example.py and quam_ld_example.py:
 
-    1. Create physical VoltageGate channels (plungers + sensor DC + drain)
-    2. Create transport readout channel for the sensor (AC demod)
+    1. Create physical VoltageGate channels (plungers + sensor DC)
+    2. Create readout resonator channel for the sensor (RF reflectometry)
     3. Create XY drive channel for qubit control
     4. Create virtual gate set with cross-capacitance compensation
     5. Register all channel elements using register_channel_elements()
@@ -196,31 +147,10 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     )
 
     # -------------------------------------------------------------------------
-    # Drain Reservoir (AC modulation across the device)
+    # Readout Resonator (RF reflectometry at 1 MHz IF)
     # -------------------------------------------------------------------------
-    drain_gate = VoltageGate(
-        id="drain_gate",
-        opx_output=LFFEMAnalogOutputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=3,
-            output_mode="direct",
-        ),
-        sticky=StickyChannelAddon(duration=16, digital=False),
-    )
-
-    machine.physical_channels[drain_gate.id] = drain_gate
-
-    # -------------------------------------------------------------------------
-    # Transport Readout
-    # -------------------------------------------------------------------------
-    # Transport readout demodulates the AC current using square-wave weights
-    readout_length = 1000  # samples
-    square_period = 40  # samples
-    ac_square_amplitude = 0.05
-    transport_readout = ReadoutTransportSingleIO(
-        id="charge_sensor",
-        # Use the drain gate output to modulate the device bias
+    readout_resonator = ReadoutResonatorSingle(
+        id="sensor_resonator",
         opx_output=LFFEMAnalogOutputPort(
             controller_id=controller,
             fem_id=lf_fem_slot,
@@ -232,12 +162,12 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             fem_id=lf_fem_slot,
             port_id=1,
         ),
+        intermediate_frequency=1e6,
         operations={
-            "readout": SquareWaveReadoutPulse(
-                length=readout_length,
-                amplitude=ac_square_amplitude,
-                period=square_period,
-                duty_cycle=0.5,
+            "readout": pulses.SquareReadoutPulse(
+                length=10000,
+                amplitude=0.05,
+                integration_weights_angle=0.0,
             )
         },
     )
@@ -292,17 +222,9 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # This creates QuantumDot and SensorDot objects from the channels
     machine.register_channel_elements(
         plunger_channels=[plunger_1, plunger_2],
-        sensor_readout_mappings={sensor_dc: transport_readout},
+        sensor_readout_mappings={sensor_dc: readout_resonator},
         barrier_channels=[],
     )
-
-    # Register drain reservoir after quantum dots exist (use references to avoid reparenting)
-    drain = Drain(
-        id="drain",
-        physical_channel=drain_gate.get_reference(),
-        quantum_dots=[qd.get_reference() for qd in machine.quantum_dots.values()],
-    )
-    machine.reservoirs[drain.id] = drain
 
     # -------------------------------------------------------------------------
     # Register Quantum Dot Pair
@@ -314,7 +236,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         id="qd_pair_1_2",
     )
 
-    return machine, xy_drive, transport_readout
+    return machine, xy_drive, readout_resonator
 
 
 # =============================================================================
@@ -396,7 +318,7 @@ def add_qubit_macros(qubit: LDQubit):
 
     Macros defined:
     - DriveMacro: Applies MW pulse with optional duration override (for Rabi sweep)
-    - MeasureMacro: Performs measurement and returns the demodulated current
+    - MeasureMacro: Performs measurement and returns R^2
 
     The sensor_dot is accessed through qubit.sensor_dots[0], following the pattern:
         machine.qubits["Q1"].sensor_dots[0].physical_channel.readout.measure("readout")
@@ -458,7 +380,7 @@ def add_qubit_macros(qubit: LDQubit):
     @quam_dataclass
     class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
         """
-        Macro for performing AC demodulated current sensing.
+        Macro for performing resonator readout and returning R^2.
 
         This macro accesses the sensor dot through the qubit's sensor_dots
         property, which is populated when the quantum dot pair is registered.
@@ -471,28 +393,30 @@ def add_qubit_macros(qubit: LDQubit):
 
         def apply(self, **kwargs):
             """
-            Perform AC demodulated measurement and return the transport current.
+            Perform demodulated resonator measurement and return R^2.
 
             Returns:
-                I QUA variable containing measurement result
+                R^2 QUA variable containing measurement result
             """
             pulse = kwargs.get("pulse_name", self.pulse_name)
 
-            # Declare QUA variables for transport current
-            current = declare(fixed)
-            _unused_q = declare(fixed)
+            # Declare QUA variables for I/Q and R^2
+            I = declare(fixed)
+            Q = declare(fixed)
+            r2 = declare(fixed)
 
             # Navigate to qubit and get the associated sensor dot
             parent_qubit = self.parent.parent
             sensor_dot = parent_qubit.sensor_dots[0]
 
-            readout = sensor_dot.physical_channel.readout
+            resonator = sensor_dot.readout_resonator
 
             # Wait for transients, then perform demodulated measurement
-            readout.wait(64)
-            readout.measure(pulse, qua_vars=(current, _unused_q))
+            resonator.wait(64)
+            resonator.measure(pulse, qua_vars=(I, Q))
+            assign(r2, I * I + Q * Q)
 
-            return current
+            return r2
 
     # Register the measure macro
     measure_macro = MeasureMacro(pulse_name="readout")
@@ -601,7 +525,7 @@ def setup_rabi_chevron_experiment():
         Tuple of (machine, qubits, rabi_chevron_program)
     """
     # Create machine with physical channels
-    machine, xy_drive, transport_readout = create_minimal_machine()
+    machine, xy_drive, readout_resonator = create_minimal_machine()
 
     # Register qubit with voltage points
     qubit = register_qubit_with_points(machine, xy_drive)
