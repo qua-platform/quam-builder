@@ -469,7 +469,8 @@ class VirtualDCSet(QuantumComponent):
         """
         if requery: 
             current_volts_dict = self.all_current_voltages.copy()
-        current_volts_dict = self._current_levels
+        else: 
+            current_volts_dict = self._current_levels
         physical_voltages = {name: current_volts_dict[name] for name in self.channels}
         deltas = {}
         for name, new_value in voltages.items(): 
