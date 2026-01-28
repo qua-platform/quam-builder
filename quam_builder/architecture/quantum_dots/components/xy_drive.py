@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 from quam.core import quam_dataclass
 from quam.components import MWChannel, pulses
-from quam.components.channels import IQChannel, MWChannel
+from quam.components.channels import IQChannel, MWChannel, SingleChannel
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
@@ -39,9 +39,9 @@ __all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
 
 
 @quam_dataclass
-class XYDrive(MWChannel):
+class XYDriveSingle(SingleChannel):
     """
-    Microwave drive channel for EDSR/ESR control of Qubits
+    Single drive channel for EDSR/ESR control of Qubits
     """
 
     add_default_pulses: bool = True
