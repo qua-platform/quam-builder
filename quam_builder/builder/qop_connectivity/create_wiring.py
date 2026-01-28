@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from functools import reduce
 from qualang_tools.wirer import Connectivity
-from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference
+from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference, CavityReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 from quam_builder.builder.qop_connectivity.create_analog_ports import (
