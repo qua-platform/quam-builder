@@ -94,11 +94,10 @@ class VirtualDCSet(QuantumComponent):
         for name, channel in self.channels.items():
             self._current_physical_voltages[name] = channel.offset_parameter()
         return self._current_physical_voltages
-
-    @property
-    def all_current_voltages(self) -> Dict[str, float]:
-        """A property to return a dict of the current virtual voltages, as constructed by the current physical voltages"""
-        full_voltages_dict = self.current_physical_voltages.copy()
+    
+    def _populate_virtual_gate_voltages(self, physical_voltages_dict):
+        """Use a dictionary of physical voltages to calculate the values of all virtual gates in the system.""" 
+        full_voltages_dict = physical_voltages_dict.copy()
 
         # Build the dict layer by layer. First layer should always be mapped to the physical anyway
         # With each iteration, the new dict should be updated, so all the virtual values will be
@@ -115,6 +114,14 @@ class VirtualDCSet(QuantumComponent):
                 full_voltages_dict[name] = source_voltages_array[idx]
         self._current_levels = full_voltages_dict.copy()
         return full_voltages_dict
+
+
+
+    @property
+    def all_current_voltages(self) -> Dict[str, float]:
+        """A property to return a dict of the current virtual voltages, as constructed by the current physical voltages"""
+        full_voltages_dict = self.current_physical_voltages.copy()
+        return self._populate_virtual_gate_voltages(full_voltages_dict)
 
     @property
     def valid_channel_names(self) -> list[str]:
@@ -455,21 +462,32 @@ class VirtualDCSet(QuantumComponent):
 
         return base_resolved_voltages
 
-    def set_voltages(self, voltages: Dict[str, float]) -> None:
+    def set_voltages(self, voltages: Dict[str, float], requery: bool = True, resync: bool = True) -> None:
         """
         Input a dict of {name: voltage}, and internally this will resolve to a set of physical voltages
         to be applied.
         """
-        self._current_levels = self.all_current_voltages.copy()
+        if requery: 
+            current_volts_dict = self.all_current_voltages.copy()
+        current_volts_dict = self._current_levels
+        physical_voltages = {name: current_volts_dict[name] for name in self.channels}
         deltas = {}
         for name, new_value in voltages.items(): 
-            old_value = self._current_levels.get(name, 0.0)
+            old_value = current_volts_dict.get(name, 0.0)
             deltas[name] = new_value - old_value
         physical_deltas = self.resolve_voltages(deltas)
         for name, delta in physical_deltas.items(): 
-            current_physical = self.channels[name].offset_parameter()
+            if requery: 
+                current_physical = self.channels[name].offset_parameter()
+            else: 
+                current_physical = current_volts_dict.get(name, 0.0)
             self.channels[name].offset_parameter(current_physical + delta)
-        self._current_levels = self.all_current_voltages.copy()
+            physical_voltages[name] = current_physical + delta
+        if resync: 
+            self._current_levels = self.all_current_voltages.copy()
+        else: 
+            self._current_levels = self._populate_virtual_gate_voltages(physical_voltages)
+        
 
     def get_voltage(self, name: str, requery: bool = False) -> float:
         """
