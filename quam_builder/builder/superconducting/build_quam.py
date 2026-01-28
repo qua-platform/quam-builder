@@ -7,6 +7,7 @@ from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
     add_default_cavity_pulses,
+    add_default_twpa_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
@@ -24,6 +25,9 @@ from quam_builder.builder.superconducting.add_transmon_pair_component import (
 )
 from quam_builder.builder.superconducting.add_transmon_resonator_component import (
     add_transmon_resonator_component,
+)
+from quam_builder.builder.superconducting.add_twpa_component import (
+    add_twpa_pump_component,
 )
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
@@ -46,6 +50,7 @@ def build_quam(
     add_ports(machine)
     add_transmons(machine)
     add_cavities(machine)
+    add_twpas(machine)
     add_pulses(machine)
 
     machine.save()
@@ -191,8 +196,49 @@ def add_cavities(machine: AnyQuam):
         machine.active_cavity_names.append(cavity.name)
 
 
+def add_twpas(machine: AnyQuam):
+    """Adds TWPAs (Traveling Wave Parametric Amplifiers) to the machine based on the wiring configuration.
+
+    TWPAs are used for readout signal amplification and are standalone elements
+    not associated with specific qubits. Each TWPA has a pump channel configured
+    as a sticky element for continuous RF output.
+
+    Args:
+        machine (AnyQuam): The QuAM to which the TWPAs will be added.
+    """
+    if "twpas" not in machine.wiring:
+        return
+
+    if not hasattr(machine, "twpas"):
+        return
+
+    wiring_by_element = machine.wiring["twpas"]
+
+    for twpa_id, wiring_by_line_type in wiring_by_element.items():
+        # Get TWPA class from machine if available, otherwise use default TWPA
+        if hasattr(machine, "twpa_type"):
+            twpa_class = machine.twpa_type
+        else:
+            from quam_builder.architecture.superconducting.components.twpa import TWPA
+
+            twpa_class = TWPA
+
+        twpa = twpa_class(id=twpa_id)
+        machine.twpas[twpa_id] = twpa
+
+        for line_type, ports in wiring_by_line_type.items():
+            wiring_path = f"#/wiring/twpas/{twpa_id}/{line_type}"
+            if line_type == WiringLineType.TWPA.value:
+                add_twpa_pump_component(twpa, wiring_path, ports)
+            else:
+                raise ValueError(
+                    f"Unknown line type for TWPA: {line_type}. "
+                    f"TWPAs only support TWPA (pump) line type."
+                )
+
+
 def add_pulses(machine: AnyQuam):
-    """Adds default pulses to the transmon qubits, cavities, and qubit pairs in the machine.
+    """Adds default pulses to the transmon qubits, cavities, TWPAs, and qubit pairs in the machine.
 
     Args:
         machine (AnyQuam): The QuAM to which the pulses will be added.
@@ -204,6 +250,10 @@ def add_pulses(machine: AnyQuam):
     if hasattr(machine, "cavities"):
         for cavity in machine.cavities.values():
             add_default_cavity_pulses(cavity)
+
+    if hasattr(machine, "twpas"):
+        for twpa in machine.twpas.values():
+            add_default_twpa_pulses(twpa)
 
     if hasattr(machine, "qubit_pairs"):
         for qubit_pair in machine.qubit_pairs.values():

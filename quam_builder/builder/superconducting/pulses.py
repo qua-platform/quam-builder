@@ -9,6 +9,7 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 import numpy as np
 from typing import Union
 
@@ -338,4 +339,24 @@ def add_default_cavity_pulses(cavity: BosonicMode):
         if cavity.xy is not None:
             cavity.xy.operations["saturation"] = pulses.SquarePulse(
                 amplitude=0.25, length=20 * u.us, axis_angle=0
+            )
+
+
+def add_default_twpa_pulses(twpa: TWPA):
+    """Adds default pulses to a TWPA (Traveling Wave Parametric Amplifier).
+
+    The TWPA pump is a continuous-wave signal used for parametric amplification
+    of readout signals. The default pump pulse is a constant square pulse that
+    can be played continuously during readout operations.
+
+    Default pulse:
+        * twpa.pump.operations["pump"] = SquarePulse(amplitude=0.1, length=1000ns)
+
+    Args:
+        twpa (TWPA): The TWPA to which the pulses will be added.
+    """
+    if hasattr(twpa, "pump"):
+        if twpa.pump is not None:
+            twpa.pump.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.1, length=1000
             )
