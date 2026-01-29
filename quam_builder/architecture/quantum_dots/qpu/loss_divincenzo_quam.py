@@ -22,7 +22,7 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
-    XYDrive,
+    XYDriveBase,
 )
 from quam_builder.architecture.quantum_dots.qpu.base_quam_qd import BaseQuamQD
 from quam_builder.tools.voltage_sequence import VoltageSequence
@@ -70,15 +70,15 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
     @classmethod
     def load(
-        cls, 
-        filepath_or_dict: Optional[Union[str, Path, dict]] = None, 
-        validate_type: bool = True, 
+        cls,
+        filepath_or_dict: Optional[Union[str, Path, dict]] = None,
+        validate_type: bool = True,
         fix_attrs: bool = True,
-    ): 
+    ):
         """Load machine from file and recreate voltage sequences"""
         instance = super().load(
-            filepath_or_dict=filepath_or_dict, 
-            validate_type=validate_type, 
+            filepath_or_dict=filepath_or_dict,
+            validate_type=validate_type,
             fix_attrs=fix_attrs,
         )
         instance.voltage_sequences = {}
@@ -125,7 +125,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         self,
         quantum_dot_id: str,
         qubit_name: str,
-        xy_channel: XYDrive = None,
+        xy_channel: XYDriveBase = None,
         readout_quantum_dot: str = None,
     ) -> None:
         """

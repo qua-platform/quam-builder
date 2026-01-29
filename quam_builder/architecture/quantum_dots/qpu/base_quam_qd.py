@@ -24,17 +24,12 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
-    XYDrive,
     VirtualDCSet,
 )
 
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
 from quam_builder.tools.voltage_sequence import VoltageSequence
-from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit, LDQubit
-from quam_builder.architecture.quantum_dots.qubit_pair import (
-    AnySpinQubitPair,
-    LDQubitPair,
-)
+from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit
 
 __all__ = ["BaseQuamQD"]
 
@@ -173,7 +168,7 @@ class BaseQuamQD(QuamRoot):
                     name, visalib="@py", address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET'
                 )
 
-            for channel in self.physical_channels.values(): 
+            for channel in self.physical_channels.values():
                 if hasattr(channel, "qdac_spec"):
                     qdac_port = channel.qdac_spec.qdac_output_port
                     channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
@@ -462,7 +457,7 @@ class BaseQuamQD(QuamRoot):
             id=gate_set_id,
             channels=channel_mapping,
             allow_rectangular_matrices=allow_rectangular_matrices,
-            adjust_for_attenuation = adjust_for_attenuation,
+            adjust_for_attenuation=adjust_for_attenuation,
         )
 
         if compensation_matrix is None:
@@ -719,18 +714,18 @@ class BaseQuamQD(QuamRoot):
         # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level.
         d.pop("voltage_sequences", None)
         return d
-    
+
     @classmethod
     def load(
-        cls, 
-        filepath_or_dict: Optional[Union[str, Path, dict]] = None, 
-        validate_type: bool = True, 
+        cls,
+        filepath_or_dict: Optional[Union[str, Path, dict]] = None,
+        validate_type: bool = True,
         fix_attrs: bool = True,
-    ): 
+    ):
         """Load machine from file and recreate voltage sequences"""
         instance = super().load(
-            filepath_or_dict=filepath_or_dict, 
-            validate_type=validate_type, 
+            filepath_or_dict=filepath_or_dict,
+            validate_type=validate_type,
             fix_attrs=fix_attrs,
         )
         instance.voltage_sequences = {}

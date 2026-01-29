@@ -35,16 +35,27 @@ class XYDriveBase:
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
 
 
-__all__ = ["XYDrive", "XYDriveIQ", "XYDriveMW"]
+__all__ = ["XYDriveBase", "XYDriveSingle", "XYDriveIQ", "XYDriveMW"]
 
 
 @quam_dataclass
-class XYDriveSingle(SingleChannel):
+class XYDriveSingle(SingleChannel, XYDriveBase):
     """
     Single drive channel for EDSR/ESR control of Qubits
     """
 
+    RF_frequency: int
     add_default_pulses: bool = True
+
+    @property
+    def intermediate_frequency(
+        self,
+    ):
+        return self.RF_frequency
+
+    @intermediate_frequency.setter
+    def intermediate_frequency(self, val):
+        self.RF_frequency = val
 
     def __post_init__(self):
         super().__post_init__()
