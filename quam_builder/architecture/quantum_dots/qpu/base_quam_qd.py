@@ -26,6 +26,8 @@ from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorBase,
     XYDrive,
     VirtualDCSet,
+    ReservoirBase, 
+    ReadoutTransportBase,
 )
 
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
@@ -90,6 +92,7 @@ class BaseQuamQD(QuamRoot):
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory=dict)
     sensor_dots: Dict[str, SensorDot] = field(default_factory=dict)
     barrier_gates: Dict[str, BarrierGate] = field(default_factory=dict)
+    reservoirs: Dict[str, ReservoirBase] = field(default_factory = dict)
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
     mixers: Dict[str, FrequencyConverter] = field(default_factory=dict)
@@ -264,13 +267,13 @@ class BaseQuamQD(QuamRoot):
     def register_channel_elements(
         self,
         plunger_channels: List[Channel],
-        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+        sensor_readout_mappings: Dict[Channel, ReadoutResonatorBase],
         barrier_channels: List[Channel],
         global_gates: Optional[List[VoltageGate]] = None,
     ) -> None:
         self.register_quantum_dots(plunger_channels)
         self.register_barrier_gates(barrier_channels)
-        self.register_sensor_dots(sensor_resonator_mappings)
+        self.register_sensor_dots(sensor_readout_mappings)
 
         if global_gates is not None:
             self.register_global_gates(global_gates)
@@ -297,23 +300,23 @@ class BaseQuamQD(QuamRoot):
 
     def register_sensor_dots(
         self,
-        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+        sensor_readout_mappings: Dict[Channel, Union[ReadoutResonatorBase, ReadoutTransportBase]],
     ) -> None:
         """
-        Creates SensorDot objects from a dictionary mapping sensor channels to their resonators.
+        Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
 
         Args:
-            sensor_resonator_mappings (Dict[Channel, ReadoutResonatorBase]):
-                Dictionary where keys are sensor channels and values are their associated resonators.
+            sensor_readout_mappings (Dict[Channel, Union[ReadoutResonatorBase, ReadoutTransportBase]]):
+                Dictionary where keys are sensor channels and values are their associated readout channels.
 
         """
-        for ch, res in sensor_resonator_mappings.items():
+        for ch, readout in sensor_readout_mappings.items():
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
-                readout_resonator=res,
             )
+            sensor_dot.physical_channel.readout = readout
             self.sensor_dots[virtual_name] = sensor_dot
 
     def register_barrier_gates(self, barrier_channels: List[Channel]) -> None:

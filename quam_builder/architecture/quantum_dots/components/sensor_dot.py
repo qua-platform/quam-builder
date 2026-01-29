@@ -9,6 +9,7 @@ from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
 from .readout_resonator import (
+    ReadoutResonatorBase,
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
     ReadoutResonatorSingle
@@ -29,7 +30,6 @@ class SensorDot(QuantumDot):
     Quam component for Sensor Quantum Dot
     """
 
-    readout_resonator: Union[ReadoutResonatorMW, ReadoutResonatorIQ, ReadoutResonatorSingle]
     readout_thresholds: dict = field(default_factory=dict[str, float])
     readout_projectors: dict = field(default_factory=dict[str, dict[str, float]])
 
@@ -103,3 +103,13 @@ class SensorDot(QuantumDot):
                 resonator_calibration_output = None
 
             return resonator_calibration_output
+    
+    @property
+    def readout_resonator(self): 
+        if not isinstance(self.physical_channel.readout, ReadoutResonatorBase): 
+            raise ValueError("The associated readout mechanism is not a Resonator.")
+        return self.physical_channel.readout
+    
+    @readout_resonator.setter
+    def readout_resonator(self, resonator): 
+        self.physical_channel.readout = resonator
