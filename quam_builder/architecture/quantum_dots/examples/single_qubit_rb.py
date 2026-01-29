@@ -3,20 +3,15 @@ Single-Qubit Randomized Benchmarking Example for Spin Qubits
 =============================================================
 
 This example demonstrates single-qubit randomized benchmarking (RB) for spin qubits.
-It shows how to:
-
-1. Configure a minimal quantum dot machine with virtual gates
-2. Define voltage points for init, operate, and measure
-3. Create custom macros for init/measure with ramps and RF readout
-4. Generate RB circuits using Qiskit's Clifford library
-5. Build a QUA program for single-qubit RB
 
 Experiment Sequence (per RB circuit):
 -------------------------------------
-1. Initialize: Ramp to init point, hold for ~400 us
-2. Gate Sequence: Apply Clifford gates (Gaussian pulses for X90/Y90/X180/Y180,
-   virtual Z for frame rotations). Each gate ~500 ns.
-3. Measure: Ramp to measure point, apply RF tone, acquire signal (~400 us)
+1. Initialize: Step to init point, hold for ~400 us
+2. Gate Sequence: Apply Clifford gates using native spin qubit operations:
+   - X90, X180: Gaussian pulses (physical rotations)
+   - Y90, Y180: Gaussian pulses with 90° phase (physical rotations)
+   - Z90, Z180, Z270: Virtual Z (frame rotations, zero duration)
+3. Measure: Step to measure point, apply RF tone, acquire signal (~400 us)
 4. Compensate: Apply 1 ms compensation pulse to reset DC bias
 
 Default Configuration:
@@ -28,8 +23,6 @@ Default Configuration:
 - ~400 us measure duration
 - ~500 ns gate duration
 - 1 ms compensation pulse
-
-Timing is measured at the Python level for the entire program execution.
 
 Hardware Requirements:
 ---------------------
@@ -72,60 +65,43 @@ from quam.components.ports import (
 )
 from quam.components.channels import StickyChannelAddon
 from quam.components.hardware import FrequencyConverter, LocalOscillator
-from quam.core import quam_dataclass
-from quam.core.macro.quam_macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate,
-    XYDrive,
-)
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorIQ,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
-# Import RB utilities
 from quam_builder.architecture.quantum_dots.examples.rb_utils import (
     SingleQubitStandardRB,
     SingleQubitRBResult,
-    process_circuit_to_integers,
     prepare_circuits_for_qua,
     estimate_total_experiment_time,
     SINGLE_QUBIT_GATE_MAP,
 )
+from quam_builder.architecture.quantum_dots.examples.html_utils import (
+    generate_rb_timing_report,
+)
 
 
 # =============================================================================
-# SECTION 1: RB Configuration
+# RB Configuration
 # =============================================================================
 
 
 @dataclass
 class RBConfig:
-    """Configuration for single-qubit RB experiment.
-
-    Attributes:
-        circuit_lengths: List of Clifford depths to benchmark.
-        num_circuits_per_length: Number of random circuits per depth.
-        num_shots: Number of repetitions (averages) per circuit.
-        gate_duration_ns: Duration of Gaussian gates in nanoseconds.
-        init_duration_ns: Initialization ramp + hold duration in nanoseconds.
-        measure_duration_ns: Measurement duration in nanoseconds.
-        compensation_duration_ns: Compensation pulse duration in nanoseconds.
-        rf_readout_duration_ns: RF tone duration for readout.
-        seed: Random seed for reproducibility.
-    """
+    """Configuration for single-qubit RB experiment."""
 
     circuit_lengths: List[int] = None
     num_circuits_per_length: int = 50
     num_shots: int = 400
-    gate_duration_ns: int = 500  # ~500 ns Gaussian pulses
+    gate_duration_ns: int = 500
     init_duration_ns: int = 400_000  # 400 us
-    measure_duration_ns: int = 400_000  # 400 us (includes RF readout)
+    measure_duration_ns: int = 400_000  # 400 us
     compensation_duration_ns: int = 1_000_000  # 1 ms
-    rf_readout_duration_ns: int = 10_000  # 10 us RF tone
-    ramp_duration_ns: int = 1000  # 1 us ramps for init/measure transitions
+    rf_readout_duration_ns: int = 10_000  # 10 us
     seed: int = 42
 
     def __post_init__(self):
@@ -134,241 +110,7 @@ class RBConfig:
 
 
 # =============================================================================
-# SECTION 2: Custom Macros for Spin Qubit RB
-# =============================================================================
-
-
-@quam_dataclass
-class InitMacro(QuamMacro):
-    """Macro for initialization: ramp to init point and hold.
-
-    This macro:
-    1. Ramps to the 'initialize' voltage point
-    2. Holds for the specified duration to allow electron loading
-
-    Attributes:
-        ramp_duration: Duration of voltage ramp in ns.
-        hold_duration: Duration to hold at init point in ns.
-    """
-
-    ramp_duration: int = 1000
-    hold_duration: int = 800_000
-
-    def apply(self, hold_duration: int = None, ramp_duration: int = None, **kwargs):
-        """Execute initialization sequence.
-
-        Args:
-            hold_duration: Optional override for hold duration.
-            ramp_duration: Optional override for ramp duration.
-        """
-        parent_qubit = self.parent.parent
-        effective_hold = hold_duration if hold_duration is not None else self.hold_duration
-        effective_ramp = ramp_duration if ramp_duration is not None else self.ramp_duration
-
-        # Ramp to initialize point
-        parent_qubit.ramp_to_point(
-            "initialize",
-            ramp_duration=effective_ramp,
-            duration=effective_hold,
-        )
-
-
-@quam_dataclass
-class MeasureMacroRF(QuamMacro):
-    """Macro for measurement with RF readout and voltage ramp.
-
-    This macro:
-    1. Ramps to the 'measure' voltage point (PSB configuration)
-    2. Applies RF tone for sensor dot readout
-    3. Performs demodulated measurement (I, Q)
-    4. Thresholds the signal to determine qubit state
-
-    Attributes:
-        ramp_duration: Duration of voltage ramp in ns.
-        hold_duration: Total duration at measure point in ns.
-        rf_pulse_name: Name of the RF readout pulse.
-        rf_duration: Duration of RF readout pulse in ns.
-        settle_time_ns: Time to wait before RF pulse for voltage settling.
-    """
-
-    ramp_duration: int = 1000
-    hold_duration: int = 800_000
-    rf_pulse_name: str = "readout"
-    rf_duration: int = 10_000
-    settle_time_ns: int = 1000
-
-    def apply(self, **kwargs) -> int:
-        """Execute measurement sequence and return qubit state.
-
-        Returns:
-            Integer QUA variable: 0 for ground state, 1 for excited state.
-        """
-        parent_qubit = self.parent.parent
-
-        # Ramp to measure point
-        parent_qubit.ramp_to_point(
-            "measure",
-            ramp_duration=kwargs.get("ramp_duration", self.ramp_duration),
-            duration=kwargs.get("hold_duration", self.hold_duration),
-        )
-
-        # Get sensor dot for readout
-        sensor_dot = parent_qubit.sensor_dots[0]
-
-        # Wait for voltage settling
-        sensor_dot.readout_resonator.wait(self.settle_time_ns // 4)
-
-        # Declare QUA variables for I/Q
-        I = declare(fixed)
-        Q = declare(fixed)
-
-        # Apply RF readout pulse and measure
-        sensor_dot.readout_resonator.measure(
-            self.rf_pulse_name,
-            qua_vars=(I, Q),
-        )
-
-        # Get threshold from sensor_dot
-        qd_pair_id = parent_qubit.machine.find_quantum_dot_pair(
-            parent_qubit.quantum_dot.id, parent_qubit.preferred_readout_quantum_dot
-        )
-        threshold = sensor_dot.readout_thresholds.get(qd_pair_id, 0.0)
-
-        # Threshold I component to get state
-        state = declare(int)
-        assign(state, Cast.to_int(I > threshold))
-
-        return state
-
-
-@quam_dataclass
-class GateMacro(QuamMacro):
-    """Macro for playing RB gates via switch/case.
-
-    This macro plays Gaussian pulses for physical rotations (X90, Y90, X180, Y180)
-    and applies frame rotations for virtual Z gates.
-
-    Gate mapping:
-        0: X90 (sx)
-        1: X180 (x)
-        2: Y90
-        3: Y180
-        4: RZ(pi/2)
-        5: RZ(pi)
-        6: RZ(3pi/2)
-        7: Idle
-
-    Attributes:
-        x90_pulse: Name of the X90 pulse operation.
-        x180_pulse: Name of the X180 pulse operation.
-        y90_pulse: Name of the Y90 pulse operation.
-        y180_pulse: Name of the Y180 pulse operation.
-    """
-
-    x90_pulse: str = "X90"
-    x180_pulse: str = "X180"
-    y90_pulse: str = "Y90"
-    y180_pulse: str = "Y180"
-
-    def apply(self, gate_int, **kwargs):
-        """Execute a single gate based on integer encoding.
-
-        Args:
-            gate_int: Integer representing the gate (0-7).
-        """
-        parent_qubit = self.parent.parent
-        xy = parent_qubit.xy_channel
-
-        with switch_(gate_int, unsafe=True):
-            with case_(0):  # X90 (sx)
-                xy.play(self.x90_pulse)
-            with case_(1):  # X180 (x)
-                xy.play(self.x180_pulse)
-            with case_(2):  # Y90
-                xy.play(self.y90_pulse)
-            with case_(3):  # Y180
-                xy.play(self.y180_pulse)
-            with case_(4):  # RZ(pi/2)
-                frame_rotation_2pi(0.25, xy.name)
-            with case_(5):  # RZ(pi)
-                frame_rotation_2pi(0.5, xy.name)
-            with case_(6):  # RZ(3pi/2)
-                frame_rotation_2pi(0.75, xy.name)
-            with case_(7):  # Idle
-                xy.wait(4)  # Minimum wait
-
-
-@quam_dataclass
-class CompensationMacro(QuamMacro):
-    """Macro for applying compensation pulse.
-
-    Attributes:
-        duration: Compensation pulse duration in ns.
-    """
-
-    duration: int = 1_000_000
-
-    def apply(self, duration: int = None, **kwargs):
-        """Apply compensation pulse to reset DC bias.
-
-        Args:
-            duration: Optional override for compensation duration.
-        """
-        parent_qubit = self.parent.parent
-        effective_duration = duration if duration is not None else self.duration
-
-        # Step to zero first
-        parent_qubit.step_to_voltages({parent_qubit.quantum_dot.id: 0.0}, duration=16)
-        align()
-
-        # Apply compensation using voltage sequence
-        parent_qubit.voltage_sequence.apply_compensation_pulse()
-
-        # Hold at zero for remaining time
-        remaining = effective_duration - 16  # Approximate
-        if remaining > 0:
-            wait(remaining // 4)
-
-
-# =============================================================================
-# SECTION 3: Qubit Collection for Batching
-# =============================================================================
-
-
-@dataclass
-class QubitBatch:
-    """Container for a batch of qubits with indexed access."""
-
-    qubits: List[LDQubit]
-    start_index: int = 0
-
-    def items(self):
-        """Iterate over (global_index, qubit) pairs."""
-        for local_idx, qubit in enumerate(self.qubits):
-            yield self.start_index + local_idx, qubit
-
-    def __len__(self):
-        return len(self.qubits)
-
-
-class QubitCollection:
-    """Collection of qubits supporting batched execution."""
-
-    def __init__(self, qubits: List[LDQubit], batch_size: int = 1):
-        self.qubits = qubits
-        self.batch_size = batch_size
-
-    def batch(self):
-        """Yield batches of qubits with global index tracking."""
-        for i in range(0, len(self.qubits), self.batch_size):
-            yield QubitBatch(
-                qubits=self.qubits[i : i + self.batch_size],
-                start_index=i,
-            )
-
-
-# =============================================================================
-# SECTION 4: Machine Configuration
+# Machine Configuration
 # =============================================================================
 
 
@@ -381,7 +123,7 @@ def create_spin_qubit_machine():
     machine = LossDiVincenzoQuam()
 
     controller = "con1"
-    lf_fem_slot = 2
+    lf_fem_slot = 5
     mw_fem_slot = 1
 
     # Plunger gates for quantum dots
@@ -414,77 +156,56 @@ def create_spin_qubit_machine():
     readout_resonator = ReadoutResonatorIQ(
         id="sensor_resonator_1",
         opx_output_I=LFFEMAnalogOutputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=4,
-            output_mode="direct",
+            controller_id=controller, fem_id=lf_fem_slot, port_id=4, output_mode="direct"
         ),
         opx_output_Q=LFFEMAnalogOutputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=5,
-            output_mode="direct",
+            controller_id=controller, fem_id=lf_fem_slot, port_id=5, output_mode="direct"
         ),
-        opx_input_I=LFFEMAnalogInputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=1,
-        ),
-        opx_input_Q=LFFEMAnalogInputPort(
-            controller_id=controller,
-            fem_id=lf_fem_slot,
-            port_id=2,
-        ),
+        opx_input_I=LFFEMAnalogInputPort(controller_id=controller, fem_id=lf_fem_slot, port_id=1),
+        opx_input_Q=LFFEMAnalogInputPort(controller_id=controller, fem_id=lf_fem_slot, port_id=2),
         frequency_converter_up=FrequencyConverter(
             local_oscillator=LocalOscillator(frequency=200e6),
         ),
         intermediate_frequency=50e6,
         operations={
             "readout": pulses.SquareReadoutPulse(
-                length=10000,  # 10 us
-                amplitude=0.1,
-                integration_weights_angle=0.0,
+                length=10000, amplitude=0.1, integration_weights_angle=0.0
             )
         },
     )
 
-    # XY Drive channels for each qubit
+    # XY Drive channel
     xy_drives = {}
-    for i in range(1, 3):
-        xy_drives[i] = XYDrive(
-            id=f"Q{i}_xy",
-            opx_output=MWFEMAnalogOutputPort(
-                controller_id=controller,
-                fem_id=mw_fem_slot,
-                port_id=i,
-                upconverter_frequency=5e9,
-                band=2,
-                full_scale_power_dbm=10,
-            ),
-            intermediate_frequency=100e6,
-            add_default_pulses=True,
-        )
+    xy_drives[1] = XYDrive(
+        id="Q1_xy",
+        opx_output=MWFEMAnalogOutputPort(
+            controller_id=controller,
+            fem_id=mw_fem_slot,
+            port_id=1,
+            upconverter_frequency=5e9,
+            band=2,
+            full_scale_power_dbm=10,
+        ),
+        intermediate_frequency=100e6,
+        add_default_pulses=True,
+    )
 
-        # Add Gaussian pulses for RB gates (~500 ns)
-        gate_length = 500  # ns
-        sigma = gate_length / 6
+    # Add Gaussian pulses for RB gates (~500 ns)
+    gate_length = 500
+    sigma = gate_length / 6
 
-        # X90 (pi/2 pulse)
-        xy_drives[i].operations["X90"] = pulses.GaussianPulse(
-            length=gate_length, amplitude=0.1, sigma=sigma
-        )
-        # X180 (pi pulse)
-        xy_drives[i].operations["X180"] = pulses.GaussianPulse(
-            length=gate_length, amplitude=0.2, sigma=sigma
-        )
-        # Y90 (pi/2 pulse about Y - same amplitude, different phase handled by frame)
-        xy_drives[i].operations["Y90"] = pulses.GaussianPulse(
-            length=gate_length, amplitude=0.1, sigma=sigma
-        )
-        # Y180 (pi pulse about Y)
-        xy_drives[i].operations["Y180"] = pulses.GaussianPulse(
-            length=gate_length, amplitude=0.2, sigma=sigma
-        )
+    xy_drives[1].operations["X90"] = pulses.GaussianPulse(
+        length=gate_length, amplitude=0.1, sigma=sigma, axis_angle=0.0
+    )
+    xy_drives[1].operations["X180"] = pulses.GaussianPulse(
+        length=gate_length, amplitude=0.2, sigma=sigma, axis_angle=0.0
+    )
+    xy_drives[1].operations["Y90"] = pulses.GaussianPulse(
+        length=gate_length, amplitude=0.1, sigma=sigma, axis_angle=np.pi / 2
+    )
+    xy_drives[1].operations["Y180"] = pulses.GaussianPulse(
+        length=gate_length, amplitude=0.2, sigma=sigma, axis_angle=np.pi / 2
+    )
 
     # Virtual gate set
     machine.create_virtual_gate_set(
@@ -494,11 +215,7 @@ def create_spin_qubit_machine():
             "virtual_sensor_1": sensor_dc,
         },
         gate_set_id="main_qpu",
-        compensation_matrix=[
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0],
-        ],
+        compensation_matrix=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
     )
 
     # Register channel elements
@@ -522,111 +239,69 @@ def create_spin_qubit_machine():
     return machine, xy_drives, {"1": readout_resonator}
 
 
-def register_qubit_with_rb_macros(
+def register_qubit(
     machine: LossDiVincenzoQuam,
     xy_drives: dict,
     rb_config: RBConfig,
-) -> List[LDQubit]:
-    """Register qubits with voltage points and RB macros.
+) -> LDQubit:
+    """Register a qubit with voltage points for RB."""
+    machine.register_qubit(
+        qubit_name="Q1",
+        quantum_dot_id="virtual_dot_1",
+        xy_channel=xy_drives[1],
+        readout_quantum_dot="virtual_dot_2",
+    )
 
-    Args:
-        machine: The configured machine instance.
-        xy_drives: Dictionary of XY drive channels.
-        rb_config: RB experiment configuration.
+    qubit = machine.qubits["Q1"]
 
-    Returns:
-        List of registered LDQubit instances.
-    """
-    qubit_configs = [
-        ("Q1", "virtual_dot_1", "virtual_dot_2", 1),
-    ]
+    # Define voltage points
+    qubit.add_point_with_step_macro(
+        "initialize",
+        voltages={"virtual_dot_1": 0.05},
+        duration=rb_config.init_duration_ns,
+    )
+    qubit.add_point(
+        "measure",
+        voltages={"virtual_dot_1": -0.05},
+    )
 
-    qubits = []
-
-    for qubit_name, dot_id, readout_dot_id, xy_idx in qubit_configs:
-        machine.register_qubit(
-            qubit_name=qubit_name,
-            quantum_dot_id=dot_id,
-            xy_channel=xy_drives[xy_idx],
-            readout_quantum_dot=readout_dot_id,
-        )
-
-        qubit = machine.qubits[qubit_name]
-
-        # Define voltage points for RB sequence
-        # Initialize point (electron loading)
-        qubit.add_point_with_step_macro(
-            "initialize",
-            voltages={dot_id: 0.05},
-            duration=rb_config.init_duration_ns,
-        )
-
-        # Operate point (manipulation sweet spot)
-        qubit.add_point(
-            "operate",
-            voltages={dot_id: 0.0},
-        )
-
-        # Measure point (PSB readout)
-        qubit.add_point(
-            "measure",
-            voltages={dot_id: -0.05},
-        )
-
-        # Register RB-specific macros
-        qubit.macros["init_rb"] = InitMacro(
-            ramp_duration=rb_config.ramp_duration_ns,
-            hold_duration=rb_config.init_duration_ns,
-        )
-        qubit.macros["measure_rb"] = MeasureMacroRF(
-            ramp_duration=rb_config.ramp_duration_ns,
-            hold_duration=rb_config.measure_duration_ns,
-            rf_duration=rb_config.rf_readout_duration_ns,
-        )
-        qubit.macros["gate"] = GateMacro()
-        qubit.macros["compensate"] = CompensationMacro(
-            duration=rb_config.compensation_duration_ns,
-        )
-
-        qubits.append(qubit)
-
-    return qubits
+    return qubit
 
 
 # =============================================================================
-# SECTION 5: QUA Program Generation
+# QUA Program Generation
 # =============================================================================
 
 
 def play_rb_gate(qubit: LDQubit, gate_int):
-    """Play a single RB gate on a qubit.
+    """Play a single RB gate on a qubit using switch/case.
 
-    Args:
-        qubit: The qubit to apply the gate on.
-        gate_int: Integer representing the gate (0-7).
+    Gate mapping:
+        0: X90   - Physical X rotation (pi/2)
+        1: X180  - Physical X rotation (pi)
+        2: Y90   - Physical Y rotation (pi/2)
+        3: Y180  - Physical Y rotation (pi)
+        4: Z90   - Virtual Z rotation (pi/2)
+        5: Z180  - Virtual Z rotation (pi)
+        6: Z270  - Virtual Z rotation (3pi/2)
+        7: Idle  - No operation
     """
     xy = qubit.xy_channel
 
     with switch_(gate_int, unsafe=True):
-        with case_(0):  # X90 (sx)
+        with case_(0):  # X90
             xy.play("X90")
-        with case_(1):  # X180 (x)
+        with case_(1):  # X180
             xy.play("X180")
         with case_(2):  # Y90
-            # Apply pi/2 frame rotation then X90
-            frame_rotation_2pi(0.25, xy.name)
-            xy.play("X90")
-            frame_rotation_2pi(-0.25, xy.name)
+            xy.play("Y90")
         with case_(3):  # Y180
-            # Apply pi/2 frame rotation then X180
+            xy.play("Y180")
+        with case_(4):  # Z90 (virtual)
             frame_rotation_2pi(0.25, xy.name)
-            xy.play("X180")
-            frame_rotation_2pi(-0.25, xy.name)
-        with case_(4):  # RZ(pi/2)
-            frame_rotation_2pi(0.25, xy.name)
-        with case_(5):  # RZ(pi)
+        with case_(5):  # Z180 (virtual)
             frame_rotation_2pi(0.5, xy.name)
-        with case_(6):  # RZ(3pi/2)
+        with case_(6):  # Z270 (virtual)
             frame_rotation_2pi(0.75, xy.name)
         with case_(7):  # Idle
             xy.wait(4)
@@ -639,63 +314,44 @@ def create_rb_qua_program(
     circuits_as_ints: Dict[int, List[List[int]]],
     max_circuit_length: int,
 ):
-    """Create the QUA program for single-qubit RB.
-
-    This is a simplified version for a single qubit without batching.
-    Python-level timing is used to measure total execution time.
-
-    Args:
-        machine: The configured machine instance.
-        qubit: The single LDQubit to run RB on.
-        rb_config: RB experiment configuration.
-        circuits_as_ints: Dictionary mapping depths to circuit integer sequences.
-        max_circuit_length: Maximum number of gates in any circuit.
-
-    Returns:
-        QUA program for the RB experiment.
-    """
+    """Create the QUA program for single-qubit RB."""
     num_depths = len(rb_config.circuit_lengths)
     num_circuits = rb_config.num_circuits_per_length
 
-    # Flatten circuits for QUA array
-    # Format: all circuits concatenated, indexed by (depth_idx * num_circuits + circuit_idx)
+    # Flatten circuits for QUA array (no padding to save memory)
     all_circuits_flat = []
     circuit_lengths_flat = []
+    circuit_offsets_flat = []
 
     for depth in rb_config.circuit_lengths:
         for circuit in circuits_as_ints[depth]:
-            # Pad circuit to max_circuit_length
-            padded = circuit + [7] * (max_circuit_length - len(circuit))  # 7 = idle
-            all_circuits_flat.extend(padded)
+            circuit_offsets_flat.append(len(all_circuits_flat))
+            all_circuits_flat.extend(circuit)
             circuit_lengths_flat.append(len(circuit))
 
     with program() as rb_prog:
-        # Declare QUA variables
-        n = declare(int)  # Shot counter
+        # QUA variables
+        n = declare(int)
         n_st = declare_stream()
+        depth_idx = declare(int)
+        circuit_idx = declare(int)
+        gate_idx = declare(int)
 
-        depth_idx = declare(int)  # Depth index
-        circuit_idx = declare(int)  # Circuit index
-        gate_idx = declare(int)  # Gate index within circuit
-
-        # Circuit data
         circuits_qua = declare(int, value=all_circuits_flat)
         circuit_lengths_qua = declare(int, value=circuit_lengths_flat)
+        circuit_offsets_qua = declare(int, value=circuit_offsets_flat)
 
-        # Current gate and circuit offset
         current_gate = declare(int)
         circuit_offset = declare(int)
         current_circuit_length = declare(int)
 
-        # State variable and stream
         state = declare(int)
         state_st = declare_stream()
 
-        # I/Q variables for readout
         I = declare(fixed)
         Q = declare(fixed)
 
-        # Get sensor dot and threshold for this qubit
+        # Get sensor and threshold
         sensor_dot = qubit.sensor_dots[0]
         qd_pair_id = machine.find_quantum_dot_pair(
             qubit.quantum_dot.id, qubit.preferred_readout_quantum_dot
@@ -708,10 +364,9 @@ def create_rb_qua_program(
 
             with for_(depth_idx, 0, depth_idx < num_depths, depth_idx + 1):
                 with for_(circuit_idx, 0, circuit_idx < num_circuits, circuit_idx + 1):
-                    # Calculate offset into flattened circuit array
                     assign(
                         circuit_offset,
-                        (depth_idx * num_circuits + circuit_idx) * max_circuit_length,
+                        circuit_offsets_qua[depth_idx * num_circuits + circuit_idx],
                     )
                     assign(
                         current_circuit_length,
@@ -719,53 +374,33 @@ def create_rb_qua_program(
                     )
 
                     # --- Initialization ---
-                    # Step to init point and hold for electron loading
                     align()
-                    qubit.step_to_point(
-                        "initialize",
-                        duration=rb_config.init_duration_ns,
-                    )
+                    qubit.step_to_point("initialize", duration=rb_config.init_duration_ns)
 
                     # --- Gate Sequence ---
-                    # Step to operate point for gate application
-                    align()
-                    qubit.step_to_point("operate", duration=16)
-
-                    # Play the gate sequence
                     align()
                     with for_(gate_idx, 0, gate_idx < current_circuit_length, gate_idx + 1):
                         assign(current_gate, circuits_qua[circuit_offset + gate_idx])
                         play_rb_gate(qubit, current_gate)
 
-                    # Reset frame after gate sequence
                     reset_frame(qubit.xy_channel.name)
 
                     # --- Measurement ---
-                    # Step to measure point
                     align()
-                    qubit.step_to_point(
-                        "measure",
-                        duration=rb_config.measure_duration_ns,
-                    )
+                    qubit.step_to_point("measure", duration=rb_config.measure_duration_ns)
 
-                    # RF readout
-                    sensor_dot.readout_resonator.wait(250)  # Settle time (1 us)
+                    sensor_dot.readout_resonator.wait(250)  # Settle time
                     sensor_dot.readout_resonator.measure("readout", qua_vars=(I, Q))
-
-                    # Threshold to get state
                     assign(state, Cast.to_int(I > threshold))
 
                     # --- Compensation ---
                     align()
                     qubit.voltage_sequence.apply_compensation_pulse()
-
-                    # Wait for compensation pulse duration
                     wait(rb_config.compensation_duration_ns // 4)
 
-                    # --- Save Result ---
+                    # --- Save ---
                     save(state, state_st)
 
-        # Stream processing
         with stream_processing():
             n_st.save("iteration")
             state_st.buffer(num_circuits).buffer(num_depths).buffer(rb_config.num_shots).save(
@@ -776,15 +411,12 @@ def create_rb_qua_program(
 
 
 # =============================================================================
-# SECTION 6: Main Entry Point
+# Main Entry Points
 # =============================================================================
 
 
 def setup_rb_experiment(rb_config: RBConfig = None):
     """Set up all components for the single-qubit RB experiment.
-
-    Args:
-        rb_config: Optional RB configuration. Uses defaults if not provided.
 
     Returns:
         Tuple of (machine, qubit, rb_program, rb_generator, rb_config)
@@ -804,194 +436,268 @@ def setup_rb_experiment(rb_config: RBConfig = None):
     print(f"  Generated {total_circuits} circuits")
     print(f"  Max circuit length: {max_circuit_length} gates")
 
-    # Estimate experiment time
     time_est = estimate_total_experiment_time(
         rb_config.circuit_lengths,
         rb_config.num_circuits_per_length,
         rb_config.num_shots,
         rb_config.gate_duration_ns,
-        rb_config.init_duration_ns / 1000,  # Convert to us
+        rb_config.init_duration_ns / 1000,
         rb_config.measure_duration_ns / 1000,
         rb_config.compensation_duration_ns / 1000,
     )
-    print(f"  Estimated experiment time: {time_est['total_time_hours']:.1f} hours")
+    print(f"  Estimated experiment time: {time_est['total_time_hours']:.2f} hours")
 
     print("\nConfiguring machine...")
-    machine, xy_drives, readout_resonators = create_spin_qubit_machine()
-
-    qubits_list = register_qubit_with_rb_macros(machine, xy_drives, rb_config)
-    qubit = qubits_list[0]  # Single qubit
-
+    machine, xy_drives, _ = create_spin_qubit_machine()
+    qubit = register_qubit(machine, xy_drives, rb_config)
     print(f"  Registered qubit: {qubit.id}")
 
     print("\nCreating QUA program...")
     rb_program = create_rb_qua_program(
-        machine,
-        qubit,
-        rb_config,
-        circuits_as_ints,
-        max_circuit_length,
+        machine, qubit, rb_config, circuits_as_ints, max_circuit_length
     )
 
     return machine, qubit, rb_program, rb_generator, rb_config
 
 
-def analyze_rb_results(
-    results: dict,
-    rb_config: RBConfig,
-) -> SingleQubitRBResult:
-    """Analyze RB results and return fidelity metrics.
-
-    Args:
-        results: Dictionary of results from the QUA job.
-        rb_config: RB experiment configuration.
-
-    Returns:
-        SingleQubitRBResult with analysis.
-    """
+def analyze_rb_results(results: dict, rb_config: RBConfig) -> SingleQubitRBResult:
+    """Analyze RB results and return fidelity metrics."""
     state_data = results["state"]
-
-    # Reshape to (depths, circuits, shots)
     state_array = np.array(state_data).reshape(
         len(rb_config.circuit_lengths),
         rb_config.num_circuits_per_length,
         rb_config.num_shots,
     )
 
-    rb_result = SingleQubitRBResult(
+    return SingleQubitRBResult(
         circuit_depths=rb_config.circuit_lengths,
         num_circuits_per_length=rb_config.num_circuits_per_length,
         num_averages=rb_config.num_shots,
         state=state_array,
     )
 
-    return rb_result
-
 
 # =============================================================================
-# SECTION 7: Execution
+# Minimal Wait Program (for latency measurement)
 # =============================================================================
 
 
-def run_rb_with_timing(rb_config: RBConfig = None):
-    """Run the full RB experiment with Python-level timing.
+def create_minimal_wait_program():
+    """Create a minimal QUA program that just waits 16ns.
+
+    Used to measure communication/overhead latency separate from actual program time.
+    """
+    with program() as wait_prog:
+        wait(4)  # 4 cycles = 16ns
+    return wait_prog
+
+
+def calculate_theoretical_time(
+    rb_config: RBConfig, average_gates_per_clifford: float = 1.875
+) -> dict:
+    """Calculate the theoretical minimum execution time for the RB experiment.
 
     Args:
-        rb_config: RB configuration. Uses defaults if not provided.
+        rb_config: RB configuration.
+        average_gates_per_clifford: Average number of physical gates per Clifford.
+            For single-qubit Cliffords with {sx, x, rz}: ~1.875 gates/Clifford.
+            Note: Virtual Z gates have zero duration.
 
     Returns:
-        Tuple of (machine, qubit, rb_program, rb_config, setup_time_s)
+        Dictionary with timing breakdown in seconds.
+    """
+    num_depths = len(rb_config.circuit_lengths)
+    num_circuits = rb_config.num_circuits_per_length
+    num_shots = rb_config.num_shots
+    total_sequences = num_depths * num_circuits * num_shots
+
+    # Time per sequence (in nanoseconds)
+    init_ns = rb_config.init_duration_ns
+    measure_ns = rb_config.measure_duration_ns
+    compensation_ns = rb_config.compensation_duration_ns
+
+    # Average gate time per sequence
+    avg_cliffords = np.mean(rb_config.circuit_lengths)
+    # Only physical gates take time (X90, X180, Y90, Y180), virtual Z is free
+    physical_gates_per_clifford = average_gates_per_clifford * 0.6  # ~60% are physical
+    avg_gate_time_ns = avg_cliffords * physical_gates_per_clifford * rb_config.gate_duration_ns
+
+    # Total time per sequence
+    time_per_sequence_ns = init_ns + avg_gate_time_ns + measure_ns + compensation_ns
+    time_per_sequence_s = time_per_sequence_ns / 1e9
+
+    # Total theoretical time
+    total_time_s = total_sequences * time_per_sequence_s
+
+    return {
+        "num_depths": num_depths,
+        "num_circuits_per_depth": num_circuits,
+        "num_shots": num_shots,
+        "total_sequences": total_sequences,
+        "avg_cliffords": avg_cliffords,
+        "init_time_us": init_ns / 1000,
+        "measure_time_us": measure_ns / 1000,
+        "compensation_time_us": compensation_ns / 1000,
+        "avg_gate_time_us": avg_gate_time_ns / 1000,
+        "time_per_sequence_us": time_per_sequence_ns / 1000,
+        "time_per_sequence_ms": time_per_sequence_ns / 1e6,
+        "theoretical_total_s": total_time_s,
+    }
+
+
+def run_timing_benchmark(qm, config, rb_program, wait_program, num_iterations: int = 5):
+    """Run both programs multiple times and measure execution times.
+
+    Args:
+        qm: Open quantum machine instance.
+        config: QUA configuration.
+        rb_program: The RB QUA program.
+        wait_program: The minimal wait QUA program.
+        num_iterations: Number of times to run each program.
+
+    Returns:
+        Dictionary with timing results.
     """
     import time
 
-    print("=" * 60)
-    print("Single-Qubit Randomized Benchmarking for Spin Qubits")
-    print("=" * 60)
+    wait_times = []
+    rb_times = []
 
-    # Time the setup
-    t_start = time.time()
-    machine, qubit, rb_program, rb_generator, rb_config = setup_rb_experiment(rb_config)
-    setup_time = time.time() - t_start
+    print(f"\nRunning timing benchmark ({num_iterations} iterations each)...")
 
-    print(f"\nSetup completed in {setup_time:.2f} seconds")
-    print(f"Qubit: {qubit.id}")
+    # Run minimal wait program
+    print("  Running minimal wait program...", end=" ", flush=True)
+    for i in range(num_iterations):
+        t_start = time.time()
+        job = qm.execute(wait_program)
+        job.result_handles.wait_for_all_values()
+        # job.wait_until("Done")
+        wait_times.append(time.time() - t_start)
+    print(f"done")
 
-    return machine, qubit, rb_program, rb_config, setup_time
+    # Run RB program
+    print("  Running RB program...", end=" ", flush=True)
+    for i in range(num_iterations):
+        t_start = time.time()
+        job = qm.execute(rb_program)
+        job.result_handles.wait_for_all_values()
+        # job.wait_until("Done")
+        rb_times.append(time.time() - t_start)
+    print(f"done")
+
+    return {
+        "wait_times": wait_times,
+        "rb_times": rb_times,
+        "wait_avg": np.mean(wait_times),
+        "wait_std": np.std(wait_times),
+        "rb_avg": np.mean(rb_times),
+        "rb_std": np.std(rb_times),
+        "latency_estimate": np.mean(wait_times),  # Overhead/latency
+        "rb_execution_only": np.mean(rb_times) - np.mean(wait_times),  # RB minus overhead
+    }
+
+
+# =============================================================================
+# Execution
+# =============================================================================
 
 
 if __name__ == "__main__":
     import time
 
-    # Use reduced parameters for testing
+    # Configuration for real hardware test
     test_config = RBConfig(
-        circuit_lengths=[2, 4, 8, 16],  # Reduced for testing
+        circuit_lengths=[2, 4, 8, 16, 32, 64, 96, 128, 160, 192, 224, 256],
         num_circuits_per_length=5,
-        num_shots=10,
-        init_duration_ns=10_000,  # Reduced for simulation
-        measure_duration_ns=10_000,
-        compensation_duration_ns=10_000,
+        num_shots=4_000,
+        init_duration_ns=400_000,  # 400 us
+        measure_duration_ns=400_000,  # 400 us
+        compensation_duration_ns=1_000_000,  # 1 ms
+        gate_duration_ns=500,  # 500 ns
     )
 
-    # Run setup with timing
-    machine, qubit, rb_program, rb_config, setup_time = run_rb_with_timing(test_config)
+    print("=" * 60)
+    print("Single-Qubit Randomized Benchmarking for Spin Qubits")
+    print("=" * 60)
 
-    print(f"\nMachine configured with {len(machine.qubits)} qubit(s)")
-    print(f"Qubit: {qubit.id}")
+    # Setup
+    t_setup_start = time.time()
+    machine, qubit, rb_program, rb_generator, rb_config = setup_rb_experiment(test_config)
+    setup_time = time.time() - t_setup_start
+    print(f"\nSetup completed in {setup_time:.2f} seconds")
 
+    # Create minimal wait program
+    wait_program = create_minimal_wait_program()
+
+    # Calculate theoretical time
+    theory = calculate_theoretical_time(rb_config)
+
+    print("\n" + "=" * 60)
+    print("Theoretical Timing (minimum possible)")
+    print("=" * 60)
+    print(f"  Circuit depths: {rb_config.circuit_lengths}")
+    print(f"  Circuits per depth: {theory['num_circuits_per_depth']}")
+    print(f"  Shots per circuit: {theory['num_shots']}")
+    print(f"  Total sequences: {theory['total_sequences']:,}")
+    print(f"  Average Cliffords: {theory['avg_cliffords']:.1f}")
+    print()
+    print(f"  Per sequence breakdown:")
+    print(f"    Init:         {theory['init_time_us']:.1f} us")
+    print(f"    Gates (avg):  {theory['avg_gate_time_us']:.1f} us")
+    print(f"    Measure:      {theory['measure_time_us']:.1f} us")
+    print(f"    Compensation: {theory['compensation_time_us']:.1f} us")
+    print(f"    Total:        {theory['time_per_sequence_ms']:.3f} ms")
+    print()
+    print(f"  Theoretical total time: {theory['theoretical_total_s']*1000:.2f} ms")
+
+    # Generate config
     config = machine.generate_config()
 
+    # Connect to real OPX hardware
     print("\n" + "=" * 60)
-    print("Example: Run with QM Hardware")
+    print("Connecting to OPX Hardware...")
     print("=" * 60)
-    print(
-        """
-    import time
 
-    # Connect to QM hardware
-    qmm = QuantumMachinesManager(host="...", port=...)
+    # Uncomment and configure for your hardware:
+    from configs import HOST, CLUSTER
+
+    qmm = QuantumMachinesManager(host=HOST, cluster_name=CLUSTER)
+
     qm = qmm.open_qm(config)
 
-    # Execute with timing
-    t_start = time.time()
-    job = qm.execute(rb_program)
-    job.result_handles.wait_for_all_values()
-    execution_time = time.time() - t_start
-
-    print(f"Execution completed in {execution_time:.2f} seconds")
-
-    # Get results
-    results_dict = {
-        "state": job.result_handles.get("state").fetch_all(),
-    }
-
-    # Analyze RB fidelity
-    rb_result = analyze_rb_results(results_dict, rb_config)
-
-    # Plot fidelity
-    rb_result.plot_with_fidelity()
-    plt.show()
-
-    # Print results
-    print(f"Clifford Fidelity: {rb_result.fidelity * 100:.2f}%")
-    print(f"Error per Clifford: {rb_result.error_per_clifford * 100:.4f}%")
-    """
-    )
+    # Run timing benchmark
+    num_iterations = 3
+    timing = run_timing_benchmark(qm, config, rb_program, wait_program, num_iterations)
 
     print("\n" + "=" * 60)
-    print("Example: Run with QM Cloud Simulator")
+    print("Measured Timing Results")
     print("=" * 60)
-    # print("""
-    import time
-    from configs import EMAIL, PASSWORD
-    import qm_saas
+    print(f"  Minimal wait program (latency estimate):")
+    print(f"    Average: {timing['wait_avg']*1000:.2f} ms  (std: {timing['wait_std']*1000:.2f} ms)")
+    print(f"    Individual: {[f'{t*1000:.2f}' for t in timing['wait_times']]} ms")
+    print()
+    print(f"  RB program:")
+    print(f"    Average: {timing['rb_avg']*1000:.2f} ms  (std: {timing['rb_std']*1000:.2f} ms)")
+    print(f"    Individual: {[f'{t*1000:.2f}' for t in timing['rb_times']]} ms")
+    print()
+    print(f"  Estimated breakdown:")
+    print(f"    Communication latency: {timing['latency_estimate']*1000:.2f} ms")
+    print(f"    RB execution only:     {timing['rb_execution_only']*1000:.2f} ms")
 
-    client = qm_saas.QmSaas(
-        email=EMAIL,
-        password=PASSWORD,
-        host="qm-saas.dev.quantum-machines.co",
+    print("\n" + "=" * 60)
+    print("Comparison: Theoretical vs Measured")
+    print("=" * 60)
+    print(f"  Theoretical minimum:      {theory['theoretical_total_s']*1000:.2f} ms")
+    print(f"  Measured (minus latency): {timing['rb_execution_only']*1000:.2f} ms")
+    print(
+        f"  Overhead factor:          {timing['rb_execution_only'] / theory['theoretical_total_s']:.2f}x"
     )
 
-    with client.simulator(client.latest_version()) as instance:
-        qmm = QuantumMachinesManager(
-            host=instance.host,
-            port=instance.port,
-            connection_headers=instance.default_connection_headers,
-        )
+    qm.close()
 
-        # Simulate with timing
-        t_start = time.time()
-        simulation_config = SimulationConfig(duration=12000)
-        job = qmm.simulate(config, rb_program, simulation_config)
-        job.wait_until("Done", timeout=60)
-        simulation_time = time.time() - t_start
-
-        print(f"Simulation completed in {simulation_time:.2f} seconds")
-
-        # Get simulated samples
-        simulated_samples = job.get_simulated_samples()
-        simulated_samples.con1.plot()
-        plt.show()
-    # """)
-
-    print(f"\nSetup time: {setup_time:.2f} seconds")
-    print("Ready for execution!")
+    # Generate HTML report
+    print("\n" + "=" * 60)
+    print("Generating HTML Report...")
+    print("=" * 60)
+    report_path = generate_rb_timing_report(rb_config, theory, timing, setup_time)
+    print(f"  Report saved to: {report_path}")
