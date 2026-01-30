@@ -132,7 +132,7 @@ class VoltageSequence:
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
-        
+
         self.attenuation_qua_variables = {
             ch_name: (
                 declare(
@@ -146,10 +146,9 @@ class VoltageSequence:
         }
         if self.gate_set.adjust_for_attenuation:
             self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
-                ch_name: declare(fixed)
-                for ch_name in self.gate_set.channels.keys()
+                ch_name: declare(fixed) for ch_name in self.gate_set.channels.keys()
             }
-            
+
     def _get_temp_qua_var(self, name_suffix: str, var_type=fixed) -> QuaVariable:
         """Gets or declares a temporary QUA variable for internal calculations."""
         # Use a prefix related to the VoltageSequence instance if multiple exist
@@ -160,18 +159,14 @@ class VoltageSequence:
         return self._temp_qua_vars[internal_name]
 
     def _adjust_for_attenuation(self, channel, delta_v):
-        ch_name = next(
-            name for name, ch in self.gate_set.channels.items() if ch is channel
-        )
+        ch_name = next(name for name, ch in self.gate_set.channels.items() if ch is channel)
         attenuation_scale = self.attenuation_qua_variables[ch_name]
         if is_qua_type(delta_v):
             unattenuated_delta_v = self._attenuated_delta_v_vars[ch_name]
             assign(unattenuated_delta_v, (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT)
         else:
             unattenuated_delta_v = delta_v * (
-                10 ** (channel.attenuation / 20)
-                if hasattr(channel, "attenuation")
-                else 1
+                10 ** (channel.attenuation / 20) if hasattr(channel, "attenuation") else 1
             )
         return unattenuated_delta_v
 
@@ -301,10 +296,8 @@ class VoltageSequence:
                 )
 
         if self._keep_levels:
-            target_voltages_dict = (
-                self._keep_levels_tracker.update_voltage_dict_with_current(
-                    target_voltages_dict
-                )
+            target_voltages_dict = self._keep_levels_tracker.update_voltage_dict_with_current(
+                target_voltages_dict
             )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
@@ -352,9 +345,7 @@ class VoltageSequence:
                 )
             tracker.current_level = target_voltage
 
-    def step_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ):
+    def step_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType):
         """
         Steps all specified channels directly to the given voltage levels.
 
@@ -390,8 +381,8 @@ class VoltageSequence:
     def ramp_to_voltages(
         self,
         voltages: Dict[str, VoltageLevelType],
-        duration: DurationType,
         ramp_duration: DurationType,
+        duration: DurationType,
     ):
         """
         Ramps all specified channels to the given voltage levels, then holds.
@@ -468,9 +459,7 @@ class VoltageSequence:
             )
         tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
-        self._common_voltages_change(
-            tuning_point.voltages, effective_duration, ramp_duration=None
-        )
+        self._common_voltages_change(tuning_point.voltages, effective_duration, ramp_duration=None)
 
     def ramp_to_point(
         self,
@@ -535,9 +524,7 @@ class VoltageSequence:
         ideal_dur = abs(py_int_v * COMPENSATION_SCALING_FACTOR / max_voltage)
         py_comp_dur = max(ideal_dur, MIN_COMPENSATION_DURATION_NS)
         py_comp_dur = (
-            (int(np.ceil(py_comp_dur)) + CLOCK_CYCLE_NS - 1)
-            // CLOCK_CYCLE_NS
-            * CLOCK_CYCLE_NS
+            (int(np.ceil(py_comp_dur)) + CLOCK_CYCLE_NS - 1) // CLOCK_CYCLE_NS * CLOCK_CYCLE_NS
         )
         py_comp_dur = max(py_comp_dur, DEFAULT_QUA_COMPENSATION_DURATION_NS)
 
@@ -647,9 +634,7 @@ class VoltageSequence:
             raise ValueError("max_voltage must be positive.")
 
         if self._keep_levels:
-            zero_dict = {
-                name: 0.0 for name in self._keep_levels_tracker._keep_levels_dict
-            }
+            zero_dict = {name: 0.0 for name in self._keep_levels_tracker._keep_levels_dict}
         else:
             zero_dict = {}
 
@@ -660,7 +645,10 @@ class VoltageSequence:
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
             opx_voltage_limit = (
-                2.5 if hasattr(channel_obj.opx_output, "output_mode") and channel_obj.opx_output.output_mode == "amplified" else 0.5
+                2.5
+                if hasattr(channel_obj.opx_output, "output_mode")
+                and channel_obj.opx_output.output_mode == "amplified"
+                else 0.5
             )
 
             if self.gate_set.adjust_for_attenuation:
@@ -678,9 +666,7 @@ class VoltageSequence:
 
             comp_amp_val: VoltageLevelType
 
-            if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(
-                current_v
-            ):
+            if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(current_v):
                 py_comp_amp, py_comp_dur = self._calculate_python_compensation_params(
                     tracker, max_voltage
                 )
@@ -743,8 +729,7 @@ class VoltageSequence:
             with else_():  # Duration is 0, effectively a step
                 channel_obj.play(
                     DEFAULT_PULSE_NAME,
-                    amplitude_scale=-current_v
-                    * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
+                    amplitude_scale=-current_v * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
                     duration=ramp_duration >> 2,
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
