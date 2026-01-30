@@ -1,26 +1,24 @@
 """Single-qubit randomized benchmarking utilities for spin qubits.
 
-This module provides classes and functions for generating single-qubit RB circuits
-and analyzing their results, specifically designed for spin qubit architectures.
+This module provides helper functions and analysis routines for single-qubit RB,
+including PPU-friendly lookup tables for Clifford composition, inversion, and
+decomposition into native spin-qubit gates.
 
-The circuits are generated using Qiskit's Clifford library and transpiled to a
-basis gate set compatible with spin qubit hardware:
+Native gate set used for decompositions:
 - X90, X180: Physical X rotations (Gaussian pulses)
 - Y90, Y180: Physical Y rotations (Gaussian pulses with 90° phase)
 - Z90, Z180, Z270: Virtual Z rotations (frame rotations, zero duration)
-- Idle: Identity gate
+- Idle: Identity gate (removed in decomposition)
 """
 
-import copy
 from dataclasses import dataclass, field
-from typing import List, Optional
 
-import numpy as np
-import xarray as xr
 from matplotlib import pyplot as plt
+import numpy as np
 from qiskit import QuantumCircuit, transpile
-from qiskit.quantum_info import Clifford, random_clifford
+from qiskit.quantum_info import Clifford
 from scipy.optimize import curve_fit
+import xarray as xr
 
 
 # =============================================================================
@@ -41,132 +39,6 @@ SINGLE_QUBIT_GATE_MAP = {
 }
 
 EPS = 1e-8
-
-
-# =============================================================================
-# Circuit Generation
-# =============================================================================
-
-
-class SingleQubitRBBase:
-    """Base class for single-qubit randomized benchmarking circuit generation.
-
-    Generates random Clifford circuits and transpiles them to a basis gate set
-    suitable for spin qubit hardware. The transpiled gates are:
-    - sx (X90): pi/2 rotation about X axis
-    - x (X180): pi rotation about X axis
-    - rz: Virtual Z rotation (frame rotation)
-
-    Note: Y gates are decomposed into rz + sx sequences by Qiskit, which is
-    equivalent since virtual Z gates have zero duration.
-    """
-
-    def __init__(
-        self,
-        circuit_lengths: List[int],
-        num_circuits_per_length: int,
-        basis_gates: List[str] = None,
-        seed: Optional[int] = None,
-    ):
-        """Initialize the single-qubit RB base class.
-
-        Args:
-            circuit_lengths: List of circuit depths (number of Cliffords) to generate.
-            num_circuits_per_length: Number of random circuits to generate per depth.
-            basis_gates: List of basis gates for transpilation.
-                        Defaults to ['rz', 'sx', 'x'] for spin qubits.
-            seed: Random seed for circuit generation reproducibility.
-        """
-        self.circuit_lengths = circuit_lengths
-        self.num_circuits_per_length = num_circuits_per_length
-        self.basis_gates = basis_gates or ["rz", "sx", "x"]
-        self.seed = seed if seed is not None else np.random.randint(0, 1000000)
-        self.rolling_seed = copy.deepcopy(self.seed)
-
-        self.circuits = {}
-        self.transpiled_circuits = {}
-
-    def generate_circuits_and_transpile(self):
-        """Generate circuits and transpile them to the basis gate set."""
-        self.circuits = self.generate_circuits()
-        self.transpiled_circuits = {
-            length: self._transpile_circuits(circuits) for length, circuits in self.circuits.items()
-        }
-
-    def generate_circuits(self) -> dict:
-        """Generate random Clifford circuits for all specified lengths."""
-        circuits = {}
-        for length in self.circuit_lengths:
-            circuits[length] = self._generate_circuits_per_length(length)
-        return circuits
-
-    def _generate_circuits_per_length(self, length: int) -> List[QuantumCircuit]:
-        """Generate random single-qubit Clifford circuits for a given length."""
-        circuits = []
-
-        for _ in range(self.num_circuits_per_length):
-            qc = QuantumCircuit(1)
-            clifford_product = Clifford(qc)
-
-            for _ in range(length):
-                cliff = random_clifford(1, self.rolling_seed)
-                self.rolling_seed += 1
-                qc.append(cliff, [0])
-                clifford_product = cliff @ clifford_product
-
-            # Append inverse to return to |0>
-            inverse_clifford = clifford_product.adjoint()
-            qc.append(inverse_clifford, [0])
-
-            circuits.append(qc)
-
-        return circuits
-
-    def _transpile_circuits(self, circuits: List[QuantumCircuit]) -> List[QuantumCircuit]:
-        """Transpile circuits to the basis gate set."""
-        transpiled = []
-        for qc in circuits:
-            transp_circ = QuantumCircuit(1)
-            for instruction in qc:
-                qc_per_inst = QuantumCircuit(1)
-                qc_per_inst.append(instruction)
-
-                if isinstance(instruction.operation, Clifford):
-                    transpiled_gate = transpile(
-                        qc_per_inst,
-                        basis_gates=self.basis_gates,
-                        optimization_level=1,
-                    )
-                else:
-                    transpiled_gate = qc_per_inst.copy()
-
-                transp_circ = transp_circ.compose(transpiled_gate)
-
-            transpiled.append(transp_circ)
-
-        return transpiled
-
-
-class SingleQubitStandardRB(SingleQubitRBBase):
-    """Single-qubit standard randomized benchmarking circuit generator.
-
-    Automatically generates and transpiles circuits upon initialization.
-    """
-
-    def __init__(
-        self,
-        circuit_lengths: List[int],
-        num_circuits_per_length: int,
-        basis_gates: List[str] = None,
-        seed: Optional[int] = None,
-    ):
-        super().__init__(circuit_lengths, num_circuits_per_length, basis_gates, seed)
-        self.generate_circuits_and_transpile()
-
-
-# =============================================================================
-# Circuit Processing
-# =============================================================================
 
 
 def get_gate_name(gate) -> str:
@@ -208,7 +80,7 @@ def get_gate_name(gate) -> str:
     return name
 
 
-def process_circuit_to_integers(circuit: QuantumCircuit) -> List[int]:
+def process_circuit_to_integers(circuit: QuantumCircuit) -> list[int]:
     """Convert a quantum circuit to a list of gate integers.
 
     Each gate is converted to an integer for efficient QUA switch/case execution.
@@ -227,25 +99,94 @@ def process_circuit_to_integers(circuit: QuantumCircuit) -> List[int]:
     return result
 
 
-def prepare_circuits_for_qua(rb_generator: SingleQubitRBBase) -> tuple:
-    """Prepare RB circuits for QUA execution.
+# =============================================================================
+# Clifford Lookup Tables (PPU RB)
+# =============================================================================
+
+
+def _generate_single_qubit_clifford_group() -> list[Clifford]:
+    """Generate the 24 single-qubit Cliffords using H and S generators."""
+    identity = Clifford.from_label("I")
+    generators = [Clifford.from_label("H"), Clifford.from_label("S")]
+
+    cliffords = [identity]
+    queue = [identity]
+
+    while queue:
+        current = queue.pop(0)
+        for generator in generators:
+            candidate = generator @ current
+            if not any(candidate == existing for existing in cliffords):
+                cliffords.append(candidate)
+                queue.append(candidate)
+
+    if len(cliffords) != 24:
+        raise ValueError(f"Expected 24 single-qubit Cliffords, got {len(cliffords)}")
+
+    return cliffords
+
+
+def _find_clifford_index(target: Clifford, cliffords: list[Clifford]) -> int:
+    for idx, clifford in enumerate(cliffords):
+        if target == clifford:
+            return idx
+    raise ValueError("Clifford not found in group list")
+
+
+def build_single_qubit_clifford_tables(
+    basis_gates: list[str] | None = None,
+) -> dict[str, list[int] | int]:
+    """Build lookup tables for PPU-side single-qubit RB.
 
     Returns:
-        Tuple of (circuits_as_ints, max_circuit_length, total_circuits)
+        Dictionary with:
+            - num_cliffords: Number of single-qubit Cliffords (24).
+            - compose: Flattened composition table (left * right).
+            - inverse: Inverse Clifford index for each Clifford.
+            - decomp_flat: Concatenated native gate sequences.
+            - decomp_offsets: Offsets into decomp_flat per Clifford.
+            - decomp_lengths: Lengths of each Clifford decomposition.
+            - max_decomp_length: Max decomposition length across Cliffords.
     """
-    circuits_as_ints = {}
-    max_circuit_length = 0
+    basis_gates = basis_gates or ["rz", "sx", "x"]
+    cliffords = _generate_single_qubit_clifford_group()
+    num_cliffords = len(cliffords)
 
-    for length, circuits in rb_generator.transpiled_circuits.items():
-        circuits_as_ints[length] = []
-        for circuit in circuits:
-            int_sequence = process_circuit_to_integers(circuit)
-            circuits_as_ints[length].append(int_sequence)
-            max_circuit_length = max(max_circuit_length, len(int_sequence))
+    compose_flat = []
+    inverse = []
 
-    total_circuits = sum(len(c) for c in circuits_as_ints.values())
+    for clifford in cliffords:
+        inv = clifford.adjoint()
+        inverse.append(_find_clifford_index(inv, cliffords))
 
-    return circuits_as_ints, max_circuit_length, total_circuits
+    for clifford_left in cliffords:
+        for clifford_right in cliffords:
+            composed = clifford_left @ clifford_right
+            compose_flat.append(_find_clifford_index(composed, cliffords))
+
+    decomp_flat = []
+    decomp_offsets = []
+    decomp_lengths = []
+
+    for clifford in cliffords:
+        qc = QuantumCircuit(1)
+        qc.append(clifford, [0])
+        transpiled = transpile(qc, basis_gates=basis_gates, optimization_level=1)
+        gate_sequence = process_circuit_to_integers(transpiled)
+
+        decomp_offsets.append(len(decomp_flat))
+        decomp_lengths.append(len(gate_sequence))
+        decomp_flat.extend(gate_sequence)
+
+    return {
+        "num_cliffords": num_cliffords,
+        "compose": compose_flat,
+        "inverse": inverse,
+        "decomp_flat": decomp_flat,
+        "decomp_offsets": decomp_offsets,
+        "decomp_lengths": decomp_lengths,
+        "max_decomp_length": max(decomp_lengths) if decomp_lengths else 0,
+    }
 
 
 # =============================================================================
@@ -269,7 +210,7 @@ class SingleQubitRBResult:
         state: Measured states (0 or 1).
     """
 
-    circuit_depths: List[int]
+    circuit_depths: list[int]
     num_circuits_per_length: int
     num_averages: int
     state: np.ndarray
@@ -371,7 +312,7 @@ class SingleQubitRBResult:
             fontsize=10,
             verticalalignment="top",
             horizontalalignment="right",
-            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            bbox={"boxstyle": "round", "facecolor": "wheat", "alpha": 0.5},
         )
 
         ax.set_xlabel("Number of Cliffords")
@@ -390,7 +331,7 @@ class SingleQubitRBResult:
 
 
 def estimate_total_experiment_time(
-    circuit_lengths: List[int],
+    circuit_lengths: list[int],
     num_circuits_per_length: int,
     num_shots: int,
     gate_duration_ns: int = 500,

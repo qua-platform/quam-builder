@@ -30,11 +30,13 @@ Hardware Requirements:
 - MW-FEM for XY drive (EDSR/ESR)
 - Readout resonator for sensor dot RF readout
 """
+# ruff: noqa: I001
 
-from typing import List, Dict
 from dataclasses import dataclass
 
 import numpy as np
+
+from qm import QuantumMachinesManager
 from qm.qua import (
     program,
     for_,
@@ -51,38 +53,30 @@ from qm.qua import (
     frame_rotation_2pi,
     Cast,
     wait,
+    Random,
 )
-from qm import SimulationConfig, QuantumMachinesManager
-import matplotlib
-
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 from quam.components import pulses
+from quam.components.channels import StickyChannelAddon
+from quam.components.hardware import FrequencyConverter, LocalOscillator
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     MWFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
 )
-from quam.components.channels import StickyChannelAddon
-from quam.components.hardware import FrequencyConverter, LocalOscillator
-
-from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorIQ,
 )
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
-from quam_builder.architecture.quantum_dots.examples.rb_utils import (
-    SingleQubitStandardRB,
-    SingleQubitRBResult,
-    prepare_circuits_for_qua,
-    estimate_total_experiment_time,
-    SINGLE_QUBIT_GATE_MAP,
-)
 from quam_builder.architecture.quantum_dots.examples.html_utils import (
     generate_rb_timing_report,
 )
+from quam_builder.architecture.quantum_dots.examples.rb_utils import (
+    SingleQubitRBResult,
+    build_single_qubit_clifford_tables,
+    estimate_total_experiment_time,
+)
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 
 # =============================================================================
@@ -94,7 +88,7 @@ from quam_builder.architecture.quantum_dots.examples.html_utils import (
 class RBConfig:
     """Configuration for single-qubit RB experiment."""
 
-    circuit_lengths: List[int] = None
+    circuit_lengths: list[int] | None = None
     num_circuits_per_length: int = 50
     num_shots: int = 400
     gate_duration_ns: int = 500
@@ -311,23 +305,18 @@ def create_rb_qua_program(
     machine: LossDiVincenzoQuam,
     qubit: LDQubit,
     rb_config: RBConfig,
-    circuits_as_ints: Dict[int, List[List[int]]],
-    max_circuit_length: int,
+    clifford_tables: dict[str, list[int] | int],
 ):
-    """Create the QUA program for single-qubit RB."""
+    """Create the QUA program for single-qubit RB.
+
+    The program generates Cliffords on the PPU using lookup tables, applies each
+    Clifford's native decomposition, and then applies the inverse Clifford to
+    return to |0> in the ideal case. This avoids preloading per-circuit gate
+    sequences and reduces QUA data memory.
+    """
     num_depths = len(rb_config.circuit_lengths)
     num_circuits = rb_config.num_circuits_per_length
-
-    # Flatten circuits for QUA array (no padding to save memory)
-    all_circuits_flat = []
-    circuit_lengths_flat = []
-    circuit_offsets_flat = []
-
-    for depth in rb_config.circuit_lengths:
-        for circuit in circuits_as_ints[depth]:
-            circuit_offsets_flat.append(len(all_circuits_flat))
-            all_circuits_flat.extend(circuit)
-            circuit_lengths_flat.append(len(circuit))
+    num_cliffords = clifford_tables["num_cliffords"]
 
     with program() as rb_prog:
         # QUA variables
@@ -337,19 +326,29 @@ def create_rb_qua_program(
         circuit_idx = declare(int)
         gate_idx = declare(int)
 
-        circuits_qua = declare(int, value=all_circuits_flat)
-        circuit_lengths_qua = declare(int, value=circuit_lengths_flat)
-        circuit_offsets_qua = declare(int, value=circuit_offsets_flat)
+        # Lookup tables are precomputed in Python and stored in QUA arrays.
+        # They are intentionally compact to minimize data memory usage.
+        depths_qua = declare(int, value=rb_config.circuit_lengths)
+        clifford_compose_qua = declare(int, value=clifford_tables["compose"])
+        clifford_inverse_qua = declare(int, value=clifford_tables["inverse"])
+        clifford_decomp_qua = declare(int, value=clifford_tables["decomp_flat"])
+        clifford_decomp_offsets_qua = declare(int, value=clifford_tables["decomp_offsets"])
+        clifford_decomp_lengths_qua = declare(int, value=clifford_tables["decomp_lengths"])
 
         current_gate = declare(int)
-        circuit_offset = declare(int)
-        current_circuit_length = declare(int)
+        current_depth = declare(int)
+        total_clifford = declare(int)
+        rand_clifford = declare(int)
+        inverse_clifford = declare(int)
+        decomp_offset = declare(int)
+        decomp_length = declare(int)
+        clifford_idx = declare(int)
 
         state = declare(int)
         state_st = declare_stream()
 
-        I = declare(fixed)
-        Q = declare(fixed)
+        i_signal = declare(fixed)
+        q_signal = declare(fixed)
 
         # Get sensor and threshold
         sensor_dot = qubit.sensor_dots[0]
@@ -358,20 +357,17 @@ def create_rb_qua_program(
         )
         threshold = sensor_dot.readout_thresholds.get(qd_pair_id, 0.0)
 
+        # RNG for on-PPU Clifford generation
+        rng = Random()
+
         # Main experiment loop
         with for_(n, 0, n < rb_config.num_shots, n + 1):
             save(n, n_st)
 
             with for_(depth_idx, 0, depth_idx < num_depths, depth_idx + 1):
                 with for_(circuit_idx, 0, circuit_idx < num_circuits, circuit_idx + 1):
-                    assign(
-                        circuit_offset,
-                        circuit_offsets_qua[depth_idx * num_circuits + circuit_idx],
-                    )
-                    assign(
-                        current_circuit_length,
-                        circuit_lengths_qua[depth_idx * num_circuits + circuit_idx],
-                    )
+                    assign(current_depth, depths_qua[depth_idx])
+                    assign(total_clifford, 0)
 
                     # --- Initialization ---
                     align()
@@ -379,8 +375,26 @@ def create_rb_qua_program(
 
                     # --- Gate Sequence ---
                     align()
-                    with for_(gate_idx, 0, gate_idx < current_circuit_length, gate_idx + 1):
-                        assign(current_gate, circuits_qua[circuit_offset + gate_idx])
+                    with for_(clifford_idx, 0, clifford_idx < current_depth, clifford_idx + 1):
+                        assign(rand_clifford, rng.rand_int(num_cliffords))
+                        assign(
+                            total_clifford,
+                            # Composition table is flattened: [left * right].
+                            clifford_compose_qua[rand_clifford * num_cliffords + total_clifford],
+                        )
+                        assign(decomp_offset, clifford_decomp_offsets_qua[rand_clifford])
+                        assign(decomp_length, clifford_decomp_lengths_qua[rand_clifford])
+                        # Play the native gate decomposition for this Clifford.
+                        with for_(gate_idx, 0, gate_idx < decomp_length, gate_idx + 1):
+                            assign(current_gate, clifford_decomp_qua[decomp_offset + gate_idx])
+                            play_rb_gate(qubit, current_gate)
+
+                    # Apply the inverse Clifford so the ideal sequence returns to |0>.
+                    assign(inverse_clifford, clifford_inverse_qua[total_clifford])
+                    assign(decomp_offset, clifford_decomp_offsets_qua[inverse_clifford])
+                    assign(decomp_length, clifford_decomp_lengths_qua[inverse_clifford])
+                    with for_(gate_idx, 0, gate_idx < decomp_length, gate_idx + 1):
+                        assign(current_gate, clifford_decomp_qua[decomp_offset + gate_idx])
                         play_rb_gate(qubit, current_gate)
 
                     reset_frame(qubit.xy_channel.name)
@@ -390,8 +404,8 @@ def create_rb_qua_program(
                     qubit.step_to_point("measure", duration=rb_config.measure_duration_ns)
 
                     sensor_dot.readout_resonator.wait(250)  # Settle time
-                    sensor_dot.readout_resonator.measure("readout", qua_vars=(I, Q))
-                    assign(state, Cast.to_int(I > threshold))
+                    sensor_dot.readout_resonator.measure("readout", qua_vars=(i_signal, q_signal))
+                    assign(state, Cast.to_int(i_signal > threshold))
 
                     # --- Compensation ---
                     align()
@@ -419,22 +433,20 @@ def setup_rb_experiment(rb_config: RBConfig = None):
     """Set up all components for the single-qubit RB experiment.
 
     Returns:
-        Tuple of (machine, qubit, rb_program, rb_generator, rb_config)
+        Tuple of (machine, qubit, rb_program, rb_config)
     """
     if rb_config is None:
         rb_config = RBConfig()
 
-    print("Generating RB circuits...")
-    rb_generator = SingleQubitStandardRB(
-        circuit_lengths=rb_config.circuit_lengths,
-        num_circuits_per_length=rb_config.num_circuits_per_length,
-        seed=rb_config.seed,
-    )
+    print("Preparing RB lookup tables (PPU-side generation)...")
+    clifford_tables = build_single_qubit_clifford_tables()
+    total_circuits = len(rb_config.circuit_lengths) * rb_config.num_circuits_per_length
+    max_depth = max(rb_config.circuit_lengths)
+    max_decomp_length = clifford_tables["max_decomp_length"]
+    max_sequence_length = (max_depth + 1) * max_decomp_length
 
-    circuits_as_ints, max_circuit_length, total_circuits = prepare_circuits_for_qua(rb_generator)
-
-    print(f"  Generated {total_circuits} circuits")
-    print(f"  Max circuit length: {max_circuit_length} gates")
+    print(f"  Total circuits: {total_circuits}")
+    print(f"  Max sequence length (upper bound): {max_sequence_length} gates")
 
     time_est = estimate_total_experiment_time(
         rb_config.circuit_lengths,
@@ -453,11 +465,9 @@ def setup_rb_experiment(rb_config: RBConfig = None):
     print(f"  Registered qubit: {qubit.id}")
 
     print("\nCreating QUA program...")
-    rb_program = create_rb_qua_program(
-        machine, qubit, rb_config, circuits_as_ints, max_circuit_length
-    )
+    rb_program = create_rb_qua_program(machine, qubit, rb_config, clifford_tables)
 
-    return machine, qubit, rb_program, rb_generator, rb_config
+    return machine, qubit, rb_program, rb_config
 
 
 def analyze_rb_results(results: dict, rb_config: RBConfig) -> SingleQubitRBResult:
@@ -567,23 +577,23 @@ def run_timing_benchmark(qm, config, rb_program, wait_program, num_iterations: i
 
     # Run minimal wait program
     print("  Running minimal wait program...", end=" ", flush=True)
-    for i in range(num_iterations):
+    for _ in range(num_iterations):
         t_start = time.time()
         job = qm.execute(wait_program)
         job.result_handles.wait_for_all_values()
         # job.wait_until("Done")
         wait_times.append(time.time() - t_start)
-    print(f"done")
+    print("done")
 
     # Run RB program
     print("  Running RB program...", end=" ", flush=True)
-    for i in range(num_iterations):
+    for _ in range(num_iterations):
         t_start = time.time()
         job = qm.execute(rb_program)
         job.result_handles.wait_for_all_values()
         # job.wait_until("Done")
         rb_times.append(time.time() - t_start)
-    print(f"done")
+    print("done")
 
     return {
         "wait_times": wait_times,
@@ -608,8 +618,8 @@ if __name__ == "__main__":
     # Configuration for real hardware test
     test_config = RBConfig(
         circuit_lengths=[2, 4, 8, 16, 32, 64, 96, 128, 160, 192, 224, 256],
-        num_circuits_per_length=5,
-        num_shots=4_000,
+        num_circuits_per_length=50,
+        num_shots=400,
         init_duration_ns=400_000,  # 400 us
         measure_duration_ns=400_000,  # 400 us
         compensation_duration_ns=1_000_000,  # 1 ms
@@ -622,7 +632,7 @@ if __name__ == "__main__":
 
     # Setup
     t_setup_start = time.time()
-    machine, qubit, rb_program, rb_generator, rb_config = setup_rb_experiment(test_config)
+    machine, qubit, rb_program, rb_config = setup_rb_experiment(test_config)
     setup_time = time.time() - t_setup_start
     print(f"\nSetup completed in {setup_time:.2f} seconds")
 
@@ -641,7 +651,7 @@ if __name__ == "__main__":
     print(f"  Total sequences: {theory['total_sequences']:,}")
     print(f"  Average Cliffords: {theory['avg_cliffords']:.1f}")
     print()
-    print(f"  Per sequence breakdown:")
+    print("  Per sequence breakdown:")
     print(f"    Init:         {theory['init_time_us']:.1f} us")
     print(f"    Gates (avg):  {theory['avg_gate_time_us']:.1f} us")
     print(f"    Measure:      {theory['measure_time_us']:.1f} us")
@@ -659,7 +669,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Uncomment and configure for your hardware:
-    from configs import HOST, CLUSTER
+    from configs import HOST, CLUSTER  # isort:skip
 
     qmm = QuantumMachinesManager(host=HOST, cluster_name=CLUSTER)
 
@@ -672,15 +682,15 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Measured Timing Results")
     print("=" * 60)
-    print(f"  Minimal wait program (latency estimate):")
+    print("  Minimal wait program (latency estimate):")
     print(f"    Average: {timing['wait_avg']*1000:.2f} ms  (std: {timing['wait_std']*1000:.2f} ms)")
     print(f"    Individual: {[f'{t*1000:.2f}' for t in timing['wait_times']]} ms")
     print()
-    print(f"  RB program:")
+    print("  RB program:")
     print(f"    Average: {timing['rb_avg']*1000:.2f} ms  (std: {timing['rb_std']*1000:.2f} ms)")
     print(f"    Individual: {[f'{t*1000:.2f}' for t in timing['rb_times']]} ms")
     print()
-    print(f"  Estimated breakdown:")
+    print("  Estimated breakdown:")
     print(f"    Communication latency: {timing['latency_estimate']*1000:.2f} ms")
     print(f"    RB execution only:     {timing['rb_execution_only']*1000:.2f} ms")
 
