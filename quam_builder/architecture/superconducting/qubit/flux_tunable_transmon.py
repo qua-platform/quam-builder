@@ -19,9 +19,11 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
         freq_vs_flux_01_quad_term (float): Quadratic term of the qubit frequency versus flux parabola.
         phi0_current (float): The qubit flux quantum in Ampere.
         phi0_voltage (float): The qubit flux quantum in Volt.
+        at_sweep_spot (bool): If False, indicates to calibration routines not to move the flux.
     """
 
     z: FluxLine = None
     freq_vs_flux_01_quad_term: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
+    at_sweep_spot: bool = True
