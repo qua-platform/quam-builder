@@ -101,11 +101,6 @@ class XYDriveIQ(IQChannel, XYDriveBase):
 class XYDriveMW(MWChannel, XYDriveBase):
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
 
-    @property
-    def upconverter_frequency(self):
-        """Returns the up-converter/LO frequency in Hz."""
-        return self.opx_output.upconverter_frequency
-
     def get_output_power(self, operation, Z=50) -> float:
         """
         Calculate the output power in dBm of the specified operation.
