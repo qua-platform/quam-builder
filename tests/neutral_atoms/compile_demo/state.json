@@ -1,0 +1,11 @@
+{
+    "channel": {
+        "id": "ch1",
+        "opx_output": [
+            "con1",
+            1
+        ],
+        "__class__": "quam.components.channels.SingleChannel"
+    },
+    "__class__": "quam_builder.architecture.neutral_atoms.base_quam_na.BaseQuamNA"
+}
