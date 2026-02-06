@@ -35,13 +35,12 @@ class BasePointMacro(QuamMacro):
     Stores references to points rather than concrete instances for serialization.
 
     Attributes:
-        point_ref: Reference string to VoltageTuningPoint (e.g., "#./voltage_sequence/gate_set/macros/dot_0_idle")
-        hold_duration: Duration to hold final voltage (nanoseconds)
+        point_ref: Reference string to VoltageTuningPoint
+            (e.g., "#./voltage_sequence/gate_set/macros/dot_0_idle")
         macro_type: Type identifier ('step', 'ramp', etc.)
     """
 
     point_ref: str | None = None
-    hold_duration: int | None = None
     macro_type: str = "base"
 
     @property
@@ -79,7 +78,7 @@ class BasePointMacro(QuamMacro):
         except (InvalidReferenceError, AttributeError) as e:
             raise InvalidReferenceError(
                 f"Could not resolve point reference '{self.point_ref}' from {component}: {e}"
-            ) from e  # or 'from None' if you want to suppress the chain
+            ) from e
 
         if not isinstance(point, VoltageTuningPoint):
             raise TypeError(
@@ -104,26 +103,17 @@ class BasePointMacro(QuamMacro):
             raise ValueError(f"Invalid point reference format: '{point_ref_raw}'")
         return parts[-1]
 
-    def __call__(self, **overrides):
-        """Invoke macro as callable (QUAM convention).
-
-        Args:
-            **overrides: Optional parameter overrides (hold_duration, ramp_duration, etc.)
+    def _get_default_duration(self) -> int | None:
+        """Get default duration from the referenced VoltageTuningPoint.
 
         Returns:
-            Result of apply() method
+            Duration in nanoseconds, or None if point cannot be resolved
         """
-        if not hasattr(self, "parent") or self.parent is None:
-            raise ValueError(
-                "Cannot execute macro: macro has no parent. "
-                "Ensure macro is attached via component.macros['name'] = macro"
-            )
-
-        # Support 'duration' as alias for 'hold_duration'
-        if "duration" in overrides and "hold_duration" not in overrides:
-            overrides["hold_duration"] = overrides.pop("duration")
-
-        return self.apply(**overrides)
+        try:
+            point = self._resolve_point(self)
+            return point.duration
+        except (ValueError, InvalidReferenceError, TypeError):
+            return None
 
 
 @quam_dataclass
@@ -134,7 +124,6 @@ class StepPointMacro(BasePointMacro):
 
     Attributes:
         point_ref: Reference to VoltageTuningPoint
-        hold_duration: Hold time at target voltage (nanoseconds)
         macro_type: Always "step"
     """
 
@@ -143,15 +132,18 @@ class StepPointMacro(BasePointMacro):
     @property
     def inferred_duration(self) -> float | None:
         """Total duration of step operation (seconds)."""
-        return self.hold_duration * 1e-9 if self.hold_duration is not None else None
+        default_duration = self._get_default_duration()
+        return default_duration * 1e-9 if default_duration is not None else None
 
-    def apply(self, *args, hold_duration: int | None = None):
+    def apply(self, *args, duration: int | None = None, **kwargs):
         """Execute step operation.
 
         Args:
-            hold_duration: Optional override for hold duration (nanoseconds)
+            duration: Override for hold duration (nanoseconds).
+                If None, uses the VoltageTuningPoint's default duration.
         """
-        duration = hold_duration if hold_duration is not None else self.hold_duration
+        if duration is None:
+            duration = self._get_default_duration()
         point_name = self._get_point_name()
         self.voltage_sequence.step_to_point(point_name, duration=duration)
 
@@ -160,12 +152,11 @@ class StepPointMacro(BasePointMacro):
 class RampPointMacro(BasePointMacro):
     """Macro for gradual voltage transition to registered point.
 
-    Ramps voltage gradually over ramp_duration, then holds for hold_duration.
+    Ramps voltage gradually over ramp_duration, then holds for specified duration.
     Essential for adiabatic transitions.
 
     Attributes:
         point_ref: Reference to VoltageTuningPoint
-        hold_duration: Hold time at target voltage (nanoseconds)
         ramp_duration: Gradual transition time (nanoseconds, default: 16)
         macro_type: Always "ramp"
     """
@@ -176,27 +167,33 @@ class RampPointMacro(BasePointMacro):
     @property
     def inferred_duration(self) -> float | None:
         """Total duration of ramp + hold (seconds)."""
-        if self.ramp_duration is None or self.hold_duration is None:
+        default_duration = self._get_default_duration()
+        if self.ramp_duration is None or default_duration is None:
             return None
-        return (self.ramp_duration + self.hold_duration) * 1e-9
+        return (self.ramp_duration + default_duration) * 1e-9
 
     def apply(
         self,
         *args,
-        hold_duration: int | None = None,
+        duration: int | None = None,
         ramp_duration: int | None = None,
+        **kwargs,
     ):
         """Execute ramp operation.
 
         Args:
-            hold_duration: Optional override for hold duration (nanoseconds)
-            ramp_duration: Optional override for ramp duration (nanoseconds)
+            duration: Override for hold duration (nanoseconds).
+                If None, uses the VoltageTuningPoint's default duration.
+            ramp_duration: Override for ramp duration (nanoseconds).
+                If None, uses the macro's default ramp_duration.
         """
-        ramp_ns = ramp_duration if ramp_duration is not None else self.ramp_duration
-        hold_ns = hold_duration if hold_duration is not None else self.hold_duration
+        if ramp_duration is None:
+            ramp_duration = self.ramp_duration
+        if duration is None:
+            duration = self._get_default_duration()
         point_name = self._get_point_name()
         self.voltage_sequence.ramp_to_point(
             point_name,
-            ramp_duration=ramp_ns,
-            duration=hold_ns,
+            ramp_duration=ramp_duration,
+            duration=duration,
         )

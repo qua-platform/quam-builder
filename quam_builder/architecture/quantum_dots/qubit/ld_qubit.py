@@ -5,7 +5,7 @@ import numpy as np
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixin import VoltageMacroMixin
 
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
@@ -23,7 +23,7 @@ __all__ = ["LDQubit"]
 
 
 @quam_dataclass
-class LDQubit(Qubit, VoltagePointMacroMixin):
+class LDQubit(Qubit, VoltageMacroMixin):
     """
     An example QUAM component for a Loss DiVincenzo Qubit
 
@@ -104,7 +104,7 @@ class LDQubit(Qubit, VoltagePointMacroMixin):
         return self.quantum_dot.id
 
     # Voltage and point methods (go_to_voltages, step_to_voltages, ramp_to_voltages,
-    # add_point, step_to_point, ramp_to_point) are now provided by VoltagePointMacroMixin
+    # add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin
     def _validate_readout_quantum_dot(self, qd_name):
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
         if qd_name not in self.machine.quantum_dots:

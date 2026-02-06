@@ -27,7 +27,7 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from qm.qua import *
 
 
-machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/.qualibrate/quam_state")
+machine = LossDiVincenzoQuam.load()
 
 lf_fem = 6
 mw_fem = 1

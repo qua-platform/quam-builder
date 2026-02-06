@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING
 from quam.core import quam_dataclass
 
 from .voltage_gate import VoltageGate
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
+
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
@@ -12,10 +13,11 @@ __all__ = ["BarrierGate"]
 
 
 @quam_dataclass
-class BarrierGate(VoltagePointMacroMixin):
+class BarrierGate(VoltageMacroMixin):
     """
     A class for a BarrierGate channel
     """
+
     id: str
     physical_channel: VoltageGate
     current_voltage: float = 0.0
@@ -28,7 +30,7 @@ class BarrierGate(VoltagePointMacroMixin):
     def machine(self) -> "BaseQuamQD":
         # Climb up the parent ladder in order to find the VoltageSequence in the machine
         obj = self
-        while obj.parent is not None: 
+        while obj.parent is not None:
             obj = obj.parent
         machine = obj
         return machine
@@ -46,4 +48,4 @@ class BarrierGate(VoltagePointMacroMixin):
         """Update the tracked current voltage."""
         self.current_voltage = voltage
 
-    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltagePointMacroMixin
+    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltageMacroMixin

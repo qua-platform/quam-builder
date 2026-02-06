@@ -46,7 +46,8 @@ from qm.qua import (
 from qm import SimulationConfig, QuantumMachinesManager
 import qm_saas
 import matplotlib
-matplotlib.use('TkAgg')  # Use TkAgg backend for PyCharm compatibility
+
+matplotlib.use("TkAgg")  # Use TkAgg backend for PyCharm compatibility
 import matplotlib.pyplot as plt
 from quam.components import pulses
 from quam.components.ports import LFFEMAnalogOutputPort, MWFEMAnalogOutputPort, LFFEMAnalogInputPort
@@ -57,13 +58,16 @@ from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
     XYDrive,
 )
-from quam_builder.architecture.quantum_dots.components.readout_resonator import ReadoutResonatorSingle
+from quam_builder.architecture.quantum_dots.components.readout_resonator import (
+    ReadoutResonatorSingle,
+)
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 
 # =============================================================================
 # SECTION 1: Create Machine and Physical Channels
 # =============================================================================
+
 
 def create_minimal_machine() -> LossDiVincenzoQuam:
     """
@@ -179,7 +183,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     xy_drive.operations["drive"] = pulses.GaussianPulse(
         length=length,  # Default length in ns, will be overridden in experiment
         amplitude=0.2,
-        sigma=length/6
+        sigma=length / 6,
     )
 
     # -------------------------------------------------------------------------
@@ -195,9 +199,9 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         gate_set_id="main_qpu",
         # Compensation matrix (3x3) accounts for cross-capacitance between gates
         compensation_matrix=[
-            [1.0, 0.1, 0.0],   # virtual_dot_1 -> physical channels
-            [0.1, 1.0, 0.0],   # virtual_dot_2 -> physical channels
-            [0.0, 0.0, 1.0],   # virtual_sensor_1 -> physical channels
+            [1.0, 0.1, 0.0],  # virtual_dot_1 -> physical channels
+            [0.1, 1.0, 0.0],  # virtual_dot_2 -> physical channels
+            [0.0, 0.0, 1.0],  # virtual_sensor_1 -> physical channels
         ],
     )
 
@@ -227,6 +231,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
 # =============================================================================
 # SECTION 2: Register Qubit with Voltage Points
 # =============================================================================
+
 
 def register_qubit_with_points(
     machine: LossDiVincenzoQuam,
@@ -262,24 +267,25 @@ def register_qubit_with_points(
     # Define Voltage Points using Fluent API
     # -------------------------------------------------------------------------
     # Note: All durations must be multiples of 4ns (OPX clock cycles)
-    (qubit
+    (
+        qubit
         # Init point: Load electron into dot at low voltage
         .with_step_point(
             name="init",
             voltages={"virtual_dot_1": 0.05},
-            point_duration=500,  # 500ns hold time
+            duration=500,  # 500ns hold time
         )
         # Operate point: Move to manipulation sweet spot
         .with_step_point(
             name="operate",
             voltages={"virtual_dot_1": 0.15},
-            point_duration=2000,  # 2us hold time (will be overridden by drive duration)
+            duration=2000,  # 2us hold time (will be overridden by drive duration)
         )
         # Readout point: Configure for PSB readout
         .with_step_point(
             name="readout",
             voltages={"virtual_dot_1": -0.05},
-            point_duration=2000,  # 2us readout window
+            duration=2000,  # 2us readout window
         )
     )
 
@@ -289,6 +295,7 @@ def register_qubit_with_points(
 # =============================================================================
 # SECTION 3: Define Custom Macros (Drive and Measure)
 # =============================================================================
+
 
 def add_qubit_macros(qubit: LDQubit):
     """
@@ -327,6 +334,7 @@ def add_qubit_macros(qubit: LDQubit):
             pulse_name: Name of the pulse operation to play (default: "drive")
             amplitude_scale: Optional amplitude scaling factor
         """
+
         pulse_name: str = "drive"
         amplitude_scale: float = None
 
@@ -371,6 +379,7 @@ def add_qubit_macros(qubit: LDQubit):
         Attributes:
             pulse_name: Name of the readout pulse operation (default: "readout")
         """
+
         pulse_name: str = "readout"
 
         def apply(self, **kwargs) -> Tuple:
@@ -408,6 +417,7 @@ def add_qubit_macros(qubit: LDQubit):
 # SECTION 4: Create the Rabi Chevron QUA Program
 # =============================================================================
 
+
 def create_rabi_chevron_program(qubits: List[LDQubit]):
     """
     Create the Rabi chevron QUA program that sweeps frequency and duration.
@@ -425,13 +435,13 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
         QUA program for the Rabi chevron experiment
     """
     # Experiment parameters
-    Navg = 1              # Number of averages
-    t_ini = 50            # Initial duration (clock cycles, 1 cycle = 4ns)
-    t_final = 350         # Final duration (clock cycles)
-    dt = 100              # Duration step (clock cycles)
-    f_ini = int(10e3)     # Initial frequency (Hz)
-    f_final = int(30e6)   # Final frequency (Hz)
-    df = int(10e6)         # Frequency step (Hz)
+    Navg = 1  # Number of averages
+    t_ini = 50  # Initial duration (clock cycles, 1 cycle = 4ns)
+    t_final = 350  # Final duration (clock cycles)
+    dt = 100  # Duration step (clock cycles)
+    f_ini = int(10e3)  # Initial frequency (Hz)
+    f_final = int(30e6)  # Final frequency (Hz)
+    df = int(10e6)  # Frequency step (Hz)
 
     with program() as rabi_chevron:
         # Declare QUA variables
@@ -451,14 +461,14 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
                         update_frequency(qubit.xy_channel.name, f)
 
                         # Step 1: Initialize - load electron into dot
-                        qubit.step_to_point('init')
+                        qubit.step_to_point("init")
 
                         # Synchronize all elements before operation
                         align()
 
                         # Step 2: Operate - move to sweet spot and apply drive
                         # Duration is extended to accommodate the drive pulse
-                        qubit.step_to_point('operate', duration=4 * (t + 40))
+                        qubit.step_to_point("operate", duration=4 * (t + 40))
 
                         # Apply the microwave drive pulse with variable duration
                         qubit.drive(duration=t)
@@ -467,7 +477,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
                         align()
 
                         # Step 3: Readout - move to PSB configuration and measure
-                        qubit.step_to_point('readout')
+                        qubit.step_to_point("readout")
                         I, Q = qubit.measure()
                         save(I, I_stream)
                         save(Q, Q_stream)
@@ -494,6 +504,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 # =============================================================================
 # SECTION 5: Main Entry Point and Experiment Setup
 # =============================================================================
+
 
 def setup_rabi_chevron_experiment():
     """
@@ -564,13 +575,13 @@ if __name__ == "__main__":
 
     # Run simulation using context manager (auto-closes instance on exit)
     with client.simulator(client.latest_version()) as instance:
-        print('\nSimulating Rabi Chevron...')
+        print("\nSimulating Rabi Chevron...")
 
         # Create QuantumMachinesManager connected to the cloud instance
         qmm = QuantumMachinesManager(
             host=instance.host,
             port=instance.port,
-            connection_headers=instance.default_connection_headers
+            connection_headers=instance.default_connection_headers,
         )
 
         # Run the simulation

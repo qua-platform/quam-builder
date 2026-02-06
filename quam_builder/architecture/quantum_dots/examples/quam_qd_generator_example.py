@@ -17,7 +17,7 @@ Workflow:
         the name of the element will be made consistent to that in the VirtualGateSet
 
 5. Register Qubits and QubitPairs
-    - Use machine.register_qubits to register qubits with their relevant type and associated dots.
+    - Use machine.register_qubit to register qubits with their associated dots.
 
 6. Create your QUA programme
     - For simultaneous stepping/ramping, use either
@@ -34,17 +34,19 @@ from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
+    MWFEMAnalogOutputPort,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive, QPU
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
 
 import numpy as np
 
 # Instantiate Quam
-machine = BaseQuamQD()
+machine = LossDiVincenzoQuam()
+machine.qpu = QPU()
 lf_fem_dots = 6
 lf_fem_resonators = 5
 mw_fem = 1
@@ -98,17 +100,9 @@ rs = [
         id=f"readout_resonator_{i}",
         frequency_bare=0,
         intermediate_frequency=500e6,
-        operations={
-            "readout": pulses.SquareReadoutPulse(
-                length=200, id="readout", amplitude=0.01
-            )
-        },
-        opx_output=LFFEMAnalogOutputPort(
-            "con1", lf_fem_resonators, port_id=i * 2 + next_port_id
-        ),
-        opx_input=LFFEMAnalogInputPort(
-            "con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id
-        ),
+        operations={"readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)},
+        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_resonators, port_id=i * 2 + next_port_id),
+        opx_input=LFFEMAnalogInputPort("con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
     for i in range(resonators)
@@ -159,6 +153,63 @@ for i in range(barrier_gates):
         barrier_gate_id=f"virtual_barrier_{i}",
     )
 
-    machine.quantum_dot_pairs[dot_id].define_detuning_axis(matrix=[[1, -1]], set_dc_virtual_axis = False)
+    machine.quantum_dot_pairs[dot_id].define_detuning_axis(
+        matrix=[[1, -1]], set_dc_virtual_axis=False
+    )
+
+#####################################
+###### Register Qubits & Pairs  ######
+#####################################
+
+# Register one qubit per dot
+mw_start_port = 1
+for i in range(plunger_gates):
+    xy_drive = XYDrive(
+        id=f"Q{i}_xy",
+        opx_output=MWFEMAnalogOutputPort(
+            "con1",
+            mw_fem,
+            port_id=mw_start_port + i,
+            upconverter_frequency=5e9,
+            band=2,
+            full_scale_power_dbm=10,
+        ),
+        intermediate_frequency=5e6 + 1e6 * i,
+        operations={
+            "x180": pulses.SquarePulse(
+                length=120,
+                id="x180",
+                amplitude=0.25,
+            ),
+            "x90": pulses.SquarePulse(
+                length=60,
+                id="x90",
+                amplitude=0.125,
+            ),
+            "y90": pulses.SquarePulse(
+                length=60,
+                id="y90",
+                amplitude=0.125,
+            ),
+        },
+    )
+    machine.register_qubit(
+        quantum_dot_id=f"virtual_dot_{i}",
+        qubit_name=f"Q{i}",
+        xy_channel=xy_drive,
+    )
+
+# Set a preferred readout quantum dot for each qubit
+for i in range(plunger_gates):
+    neighbor_idx = i - 1 if i == plunger_gates - 1 else i + 1
+    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
+
+# Register adjacent qubit pairs (Q0_Q1, Q1_Q2, ...)
+for i in range(plunger_gates - 1):
+    machine.register_qubit_pair(
+        qubit_control_name=f"Q{i}",
+        qubit_target_name=f"Q{i+1}",
+        id=f"virtual_dot_{i}_virtual_dot_{i+1}",
+    )
 
 config = machine.generate_config()

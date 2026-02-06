@@ -5,7 +5,7 @@ from typing import Dict, TYPE_CHECKING
 from quam.core import quam_dataclass
 
 from .voltage_gate import VoltageGate
-from .mixin import VoltagePointMacroMixin
+from .mixin import VoltageMacroMixin
 from quam_builder.tools.voltage_sequence import VoltageSequence
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ __all__ = ["GlobalGate"]
 
 
 @quam_dataclass
-class GlobalGate(VoltagePointMacroMixin):
+class GlobalGate(VoltageMacroMixin):
     """
     A class for a GlobalGate channel
     """
@@ -51,4 +51,4 @@ class GlobalGate(VoltagePointMacroMixin):
         """Update the tracked current voltage."""
         self.current_voltage = voltage
 
-    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltagePointMacroMixin
+    # Voltage methods (go_to_voltages, step_to_voltages, ramp_to_voltages) are now provided by VoltageMacroMixin

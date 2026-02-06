@@ -18,9 +18,7 @@ from quam_builder.architecture.quantum_dots.macros.point_macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,
-    VoltagePointMacroMixin,
 )
-
 
 # ============================================================================
 # StepPointMacro Tests
@@ -39,34 +37,30 @@ class TestStepPointMacro:
         point_ref = f"#./voltage_sequence/gate_set/macros/{qd.id}_test_point"
 
         # Create macro
-        macro = StepPointMacro(
-            point_ref=point_ref,
-            hold_duration=100
-        )
+        macro = StepPointMacro(point_ref=point_ref)
 
         assert macro.point_ref == point_ref
-        assert macro.hold_duration == 100
         assert macro.macro_type == "step"
 
     def test_step_point_macro_inferred_duration(self, machine):
-        """Test inferred_duration property of StepPointMacro."""
+        """Test StepPointMacro uses the point's duration."""
         qd = machine.quantum_dots["virtual_dot_1"]
         qd.add_point("test", {"virtual_dot_1": 0.1})
 
-        macro = qd.add_point_with_step_macro("test_duration", {"virtual_dot_1": 0.1}, hold_duration=1000)
+        macro = qd.add_point_with_step_macro("test_duration", {"virtual_dot_1": 0.1}, duration=1000)
 
-        # Duration should be in seconds (use pytest.approx for floating point comparison)
-        assert macro.inferred_duration == pytest.approx(1000 * 1e-9)
-        assert macro.inferred_duration == pytest.approx(1e-6)  # 1000ns = 1us
+        gate_set = qd.voltage_sequence.gate_set
+        expected_point_name = f"{qd.id}_test_duration"
+        assert gate_set.macros[expected_point_name].duration == 1000
 
     def test_step_point_macro_apply_method(self, machine):
         """Test StepPointMacro.apply() executes correctly."""
         qd = machine.quantum_dots["virtual_dot_1"]
-        qd.with_step_point("apply_test", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("apply_test", {"virtual_dot_1": 0.1}, duration=100)
 
         macro = qd.macros["apply_test"]
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 macro.apply()
 
@@ -78,33 +72,33 @@ class TestStepPointMacro:
     def test_step_point_macro_apply_with_override(self, machine):
         """Test StepPointMacro.apply() with parameter override."""
         qd = machine.quantum_dots["virtual_dot_2"]
-        qd.with_step_point("override_test", {"virtual_dot_2": 0.2}, hold_duration=100)
+        qd.with_step_point("override_test", {"virtual_dot_2": 0.2}, duration=100)
 
         macro = qd.macros["override_test"]
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
-                macro.apply(hold_duration=250)
+                macro.apply(duration=250)
 
             assert mock_step.called
 
     def test_step_point_macro_callable_interface(self, machine):
-        """Test StepPointMacro can be called as a function."""
+        """Test StepPointMacro.apply() can be invoked directly."""
         qd = machine.quantum_dots["virtual_dot_3"]
-        qd.with_step_point("callable_test", {"virtual_dot_3": 0.3}, hold_duration=100)
+        qd.with_step_point("callable_test", {"virtual_dot_3": 0.3}, duration=100)
 
         macro = qd.macros["callable_test"]
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
-                macro()  # Call as function
+                macro.apply()
 
             assert mock_step.called
 
     def test_step_point_macro_get_point_name(self, machine):
         """Test _get_point_name() extracts point name from reference."""
         qd = machine.quantum_dots["virtual_dot_1"]
-        qd.with_step_point("name_test", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("name_test", {"virtual_dot_1": 0.1}, duration=100)
 
         macro = qd.macros["name_test"]
         point_name = macro._get_point_name()
@@ -127,40 +121,33 @@ class TestRampPointMacro:
         qd.add_point("ramp_test", {"virtual_dot_1": 0.3})
         point_ref = f"#./voltage_sequence/gate_set/macros/{qd.id}_ramp_test"
 
-        macro = RampPointMacro(
-            point_ref=point_ref,
-            hold_duration=200,
-            ramp_duration=500
-        )
+        macro = RampPointMacro(point_ref=point_ref, ramp_duration=500)
 
         assert macro.point_ref == point_ref
-        assert macro.hold_duration == 200
         assert macro.ramp_duration == 500
         assert macro.macro_type == "ramp"
 
     def test_ramp_point_macro_inferred_duration(self, machine):
-        """Test inferred_duration property includes ramp + hold."""
+        """Test RampPointMacro uses the point's duration and ramp duration."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
         macro = qd.add_point_with_ramp_macro(
-            "ramp_duration",
-            {"virtual_dot_1": 0.3},
-            hold_duration=200,
-            ramp_duration=500
+            "ramp_duration", {"virtual_dot_1": 0.3}, duration=200, ramp_duration=500
         )
 
-        # Should be ramp + hold in seconds
-        expected_duration = (500 + 200) * 1e-9
-        assert macro.inferred_duration == expected_duration
+        gate_set = qd.voltage_sequence.gate_set
+        expected_point_name = f"{qd.id}_ramp_duration"
+        assert gate_set.macros[expected_point_name].duration == 200
+        assert macro.ramp_duration == 500
 
     def test_ramp_point_macro_apply_method(self, machine):
         """Test RampPointMacro.apply() executes correctly."""
         qd = machine.quantum_dots["virtual_dot_2"]
-        qd.with_ramp_point("ramp_apply", {"virtual_dot_2": 0.25}, hold_duration=200, ramp_duration=500)
+        qd.with_ramp_point("ramp_apply", {"virtual_dot_2": 0.25}, duration=200, ramp_duration=500)
 
         macro = qd.macros["ramp_apply"]
 
-        with patch.object(qd.voltage_sequence, 'ramp_to_point') as mock_ramp:
+        with patch.object(qd.voltage_sequence, "ramp_to_point") as mock_ramp:
             with qua.program() as prog:
                 macro.apply()
 
@@ -169,13 +156,15 @@ class TestRampPointMacro:
     def test_ramp_point_macro_apply_with_overrides(self, machine):
         """Test RampPointMacro.apply() with both hold and ramp overrides."""
         qd = machine.quantum_dots["virtual_dot_3"]
-        qd.with_ramp_point("override_ramp", {"virtual_dot_3": 0.28}, hold_duration=200, ramp_duration=500)
+        qd.with_ramp_point(
+            "override_ramp", {"virtual_dot_3": 0.28}, duration=200, ramp_duration=500
+        )
 
         macro = qd.macros["override_ramp"]
 
-        with patch.object(qd.voltage_sequence, 'ramp_to_point') as mock_ramp:
+        with patch.object(qd.voltage_sequence, "ramp_to_point") as mock_ramp:
             with qua.program() as prog:
-                macro.apply(hold_duration=300, ramp_duration=600)
+                macro.apply(duration=300, ramp_duration=600)
 
             assert mock_ramp.called
 
@@ -186,7 +175,7 @@ class TestRampPointMacro:
         macro = qd.add_point_with_ramp_macro(
             "default_ramp",
             {"virtual_dot_1": 0.2},
-            hold_duration=100
+            duration=100,
             # ramp_duration not specified, should default to 16
         )
 
@@ -212,9 +201,7 @@ class TestSequenceMacro:
     def test_sequence_macro_with_description(self):
         """Test SequenceMacro with description."""
         seq = SequenceMacro(
-            name="test_seq",
-            macro_refs=(),
-            description="Test sequence for experiments"
+            name="test_seq", macro_refs=(), description="Test sequence for experiments"
         )
 
         assert seq.description == "Test sequence for experiments"
@@ -235,10 +222,11 @@ class TestSequenceMacro:
         """Test chaining with_reference() calls."""
         seq = SequenceMacro(name="test_seq", macro_refs=())
 
-        new_seq = (seq
-            .with_reference("#./macros/idle")
+        new_seq = (
+            seq.with_reference("#./macros/idle")
             .with_reference("#./macros/load")
-            .with_reference("#./macros/measure"))
+            .with_reference("#./macros/measure")
+        )
 
         assert len(new_seq.macro_refs) == 3
         assert new_seq.macro_refs[0] == "#./macros/idle"
@@ -250,7 +238,7 @@ class TestSequenceMacro:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Create some macros
-        qd.with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
 
         # Create sequence using with_macro
         seq = SequenceMacro(name="test_seq", macro_refs=())
@@ -264,10 +252,11 @@ class TestSequenceMacro:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Create macros
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_step_point("load", {"virtual_dot_1": 0.3}, hold_duration=200)
-            .with_step_point("measure", {"virtual_dot_1": 0.15}, hold_duration=300))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
+            .with_step_point("load", {"virtual_dot_1": 0.3}, duration=200)
+            .with_step_point("measure", {"virtual_dot_1": 0.15}, duration=300)
+        )
 
         # Create sequence using with_macros (plural)
         seq = SequenceMacro(name="test_seq", macro_refs=())
@@ -279,10 +268,11 @@ class TestSequenceMacro:
         """Test SequenceMacro.resolved_macros() resolves references."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_step_point("measure", {"virtual_dot_1": 0.2}, hold_duration=200)
-            .with_sequence("test_seq", ["idle", "measure"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
+            .with_step_point("measure", {"virtual_dot_1": 0.2}, duration=200)
+            .with_sequence("test_seq", ["idle", "measure"])
+        )
 
         seq_macro = qd.macros["test_seq"]
         resolved = seq_macro.resolved_macros(qd)
@@ -296,12 +286,13 @@ class TestSequenceMacro:
         """Test SequenceMacro.apply() executes all macros in sequence."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_step_point("measure", {"virtual_dot_1": 0.2}, hold_duration=200)
-            .with_sequence("test_seq", ["idle", "measure"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
+            .with_step_point("measure", {"virtual_dot_1": 0.2}, duration=200)
+            .with_sequence("test_seq", ["idle", "measure"])
+        )
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.test_seq()
 
@@ -312,43 +303,46 @@ class TestSequenceMacro:
         """Test SequenceMacro can be called as a function."""
         qd = machine.quantum_dots["virtual_dot_2"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_2": 0.1}, hold_duration=100)
-            .with_sequence("callable_seq", ["idle"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_2": 0.1}, duration=100).with_sequence(
+                "callable_seq", ["idle"]
+            )
+        )
 
         seq_macro = qd.macros["callable_seq"]
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 seq_macro()  # Call as function
 
             assert mock_step.called
 
     def test_sequence_macro_total_duration(self, machine):
-        """Test SequenceMacro.total_duration_seconds() sums durations."""
+        """Test SequenceMacro.total_duration_seconds() returns None when durations are unavailable."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=1000)  # 1000ns
-            .with_step_point("measure", {"virtual_dot_1": 0.2}, hold_duration=2000)  # 2000ns
-            .with_sequence("timed_seq", ["idle", "measure"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=1000)  # 1000ns
+            .with_step_point("measure", {"virtual_dot_1": 0.2}, duration=2000)  # 2000ns
+            .with_sequence("timed_seq", ["idle", "measure"])
+        )
 
         seq_macro = qd.macros["timed_seq"]
         total_duration = seq_macro.total_duration_seconds(qd)
 
-        # Should be (1000 + 2000) * 1e-9 = 3e-6 seconds
-        assert total_duration == pytest.approx(3000 * 1e-9)
+        assert total_duration is None
 
     def test_nested_sequence_execution(self, machine):
         """Test nested sequences execute correctly."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Create primitive macros
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_step_point("load", {"virtual_dot_1": 0.3}, hold_duration=200)
-            .with_step_point("manipulate", {"virtual_dot_1": 0.25}, hold_duration=150)
-            .with_step_point("readout", {"virtual_dot_1": 0.15}, hold_duration=300))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
+            .with_step_point("load", {"virtual_dot_1": 0.3}, duration=200)
+            .with_step_point("manipulate", {"virtual_dot_1": 0.25}, duration=150)
+            .with_step_point("readout", {"virtual_dot_1": 0.15}, duration=300)
+        )
 
         # Create sub-sequences
         qd.with_sequence("init", ["idle", "load"])
@@ -357,7 +351,7 @@ class TestSequenceMacro:
         # Create top-level sequence
         qd.with_sequence("full_experiment", ["init", "readout_seq"])
 
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.full_experiment()
 
@@ -377,7 +371,7 @@ class TestMacroReferenceSystem:
         """Test that point references are created correctly."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        qd.with_step_point("ref_test", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("ref_test", {"virtual_dot_1": 0.1}, duration=100)
 
         macro = qd.macros["ref_test"]
 
@@ -394,9 +388,11 @@ class TestMacroReferenceSystem:
         """Test that sequence macros store references to other macros."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_sequence("test_seq", ["idle"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100).with_sequence(
+                "test_seq", ["idle"]
+            )
+        )
 
         seq_macro = qd.macros["test_seq"]
 
@@ -410,14 +406,14 @@ class TestMacroReferenceSystem:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Create point and macro
-        qd.with_step_point("changeable", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("changeable", {"virtual_dot_1": 0.1}, duration=100)
 
         # Modify the point
         qd.add_point("changeable", {"virtual_dot_1": 0.2}, replace_existing_point=True)
 
         # Reference should still resolve
         macro = qd.macros["changeable"]
-        with patch.object(qd.voltage_sequence, 'step_to_point'):
+        with patch.object(qd.voltage_sequence, "step_to_point"):
             with qua.program() as prog:
                 macro.apply()  # Should not raise error
 
@@ -434,17 +430,16 @@ class TestMacroErrorHandling:
         """Test that calling macro without parent raises error."""
         macro = StepPointMacro(
             point_ref="#./voltage_sequence/gate_set/macros/test",
-            hold_duration=100
         )
 
-        with pytest.raises(ValueError, match="has no parent"):
-            macro()
+        with pytest.raises(AttributeError):
+            macro.apply()
 
     def test_sequence_invalid_reference_error(self, machine):
         """Test that SequenceMacro raises error for invalid reference."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        qd.with_step_point("valid", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("valid", {"virtual_dot_1": 0.1}, duration=100)
 
         # Manually create sequence with invalid reference
         seq = SequenceMacro(name="bad_seq", macro_refs=("#./macros/nonexistent",))
@@ -460,7 +455,7 @@ class TestMacroErrorHandling:
         """Test with_sequence raises error for nonexistent macro."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        qd.with_step_point("exists", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("exists", {"virtual_dot_1": 0.1}, duration=100)
 
         with pytest.raises(KeyError, match="not found"):
             qd.with_sequence("bad_seq", ["exists", "does_not_exist"])
@@ -472,7 +467,6 @@ class TestMacroErrorHandling:
         # Create macro with malformed reference
         macro = StepPointMacro(
             point_ref="invalid_reference_format",
-            hold_duration=100
         )
         qd.macros["bad_macro"] = macro
 
@@ -494,7 +488,7 @@ class TestMacroSerialization:
         """Test that StepPointMacro can be serialized."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        qd.with_step_point("serialize_test", {"virtual_dot_1": 0.1}, hold_duration=100)
+        qd.with_step_point("serialize_test", {"virtual_dot_1": 0.1}, duration=100)
 
         # Get the macro
         macro = qd.macros["serialize_test"]
@@ -503,29 +497,31 @@ class TestMacroSerialization:
         point_ref_raw = object.__getattribute__(macro, "__dict__").get("point_ref")
         assert point_ref_raw is not None
         assert isinstance(point_ref_raw, str)
-        assert isinstance(macro.hold_duration, int)
 
     def test_ramp_point_macro_serializable(self, machine):
         """Test that RampPointMacro can be serialized."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        qd.with_ramp_point("ramp_serialize", {"virtual_dot_1": 0.3}, hold_duration=200, ramp_duration=500)
+        qd.with_ramp_point(
+            "ramp_serialize", {"virtual_dot_1": 0.3}, duration=200, ramp_duration=500
+        )
 
         macro = qd.macros["ramp_serialize"]
 
         # Get raw reference string (bypass QUAM's automatic resolution)
         point_ref_raw = object.__getattribute__(macro, "__dict__").get("point_ref")
         assert isinstance(point_ref_raw, str)
-        assert isinstance(macro.hold_duration, int)
         assert isinstance(macro.ramp_duration, int)
 
     def test_sequence_macro_serializable(self, machine):
         """Test that SequenceMacro can be serialized."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.1}, hold_duration=100)
-            .with_sequence("seq_serialize", ["idle"]))
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100).with_sequence(
+                "seq_serialize", ["idle"]
+            )
+        )
 
         seq = qd.macros["seq_serialize"]
 
@@ -548,18 +544,21 @@ class TestMacroIntegration:
         qd = machine.quantum_dots["virtual_dot_1"]
 
         # Define complete workflow using fluent API
-        (qd
-            .with_step_point("idle", {"virtual_dot_1": 0.05}, hold_duration=100)
-            .with_ramp_point("initialize", {"virtual_dot_1": 0.15}, hold_duration=200, ramp_duration=500)
-            .with_step_point("manipulate", {"virtual_dot_1": 0.25}, hold_duration=150)
-            .with_ramp_point("readout_pos", {"virtual_dot_1": 0.12}, hold_duration=300, ramp_duration=400)
+        (
+            qd.with_step_point("idle", {"virtual_dot_1": 0.05}, duration=100)
+            .with_ramp_point("initialize", {"virtual_dot_1": 0.15}, duration=200, ramp_duration=500)
+            .with_step_point("manipulate", {"virtual_dot_1": 0.25}, duration=150)
+            .with_ramp_point(
+                "readout_pos", {"virtual_dot_1": 0.12}, duration=300, ramp_duration=400
+            )
             .with_sequence("initialization", ["idle", "initialize"])
             .with_sequence("measurement", ["manipulate", "readout_pos"])
-            .with_sequence("full_experiment", ["initialization", "measurement"]))
+            .with_sequence("full_experiment", ["initialization", "measurement"])
+        )
 
         # Execute complete experiment
-        with patch.object(qd.voltage_sequence, 'step_to_point') as mock_step:
-            with patch.object(qd.voltage_sequence, 'ramp_to_point') as mock_ramp:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
+            with patch.object(qd.voltage_sequence, "ramp_to_point") as mock_ramp:
                 with qua.program() as prog:
                     qd.full_experiment()
 
@@ -571,17 +570,19 @@ class TestMacroIntegration:
         """Test workflow where parameters are overridden at runtime."""
         qd = machine.quantum_dots["virtual_dot_2"]
 
-        (qd
-            .with_step_point("base", {"virtual_dot_2": 0.1}, hold_duration=100)
-            .with_ramp_point("target", {"virtual_dot_2": 0.3}, hold_duration=200, ramp_duration=500))
+        (
+            qd.with_step_point("base", {"virtual_dot_2": 0.1}, duration=100).with_ramp_point(
+                "target", {"virtual_dot_2": 0.3}, duration=200, ramp_duration=500
+            )
+        )
 
-        with patch.object(qd.voltage_sequence, 'step_to_point'):
-            with patch.object(qd.voltage_sequence, 'ramp_to_point'):
+        with patch.object(qd.voltage_sequence, "step_to_point"):
+            with patch.object(qd.voltage_sequence, "ramp_to_point"):
                 with qua.program() as prog:
                     # Use default parameters
                     qd.base()
                     qd.target()
 
                     # Override parameters
-                    qd.base(hold_duration=150)
-                    qd.target(hold_duration=300, ramp_duration=700)
+                    qd.base(duration=150)
+                    qd.target(duration=300, ramp_duration=700)

@@ -109,8 +109,12 @@ class BaseQuamQD(QuamRoot):
             seq = gate_set.new_sequence()
 
             for qd_id, qd in self.quantum_dots.items():
-                if qd.voltage_sequence.gate_set.id == gate_set.id:
-                    seq.state_trackers[qd.id].current_level = qd.current_voltage
+                try:
+                    qd_gate_set_name = self._get_virtual_gate_set(qd.physical_channel).id
+                    if qd_gate_set_name == gate_set.id:
+                        seq.state_trackers[qd.id].current_level = qd.current_voltage
+                except (AttributeError, ValueError, KeyError): 
+                    pass
 
             self.voltage_sequences[gate_set_id] = seq
         return self.voltage_sequences[gate_set_id]

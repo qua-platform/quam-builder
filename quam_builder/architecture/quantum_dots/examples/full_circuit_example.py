@@ -55,7 +55,7 @@ CONFIG_Q1_Q2 = {
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
-    "timing": {"hold_duration": 100, "wait_duration": 240},
+    "timing": {"duration": 100, "wait_duration": 240},
     "threshold": 0.05,
 }
 
@@ -72,7 +72,7 @@ CONFIG_Q2_Q3 = {
     },
     "readout": {"length": 240, "amplitude": 0.12},
     "x180": {"amplitude": 0.25, "length": 120},
-    "timing": {"hold_duration": 100, "wait_duration": 240},
+    "timing": {"duration": 100, "wait_duration": 240},
     "threshold": 0.05,
 }
 
@@ -210,7 +210,7 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     readout_params = config["readout"]
     x180_params = config["x180"]
     measure_threshold = config["threshold"]
-    hold_duration = config["timing"]["hold_duration"]
+    duration = config["timing"]["duration"]
     wait_duration = config["timing"]["wait_duration"]
 
     # Add Voltage Points
@@ -240,10 +240,10 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     return (
         qubit_pair
         # Configure step points
-        .with_step_point("measure_point", hold_duration=hold_duration)
-        .with_step_point("load_point", hold_duration=hold_duration)
+        .with_step_point("measure_point", duration=duration)
+        .with_step_point("load_point", duration=duration)
         .with_ramp_point(
-            "exchange_point", hold_duration=16, ramp_duration=EXCHANGE_PARAMS["exchange_duration"]
+            "exchange_point", duration=16, ramp_duration=EXCHANGE_PARAMS["exchange_duration"]
         )
         # PSB (Pauli Spin Blockade) measurement - just measure at measurement point
         .with_sequence(
