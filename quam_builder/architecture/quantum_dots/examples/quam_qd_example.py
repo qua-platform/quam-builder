@@ -79,9 +79,8 @@ resonator = ReadoutResonatorSingle(
     frequency_bare=0, 
     intermediate_frequency=500e6,
     operations = {"readout": readout_pulse}, 
-    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1), 
+    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1, upsampling_mode = "mw"), 
     opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2),
-    sticky = StickyChannelAddon(duration = 16, digital = False), 
 )
 
 #####################################
@@ -160,12 +159,14 @@ machine.register_quantum_dot_pair(
 # Define the detuning axes for both QuantumDotPairs
 machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
     matrix = [[1,-1]], 
-    detuning_axis_name = "dot1_dot2_pair_epsilon"
+    detuning_axis_name = "dot1_dot2_pair_epsilon",
+    set_dc_virtual_axis=False,
 )
 
 machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix = [[1,-1]], 
-    detuning_axis_name = "dot3_dot4_pair_epsilon"
+    detuning_axis_name = "dot3_dot4_pair_epsilon",
+    set_dc_virtual_axis=False,
 )
 
 
@@ -178,7 +179,7 @@ machine.update_cross_compensation_submatrix(
     virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
     channels = [p4], 
     matrix = [[0.1, 0.5]], 
-    target = "both"
+    target = "opx"
 )
 
 machine.update_cross_compensation_submatrix(
@@ -188,7 +189,7 @@ machine.update_cross_compensation_submatrix(
               [0.2, 1, 0.6, 0.8], 
               [0.1, 0.3, 1, 0.3], 
               [0.2, 0.5, 0.1, 1]], 
-    target = "both"
+    target = "opx"
 )
 
 ###########################
