@@ -4,16 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
-- Add spectator qubit support in `CZGate` class with phase shift handling.
-- Add `duration_control` parameter to `CZGate` for better pulse handling.
-
-## [0.2.1] - 2025-12-05
 ### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
-- A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
+  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 ### Fixed
 - NV center - fix invalid `SPCM` component.
-- Fixed active reset bug when running on 18 qubits iq_blobs (to many redundant align ids)
 
 ## [0.2.0] - 2025-10-29
 ### Added
@@ -42,8 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.1
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.0
 [0.1.2]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.2
 [0.1.1]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.1

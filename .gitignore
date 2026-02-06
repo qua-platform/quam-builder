@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -151,6 +154,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# Ruff
+.ruff_cache/
+
 # Pyre type checker
 .pyre/
 
@@ -165,12 +171,17 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+.iml
+*.iml
+.xml
+*.xml
 .idea/
 
 # PyPI configuration file
 .pypirc
 
 # VS Code related files
+.vscode/
 tempCodeRunnerFile*
 tmp_file.py
 
@@ -180,3 +191,8 @@ uv.lock
 *.code-workspace
 
 quam_builder/architecture/quantum_dots/other
+
+misc.xml
+quam-builder.iml
+/quam_builder/architecture/quantum_dots/examples/config/
+/quam_builder/architecture/quantum_dots/examples/quam_state/

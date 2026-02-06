@@ -101,6 +101,8 @@ class GateSet(QuantumComponent):
 
     def __post_init__(self):
         for ch in self.channels.values():
+            if isinstance(ch, str):
+                continue
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
                     ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(

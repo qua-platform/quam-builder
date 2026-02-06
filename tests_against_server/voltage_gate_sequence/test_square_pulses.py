@@ -296,6 +296,8 @@ def test_python_voltage_sequence_virtual_gates_and_elements(
 
 def test_keep_levels(qmm, virtual_machine: QuamVirtualGateSet):
     """ """
+    virtual_machine.virtual_gate_set.channels["ch1"].attenuation = 0
+    virtual_machine.virtual_gate_set.channels["ch2"].attenuation = 0
     with qua.program() as program:
         seq = virtual_machine.virtual_gate_set.new_sequence(
             track_integrated_voltage=True
@@ -307,8 +309,9 @@ def test_keep_levels(qmm, virtual_machine: QuamVirtualGateSet):
         seq.step_to_voltages(voltages={"ch1": 0.0, "ch2": 0.0}, duration=16)
 
     qmm, samples = simulate_program(qmm, virtual_machine, program, int(2e3))
-    ch1_expected = [to_float_16(0.2)] * 400 + [to_float_16(0.3)] * 400
-    ch2_expected = [to_float_16(0.1)] * 400 + [to_float_16(-0.2)] * 200
+
+    ch1_expected = [to_float_16(0.02)] * 400 + [to_float_16(0.03)] * 400
+    ch2_expected = [to_float_16(0.01)] * 400 + [to_float_16(-0.02)] * 200
 
     validate_keep_levels(samples.con1.analog["5-6"], ch1_expected)
     validate_keep_levels(samples.con1.analog["5-3"], ch2_expected)
