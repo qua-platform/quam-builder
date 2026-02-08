@@ -1,6 +1,8 @@
 from typing import Dict, List 
 from dataclasses import dataclass, field
 from quam.core import quam_dataclass
+from quam.components import QuantumComponent
+from quam.components.pulses import SquarePulse
 
 @quam_dataclass
 class RegionRegistry:
@@ -19,10 +21,8 @@ registry = RegionRegistry()
 
 
 @quam_dataclass
-class Region: 
-    #TODO: add method which allows to update the region dimensions (and updates the registry, its center and so on)
-
-    name: str
+class Region(QuantumComponent): 
+    #TODO: add method which allows to update the region dimensions (and updates the registry, its center and so on
     x1: float
     y1: float
     x2: float
@@ -30,6 +30,10 @@ class Region:
     channels: List[str]
     center: tuple = field(init=False)   #automatically calculated
 
+    @property
+    def name(self) -> str:
+        return self.id
+    
 
     def __post_init__(self):
         if self.name in registry.regions:
@@ -37,7 +41,46 @@ class Region:
         registry.regions[self.name] = []
 
         self.center = ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
-
+    
+    @QuantumComponent.register_macro
+    def global_h(self, amplitude: float = 0.5, length: int = 40):
+        """
+        Apply a global Hadamard-like π/2 pulse to all qubits in the region.
+        Args:
+            region: Name of the region containing qubits
+            amplitude: Amplitude of the square pulse
+            length: Pulse length in samples
+        """
+        # Create the square pulse
+        h_pulse = SquarePulse(
+            amplitude=amplitude,
+            length=length,
+        )
+        # Play it on the OPX channel associated with this region
+        # Assume you have a mapping from region -> channel(s)
+        channels = self.channel
+        for ch in channels:
+            ch.play(h_pulse)
+    
+    @QuantumComponent.register_macro
+    def global_cz(self, amplitude: float = 5, length: int = 1):
+        """
+        Apply a global Rydberg CZp pulse to all qubits in the region. Inly close qbit paris will be affected.
+        Args:
+            region: Name of the region containing qubits
+            amplitude: Amplitude of the square pulse
+            length: Pulse length in samples
+        """
+        # Create the square pulse
+        h_pulse = SquarePulse(
+            amplitude=amplitude,
+            length=length,
+        )
+        # Play it on the OPX channel associated with this region
+        # Assume you have a mapping from region -> channel(s)
+        channels = self.channel
+        for ch in channels:
+            ch.play(h_pulse)
 
 def create_region(name: str):
     """Create a new region if it does not exist."""

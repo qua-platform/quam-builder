@@ -1,19 +1,27 @@
 from typing import Dict
 
 from dataclasses import dataclass , field
-from quam.core import QuamRoot, quam_dataclass , QuantumComponent
+from quam.core import QuamRoot, quam_dataclass
+from quam.components import QuantumComponent
 from qm import qua , program
 
 
 from quam.components import SingleChannel
 from quam.components.channels import Channel
-from quam.components.pulses import SquarePulse
+
+from quam_builder.architecture.neutral_atoms.components import TweezerDriver, Sensor, Region, Tweezer
 
 @quam_dataclass
 class  BaseQuamNA(QuamRoot):
-    channel : SingleChannel
-    #channels: list[SingleChannel]
-
+    channels: list[SingleChannel]
+    tweezer_depth: float = 5.0  # in mK
+    scale: float = 1.0  # scaling factor between qum and real space
+    rydberg_distance: float = 0.3  # in scaled units
+    channel_voltages: Dict[str, float] = field(default_factory=dict)
+    _drivers: list[TweezerDriver] = field(default_factory=list)
+    _regions: list = field(default_factory=list)
+    _sensors: list = field(default_factory=list)
+    _tweezers: list = field(default_factory=list)
 
     def set_voltage(self, voltage: float):
         """
@@ -25,29 +33,61 @@ class  BaseQuamNA(QuamRoot):
         if hasattr(self.channel, "offset_parameter") and self.channel.offset_parameter is not None:
             self.channel.offset_parameter(voltage)
         self.channel.current_voltage = voltage  # keep track internally
+    
+    def register_driver(self, driver: TweezerDriver):
+        self._drivers = getattr(self, "_drivers", [])
+        self._drivers.append(driver)
 
+    def register_sensor(self, sensor: Sensor):
+        self._sensors = getattr(self, "_sensors", [])
+        self._sensors.append(sensor)
 
+    def register_regions(self, region: Region):
+        self._regions = getattr(self, "_regions", [])
+        self._regions.append(region)
+    
+    def register_tweezer(self, tweezer: Tweezer):
+        self._tweezers = getattr(self, "_tweezers", [])
+        self._tweezers.append(tweezer)
+
+    def create_tweezer(self, spots: list[tuple[float, float]], id: str | None = None, drive: str | None = None) -> Tweezer:
+        tweezer = Tweezer(spots=spots, id=id, drive=drive)
+        self.register_tweezer(tweezer)
+        return tweezer
+
+    def get_region(self, name: str):
+        for region in self._regions:
+            if region.name == name:
+                return region
+        raise ValueError(f"Region '{name}' not found")
+
+    def get_driver(self, name: str):
+        for driver in self._drivers:
+            if driver.name == name:
+                return driver
+        raise ValueError(f"Driver '{name}' not found")
+
+    def get_sensor(self, name: str):
+        for sensor in self._sensors:
+            if sensor.name == name:
+                return sensor
+        raise ValueError(f"Sensor '{name}' not found")
+    
     @QuantumComponent.register_macro
-    def global_h(self, region: str, amplitude: float = 0.5, length: int = 40):
+    def measure(self, region_name: str, sensor_name: str):
         """
-        Apply a global Hadamard-like π/2 pulse to all qubits in the region.
+        Measure the signal from the channel for a specific region.
 
         Args:
-            region: Name of the region containing qubits
-            amplitude: Amplitude of the square pulse
-            length: Pulse length in samples
-            axis_angle: IQ rotation of the pulse (radians)
+            region: Name of the region to measure in
+
+        Returns:
+            Measured signal value
         """
+        region = self.get_region(region_name)
+        sensor = self.get_sensor(sensor_name)
 
-        # Create the square pulse
-        h_pulse = SquarePulse(
-            amplitude=amplitude,
-            length=length,
-        )
 
-        # Play it on the OPX channel associated with this region
-        # Assume you have a mapping from region -> channel(s)
-        channels = self.get_channels_for_region(region)
-
-        for ch in channels:
-            ch.play(h_pulse)
+        sensor.trigger()
+        region.imaging_pulse(amplitude=0.5, length=100)
+        
