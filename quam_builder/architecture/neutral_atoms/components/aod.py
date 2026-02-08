@@ -37,10 +37,5 @@ class AOD(TweezerDriver):
             length: Pulse length in samples
         """
         # Create the square pulse
-        h_pulse = SquarePulse(
-            amplitude=amplitude,
-            length=length,
-        )
-        # Create the square pulse
         for ch in self.channels:
-            ch.play(h_pulse)
+            ch.play("h_pulse")

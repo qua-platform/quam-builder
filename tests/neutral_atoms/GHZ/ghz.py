@@ -36,24 +36,25 @@ def load_atoms():
     return atoms
 
 def init_qpu():
-    
+    qpu = BaseQuamNA()
+
     aod_channel_x = SingleChannel(opx_output=("con1", 1), id="ch1")
     aod_channel_y = SingleChannel(opx_output=("con1", 2), id="ch2")
 
     SLM_channel = DigitalOutputChannel(opx_output=("con1", 3))
-    hamammatsu_channel = DigitalOutputChannel(opx_output=("con1", 4))
+    hamammatsu_channel = SingleChannel(opx_output=("con1", 4) ,id="ch4")
     
-    drive_channel = SingleChannel(opx_output=("con1", 5))
-    readout_channel = SingleChannel(opx_output=("con1", 6))
-    prepare_channel = SingleChannel(opx_output=("con1", 7))
-    entangle_channel = SingleChannel(opx_output=("con1", 8))
+    drive_channel = SingleChannel(opx_output=("con1", 5), id="ch5")
+    readout_channel = SingleChannel(opx_output=("con1", 6), id="ch6")
+    prepare_channel = SingleChannel(opx_output=("con1", 7), id="ch7")
+    entangle_channel = SingleChannel(opx_output=("con1", 8), id="ch8")
     
     channels = [aod_channel_x, aod_channel_y, drive_channel, readout_channel, prepare_channel, entangle_channel]
     digital_channels = [SLM_channel, hamammatsu_channel]
     # Create the square pulse
     for channel in channels:
-        channel.operations["h_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)    
-    qpu = BaseQuamNA(channels=channels)
+        channel.operations["h_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
+        qpu.register_channel(channel)  
     
     # -- set QPU default parameters --
     qpu.tweezer_depth = 10
@@ -61,10 +62,10 @@ def init_qpu():
     qpu.rydberg_distance = 0.2  # in scaled units
 
     # --- Regions ---
-    drive_region = Region(id="drive", channels=[drive_channel], x1=0, y1=0, x2=10, y2=0)
-    prepare_region = Region(id="prepare", channels=[prepare_channel], x1=10, y1=0, x2=10, y2=0)
-    entangle_region = Region(id="entangle", channels=[entangle_channel], x1=20, y1=0, x2=20, y2=0)
-    readout_region = Region(id="readout", channels=[readout_channel], x1=30, y1=0, x2=30, y2=0)
+    drive_region = Region(id="drive", channels=[drive_channel.name], x1=0, y1=0, x2=10, y2=0)
+    prepare_region = Region(id="prepare", channels=[prepare_channel.name], x1=10, y1=0, x2=10, y2=0)
+    entangle_region = Region(id="entangle", channels=[entangle_channel.name], x1=20, y1=0, x2=20, y2=0)
+    readout_region = Region(id="readout", channels=[readout_channel.name], x1=30, y1=0, x2=30, y2=0)
     for region in [drive_region, readout_region, prepare_region, entangle_region]:
         qpu.register_regions(region)
 

@@ -51,16 +51,11 @@ class Region(QuantumComponent):
             amplitude: Amplitude of the square pulse
             length: Pulse length in samples
         """
-        # Create the square pulse
-        h_pulse = SquarePulse(
-            amplitude=amplitude,
-            length=length,
-        )
         # Play it on the OPX channel associated with this region
         # Assume you have a mapping from region -> channel(s)
-        channels = self.channel
+        channels = [self.parent.parent.get_channel(channel_name) for channel_name in self.channels]
         for ch in channels:
-            ch.play(h_pulse)
+            ch.play("h_pulse")
     
     @QuantumComponent.register_macro
     def global_cz(self, amplitude: float = 5, length: int = 1):

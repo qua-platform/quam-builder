@@ -13,7 +13,7 @@ from quam_builder.architecture.neutral_atoms.components import TweezerDriver, Se
 
 @quam_dataclass
 class  BaseQuamNA(QuamRoot):
-    channels: list[SingleChannel]
+    _channels: list = field(default_factory=list)
     tweezer_depth: float = 5.0  # in mK
     scale: float = 1.0  # scaling factor between qum and real space
     rydberg_distance: float = 0.3  # in scaled units
@@ -49,6 +49,10 @@ class  BaseQuamNA(QuamRoot):
     def register_tweezer(self, tweezer: Tweezer):
         self._tweezers = getattr(self, "_tweezers", [])
         self._tweezers.append(tweezer)
+    
+    def register_channel(self, channel: Channel):
+        self._channels = getattr(self, "_channels", [])
+        self._channels.append(channel)
 
     def create_tweezer(self, spots: list[tuple[float, float]], id: str | None = None, drive: str | None = None) -> Tweezer:
         tweezer = Tweezer(spots=spots, id=id, drive=drive)
@@ -72,6 +76,12 @@ class  BaseQuamNA(QuamRoot):
             if sensor.name == name:
                 return sensor
         raise ValueError(f"Sensor '{name}' not found")
+    
+    def get_channel(self, name: str):
+        for channel in self._channels:
+            if channel.name == name:
+                return channel
+        raise ValueError(f"Channel '{name}' not found")
     
     @QuantumComponent.register_macro
     def measure(self, region_name: str, sensor_name: str):
