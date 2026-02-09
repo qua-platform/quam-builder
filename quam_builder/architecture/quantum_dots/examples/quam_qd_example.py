@@ -27,6 +27,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components import (
     StickyChannelAddon,
     pulses,
@@ -169,7 +171,7 @@ machine.register_channel_elements(
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = os.environ.get("QUAM_QDAC") == "1"
 if qdac_connect:
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):

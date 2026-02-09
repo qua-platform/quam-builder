@@ -31,6 +31,7 @@ Requirements:
 - Voltage sequence with compensation pulse capability
 """
 
+import os
 from typing import List, Tuple
 from qm.qua import (
     program,
@@ -54,10 +55,7 @@ from quam.components.ports import LFFEMAnalogOutputPort, MWFEMAnalogOutputPort, 
 from quam.components.channels import StickyChannelAddon
 
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate,
-    XYDrive,
-)
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
 )
@@ -165,7 +163,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # XY Drive Channel
     # -------------------------------------------------------------------------
     # Microwave channel for qubit rotations
-    xy_drive = XYDrive(
+    xy_drive = XYDriveMW(
         id="Q1_xy",
         opx_output=MWFEMAnalogOutputPort(
             controller_id=controller,
@@ -176,7 +174,6 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             full_scale_power_dbm=10,
         ),
         intermediate_frequency=100e6,
-        add_default_pulses=True,
     )
     # Add a variable-length drive pulse for Rabi experiments
     length = 100
@@ -235,7 +232,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
 
 def register_qubit_with_points(
     machine: LossDiVincenzoQuam,
-    xy_drive: XYDrive,
+    xy_drive: XYDriveMW,
 ) -> LDQubit:
     """
     Register an LDQubit and define voltage points for the experiment.
@@ -397,7 +394,18 @@ def add_qubit_macros(qubit: LDQubit):
 
             # Navigate to qubit and get the associated sensor dot
             parent_qubit = self.parent.parent
-            sensor_dot = parent_qubit.sensor_dots[0]
+            machine = parent_qubit.machine
+            qd_pair_id = machine.find_quantum_dot_pair(
+                parent_qubit.quantum_dot.id, parent_qubit.preferred_readout_quantum_dot
+            )
+            if (
+                qd_pair_id is not None
+                and qd_pair_id in machine.quantum_dot_pairs
+                and machine.quantum_dot_pairs[qd_pair_id].sensor_dots
+            ):
+                sensor_dot = machine.quantum_dot_pairs[qd_pair_id].sensor_dots[0]
+            else:
+                sensor_dot = next(iter(machine.sensor_dots.values()))
 
             # Wait for transients, then perform measurement
             sensor_dot.readout_resonator.wait(64)
@@ -563,6 +571,9 @@ if __name__ == "__main__":
     PASSWORD = "password"
 
     print("\nConnecting to QM SaaS cloud simulator...")
+    if os.environ.get("QM_SAAS_RUN") != "1":
+        print("  QM_SAAS_RUN not set; skipping cloud execution.")
+        raise SystemExit(0)
     client = qm_saas.QmSaas(
         email=EMAIL,
         password=PASSWORD,

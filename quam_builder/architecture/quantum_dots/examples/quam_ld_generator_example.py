@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
@@ -13,7 +16,11 @@ from qm.qua import *
 import numpy as np
 
 # Instantiate Quam
-machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/.qualibrate/quam_state")
+state_path = Path(os.environ.get("QUAM_STATE_PATH", "/Users/kalidu_laptop/.qualibrate/quam_state"))
+if not state_path.exists():
+    print(f"State path not found: {state_path}. Set QUAM_STATE_PATH to run.")
+    raise SystemExit(0)
+machine = LossDiVincenzoQuam.load(str(state_path))
 
 #############################
 ###### Register Qubits ######

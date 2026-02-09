@@ -19,6 +19,8 @@ The circuit structure:
 # ============================================================================
 # Imports
 # ============================================================================
+import os
+
 from qm.qua import *
 from qm import qua
 from quam import QuamComponent
@@ -30,8 +32,8 @@ from quam.utils.qua_types import QuaVariableBool
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.examples.operations import operations_registry
-from quam_builder.tools.macros import AlignMacro, WaitMacro, MeasureMacro
+from quam_builder.tools.macros.default_macros import AlignMacro, WaitMacro
+from quam_builder.tools.macros.measure_macros import MeasureMacro
 
 from quam_qd_generator_example import machine
 
@@ -138,24 +140,34 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     )
 
 
-q1 = machine.get_component("Q1")
-q2 = machine.get_component("Q2")
-q3 = machine.get_component("Q3")
-q4 = machine.get_component("Q4")
-q5 = machine.get_component("Q5")
+def _qubit_sort_key(name: str) -> int:
+    try:
+        return int(name.lstrip("Q"))
+    except ValueError:
+        return 0
+
+
+qubit_names = sorted(machine.qubits.keys(), key=_qubit_sort_key)
+if len(qubit_names) < 3:
+    raise SystemExit("Need at least 3 qubits to run init circuit example.")
+
+q1 = machine.get_component(qubit_names[0])
+q2 = machine.get_component(qubit_names[1])
+q3 = machine.get_component(qubit_names[2])
 
 q3.with_step_point(
     "load", {"virtual_dot_1": 0.1, "virtual_dot_2": 0.3, "virtual_dot_3": 0.4}, duration=16
 )
 
-configure_qubit_pair_for_reset(q1 @ q2, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q2 @ q3, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q3 @ q4, config=CONFIG_Q2_Q3)
-configure_qubit_pair_for_reset(q4 @ q5, config=CONFIG_Q2_Q3)
+for name_a, name_b in zip(qubit_names, qubit_names[1:]):
+    configure_qubit_pair_for_reset(
+        machine.get_component(name_a) @ machine.get_component(name_b),
+        config=CONFIG_Q2_Q3,
+    )
 
 
 @quam_dataclass
-class Init12Macro(QuamMacro):
+class InitPairMacro(QuamMacro):
     q1: str
     q2: str
 
@@ -163,10 +175,7 @@ class Init12Macro(QuamMacro):
         return self.parent.parent.machine.get_component(id)
 
     def apply(self, **kwargs):
-        """Execute conditional operation.
-        Returns:
-            Measured state
-        """
+        """Execute conditional operation for a qubit pair."""
         q1 = self._get_component(self.q1)
         q2 = self._get_component(self.q2)
         q1_q2 = q1 @ q2
@@ -190,11 +199,7 @@ class Init3Macro(QuamMacro):
         return self.parent.parent.machine.get_component(id)
 
     def apply(self, **kwargs):
-        """Execute conditional operation.
-        Returns:
-            Measured state
-        """
-        # Retrieve components
+        """Execute Read Init 3 sequence."""
         q1 = self._get_component(self.q1)
         q2 = self._get_component(self.q2)
         q3 = self._get_component(self.q3)
@@ -259,140 +264,76 @@ class InitAllMacro(QuamMacro):
         return state_12_st, state_3_st, state_45_st
 
 
-machine.qpu.macros["initAll"] = InitAllMacro(q1="Q1", q2="Q2", q3="Q3", q4="Q4", q5="Q5")
+machine.qpu.macros["init12"] = InitPairMacro(q1=qubit_names[0], q2=qubit_names[1])
+machine.qpu.macros["init3"] = Init3Macro(q1=qubit_names[0], q2=qubit_names[1], q3=qubit_names[2])
+if len(qubit_names) >= 5:
+    machine.qpu.macros["init45"] = InitPairMacro(q1=qubit_names[3], q2=qubit_names[4])
+    machine.qpu.macros["initAll"] = InitAllMacro(
+        q1=qubit_names[0],
+        q2=qubit_names[1],
+        q3=qubit_names[2],
+        q4=qubit_names[3],
+        q5=qubit_names[4],
+    )
 
 
-@quam_dataclass
-class Init12Macro(QuamMacro):
-    q1: str
-    q2: str
+def build_init_circuit_program():
+    q1 = machine.qubits[qubit_names[0]]
+    q2 = machine.qubits[qubit_names[1]]
+    q3 = machine.qubits[qubit_names[2]]
+    q1_q2 = q1 @ q2
 
-    def _get_component(self, id):
-        return self.parent.parent.machine.get_component(id)
+    has_q5 = len(qubit_names) >= 5
+    if has_q5:
+        q4 = machine.qubits[qubit_names[3]]
+        q5 = machine.qubits[qubit_names[4]]
+        q4_q5 = q4 @ q5
 
-    def apply(self, **kwargs):
-        """Execute conditional operation.
-        Returns:
-            Measured state
-        """
-        q1 = self._get_component(self.q1)
-        q2 = self._get_component(self.q2)
-        q1_q2 = q1 @ q2
-        # Measure PSB
-        state = q1_q2.measure()
-        # Reload dots
-        q1_q2.load()
-        # Execute conditional pulse
-        with qua.if_(state):
-            q1.x180()
-        return state
-
-
-# -----------------------------------------------------------------------
-# Define Full Circuit QUA Program
-# -----------------------------------------------------------------------
-q1 = machine.qubits["Q1"]
-q2 = machine.qubits["Q2"]
-q3 = machine.qubits["Q3"]
-q4 = machine.qubits["Q4"]
-q5 = machine.qubits["Q5"]
-
-q1_q2 = q1 @ q2
-q2_q3 = q2 @ q3
-q3_q4 = q3 @ q4
-q4_q5 = q4 @ q5
-
-with program() as prog:
-    # Declare streams for saving results
-    state_12_st = declare_stream()
-    state_3_st = declare_stream()
-    state_45_st = declare_stream()
-
-    # Load dots
-    q1_q2.load()
-    q3.load()
-    q4_q5.load()
-
-    # Init 12
-    state_12 = machine.qpu.init12()
-    save(state_12, state_12_st)
-
-    # 2× loop: Read Init 3 → Read Init 12
-    with for_(n := declare(int), 0, n < 2, n + 1):
-        state_12 = machine.qpu.init3()
-        state_3 = machine.qpu.init12()
-
-        save(state_12, state_12_st)
-        save(state_3, state_3_st)
-
-    # Init45
-    state_45 = machine.qpu.init45()
-    save(state_45, state_45_st)
-
-    # Stream processing
-    with stream_processing():
-        state_12_st.save("state_init_12")
-        state_3_st.save("state_init_3")
-        state_45_st.save("state_init_45")
-
-
-@quam_dataclass
-class InitAllMacro(QuamMacro):
-    q1: str
-    q2: str
-    q3: str
-    q4: str
-    q5: str
-
-    def _get_component(self, id):
-        return self.parent.parent.machine.get_component(id)
-
-    def apply(self, **kwargs):
-        # Declare streams for saving results
+    with program() as prog:
         state_12_st = declare_stream()
         state_3_st = declare_stream()
         state_45_st = declare_stream()
-        # Retrieve components
-        q1 = self._get_component(self.q1)
-        q2 = self._get_component(self.q2)
-        q3 = self._get_component(self.q3)
-        q4 = self._get_component(self.q4)
-        q5 = self._get_component(self.q5)
-        qpu = self.parent.parent
-        q1_q2 = q1 @ q2
-        q4_q5 = q4 @ q5
-        # Load dots
+
         q1_q2.load()
         q3.load()
-        q4_q5.load()
-        # Init 12
-        state_12 = qpu.init12()
+        if has_q5:
+            q4_q5.load()
+
+        state_12 = machine.qpu.init12()
         save(state_12, state_12_st)
-        # 2× loop: Read Init 3 → Read Init 12
+
         with for_(n := declare(int), 0, n < 2, n + 1):
-            state_12 = qpu.init3()
-            state_3 = qpu.init12()
+            state_12 = machine.qpu.init3()
+            state_3 = machine.qpu.init12()
             save(state_12, state_12_st)
             save(state_3, state_3_st)
-        # Init45
-        state_45 = qpu.init45()
-        save(state_45, state_45_st)
-        return state_12_st, state_3_st, state_45_st
+
+        if has_q5:
+            state_45 = machine.qpu.init45()
+            save(state_45, state_45_st)
+
+        with stream_processing():
+            state_12_st.save("state_init_12")
+            state_3_st.save("state_init_3")
+            if has_q5:
+                state_45_st.save("state_init_45")
+
+    return prog
 
 
-machine.qpu.macros["initAll"] = InitAllMacro(q1="Q1", q2="Q2", q3="Q3", q4="Q4", q5="Q5")
+if __name__ == "__main__":
+    from qm import QuantumMachinesManager
 
-with program() as prog_init:
-    machine.qpu.initAll()
-    # Stream processing
-    with stream_processing():
-        state_12_st.save("state_init_12")
-        state_3_st.save("state_init_3")
-        state_45_st.save("state_init_45")
+    prog = build_init_circuit_program()
+    config = machine.generate_config()
 
+    try:
+        from configs import HOST, CLUSTER  # isort:skip
+    except ModuleNotFoundError as exc:
+        raise SystemExit("Missing configs.py with HOST and CLUSTER") from exc
 
-from qm import generate_qua_script
-
-sourceFile = open("debug.py", "w")
-print(generate_qua_script(prog), file=sourceFile)
-sourceFile.close()
+    qmm = QuantumMachinesManager(host=HOST, cluster_name=CLUSTER)
+    qm = qmm.open_qm(config)
+    job = qm.execute(prog)
+    job.result_handles.wait_for_all_values()
+    qm.close()
