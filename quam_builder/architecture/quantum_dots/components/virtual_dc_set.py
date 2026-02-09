@@ -299,8 +299,10 @@ class VirtualDCSet(QuantumComponent):
         self.layers.append(virtualization_layer)
 
         # Populate the new layer
-        all_voltages = self.all_current_voltages
-        self._current_levels.update(all_voltages)
+        existing_physical_levels = {name: value for (name, value) in self._current_levels.copy().items() if name in self.channels}
+        if not existing_physical_levels: 
+            existing_physical_levels = self.current_physical_voltages.copy()
+        self._populate_virtual_gate_voltages(existing_physical_levels)
         return virtualization_layer
 
     def add_to_layer(
@@ -412,8 +414,10 @@ class VirtualDCSet(QuantumComponent):
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
         # Populate the new layer
-        all_voltages = self.all_current_voltages
-        self._current_levels.update(all_voltages)
+        existing_physical_levels = {name: value for (name, value) in self._current_levels.copy().items() if name in self.channels}
+        if not existing_physical_levels: 
+            existing_physical_levels = self.current_physical_voltages.copy()
+        self._populate_virtual_gate_voltages(existing_physical_levels)
         return layer
 
     def resolve_voltages(
