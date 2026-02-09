@@ -14,9 +14,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **FluxTunableTransmon**: `at_sweep_spot` (bool, default `True`) for calibration control.
 ### Changed
 - **FluxTunableQuam.set_all_fluxes**: `target` is now optional; when `target=None`, settle and align are applied to all qubits.
-
-## [0.2.1] - 2025-12-05
-### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
 - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 ### Fixed
