@@ -57,7 +57,9 @@ class TWPA(QuamComponent):
 
     dispersive_feature: float = None
     qubits: list = None
-    
+
+    pumpline_attenuation: float = None
+    signalline_attenuation: float = None    
     initialization: bool = True
     _initialized_ids: ClassVar[set] = set()
     

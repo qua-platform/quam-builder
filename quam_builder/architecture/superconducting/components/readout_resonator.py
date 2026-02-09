@@ -117,6 +117,7 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
 @quam_dataclass
 class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
+    kappa: float = 1000000
 
     @property
     def upconverter_frequency(self):
