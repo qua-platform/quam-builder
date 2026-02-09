@@ -86,7 +86,7 @@ from quam.components.ports import (
     MWFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
 )
-from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorIQ,
 )
@@ -193,7 +193,7 @@ def create_spin_qubit_machine():
 
     # XY Drive channel
     xy_drives = {}
-    xy_drives[1] = XYDrive(
+    xy_drives[1] = XYDriveMW(
         id="Q1_xy",
         opx_output=MWFEMAnalogOutputPort(
             controller_id=controller,
@@ -204,7 +204,6 @@ def create_spin_qubit_machine():
             full_scale_power_dbm=10,
         ),
         intermediate_frequency=100e6,
-        add_default_pulses=True,
     )
 
     # Add Gaussian pulses for RB gates (~500 ns)
@@ -403,10 +402,21 @@ def create_rb_qua_program(
         q_signal = declare(fixed)
 
         # Get sensor and threshold
-        sensor_dot = qubit.sensor_dots[0]
         qd_pair_id = machine.find_quantum_dot_pair(
             qubit.quantum_dot.id, qubit.preferred_readout_quantum_dot
         )
+        if qd_pair_id is None:
+            raise ValueError(
+                "No QuantumDotPair found for qubit and preferred readout dot. "
+                "Check quantum_dot_ids/readout_quantum_dot configuration."
+            )
+        if (
+            qd_pair_id in machine.quantum_dot_pairs
+            and machine.quantum_dot_pairs[qd_pair_id].sensor_dots
+        ):
+            sensor_dot = machine.quantum_dot_pairs[qd_pair_id].sensor_dots[0]
+        else:
+            sensor_dot = next(iter(machine.sensor_dots.values()))
         threshold = sensor_dot.readout_thresholds.get(qd_pair_id, 0.0)
 
         # RNG for on-PPU Clifford generation
@@ -770,7 +780,12 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Uncomment and configure for your hardware:
-    from configs import HOST, CLUSTER  # isort:skip
+    try:
+        from configs import HOST, CLUSTER  # isort:skip
+    except ModuleNotFoundError:
+        print("  configs module not found; skipping hardware connection.")
+        print("  Provide configs.py with HOST and CLUSTER to run on hardware.")
+        raise SystemExit(0)
 
     qmm = QuantumMachinesManager(host=HOST, cluster_name=CLUSTER)
 

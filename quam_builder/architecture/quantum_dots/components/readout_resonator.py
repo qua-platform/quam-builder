@@ -12,7 +12,12 @@ from quam_builder.tools.power_tools import (
 )
 
 
-__all__ = ["ReadoutResonatorBase", "ReadoutResonatorIQ", "ReadoutResonatorMW", "ReadoutResonatorSingle"]
+__all__ = [
+    "ReadoutResonatorBase",
+    "ReadoutResonatorIQ",
+    "ReadoutResonatorMW",
+    "ReadoutResonatorSingle",
+]
 
 
 @quam_dataclass
@@ -23,13 +28,11 @@ class ReadoutResonatorBase:
     Attributes:
         frequency_bare (float): The bare resonator frequency in Hz.
     """
-    
+
     frequency_bare: float = None
 
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -41,13 +44,14 @@ class ReadoutResonatorBase:
         float: The voltage scaling factor.
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
-    
+
+
 @quam_dataclass
-class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase): 
+class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#/inferred_intermediate_frequency"
 
-    def __post_init__(self): 
-        if hasattr(self.opx_output, "upsampling_mode"): 
+    def __post_init__(self):
+        if hasattr(self.opx_output, "upsampling_mode"):
             self.opx_output.upsampling_mode = "mw"
 
     def set_output_power(
@@ -66,9 +70,10 @@ class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
 class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
-    def __post_init__(self): 
-        if hasattr(self.opx_output, "upsampling_mode"): 
-            self.opx_output.upsampling_mode = "mw"
+    def __post_init__(self):
+        for port in (self.opx_output_I, self.opx_output_Q):
+            if hasattr(port, "upsampling_mode"):
+                port.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):
@@ -116,9 +121,7 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass
