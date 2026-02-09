@@ -19,6 +19,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components.ports import MWFEMAnalogOutputPort
 from quam.components import pulses
 
@@ -71,6 +73,11 @@ xy_q4 = XYDriveMW(
 
 
 # Register qubits. For ST qubits, quantum_dots should be a tuple
+required_dots = {f"virtual_dot_{i}" for i in range(1, 5)}
+missing = required_dots - set(machine.quantum_dots.keys())
+if missing:
+    print(f"Missing required quantum dots in state: {sorted(missing)}. Skipping.")
+    raise SystemExit(0)
 machine.register_qubit(
     qubit_name="Q1",
     quantum_dot_id="virtual_dot_1",

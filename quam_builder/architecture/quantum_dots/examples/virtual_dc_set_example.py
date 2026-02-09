@@ -27,7 +27,12 @@ Workflow:
 
 """
 
-from quam.components import StickyChannelAddon, pulses
+import os
+
+from quam.components import (
+    StickyChannelAddon,
+    pulses,
+)
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     LFFEMAnalogInputPort,
@@ -45,9 +50,16 @@ from qm.qua import *
 ###########################################
 ###### Instantiate Physical Channels ######
 ###########################################
-from qcodes import Instrument
-from qcodes_contrib_drivers.drivers.QDevil.QDAC2 import QDac2
+if os.environ.get("QUAM_QDAC") != "1":
+    print("Skipping QDAC example. Set QUAM_QDAC=1 to run.")
+    raise SystemExit(0)
 
+try:
+    from qcodes import Instrument
+    from qcodes_contrib_drivers.drivers.QDevil.QDAC2 import QDac2
+except ImportError:
+    print("QCoDeS/QDAC drivers not installed; skipping QDAC example.")
+    raise SystemExit(0)
 qdac_ip = "172.16.33.101"
 lf_fem = 5
 name = "QDAC"

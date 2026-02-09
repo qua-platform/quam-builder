@@ -1,5 +1,6 @@
 import numpy as np
 
+import os
 import matplotlib
 import matplotlib.pyplot as plt
 from quam.components.channels import SingleChannel
@@ -15,7 +16,8 @@ def _channels(names):
     }
 
 
-matplotlib.use("TkAgg")
+if not os.environ.get("MPLBACKEND"):
+    matplotlib.use("Agg")
 gate_set = VirtualGateSet(
     id="rectangular_roundtrip",
     channels=_channels(["P1", "P2", "P3"]),
