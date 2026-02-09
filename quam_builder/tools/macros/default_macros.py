@@ -13,6 +13,7 @@ __all__ = [
     "DEFAULT_MACROS",
 ]
 
+
 @quam_dataclass()
 class AlignMacro(QuamMacro):
     """Macro for synchronizing multiple quantum elements.
@@ -61,3 +62,9 @@ class WaitMacro(QuamMacro):
     def inferred_duration(self) -> Optional[float]:
         """Wait duration in seconds."""
         return self.duration * 1e-9
+
+
+DEFAULT_MACROS = {
+    "align": AlignMacro,
+    "wait": WaitMacro,
+}

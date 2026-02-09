@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.macros import (
+from quam_builder.tools.macros import (
     SequenceMacro,
     StepPointMacro,
     RampPointMacro,
