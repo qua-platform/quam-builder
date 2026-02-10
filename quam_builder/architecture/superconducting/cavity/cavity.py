@@ -3,7 +3,7 @@ from dataclasses import field
 from logging import getLogger
 
 from quam.core import quam_dataclass
-from quam.components.quantum_components import Cavity
+from quam.components.quantum_components import Qubit
 # from quam_builder.architecture.superconducting.components.readout_resonator import (
 #     ReadoutResonatorIQ,
 #     ReadoutResonatorMW,
@@ -35,7 +35,7 @@ __all__ = ["Cavity"]
 
 
 @quam_dataclass
-class Cavity(Cavity):
+class Cavity(Qubit):
     """
     Example QUAM component for a transmon qubit.
 
