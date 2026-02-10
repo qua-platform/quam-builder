@@ -104,7 +104,11 @@ class XYDriveMW(MWChannel, XYDriveBase):
     @property
     def upconverter_frequency(self):
         """Returns the up-converter/LO frequency in Hz."""
-        return self.opx_output.upconverter_frequency
+        return (
+            self.opx_output.upconverter_frequency
+            if self.opx_output.upconverter_frequency is not None
+            else super().upconverter_frequency
+            )
 
     def get_output_power(self, operation, Z=50) -> float:
         """

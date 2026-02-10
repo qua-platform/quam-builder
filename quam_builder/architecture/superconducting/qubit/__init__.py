@@ -5,6 +5,7 @@ from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon im
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
+
 from typing import Union
 
 __all__ = [
