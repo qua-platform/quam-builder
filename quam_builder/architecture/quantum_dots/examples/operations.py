@@ -127,7 +127,7 @@ def x180(qubit: LDQubit, **kwargs):
     This will trigger qubit.macros["x180"].apply(**kwargs)
 
     Args:
-        qubit: LDQubit with xy_channel
+        qubit: LDQubit with xy
         **kwargs: Optional pulse parameters (amplitude_scale, duration, etc.)
     """
     pass
@@ -139,7 +139,7 @@ def y180(qubit: LDQubit, **kwargs):
     Apply Y180 pulse (π rotation around Y axis).
 
     Args:
-        qubit: LDQubit with xy_channel
+        qubit: LDQubit with xy
         **kwargs: Optional pulse parameters
     """
     pass
@@ -151,7 +151,7 @@ def x90(qubit: LDQubit, **kwargs):
     Apply X90 pulse (π/2 rotation around X axis).
 
     Args:
-        qubit: LDQubit with xy_channel
+        qubit: LDQubit with xy
         **kwargs: Optional pulse parameters
     """
     pass
@@ -163,7 +163,7 @@ def y90(qubit: LDQubit, **kwargs):
     Apply Y90 pulse (π/2 rotation around Y axis).
 
     Args:
-        qubit: LDQubit with xy_channel
+        qubit: LDQubit with xy
         **kwargs: Optional pulse parameters
     """
     pass

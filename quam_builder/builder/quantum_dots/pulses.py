@@ -39,13 +39,13 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
         through calibration for your specific quantum dot device.
     """
     # ESR/MW drive pulses (if xy_channel exists)
-    if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
+    if hasattr(qubit, "xy_channel") and qubit.xy is not None:
         pulse_length = 1000  # ns
         pulse_amp = 0.2
         sigma = pulse_length / 6
 
         # X rotations
-        qubit.xy_channel.operations["x180"] = GaussianPulse(
+        qubit.xy.operations["x180"] = GaussianPulse(
             id="x180",
             length=pulse_length,
             amplitude=pulse_amp,
@@ -53,7 +53,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             axis_angle=0.0,
         )
 
-        qubit.xy_channel.operations["x90"] = GaussianPulse(
+        qubit.xy.operations["x90"] = GaussianPulse(
             id="x90",
             length=pulse_length,
             amplitude=pulse_amp / 2,
@@ -62,7 +62,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
         )
 
         # Y rotations
-        qubit.xy_channel.operations["y180"] = GaussianPulse(
+        qubit.xy.operations["y180"] = GaussianPulse(
             id="y180",
             length=pulse_length,
             amplitude=pulse_amp,
@@ -70,7 +70,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             axis_angle=float(np.pi / 2),
         )
 
-        qubit.xy_channel.operations["y90"] = GaussianPulse(
+        qubit.xy.operations["y90"] = GaussianPulse(
             id="y90",
             length=pulse_length,
             amplitude=pulse_amp / 2,
@@ -79,7 +79,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
         )
 
         # Minus rotations (useful for pulse sequences)
-        qubit.xy_channel.operations["-x90"] = GaussianPulse(
+        qubit.xy.operations["-x90"] = GaussianPulse(
             id="-x90",
             length=pulse_length,
             amplitude=-pulse_amp / 2,
@@ -87,7 +87,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             axis_angle=0.0,
         )
 
-        qubit.xy_channel.operations["-y90"] = GaussianPulse(
+        qubit.xy.operations["-y90"] = GaussianPulse(
             id="-y90",
             length=pulse_length,
             amplitude=-pulse_amp / 2,

@@ -225,7 +225,7 @@ for i in range(plunger_gates):
     machine.register_qubit(
         quantum_dot_id=f"virtual_dot_{i}",
         qubit_name=f"Q{i}",
-        xy_channel=xy_drive,
+        xy=xy_drive,
     )
 
 # Set a preferred readout quantum dot for each qubit

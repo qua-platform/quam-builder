@@ -438,9 +438,9 @@ class TestWirerBuilderIntegration:
         # Verify qubits (Stage 2) have pulses (if they have xy channels)
         assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine_loaded.qubits.items():
-            if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
+            if hasattr(qubit, "xy_channel") and qubit.xy is not None:
                 # Should have XY operations
-                assert len(qubit.xy_channel.operations) > 0
+                assert len(qubit.xy.operations) > 0
 
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""
