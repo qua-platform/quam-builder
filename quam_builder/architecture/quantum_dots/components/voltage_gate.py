@@ -65,8 +65,10 @@ class QdacSpec(QuamComponent):
     Quam Component for a QDAC Channel, to be parented by VoltageGate.
     Attributes:
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the Qdac.
+        - qdac_trigger_in: The QDAC external trigger port associated with the VoltageGate DC component.
         - qdac_output_port: The QDAC port associated with the VoltageGate DC component.
     """
 
     opx_trigger_out: Channel = None
+    qdac_trigger_in: int = None
     qdac_output_port: int
