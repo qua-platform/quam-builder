@@ -6,7 +6,6 @@ from quam.core import quam_dataclass, QuamComponent
 __all__ = ["VoltageGate", "QdacSpec"]
 
 
-
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """
@@ -65,6 +64,7 @@ class VoltageGate(SingleChannel):
         """Wait for the voltage bias to settle"""
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
+
 
 @quam_dataclass
 class QdacSpec(QuamComponent):
