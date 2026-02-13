@@ -6,16 +6,17 @@ from quam.core import quam_dataclass, QuamComponent
 __all__ = ["VoltageGate", "QdacSpec"]
 
 
-
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """
     A voltage gate is a single channel that can be used to apply a voltage to a quantum dot.
 
     Attributes:
-        attenuation: The attenuation of the voltage gate. Default is zero
+        attenuation: The attenuation of the voltage gate. Default is zero.
+        settling_time: The settling time of the voltage gate in ns. The value will be cast to an integer multiple of 4ns
+            automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
-            Can be e.g. a QDAC channel
+            Can be e.g. a QDAC channel.
 
     Example:
         >>>
@@ -35,6 +36,7 @@ class VoltageGate(SingleChannel):
     """
 
     attenuation: float = 0.0
+    settling_time: float = None
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     qdac_spec: "QdacSpec" = None
@@ -58,6 +60,11 @@ class VoltageGate(SingleChannel):
         if callable(self._offset_parameter):
             self.current_external_voltage = self._offset_parameter()
 
+    def settle(self):
+        """Wait for the voltage bias to settle"""
+        if self.settling_time is not None:
+            self.wait(int(self.settling_time) // 4 * 4)
+
 
 @quam_dataclass
 class QdacSpec(QuamComponent):
@@ -65,8 +72,10 @@ class QdacSpec(QuamComponent):
     Quam Component for a QDAC Channel, to be parented by VoltageGate.
     Attributes:
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the Qdac.
+        - qdac_trigger_in: The QDAC external trigger port associated with the VoltageGate DC component.
         - qdac_output_port: The QDAC port associated with the VoltageGate DC component.
     """
 
     opx_trigger_out: Channel = None
+    qdac_trigger_in: int = None
     qdac_output_port: int
