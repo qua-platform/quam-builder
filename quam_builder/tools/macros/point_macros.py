@@ -18,7 +18,8 @@ from .composable_macros import SequenceMacro
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
-from quam_builder.tools.voltage_sequence import VoltageSequence
+if TYPE_CHECKING:
+    from quam_builder.tools.voltage_sequence import VoltageSequence
 
 __all__ = [
     "BasePointMacro",

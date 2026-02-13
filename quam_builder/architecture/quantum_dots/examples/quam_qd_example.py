@@ -27,6 +27,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components import (
     StickyChannelAddon,
     pulses,
@@ -113,9 +115,9 @@ resonator = ReadoutResonatorSingle(
     id="readout_resonator",
     frequency_bare=0,
     intermediate_frequency=500e6,
-    operations = {"readout": readout_pulse}, 
-    opx_output = LFFEMAnalogOutputPort("con1", 5, port_id = 1, upsampling_mode = "mw"), 
-    opx_input = LFFEMAnalogInputPort("con1", 5, port_id = 2),
+    operations={"readout": readout_pulse},
+    opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1, upsampling_mode="mw"),
+    opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
 )
 
 #####################################
@@ -154,7 +156,7 @@ machine.register_channel_elements(
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = os.environ.get("QUAM_QDAC") == "1"
 if qdac_connect:
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):
@@ -198,14 +200,14 @@ machine.register_quantum_dot_pair(
 
 # Define the detuning axes for both QuantumDotPairs
 machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
-    matrix = [[1,-1]], 
-    detuning_axis_name = "dot1_dot2_pair_epsilon",
+    matrix=[[1, -1]],
+    detuning_axis_name="dot1_dot2_pair_epsilon",
     set_dc_virtual_axis=False,
 )
 
 machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
-    matrix = [[1,-1]], 
-    detuning_axis_name = "dot3_dot4_pair_epsilon",
+    matrix=[[1, -1]],
+    detuning_axis_name="dot3_dot4_pair_epsilon",
     set_dc_virtual_axis=False,
 )
 
@@ -216,20 +218,17 @@ machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
 
 # Update Cross Capacitance matrix values
 machine.update_cross_compensation_submatrix(
-    virtual_names = ["virtual_barrier_1", "virtual_barrier_2"], 
-    channels = [p4], 
-    matrix = [[0.1, 0.5]], 
-    target = "opx"
+    virtual_names=["virtual_barrier_1", "virtual_barrier_2"],
+    channels=[p4],
+    matrix=[[0.1, 0.5]],
+    target="opx",
 )
 
 machine.update_cross_compensation_submatrix(
-    virtual_names = ["virtual_dot_1", "virtual_dot_2", "virtual_dot_3", "virtual_dot_4"], 
-    channels = [p1, p2, p3, p4], 
-    matrix = [[1, 0.1, 0.1, 0.3], 
-              [0.2, 1, 0.6, 0.8], 
-              [0.1, 0.3, 1, 0.3], 
-              [0.2, 0.5, 0.1, 1]], 
-    target = "opx"
+    virtual_names=["virtual_dot_1", "virtual_dot_2", "virtual_dot_3", "virtual_dot_4"],
+    channels=[p1, p2, p3, p4],
+    matrix=[[1, 0.1, 0.1, 0.3], [0.2, 1, 0.6, 0.8], [0.1, 0.3, 1, 0.3], [0.2, 0.5, 0.1, 1]],
+    target="opx",
 )
 
 ###########################
