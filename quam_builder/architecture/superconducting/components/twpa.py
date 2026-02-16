@@ -18,7 +18,6 @@ class TWPA(QuamComponent):
             Can be a string, or an integer in which case it will add`Channel._default_label`.
         pump (IQChannel): The pump component(sticky element) used for continuous output. 
         pump_ (IQChannel): The pump component(non sticky element)used for TWPA calibration
-        spectroscopy (IQChannel): Probe tone used for calibrating the saturation power of the TWPA
 
         max_avg_gain (float): The maximum average gain around the readout resonators related to the TWPA
         max_avg_snr_improvement (float): The maximum average SNR improvement around the readout resonators related to the TWPA
@@ -43,7 +42,6 @@ class TWPA(QuamComponent):
 
     pump: IQChannel = None
     pump_: IQChannel = None
-    spectroscopy: IQChannel = None
 
     max_avg_gain: float = None
     max_avg_snr_improvement: float = None
