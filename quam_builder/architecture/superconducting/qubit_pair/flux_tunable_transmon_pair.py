@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Union, List, Literal
 from dataclasses import field
 from qm.qua import align, wait
 
@@ -38,6 +38,7 @@ class FluxTunableTransmonPair(QubitPair):
     id: Union[int, str]
     qubit_control: FluxTunableTransmon = None
     qubit_target: FluxTunableTransmon = None
+    moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
 
     detuning: Optional[float] = None
