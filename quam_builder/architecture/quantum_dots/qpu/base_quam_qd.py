@@ -24,6 +24,7 @@ from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
     ReadoutResonatorBase,
     ReservoirBase,
+    DrainSingle,
     ReadoutTransportBase,
     VirtualDCSet,
 )
@@ -81,7 +82,7 @@ class BaseQuamQD(QuamRoot):
     voltage_sequences: Dict[str, VoltageSequence] = field(
         default_factory=dict, metadata={"exclude": True}
     )
-    reservoirs: Dict[str, ReservoirBase] = field(default_factory = dict)
+    reservoirs: Dict[str, ReservoirBase] = field(default_factory=dict)
 
     quantum_dots: Dict[str, QuantumDot] = field(default_factory=dict)
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory=dict)
@@ -265,13 +266,14 @@ class BaseQuamQD(QuamRoot):
     def register_channel_elements(
         self,
         plunger_channels: List[Channel],
-        sensor_readout_mappings: Dict[Channel, Union[ReadoutResonatorBase, ReadoutTransportBase]],
+        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
         barrier_channels: List[Channel],
+        sensor_transport_mappings: Dict[Channel, DrainSingle] = None,
         global_gates: Optional[List[VoltageGate]] = None,
     ) -> None:
         self.register_quantum_dots(plunger_channels)
         self.register_barrier_gates(barrier_channels)
-        self.register_sensor_dots(sensor_readout_mappings)
+        self.register_sensor_dots(sensor_resonator_mappings, sensor_transport_mappings)
 
         if global_gates is not None:
             self.register_global_gates(global_gates)
@@ -298,7 +300,8 @@ class BaseQuamQD(QuamRoot):
 
     def register_sensor_dots(
         self,
-        sensor_readout_mappings: Dict[Channel, Union[ReadoutResonatorBase, ReadoutTransportBase]],
+        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+        sensor_transport_mappings: Dict[Channel, DrainSingle] = None,
     ) -> None:
         """
         Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
@@ -308,7 +311,7 @@ class BaseQuamQD(QuamRoot):
                 Dictionary where keys are sensor channels and values are their associated readout channels.
 
         """
-        for ch, readout in sensor_readout_mappings.items():
+        for ch, readout in sensor_resonator_mappings.items():
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id=virtual_name,
@@ -316,6 +319,20 @@ class BaseQuamQD(QuamRoot):
             )
             sensor_dot.physical_channel.readout = readout
             self.sensor_dots[virtual_name] = sensor_dot
+
+        for ch, drain in sensor_transport_mappings.items():
+            virtual_name = self._get_virtual_name(ch)
+            if virtual_name in self.sensor_dots:
+                sensor_dot = self.sensor_dots[virtual_name]
+                # Set the reservoir to the drain, which should already have the readout element attached
+                sensor_dot.readout_reservoir = drain
+            else:
+                sensor_dot = SensorDot(
+                    id=virtual_name,
+                    physical_channel=ch.get_reference(),
+                )
+                sensor_dot.readout_reservoir = drain
+                self.sensor_dots[virtual_name] = sensor_dot
 
     def register_barrier_gates(self, barrier_channels: List[Channel]) -> None:
         for ch in barrier_channels:

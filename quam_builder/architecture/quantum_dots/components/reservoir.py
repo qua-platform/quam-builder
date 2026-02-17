@@ -1,21 +1,23 @@
 from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
+from quam.components import InSingleChannel
 
 from .mixins import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 from .voltage_gate import VoltageGate
+from .readout_transport import ReadoutTransportBase
 
-__all__ = ["ReservoirBase", "Drain"]
+__all__ = ["ReservoirBase", "DrainSingle"]
+
 
 @quam_dataclass
-class ReservoirBase(VoltageMacroMixin):
+class ReservoirBase(VoltageGate):  # pylint: disable=too-many-ancestors
     """
     Base class for a reservoir in a quantum dot device.
     """
 
     id: str = None
-    quantum_dots: List[QuantumDot]
 
     @property
     def machine(self) -> "BaseQuamQD":
@@ -30,15 +32,21 @@ class ReservoirBase(VoltageMacroMixin):
     def name(self) -> str:
         return self.id
 
+
 @quam_dataclass
-class Drain(ReservoirBase):
+class DrainSingle(ReservoirBase):  # pylint: disable=too-many-ancestors
     """
     Quam component for the drain ohmic contact of a QD Device.
     """
 
-    physical_channel: VoltageGate = None
-    gate_set_id: str = "main_qpu"
+    readout: ReadoutTransportBase = None
 
-    @property
-    def voltage_sequence(self):
-        return self.machine.get_voltage_sequence(self.gate_set_id)
+
+@quam_dataclass
+class SourceSingle(ReservoirBase):  # pylint: disable=too-many-ancestors
+    """
+    Quam component for the source ohmic contact of a QD Device. Include in the virtual channel mapping
+    if virtualization is required.
+    """
+
+    pass

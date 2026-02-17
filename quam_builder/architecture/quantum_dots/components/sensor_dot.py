@@ -1,4 +1,4 @@
-from typing import Union, Tuple
+from typing import Union, Tuple, Dict
 from dataclasses import field, asdict
 
 from qm import QuantumMachine
@@ -8,8 +8,15 @@ from qm import logger
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
-from .readout_resonator import ReadoutResonatorBase, ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle
+from .readout_resonator import (
+    ReadoutResonatorBase,
+    ReadoutResonatorIQ,
+    ReadoutResonatorMW,
+    ReadoutResonatorSingle,
+)
 from .quantum_dot import QuantumDot
+from .reservoir import DrainSingle
+from .readout_transport import ReadoutTransportBase
 
 __all__ = ["SensorDot", "Projector"]
 
@@ -22,14 +29,14 @@ class Projector:
 
 
 @quam_dataclass
-class SensorDot(QuantumDot):
+class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
     """
     Quam component for Sensor Quantum Dot
     """
 
-    readout_resonator: Union[ReadoutResonatorMW, ReadoutResonatorIQ, ReadoutResonatorSingle]
-    readout_thresholds: dict = field(default_factory=dict[str, float])
-    readout_projectors: dict = field(default_factory=dict[str, dict[str, float]])
+    readout_thresholds: Dict[str, float] = field(default_factory=dict)
+    readout_projectors: Dict[str, dict[str, float]] = field(default_factory=dict)
+    readout_reservoir: DrainSingle = None
 
     def _add_readout_params(
         self, quantum_dot_pair_id: str, threshold: float, projector: Union[dict, Projector] = None
@@ -94,11 +101,29 @@ class SensorDot(QuantumDot):
         return resonator_calibration_output
 
     @property
-    def readout_resonator(self): 
-        if not isinstance(self.physical_channel.readout, ReadoutResonatorBase): 
-            raise ValueError("The associated readout mechanism is not a Resonator.")
-        return self.physical_channel.readout
-    
+    def readout_resonator(self):
+        ro = getattr(self.physical_channel, "readout", None)
+        if ro is None:
+            return None
+        if not isinstance(ro, ReadoutResonatorBase):
+            raise TypeError("The associated readout mechanism is not a ReadoutResonatorBase.")
+        return ro
+
     @readout_resonator.setter
-    def readout_resonator(self, resonator): 
+    def readout_resonator(self, resonator):
         self.physical_channel.readout = resonator
+
+    @property
+    def readout_transport(self):
+        if self.readout_reservoir is None:
+            return None
+        ro = getattr(self.readout_reservoir, "readout", None)
+        if ro is None:
+            return None
+        if not isinstance(ro, ReadoutTransportBase):
+            raise TypeError("The associated readout mechanism is not a ReadoutTransportBase.")
+        return ro
+
+    @readout_transport.setter
+    def readout_transport(self, transport_object: ReadoutTransportBase):
+        self.readout_reservoir.readout = transport_object
