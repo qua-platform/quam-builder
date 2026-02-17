@@ -34,7 +34,7 @@ for i in range(num_qubits):
     machine.register_qubit(
         quantum_dot_id=f"virtual_dot_{i}",
         qubit_name=f"Q{i}",
-        xy_channel=XYDriveMW(
+        xy=XYDriveMW(
             id=f"Q{i}_xy",
             opx_output=MWFEMAnalogOutputPort(
                 "con1",

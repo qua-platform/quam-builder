@@ -87,28 +87,28 @@ machine.register_qubit(
     qubit_name="Q1",
     quantum_dot_id="virtual_dot_1",
     readout_quantum_dot="virtual_dot_2",
-    xy_channel=xy_q1,
+    xy=xy_q1,
 )
 
 machine.register_qubit(
     qubit_name="Q2",
     quantum_dot_id="virtual_dot_2",
     readout_quantum_dot="virtual_dot_1",
-    xy_channel=xy_q2,
+    xy=xy_q2,
 )
 
 machine.register_qubit(
     qubit_name="Q3",
     quantum_dot_id="virtual_dot_3",
     readout_quantum_dot="virtual_dot_4",
-    xy_channel=xy_q3,
+    xy=xy_q3,
 )
 
 machine.register_qubit(
     qubit_name="Q4",
     quantum_dot_id="virtual_dot_4",
     readout_quantum_dot="virtual_dot_3",
-    xy_channel=xy_q4,
+    xy=xy_q4,
 )
 
 # Fill out the grid location and arbitrary larmor frequencies of the qubit

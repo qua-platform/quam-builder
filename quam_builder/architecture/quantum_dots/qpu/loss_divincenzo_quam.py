@@ -125,7 +125,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         self,
         quantum_dot_id: str,
         qubit_name: str,
-        xy_channel: XYDriveBase = None,
+        xy: XYDriveBase = None,
         readout_quantum_dot: str = None,
     ) -> None:
         """
@@ -134,7 +134,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
         d = quantum_dot_id
         dot = self.quantum_dots[d]  # Assume a single quantum dot for a LD Qubit
-        qubit = LDQubit(id=d, quantum_dot=dot.get_reference(), xy_channel=xy_channel)
+        qubit = LDQubit(id=d, quantum_dot=dot.get_reference(), xy=xy)
         if readout_quantum_dot is not None:
             qubit.preferred_readout_quantum_dot = readout_quantum_dot
 
