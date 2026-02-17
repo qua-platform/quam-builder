@@ -31,7 +31,8 @@ Requirements:
 - Voltage sequence with compensation pulse capability
 """
 
-import os
+import json
+from pathlib import Path
 from typing import List, Tuple
 from qm.qua import (
     program,
@@ -567,17 +568,25 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Cloud Simulator Configuration (QM SaaS Dev Server)
     # -------------------------------------------------------------------------
-    EMAIL = "email"
-    PASSWORD = "password"
 
     print("\nConnecting to QM SaaS cloud simulator...")
-    if os.environ.get("QM_SAAS_RUN") != "1":
-        print("  QM_SAAS_RUN not set; skipping cloud execution.")
-        raise SystemExit(0)
+
+    # Load SaaS credentials from config file
+    repo_root = Path(__file__).resolve().parents[4]
+    saas_config_path = repo_root / ".qm_saas_credentials.json"
+    if not saas_config_path.exists():
+        raise FileNotFoundError(
+            f"SaaS credentials not found at {saas_config_path}. "
+            "Copy .qm_saas_credentials.json.example to .qm_saas_credentials.json "
+            "and fill in your credentials."
+        )
+    with open(saas_config_path) as f:
+        saas_credentials = json.load(f)
+
     client = qm_saas.QmSaas(
-        email=EMAIL,
-        password=PASSWORD,
-        host="qm-saas.dev.quantum-machines.co",
+        email=saas_credentials["email"],
+        password=saas_credentials["password"],
+        host=saas_credentials.get("host", "qm-saas.dev.quantum-machines.co"),
     )
     print("Connected to QM SaaS cloud simulator...")
 
