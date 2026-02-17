@@ -8,7 +8,7 @@ from qm import logger
 from quam.core import quam_dataclass
 from quam.components import InOutSingleChannel
 
-from .readout_resonator import ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle
+from .readout_resonator import ReadoutResonatorBase, ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle
 from .quantum_dot import QuantumDot
 
 __all__ = ["SensorDot", "Projector"]
@@ -92,3 +92,13 @@ class SensorDot(QuantumDot):
             resonator_calibration_output = None
 
         return resonator_calibration_output
+
+    @property
+    def readout_resonator(self): 
+        if not isinstance(self.physical_channel.readout, ReadoutResonatorBase): 
+            raise ValueError("The associated readout mechanism is not a Resonator.")
+        return self.physical_channel.readout
+    
+    @readout_resonator.setter
+    def readout_resonator(self, resonator): 
+        self.physical_channel.readout = resonator
