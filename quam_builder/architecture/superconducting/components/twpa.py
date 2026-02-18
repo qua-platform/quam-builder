@@ -30,7 +30,8 @@ class TWPA(QuamComponent):
         
         dispersive_feature (float): dispersive feature of the twpa defined from it's designed parameters
         qubits (list): list of qubits of which the signals are amplified by the twpa
-       
+        pumpline_attenuation (float): attenuation in dB of the pump line from the OPX to the input of the TWPA
+        signalline_attenuation (float): attenuation in dB on the signal line from the OPX to the input of the TWPA
         initialization (bool): whether to use the twpa in the QUA program or not
         _initialized_ids (ClassVar[set]): A class-level set to track initialized twpa object IDs externally.
             This won't be serialized since it's not an instance attribute.
