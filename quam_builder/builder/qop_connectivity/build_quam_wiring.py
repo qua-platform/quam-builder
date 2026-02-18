@@ -1,3 +1,5 @@
+"""Helpers to build and attach wiring configuration to a QuAM instance."""
+
 from typing import Optional, Union
 
 from qualang_tools.wirer import Connectivity
@@ -17,7 +19,8 @@ def build_quam_wiring(
     cluster_name: str,
     quam_instance: AnyQuam,
     port: Optional[int] = None,
-):
+    path: Optional[str] = None,
+):  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Builds the QUAM wiring configuration and saves the machine setup.
 
     Args:
@@ -31,11 +34,12 @@ def build_quam_wiring(
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
     machine.wiring = create_wiring(connectivity)
-    machine.save()
+    machine.save(path=path)
+    return machine
 
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
-    """Detects whether the `connectivity` is using OPX+ or OPX1000 and returns the corresponding base object.
+    """Detect whether OPX+ or OPX1000 ports are required and attach the container.
 
     Args:
         connectivity (Connectivity): The connectivity configuration.
@@ -53,9 +57,7 @@ def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
                     machine.ports = OPXPlusPortsContainer()
 
 
-def add_name_and_ip(
-    machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]
-):
+def add_name_and_ip(machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]):
     """Stores the minimal information to connect to a QuantumMachinesManager.
 
     Args:

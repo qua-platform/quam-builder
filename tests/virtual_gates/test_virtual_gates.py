@@ -1,12 +1,12 @@
+"""Tests for virtual gate sets."""
+
 import pytest
 import numpy as np
 from quam.components.channels import SingleChannel
 
 from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
     VirtualGateSet,
-)
-from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer import (
-    VirtualisationLayer,
+    VirtualizationLayer,
 )
 
 
@@ -39,7 +39,7 @@ def test_add_layer_success_first_layer(virtual_gate_set_fixture):
     vgs = virtual_gate_set_fixture
     layer = vgs.add_layer(source_gates=["virt1"], target_gates=["P1"], matrix=[[1.0]])
     assert len(vgs.layers) == 1
-    assert isinstance(vgs.layers[0], VirtualisationLayer)
+    assert isinstance(vgs.layers[0], VirtualizationLayer)
     assert vgs.layers[0] == layer
     assert layer.source_gates == ["virt1"]
     assert layer.target_gates == ["P1"]
@@ -49,9 +49,7 @@ def test_add_layer_success_second_layer(virtual_gate_set_fixture):
     """Test adding a valid second layer targeting the first layer's source."""
     vgs = virtual_gate_set_fixture
     vgs.add_layer(source_gates=["virt_L0"], target_gates=["P1"], matrix=[[1.0]])
-    layer2 = vgs.add_layer(
-        source_gates=["virt_L1"], target_gates=["virt_L0"], matrix=[[0.5]]
-    )
+    layer2 = vgs.add_layer(source_gates=["virt_L1"], target_gates=["virt_L0"], matrix=[[0.5]])
     assert len(vgs.layers) == 2
     assert vgs.layers[1] == layer2
     assert layer2.target_gates == ["virt_L0"]  # Targets source of layer 0
@@ -62,9 +60,7 @@ def test_add_layer_second_layer_targets_physical(virtual_gate_set_fixture):
     vgs = virtual_gate_set_fixture
     vgs.add_layer(source_gates=["virt_L0"], target_gates=["P1"], matrix=[[1.0]])
     # virt_L1 targets P2 (physical), which is allowed
-    layer2 = vgs.add_layer(
-        source_gates=["virt_L1"], target_gates=["P2"], matrix=[[0.5]]
-    )
+    layer2 = vgs.add_layer(source_gates=["virt_L1"], target_gates=["P2"], matrix=[[0.5]])
     assert len(vgs.layers) == 2
     assert vgs.layers[1].target_gates == ["P2"]
 
@@ -139,7 +135,7 @@ def test_resolve_voltages_one_layer(virtual_gate_set_fixture):
     # v_g1 = 2.0 * P1 => P1 = 0.5 * v_g1
     vgs.add_layer(source_gates=["v_g1"], target_gates=["P1"], matrix=[[2.0]])
 
-    # To avoid KeyError with current `VirtualisationLayer.resolve_voltages`'s `+=`,
+    # To avoid KeyError with current `VirtualizationLayer.resolve_voltages`'s `+=`,
     # ensure target physical gates are in the input dict if they are targeted.
     # P1 is a target. P2, P3 are other physical gates.
     input_voltages = {"v_g1": 1.0, "P1": 0.0, "P2": 0.5, "P3": 0.0}
@@ -191,12 +187,8 @@ def test_resolve_voltages_allow_extra_entries_false_error(virtual_gate_set_fixtu
 
     # "unknown_gate" is not a defined physical or virtual channel
     with pytest.raises(ValueError) as excinfo:
-        vgs.resolve_voltages(
-            {"v_g1": 1.0, "unknown_gate": 0.5}, allow_extra_entries=False
-        )
-    assert "Channels {'unknown_gate'} in voltages that are not part" in str(
-        excinfo.value
-    )
+        vgs.resolve_voltages({"v_g1": 1.0, "unknown_gate": 0.5}, allow_extra_entries=False)
+    assert "Channels {'unknown_gate'} in voltages that are not part" in str(excinfo.value)
 
 
 def test_resolve_voltages_allow_extra_entries_true_ignored(virtual_gate_set_fixture):
@@ -248,12 +240,10 @@ def test_matrix_validation_non_square_matrix(virtual_gate_set_fixture):
     """Test that non-square matrices are rejected."""
     vgs = virtual_gate_set_fixture
     non_square_matrix = [[1.0, 0.5], [0.0, 1.0], [0.5, 0.0]]  # 3x2 matrix
-    
+
     with pytest.raises(ValueError) as excinfo:
         vgs.add_layer(
-            source_gates=["v1", "v2"], 
-            target_gates=["P1", "P2"], 
-            matrix=non_square_matrix
+            source_gates=["v1", "v2"], target_gates=["P1", "P2"], matrix=non_square_matrix
         )
     assert "Matrix must be square" in str(excinfo.value)
 
@@ -262,13 +252,9 @@ def test_matrix_validation_non_invertible_matrix(virtual_gate_set_fixture):
     """Test that non-invertible matrices are rejected."""
     vgs = virtual_gate_set_fixture
     singular_matrix = [[1.0, 2.0], [2.0, 4.0]]  # Determinant = 0
-    
+
     with pytest.raises(ValueError) as excinfo:
-        vgs.add_layer(
-            source_gates=["v1", "v2"], 
-            target_gates=["P1", "P2"], 
-            matrix=singular_matrix
-        )
+        vgs.add_layer(source_gates=["v1", "v2"], target_gates=["P1", "P2"], matrix=singular_matrix)
     assert "Matrix is not invertible" in str(excinfo.value)
 
 
@@ -276,11 +262,7 @@ def test_matrix_validation_valid_matrix(virtual_gate_set_fixture):
     """Test that valid square invertible matrices are accepted."""
     vgs = virtual_gate_set_fixture
     valid_matrix = [[1.0, 0.5], [0.0, 1.0]]  # Square and invertible
-    
-    layer = vgs.add_layer(
-        source_gates=["v1", "v2"], 
-        target_gates=["P1", "P2"], 
-        matrix=valid_matrix
-    )
+
+    layer = vgs.add_layer(source_gates=["v1", "v2"], target_gates=["P1", "P2"], matrix=valid_matrix)
     assert len(vgs.layers) == 1
     assert layer.matrix == valid_matrix

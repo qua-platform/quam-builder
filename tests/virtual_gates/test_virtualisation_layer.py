@@ -1,14 +1,18 @@
+"""Tests for virtualization layer."""
+
+# pylint: skip-file
+
 import pytest
 import numpy as np
 
-from quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer import (
-    VirtualisationLayer,
+from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
+    VirtualizationLayer,
 )
 
 
 def test_initialization():
-    """Test basic initialization of VirtualisationLayer."""
-    vl = VirtualisationLayer(
+    """Test basic initialization of VirtualizationLayer."""
+    vl = VirtualizationLayer(
         source_gates=["v_g1"],
         target_gates=["P1"],
         matrix=[[2.0]],
@@ -20,16 +24,14 @@ def test_initialization():
 
 def test_calculate_inverse_matrix():
     """Test matrix inversion."""
-    vl = VirtualisationLayer(
+    vl = VirtualizationLayer(
         source_gates=["v_s1", "v_s2"],
         target_gates=["P1", "P2"],
         matrix=[[2.0, 0.0], [0.0, 0.5]],
     )
     # M = [[2, 0], [0, 0.5]] => M_inv = [[0.5, 0], [0, 2.0]]
     expected_inverse = np.array([[0.5, 0.0], [0.0, 2.0]])
-    np.testing.assert_array_almost_equal(
-        vl.calculate_inverse_matrix(), expected_inverse
-    )
+    np.testing.assert_array_almost_equal(vl.calculate_inverse_matrix(), expected_inverse)
 
 
 def test_resolve_voltages_simple_1_to_1():
@@ -37,7 +39,7 @@ def test_resolve_voltages_simple_1_to_1():
     # V_phys = M_inv * V_virt. Here, M is V_virt = M * V_phys.
     # So matrix in VL is M. M_inv is calculated.
     # V_p1 = 0.5 * v_g1
-    vl = VirtualisationLayer(
+    vl = VirtualizationLayer(
         source_gates=["v_g1"], target_gates=["P1"], matrix=[[2.0]]
     )  # M = [[2.0]] => M_inv = [[0.5]]
 
@@ -52,7 +54,7 @@ def test_resolve_voltages_simple_1_to_1():
 
 def test_resolve_voltages_2_to_2():
     """Test voltage resolution for a 2x2 mapping."""
-    vl = VirtualisationLayer(
+    vl = VirtualizationLayer(
         source_gates=["v_s1", "v_s2"],
         target_gates=["P1", "P2"],
         # M: v_s1 = 2*P1 + 1*P2; v_s2 = 0*P1 + 1*P2
@@ -75,14 +77,14 @@ def test_resolve_voltages_2_to_2():
 
 def test_resolve_voltages_allow_extra_false_error():
     """Test error if allow_extra_entries=False and extra gates exist."""
-    vl = VirtualisationLayer(source_gates=["v_s1"], target_gates=["P1"], matrix=[[1.0]])
+    vl = VirtualizationLayer(source_gates=["v_s1"], target_gates=["P1"], matrix=[[1.0]])
     with pytest.raises(AssertionError):
         vl.resolve_voltages({"v_s1": 1.0, "extra_gate": 0.5}, allow_extra_entries=False)
 
 
 def test_resolve_voltages_allow_extra_true_ignored():
     """Test extra gates are preserved if allow_extra_entries=True."""
-    vl = VirtualisationLayer(source_gates=["v_s1"], target_gates=["P1"], matrix=[[1.0]])
+    vl = VirtualizationLayer(source_gates=["v_s1"], target_gates=["P1"], matrix=[[1.0]])
     # P1 needs to be in input for current += implementation
     input_voltages = {"v_s1": 1.0, "extra_gate": 0.5, "P1": 0.0}
     resolved = vl.resolve_voltages(input_voltages, allow_extra_entries=True)
@@ -93,7 +95,7 @@ def test_resolve_voltages_allow_extra_true_ignored():
 
 def test_resolve_voltages_partial_source_gates_input():
     """Test when input voltages don't contain all source_gates of the layer."""
-    vl = VirtualisationLayer(
+    vl = VirtualizationLayer(
         source_gates=["v_s1", "v_s2"],
         target_gates=["P1", "P2"],
         matrix=[[1.0, 0.0], [0.0, 1.0]],  # Identity
@@ -112,14 +114,14 @@ def test_resolve_voltages_partial_source_gates_input():
 
 def test_to_dict_conversion():
     """Test that matrix is converted to list in to_dict()."""
-    vl = VirtualisationLayer(
+    vl = VirtualizationLayer(
         source_gates=["v_g1"],
         target_gates=["P1"],
         matrix=np.array([[2.0]]),  # Input as numpy array
     )
     vl_dict = vl.to_dict()
     assert vl_dict == {
-        "__class__": "quam_builder.architecture.quantum_dots.virtual_gates.virtualisation_layer.VirtualisationLayer",
+        "__class__": "quam_builder.architecture.quantum_dots.components.virtual_gate_set.VirtualizationLayer",
         "source_gates": ["v_g1"],
         "target_gates": ["P1"],
         "matrix": [[2.0]],

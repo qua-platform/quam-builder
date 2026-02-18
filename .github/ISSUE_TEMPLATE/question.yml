@@ -1,0 +1,69 @@
+name: ❓ Question / Help
+description: Ask a question or request help
+title: "[Question]: "
+labels: ["question", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using quam-builder? We're here to help!
+
+        **Note:** For complex questions, you might also consider reaching out to your Customer Success Physicist at Quantum Machines.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: How do I...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to accomplish? What have you tried so far?
+      placeholder: |
+        I'm trying to...
+        I've looked at...
+        I've tried...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Relevant Code
+      description: If applicable, share the code you're working with
+      placeholder: |
+        ```python
+        from quam_builder import ...
+
+        # Your code here
+        ```
+      render: python
+
+  - type: input
+    id: version
+    attributes:
+      label: quam-builder Version
+      description: Which version are you using?
+      placeholder: e.g., 0.1.0 (run `pip show quam-builder`)
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other information that might be relevant
+      placeholder: Any additional details...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and documentation
+          required: true
+        - label: I have provided enough context for others to understand my question
+          required: true

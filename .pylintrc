@@ -1,0 +1,35 @@
+[MAIN]
+# Load the QUA plugin for suppressing false positives in QUA contexts
+# The init-hook finds the repo root (where pyproject.toml lives) and adds it to sys.path
+init-hook=import sys, os; d = os.getcwd(); exec('while d != os.path.dirname(d):\n if os.path.isfile(os.path.join(d, "pyproject.toml")): sys.path.insert(0, d); break\n d = os.path.dirname(d)')
+load-plugins=pylint_qua_plugin
+
+# Folders to ignore
+# tests/pylint_plugin contains intentional lint violations for testing the plugin
+ignore=venv,.venv,pylint_qua_plugin,tests/pylint_plugin
+ignore-patterns=^tests/
+
+[MESSAGES CONTROL]
+# Enable ONLY:
+#   E = Errors
+#   R = Refactor suggestions
+#   C = Convention checks
+#   F = fatal
+enable=E, R, F, C
+
+# Disable W (Warnings), and I (Information)
+# Also disable specific checks that don't fit this codebase:
+#   - invalid-name: Module names start with numbers (01a_time_of_flight), variables use physics conventions (I, Q)
+#   - import-error, no-name-in-module: quam_config is project-specific, pylint can't resolve it
+#   - too-many-locals: Quantum calibration code often needs many variables
+disable=W, I, invalid-name, import-error, no-name-in-module, too-many-locals, duplicate-code, too-many-branches, too-many-return-statements, too-many-arguments, too-many-positional-arguments, too-many-lines, wrong-import-order, ungrouped-imports, consider-iterating-dictionary, use-implicit-booleaness-not-comparison-to-zero, unexpected-keyword-arg, undefined-all-variable, missing-module-docstring, missing-function-docstring, missing-class-docstring, missing-final-newline, line-too-long, wrong-import-position, import-outside-toplevel, consider-using-with, no-else-raise, unnecessary-dunder-call, undefined-variable, no-else-return, no-else-continue, too-many-instance-attributes, too-many-public-methods, useless-return, consider-using-in, use-dict-literal, no-value-for-parameter, too-few-public-methods, inconsistent-return-statements, unnecessary-comprehension, redefined-outer-name, use-implicit-booleaness-not-comparison, function-redefined, use-implicit-booleaness-not-comparison-to-string
+
+
+[REPORTS]
+# Cleaner output, no extra reports
+reports=no
+
+
+[FORMAT]
+# Optional — set your preferred line length
+max-line-length=120
