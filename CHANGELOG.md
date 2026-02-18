@@ -7,11 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 - Add spectator qubit support in `CZGate` class with phase shift handling.
 - Add `duration_control` parameter to `CZGate` for better pulse handling.
-- **ReadoutResonatorMW**: `kappa` attribute (float, default 1e6) for resonator linewidth configuration.
+- **ReadoutResonatorBase**: `kappa` attribute (float, default 1e6) for resonator linewidth configuration.
 - **TWPA**: `pumpline_attenuation` and `signalline_attenuation` (float, optional).
-- **XYDriveMW**: `target_detuning_from_sweet_spot` (float, default 0.0).
-- **BaseQuam**: `extras` (dict) for additional QUAM-level attributes.
-- **FluxTunableTransmon**: `at_sweep_spot` (bool, default `True`) for calibration control.
+- **BaseQuam and XYDriveBase**: `extras` (dict) for additional QUAM-level attributes.
 ### Changed
 - **FluxTunableQuam.set_all_fluxes**: `target` is now optional; when `target=None`, settle and align are applied to all qubits.
 - Add support for cloud-based QMM instances in `machine.connect()`
@@ -46,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/main...HEAD
 [0.2.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.0
 [0.1.2]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.2
 [0.1.1]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.1
