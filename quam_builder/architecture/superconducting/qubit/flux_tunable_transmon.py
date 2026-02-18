@@ -26,4 +26,3 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
     freq_vs_flux_01_quad_term: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
-    at_sweep_spot: bool = True

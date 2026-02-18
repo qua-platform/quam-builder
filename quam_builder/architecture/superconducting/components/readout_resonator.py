@@ -41,6 +41,8 @@ class ReadoutResonatorBase:
     gef_centers: list = None
     gef_confusion_matrix: list = None
     GEF_frequency_shift: float = None
+    
+    kappa: float = 1000000
 
     @staticmethod
     def calculate_voltage_scaling_factor(
@@ -52,6 +54,7 @@ class ReadoutResonatorBase:
         Parameters:
         fixed_power_dBm (float): The fixed power in dBm.
         target_power_dBm (float): The target power in dBm.
+        kappa (float): The kappa of the resonator in Hz.
 
         Returns:
         float: The voltage scaling factor.
@@ -117,7 +120,6 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
 @quam_dataclass
 class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
-    kappa: float = 1000000
 
     @property
     def upconverter_frequency(self):
