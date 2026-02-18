@@ -28,6 +28,7 @@ from qm.qua import (
     update_frequency,
     Math,
     Cast,
+    Random
 )
 
 
@@ -223,8 +224,23 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         if threshold is None:
             threshold = self.resonator.operations[pulse_name].threshold
+        
+        # do_flip = declare(int)
+        # if self.twirl_measurement:
+        #     assign(do_flip, Random().rand_int(2))
+        #     with if_(do_flip == 1, unsafe=True):
+        #         self.xy.play("x180")
+        #     self.align()
+
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
+
+        # if self.twirl_measurement:
+        #     assign(state, Cast.to_int(I > threshold))
+        #     with if_(do_flip == 1, unsafe=True):
+        #         assign(state, 1- state)
+        # else:
         assign(state, Cast.to_int(I > threshold))
+
         wait(self.resonator.depletion_time // 4, self.resonator.name)
 
     def reset(
