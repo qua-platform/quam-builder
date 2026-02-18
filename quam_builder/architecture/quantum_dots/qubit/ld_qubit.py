@@ -7,7 +7,7 @@ from quam.components import Channel
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.components.mixin import VoltagePointMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 from quam_builder.architecture.quantum_dots.operations import SINGLE_QUBIT_MACROS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
@@ -25,7 +25,7 @@ __all__ = ["LDQubit"]
 
 
 @quam_dataclass
-class LDQubit(VoltagePointMacroMixin, Qubit):
+class LDQubit(VoltageMacroMixin, Qubit):
     # pylint: disable=no-member
     """
     An example QUAM component for a Loss DiVincenzo Qubit

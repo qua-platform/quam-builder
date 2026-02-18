@@ -19,7 +19,7 @@ from quam.core import OperationsRegistry
 from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
-from quam_builder.architecture.quantum_dots.components import VoltageMacroMixin
+from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 
 __all__ = [
     "operations_registry",

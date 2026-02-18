@@ -2,7 +2,7 @@ from typing import Dict, List
 
 from quam.core import quam_dataclass, QuamComponent
 
-from .mixin import VoltageMacroMixin
+from .mixins import VoltageMacroMixin
 from .quantum_dot import QuantumDot
 
 
