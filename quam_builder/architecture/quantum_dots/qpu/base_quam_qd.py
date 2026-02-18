@@ -307,32 +307,34 @@ class BaseQuamQD(QuamRoot):
         Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
 
         Args:
-            sensor_readout_mappings (Dict[Channel, Union[ReadoutResonatorBase, ReadoutTransportBase]]):
-                Dictionary where keys are sensor channels and values are their associated readout channels.
-
+            sensor_resonator_mappings (Dict[Channel, ReadoutResonatorBase]):
+                Dictionary where keys are sensor channels and values are their associated resonator.
+            sensor_transport_mappings (Dict[Channel, DrainSingle]):
+                Dictionary where keys are sensor channels and values are their associated transport reservoir objects.
         """
-        for ch, readout in sensor_resonator_mappings.items():
+        for ch, res in sensor_resonator_mappings.items():
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
             )
-            sensor_dot.physical_channel.readout = readout
+            sensor_dot.physical_channel.readout = res
             self.sensor_dots[virtual_name] = sensor_dot
 
-        for ch, drain in sensor_transport_mappings.items():
-            virtual_name = self._get_virtual_name(ch)
-            if virtual_name in self.sensor_dots:
-                sensor_dot = self.sensor_dots[virtual_name]
-                # Set the reservoir to the drain, which should already have the readout element attached
-                sensor_dot.readout_reservoir = drain
-            else:
-                sensor_dot = SensorDot(
-                    id=virtual_name,
-                    physical_channel=ch.get_reference(),
-                )
-                sensor_dot.readout_reservoir = drain
-                self.sensor_dots[virtual_name] = sensor_dot
+        if sensor_transport_mappings is not None:
+            for ch, drain in sensor_transport_mappings.items():
+                virtual_name = self._get_virtual_name(ch)
+                if virtual_name in self.sensor_dots:
+                    sensor_dot = self.sensor_dots[virtual_name]
+                    # Set the reservoir to the drain, which should already have the readout element attached
+                    sensor_dot.readout_reservoir = drain
+                else:
+                    sensor_dot = SensorDot(
+                        id=virtual_name,
+                        physical_channel=ch.get_reference(),
+                    )
+                    sensor_dot.readout_reservoir = drain
+                    self.sensor_dots[virtual_name] = sensor_dot
 
     def register_barrier_gates(self, barrier_channels: List[Channel]) -> None:
         for ch in barrier_channels:
