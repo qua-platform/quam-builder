@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, Any
+from dataclasses import field
 
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
@@ -20,6 +21,8 @@ class XYDriveBase:
     """
     QUAM component for a XY drive line.
     """
+    
+    extras: Dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
     def calculate_voltage_scaling_factor(
