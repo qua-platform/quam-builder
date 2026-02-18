@@ -8,4 +8,8 @@ class Sensor(QuantumComponent):
     @property
     def name(self) -> str:
         return self.id
+
+    @QuantumComponent.register_macro
+    def trigger(self):
+        self.channel.current_voltage = 1.0
     

@@ -26,6 +26,10 @@ class Atom:
     shelved: bool = False
     alive: bool = True
     tweezer_id: Optional[int] = None
+    @property
+    def position(self):
+        """Return the (x, y) tuple of the atom."""
+        return (self.x, self.y)
 
     @classmethod 
     def create(cls, x: float, y: float): 
@@ -84,7 +88,6 @@ class Atom:
     def unshelve(self):
         """Return atom to normal state."""
         self.shelved = False
-
 
     # -------------------
     def update_position(self, x: float, y: float):

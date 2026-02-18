@@ -54,8 +54,16 @@ class  BaseQuamNA(QuamRoot):
         self._channels = getattr(self, "_channels", [])
         self._channels.append(channel)
 
-    def create_tweezer(self, spots: list[tuple[float, float]], id: str | None = None, drive: str | None = None) -> Tweezer:
-        tweezer = Tweezer(spots=spots, id=id, drive=drive)
+    def create_tweezer(
+        self,
+        spots: list[tuple[float, float]],
+        id: str | None = None,
+        drive: str | None = None,
+        name: str | None = None,
+    ) -> Tweezer:
+        # Backward compatibility: allow callers to pass "name" instead of "id".
+        tweezer_id = id if id is not None else name
+        tweezer = Tweezer(spots=spots, id=tweezer_id, drive=drive)
         self.register_tweezer(tweezer)
         return tweezer
 
@@ -84,7 +92,13 @@ class  BaseQuamNA(QuamRoot):
         raise ValueError(f"Channel '{name}' not found")
     
     @QuantumComponent.register_macro
-    def measure(self, region_name: str, sensor_name: str):
+    def measure(
+        self,
+        region_name: str | None = None,
+        sensor_name: str | None = None,
+        region: str | None = None,
+        sensor: str | None = None,
+    ):
         """
         Measure the signal from the channel for a specific region.
 
@@ -94,8 +108,13 @@ class  BaseQuamNA(QuamRoot):
         Returns:
             Measured signal value
         """
-        region = self.get_region(region_name)
-        sensor = self.get_sensor(sensor_name)
+        resolved_region_name = region_name if region_name is not None else region
+        resolved_sensor_name = sensor_name if sensor_name is not None else sensor
+        if resolved_region_name is None or resolved_sensor_name is None:
+            raise ValueError("Both region and sensor names must be provided")
+
+        region = self.get_region(resolved_region_name)
+        sensor = self.get_sensor(resolved_sensor_name)
 
 
         sensor.trigger()

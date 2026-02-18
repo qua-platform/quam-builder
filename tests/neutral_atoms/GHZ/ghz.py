@@ -30,6 +30,8 @@ def serialize_qua_program(prog: Program, qpu: BaseQuamNA, path: str | None = Non
     sourceFile.close()
 
 def load_atoms():
+    # For simplicity, we directly create atoms at the desired positions. 
+    # In a real scenario, this would involve loading atoms from a MOT and rearranging them into the initial configuration.
     atoms = [Atom.create(x=0, y=0), Atom.create(x=1, y=0), Atom.create(x=2, y=0)]
     for i, atom in enumerate(atoms):
         atom.enter_region("prepare")
@@ -114,9 +116,10 @@ def ghz_3(qpu):
 
         # -- GHZ circuit sequence, macros needs to be implemented --
         dynamic_tweezer.move(target=qpu.get_region("drive").center)
-        drive_region.global_h() # Should this be registered as a Channel.operations
-        dynamic_tweezer.move(target=qpu.get_region("drive").center) 
+        drive_region.global_h() # Should this be registered as a Channel.operations 
+        
         # Dynamic tweezers via AOD
+        dynamic_tweezer.move(target=qpu.get_region("entangle").center)
         
         # CZ(0,1) and CZ(0,2)
         initial_postion = atoms[0].position
@@ -127,11 +130,13 @@ def ghz_3(qpu):
         )
         a0_tweezer.move(target=atoms[1].position + ( 0, qpu.rydberg_distance))
         entangle_region.global_cz()
-        a0_tweezer.move(target=atoms[1].position + ( 0, qpu.rydberg_distance))
+        a0_tweezer.move(target=atoms[2].position + ( 0, qpu.rydberg_distance))
         entangle_region.global_cz()
         a0_tweezer.move(target=initial_postion)
 
+        
         # Mesurement
+        dynamic_tweezer.move(target=qpu.get_region("readout").center)
         qpu.measure(region="readout", sensor="HAMMAMATSU")
 
         # -- Optional: disable SLM after usage --
@@ -142,7 +147,6 @@ def ghz_3(qpu):
 def main():
     qpu = init_qpu()
     prog = ghz_3(qpu)
-    prog.serialize_qua_program()
     config = qpu.generate_config()
     
     serialize_qua_program(prog, qpu)
