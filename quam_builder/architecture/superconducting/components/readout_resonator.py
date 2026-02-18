@@ -54,7 +54,6 @@ class ReadoutResonatorBase:
         Parameters:
         fixed_power_dBm (float): The fixed power in dBm.
         target_power_dBm (float): The target power in dBm.
-        kappa (float): The kappa of the resonator in Hz.
 
         Returns:
         float: The voltage scaling factor.
