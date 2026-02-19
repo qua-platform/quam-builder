@@ -3909,10 +3909,14 @@ ast = [
     { name = "qua-qsim" },
 ]
 dev = [
+    { name = "astroid", version = "3.3.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "astroid", version = "4.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "ipykernel", version = "7.0.0a2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "ipykernel", version = "7.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pre-commit", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pre-commit", version = "4.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pylint", version = "3.3.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pylint", version = "4.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest-cov" },
@@ -3942,8 +3946,10 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 ast = [{ name = "qua-qsim", git = "https://github.com/qua-platform/qua-qsim.git?rev=bare-ast-visitor" }]
 dev = [
+    { name = "astroid", specifier = ">=3.0" },
     { name = "ipykernel", specifier = ">=7.0.0a1" },
     { name = "pre-commit" },
+    { name = "pylint", specifier = ">=3.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
