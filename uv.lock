@@ -3795,7 +3795,7 @@ dependencies = [
 [[package]]
 name = "qualang-tools"
 version = "0.21.0"
-source = { git = "https://github.com/qua-platform/py-qua-tools.git?rev=feat%2Fquantum-dots#c75dd4c2a75250c4d8ce779513180dc007f15109" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpclib" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -3808,6 +3808,10 @@ dependencies = [
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "scipy", version = "1.16.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b2/6d/ff037886ebad70b929b5595549229ff53e6936406262a65b143b8ea26237/qualang_tools-0.21.0.tar.gz", hash = "sha256:e3ae09631c5bea9ca87c9246fba2d13a5a118da790a8bf4c6590007ea842bba0", size = 4412281, upload-time = "2025-10-29T15:15:36.829Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cf/c5/f96de5854d81ead29932e5c3ce3e1ac75f88351b4fb8b5976aeefe328585/qualang_tools-0.21.0-py3-none-any.whl", hash = "sha256:a2d3f3c90524728f41f4e69d6d866271b6a65ca7492163800c696967f250b5e9", size = 4463666, upload-time = "2025-10-29T15:15:34.749Z" },
 ]
 
 [[package]]
@@ -3932,7 +3936,7 @@ requires-dist = [
     { name = "qcodes-contrib-drivers", specifier = ">=0.22.0" },
     { name = "qm-qua", specifier = ">=1.2.2" },
     { name = "qm-saas", specifier = ">=1.1.7" },
-    { name = "qualang-tools", git = "https://github.com/qua-platform/py-qua-tools.git?rev=feat%2Fquantum-dots" },
+    { name = "qualang-tools", specifier = ">=0.19.0" },
     { name = "quam", specifier = ">=0.4.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "xarray", specifier = ">=2024.7.0" },
