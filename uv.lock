@@ -3887,6 +3887,8 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "astroid", version = "3.3.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "astroid", version = "4.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "black", version = "25.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "black", version = "26.1a1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "commitizen", version = "4.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -3919,11 +3921,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "astroid", marker = "extra == 'dev'", specifier = ">=3.0" },
     { name = "black", marker = "extra == 'dev'" },
     { name = "commitizen", marker = "extra == 'dev'" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "pylint", marker = "extra == 'dev'" },
+    { name = "pylint", marker = "extra == 'dev'", specifier = ">=3.0" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "qcodes-contrib-drivers", specifier = ">=0.22.0" },
