@@ -3,7 +3,6 @@
 All objects are real — no mocks or stubs.
 """
 
-import pytest
 from qm import qua
 
 from quam_builder.architecture.quantum_dots.components import (
@@ -70,7 +69,6 @@ class TestDetuningControl:
             pair.step_to_detuning(0.5, duration=100)
         assert prog is not None
 
-    @pytest.mark.xfail(reason="ramp_to_detuning calls step_to_voltages instead of ramp_to_voltages")
     def test_ramp_to_detuning_in_qua(self, qd_machine):
         pair = qd_machine.quantum_dot_pairs["dot1_dot2_pair"]
         with qua.program() as prog:

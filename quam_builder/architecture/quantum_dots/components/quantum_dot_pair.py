@@ -17,7 +17,7 @@ __all__ = ["QuantumDotPair"]
 
 
 @quam_dataclass
-class QuantumDotPair(VoltageMacroMixin):
+class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     """
     Class representing a Quantum Dot Pair.
     Attributes:
@@ -133,7 +133,7 @@ class QuantumDotPair(VoltageMacroMixin):
 
     def ramp_to_detuning(self, voltage: float, ramp_duration: int, duration: int = 16):
         """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
-        return self.voltage_sequence.step_to_voltages(
+        return self.voltage_sequence.ramp_to_voltages(
             {self.detuning_axis_name: voltage}, duration=duration, ramp_duration=ramp_duration
         )
 
@@ -155,12 +155,12 @@ class QuantumDotPair(VoltageMacroMixin):
         pulse_name: str = "readout",
     ):
 
-        if self.sensor_dots.__len__() == 0:
+        if not self.sensor_dots:
             raise ValueError("No sensor dots")
-        elif self.sensor_dots.__len__() == 1:
+        elif len(self.sensor_dots) == 1:
             pass
         else:
-            raise NotImplementedError(f"self.sensor_dots.__len__() is {len(self.sensor_dots)}")
+            raise NotImplementedError(f"len(sensor_dots) is {len(self.sensor_dots)}")
 
         I = declare(fixed)
         Q = declare(fixed)
