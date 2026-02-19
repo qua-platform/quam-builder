@@ -50,6 +50,14 @@ prerelease = "allow"
 prerelease = "allow"
 
 # -----------------------------
+# Pytest configuration
+# -----------------------------
+[tool.pytest.ini_options]
+markers = [
+    "server: requires a live QM hardware server (deselected in CI)",
+]
+
+# -----------------------------
 # Ruff configuration
 # -----------------------------
 [tool.ruff]
