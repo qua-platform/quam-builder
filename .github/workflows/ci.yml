@@ -61,7 +61,7 @@ jobs:
 
     - name: Run tests with pytest
       run: |
-        uv run pytest --verbose --cov --cov-report=xml --cov-report=term
+        uv run pytest -m "not server" --verbose --cov --cov-report=xml --cov-report=term
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
