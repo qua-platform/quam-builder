@@ -268,12 +268,12 @@ class BaseQuamQD(QuamRoot):
         plunger_channels: List[Channel],
         sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
         barrier_channels: List[Channel],
-        sensor_transport_mappings: Dict[Channel, DrainSingle] = None,
+        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
         global_gates: Optional[List[VoltageGate]] = None,
     ) -> None:
         self.register_quantum_dots(plunger_channels)
         self.register_barrier_gates(barrier_channels)
-        self.register_sensor_dots(sensor_resonator_mappings, sensor_transport_mappings)
+        self.register_sensor_dots(sensor_resonator_mappings, sensor_drain_mappings)
 
         if global_gates is not None:
             self.register_global_gates(global_gates)
@@ -301,7 +301,7 @@ class BaseQuamQD(QuamRoot):
     def register_sensor_dots(
         self,
         sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
-        sensor_transport_mappings: Dict[Channel, DrainSingle] = None,
+        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
     ) -> None:
         """
         Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
@@ -309,7 +309,7 @@ class BaseQuamQD(QuamRoot):
         Args:
             sensor_resonator_mappings (Dict[Channel, ReadoutResonatorBase]):
                 Dictionary where keys are sensor channels and values are their associated resonator.
-            sensor_transport_mappings (Dict[Channel, DrainSingle]):
+            sensor_drain_mappings (Dict[Channel, DrainSingle]):
                 Dictionary where keys are sensor channels and values are their associated transport reservoir objects.
         """
         for ch, res in sensor_resonator_mappings.items():
@@ -321,8 +321,8 @@ class BaseQuamQD(QuamRoot):
             sensor_dot.physical_channel.readout = res
             self.sensor_dots[virtual_name] = sensor_dot
 
-        if sensor_transport_mappings is not None:
-            for ch, drain in sensor_transport_mappings.items():
+        if sensor_drain_mappings is not None:
+            for ch, drain in sensor_drain_mappings.items():
                 virtual_name = self._get_virtual_name(ch)
                 if virtual_name in self.sensor_dots:
                     sensor_dot = self.sensor_dots[virtual_name]
