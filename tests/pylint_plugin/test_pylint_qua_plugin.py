@@ -19,7 +19,6 @@ import pytest
 # Get paths
 REPO_ROOT = Path(__file__).parent.parent.parent
 SAMPLE_FILE = Path(__file__).parent / "sample_qua_file.py"
-PYLINTRC = REPO_ROOT / ".pylintrc"
 
 
 def run_pylint(file_path: Path, use_plugin: bool = True) -> tuple[int, str, str]:
@@ -35,24 +34,30 @@ def run_pylint(file_path: Path, use_plugin: bool = True) -> tuple[int, str, str]
     """
     env = {"PYTHONPATH": str(REPO_ROOT)}
 
+    # Both modes use the same base args; the project .pylintrc is NOT used
+    # because its ignore-patterns would skip files under tests/.
+    base_args = [
+        "--disable=W,I,invalid-name,import-error,no-name-in-module,too-many-locals",
+        "--enable=E,R,F,C",
+        "--reports=no",
+    ]
+
     if use_plugin:
-        # Run with the plugin via .pylintrc
         cmd = [
             sys.executable,
             "-m",
             "pylint",
-            f"--rcfile={PYLINTRC}",
+            f"--init-hook=import sys; sys.path.insert(0, r'{REPO_ROOT}')",
+            "--load-plugins=pylint_qua_plugin",
+            *base_args,
             str(file_path),
         ]
     else:
-        # Run without the plugin (skip init-hook and load-plugins)
         cmd = [
             sys.executable,
             "-m",
             "pylint",
-            "--disable=W,I,invalid-name,import-error,no-name-in-module,too-many-locals",
-            "--enable=E,R,F,C",
-            "--reports=no",
+            *base_args,
             str(file_path),
         ]
 
@@ -168,9 +173,7 @@ class TestRegularPythonNotSuppressed:
 
         # At minimum, there should be SOME C1805 warnings for regular Python code
         # The exact lines may vary, but we should see warnings outside QUA contexts
-        assert (
-            len(lines_with_c1805) > 0
-        ), "C1805 should still appear for regular Python code"
+        assert len(lines_with_c1805) > 0, "C1805 should still appear for regular Python code"
 
     def test_c0121_not_suppressed_in_regular_python(self):
         """
@@ -181,9 +184,7 @@ class TestRegularPythonNotSuppressed:
         lines_with_c0121 = get_lines_with_message(stdout, "C0121")
 
         # regular_python_function and mixed_function should have C0121 warnings
-        assert (
-            len(lines_with_c0121) > 0
-        ), "C0121 should still appear for regular Python code"
+        assert len(lines_with_c0121) > 0, "C0121 should still appear for regular Python code"
 
 
 class TestComparisonWithoutPlugin:
@@ -227,16 +228,12 @@ class TestRealWorldExample:
         Run pylint on the actual rabi_chevron.py and verify QUA-related
         false positives are suppressed.
         """
-        rabi_file = (
-            REPO_ROOT / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
-        )
+        rabi_file = REPO_ROOT / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
         return_code, stdout, stderr = run_pylint(rabi_file, use_plugin=True)
 
         # The file uses QUA constructs - verify no false positives
         # in the QUA program section
-        assert (
-            "Error loading plugin" not in stderr
-        ), f"Plugin failed to load: {stderr}"
+        assert "Error loading plugin" not in stderr, f"Plugin failed to load: {stderr}"
 
         # Print output for debugging if there are issues
         if "C1805" in stdout or "C0121" in stdout:
