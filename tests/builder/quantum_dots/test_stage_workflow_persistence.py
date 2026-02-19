@@ -75,7 +75,7 @@ def _add_calibration_data(machine: BaseQuamQD) -> None:
     quantum_dot.with_step_point(
         "calibration_idle",
         {"virtual_dot_1": 0.12},
-        hold_duration=120,
+        duration=120,
     ).with_sequence("calibration_sequence", ["calibration_idle"])
 
 
@@ -126,9 +126,7 @@ def test_calibration_data_persists_across_two_stage_build(tmp_path):
     )
 
     gate_set = machine_stage2.virtual_gate_sets["main_qpu"]
-    calibration_layer = next(
-        layer for layer in gate_set.layers if layer.id == "calibration_layer"
-    )
+    calibration_layer = next(layer for layer in gate_set.layers if layer.id == "calibration_layer")
     assert calibration_layer.source_gates == ["virtual_calibration_axis"]
 
     quantum_dot = machine_stage2.quantum_dots["virtual_dot_1"]

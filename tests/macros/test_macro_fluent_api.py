@@ -10,6 +10,12 @@ This test file covers:
 6. Fluent API chaining
 7. Macro execution and parameter overrides
 8. Error handling for non-existent points
+
+Mock/patch policy:
+    patch.object(qd.voltage_sequence, "step_to_point"/"ramp_to_point") is used
+    in execution tests only. These methods emit QUA DSL calls that build IR.
+    Patching lets us verify macro dispatch logic without inspecting compiled QUA
+    programs. All other objects (machine, quantum dots, gate sets) are real.
 """
 
 import pytest
@@ -405,6 +411,8 @@ class TestMacroExecution:
             .with_step_point("measure", {"virtual_dot_4": 0.2}, duration=200)
             .with_sequence("test_seq", ["idle", "measure"])
         )
+
+        qd.macros["test_seq"].align_elements = False
 
         with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
