@@ -8,6 +8,14 @@ This test file covers:
 4. Macro serialization and reference system
 5. Parameter overrides
 6. Error handling
+
+Mock/patch policy:
+    patch.object(qd.voltage_sequence, "step_to_point"/"ramp_to_point") is used
+    in execution tests. These methods emit QUA DSL calls (qua.play, etc.) that
+    build IR. Patching them lets us verify that macros dispatch to the correct
+    voltage-sequence methods with the right arguments — testing macro logic, not
+    QUA IR generation. Removing the patches would require inspecting compiled QUA
+    programs, which is fragile and outside the scope of these tests.
 """
 
 import pytest
@@ -292,6 +300,8 @@ class TestSequenceMacro:
             .with_sequence("test_seq", ["idle", "measure"])
         )
 
+        qd.macros["test_seq"].align_elements = False
+
         with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
                 qd.test_seq()
@@ -350,6 +360,9 @@ class TestSequenceMacro:
 
         # Create top-level sequence
         qd.with_sequence("full_experiment", ["init", "readout_seq"])
+
+        for name in ("init", "readout_seq", "full_experiment"):
+            qd.macros[name].align_elements = False
 
         with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program() as prog:
@@ -555,6 +568,9 @@ class TestMacroIntegration:
             .with_sequence("measurement", ["manipulate", "readout_pos"])
             .with_sequence("full_experiment", ["initialization", "measurement"])
         )
+
+        for name in ("initialization", "measurement", "full_experiment"):
+            qd.macros[name].align_elements = False
 
         # Execute complete experiment
         with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
