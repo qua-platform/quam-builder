@@ -7,6 +7,7 @@ from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
+    add_default_twpa_pulses,
 )
 from quam_builder.builder.superconducting.add_twpa_component import (
     add_twpa_pump_component,
@@ -174,6 +175,10 @@ def add_pulses(machine: AnyQuam):
     if hasattr(machine, "qubit_pairs"):
         for qubit_pair in machine.qubit_pairs.values():
             add_default_transmon_pair_pulses(qubit_pair)
+
+    if hasattr(machine, "twpas"):
+        for twpa in machine.twpas.values():
+            add_default_twpa_pulses(twpa)
 
 
 def add_octaves(
