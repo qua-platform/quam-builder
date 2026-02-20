@@ -361,6 +361,13 @@ class BaseQuam(QuamRoot):
         Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
         return I, I_st, Q, Q_st, n, n_st
 
-    def initialize_qpu(self, **kwargs):
-        """Initialize the QPU with the specified settings."""
-        pass
+    def initialize_qpu(self, isolation:bool =True, **kwargs):
+        """Initialize the QPU with the calibrated TWPA pumping points.
+
+        Args:
+        isolation : bool, optional
+            If True, also configure and play the isolation tone. Use when the TWPA
+            has isolation and you want it active. Default False.
+        """
+        for twpa in self.twpas.values():
+            twpa.initialize(isolation=isolation)

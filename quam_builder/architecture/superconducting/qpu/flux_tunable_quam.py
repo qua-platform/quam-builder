@@ -125,16 +125,19 @@ class FluxTunableQuam(BaseQuam):
         return target_bias
 
  
-    def initialize_qpu(self, **kwargs):
+    def initialize_qpu(self, isolation:bool = False, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
 
         Args:
             flux_point (str): The flux point to set. Default is 'joint'.
             target: The qubit under study.
+            isolation : bool, optional
+            If True, also configure and play the isolation tone. Use when the TWPA
+            has isolation and you want it active. Default False.
         """
         for twpa in self.twpas.values():
-            twpa.initialize() 
+            twpa.initialize(isolation=isolation)
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
