@@ -57,7 +57,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.TWPA_PUMP,
                 WiringLineType.TWPA_ISOLATION,
             ]:
-                for k, v in twpa_wiring(channels, element_id).items():
+                for k, v in twpa_wiring(channels).items():
                     set_nested_value_with_path(
                         wiring, f"twpas/{element_id}/{line_type.value}/{k}", v
                     )
