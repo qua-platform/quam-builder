@@ -72,8 +72,8 @@ class TWPA(QuamComponent):
 
     id: Union[int, str]
 
-    pump: Union[XYDriveIQ, XYDriveMW]
-    pump_: Union[XYDriveIQ, XYDriveMW]
+    pump: Union[XYDriveIQ, XYDriveMW] = None
+    pump_: Union[XYDriveIQ, XYDriveMW] = None
     isolation: Union[XYDriveIQ, XYDriveMW] = None
     isolation_: Union[XYDriveIQ, XYDriveMW] = None
 
