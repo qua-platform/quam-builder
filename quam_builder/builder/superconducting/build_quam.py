@@ -141,7 +141,7 @@ def add_transmons(machine: AnyQuam):
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
                     machine.active_qubit_pair_names.append(transmon_pair.name)
 
-        elif element_type == "twpa":
+        elif element_type == "twpas":
             number_of_twpas = len(wiring_by_element.items())
             twpa_number = 0
             for twpa_id, wiring_by_line_type in wiring_by_element.items():
