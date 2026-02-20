@@ -73,9 +73,8 @@ def add_twpa_pump_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")
+
 
 def add_twpa_isolation_component(
     twpa: TWPA,
@@ -132,6 +131,4 @@ def add_twpa_isolation_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")
