@@ -6,7 +6,8 @@ from quam.components.pulses import SquarePulse
 
 @quam_dataclass
 class AOD(TweezerDriver):
-    channels: (SingleChannel, SingleChannel)  # (X channel, Y channel)
+    channel_x: SingleChannel  # X-axis channel; stores a QUAM reference string e.g. "#/channels/ch1"
+    channel_y: SingleChannel  # Y-axis channel; stores a QUAM reference string e.g. "#/channels/ch2"
     frequency_to_move: float  # Frequency shift to move the tweezer position
     offset_frequency: float = 0.0  # Offset frequency for calibration
 
@@ -17,17 +18,17 @@ class AOD(TweezerDriver):
     @QuantumComponent.register_macro
     def enable(self):
         """Enable the AOD driver."""
-        self.channel.current_voltage = 1.0
-        if hasattr(self.channel, "offset_parameter"):
-            self.channel.offset_parameter(1.0)
+        self.channel_x.current_voltage = 1.0
+        if hasattr(self.channel_x, "offset_parameter"):
+            self.channel_x.offset_parameter(1.0)
 
     @QuantumComponent.register_macro
     def disable(self):
         """Disable the AOD driver."""
-        self.channel.current_voltage = 0.0
-        if hasattr(self.channel, "offset_parameter"):
-            self.channel.offset_parameter(0.0)
-    
+        self.channel_x.current_voltage = 0.0
+        if hasattr(self.channel_x, "offset_parameter"):
+            self.channel_x.offset_parameter(0.0)
+
     @QuantumComponent.register_macro
     def move(self, target, amplitude: float = 5, length: int = 1):
         """
@@ -36,6 +37,5 @@ class AOD(TweezerDriver):
             amplitude: Amplitude of the square pulse
             length: Pulse length in samples
         """
-        # Create the square pulse
-        for ch in self.channels:
-            ch.play("h_pulse")
+        self.channel_x.play("h_pulse")
+        self.channel_y.play("h_pulse")

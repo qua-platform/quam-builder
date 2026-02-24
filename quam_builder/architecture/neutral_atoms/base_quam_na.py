@@ -3,6 +3,7 @@ from typing import Dict
 from dataclasses import dataclass , field
 from quam.core import QuamRoot, quam_dataclass
 from quam.components import QuantumComponent
+from quam.serialisation import JSONSerialiser
 from qm import qua , program
 
 
@@ -13,7 +14,7 @@ from quam_builder.architecture.neutral_atoms.components import TweezerDriver, Se
 
 @quam_dataclass
 class  BaseQuamNA(QuamRoot):
-    _channels: list = field(default_factory=list)
+    channels: Dict[str, Channel] = field(default_factory=dict)
     tweezer_depth: float = 5.0  # in mK
     scale: float = 1.0  # scaling factor between qum and real space
     rydberg_distance: float = 0.3  # in scaled units
@@ -50,9 +51,13 @@ class  BaseQuamNA(QuamRoot):
         self._tweezers = getattr(self, "_tweezers", [])
         self._tweezers.append(tweezer)
     
-    def register_channel(self, channel: Channel):
-        self._channels = getattr(self, "_channels", [])
-        self._channels.append(channel)
+    def register_channel(self, channel: Channel, name: str | None = None):
+        key = name if name is not None else getattr(channel, "id", None)
+        if key is None:
+            raise ValueError(
+                f"Channel {channel} has no 'id' field. Pass 'name' explicitly to register_channel()."
+            )
+        self.channels[key] = channel
 
     def create_tweezer(
         self,
@@ -85,11 +90,14 @@ class  BaseQuamNA(QuamRoot):
                 return sensor
         raise ValueError(f"Sensor '{name}' not found")
     
-    def get_channel(self, name: str):
-        for channel in self._channels:
-            if channel.name == name:
-                return channel
-        raise ValueError(f"Channel '{name}' not found")
+    def get_channel(self, name: str) -> Channel:
+        if name not in self.channels:
+            raise ValueError(f"Channel '{name}' not found")
+        return self.channels[name]
+
+    @classmethod
+    def get_serialiser(cls) -> JSONSerialiser:
+        return JSONSerialiser()
     
     @QuantumComponent.register_macro
     def measure(

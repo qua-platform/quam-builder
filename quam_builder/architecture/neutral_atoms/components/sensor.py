@@ -1,9 +1,9 @@
 from quam.core import quam_dataclass
-from quam.components import QuantumComponent, DigitalOutputChannel
+from quam.components import QuantumComponent, SingleChannel
 
 @quam_dataclass
 class Sensor(QuantumComponent):
-    channel: DigitalOutputChannel 
+    channel: SingleChannel
     
     @property
     def name(self) -> str:
