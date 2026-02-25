@@ -9,6 +9,7 @@ from quam_builder.architecture.superconducting.components.flux_line import FluxL
 
 __all__ = ["FluxTunableTransmon"]
 
+
 @quam_dataclass
 class FluxTunableTransmon(FixedFrequencyTransmon):
     """
@@ -26,4 +27,3 @@ class FluxTunableTransmon(FixedFrequencyTransmon):
     freq_vs_flux_01_quad_term: float = 0.0
     phi0_current: float = 0.0
     phi0_voltage: float = 0.0
-

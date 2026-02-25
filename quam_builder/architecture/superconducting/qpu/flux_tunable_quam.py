@@ -124,7 +124,6 @@ class FluxTunableQuam(BaseQuam):
         target.align()
         return target_bias
 
- 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
@@ -134,14 +133,7 @@ class FluxTunableQuam(BaseQuam):
             target: The qubit under study.
         """
         for twpa in self.twpas.values():
-            twpa.initialize() 
+            twpa.initialize()
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
-
-    
-        
-
-        
-
-        

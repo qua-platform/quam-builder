@@ -108,7 +108,7 @@ class XYDriveMW(MWChannel, XYDriveBase):
             self.opx_output.upconverter_frequency
             if self.opx_output.upconverter_frequency is not None
             else super().upconverter_frequency
-            )
+        )
 
     def get_output_power(self, operation, Z=50) -> float:
         """

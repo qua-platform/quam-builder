@@ -5,13 +5,24 @@ from typing import Dict, Union, ClassVar, Type
 from quam.core import quam_dataclass
 from qm.qua import update_frequency
 
-from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon, FixedFrequencyTransmon
+from quam_builder.architecture.superconducting.qubit import (
+    FluxTunableTransmon,
+    FixedFrequencyTransmon,
+)
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
-from quam_builder.architecture.superconducting.qpu.flux_tunable_quam import FluxTunableQuam
+from quam_builder.architecture.superconducting.qpu.flux_tunable_quam import (
+    FluxTunableQuam,
+)
 from quam_builder.architecture.superconducting.cavity.cavity import Cavity
 
-__all__ = ["CavityQuam", "FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair", "Cavity"]
+__all__ = [
+    "CavityQuam",
+    "FluxTunableQuam",
+    "FluxTunableTransmon",
+    "FluxTunableTransmonPair",
+    "Cavity",
+]
 
 
 @quam_dataclass
@@ -85,9 +96,9 @@ class CavityQuam(FluxTunableQuam):
             q.z.to_zero()
 
     def set_all_fluxes(
-            self,
-            flux_point: str,
-            target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
+        self,
+        flux_point: str,
+        target: Union[FluxTunableTransmon, FluxTunableTransmonPair],
     ):
         """Set the fluxes to the specified point for the target qubit or qubit pair.
 
@@ -139,9 +150,3 @@ class CavityQuam(FluxTunableQuam):
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
-
-
-
-
-
-
