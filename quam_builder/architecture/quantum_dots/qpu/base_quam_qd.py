@@ -23,6 +23,9 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
     QuantumDotPair,
     ReadoutResonatorBase,
+    ReservoirBase,
+    DrainSingle,
+    ReadoutTransportBase,
     VirtualDCSet,
 )
 
@@ -79,6 +82,7 @@ class BaseQuamQD(QuamRoot):
     voltage_sequences: Dict[str, VoltageSequence] = field(
         default_factory=dict, metadata={"exclude": True}
     )
+    reservoirs: Dict[str, ReservoirBase] = field(default_factory=dict)
 
     quantum_dots: Dict[str, QuantumDot] = field(default_factory=dict)
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory=dict)
@@ -264,11 +268,12 @@ class BaseQuamQD(QuamRoot):
         plunger_channels: List[Channel],
         sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
         barrier_channels: List[Channel],
+        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
         global_gates: Optional[List[VoltageGate]] = None,
     ) -> None:
         self.register_quantum_dots(plunger_channels)
         self.register_barrier_gates(barrier_channels)
-        self.register_sensor_dots(sensor_resonator_mappings)
+        self.register_sensor_dots(sensor_resonator_mappings, sensor_drain_mappings)
 
         if global_gates is not None:
             self.register_global_gates(global_gates)
@@ -296,23 +301,40 @@ class BaseQuamQD(QuamRoot):
     def register_sensor_dots(
         self,
         sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
     ) -> None:
         """
-        Creates SensorDot objects from a dictionary mapping sensor channels to their resonators.
+        Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
 
         Args:
             sensor_resonator_mappings (Dict[Channel, ReadoutResonatorBase]):
-                Dictionary where keys are sensor channels and values are their associated resonators.
-
+                Dictionary where keys are sensor channels and values are their associated resonator.
+            sensor_drain_mappings (Dict[Channel, DrainSingle]):
+                Dictionary where keys are sensor channels and values are their associated transport reservoir objects.
         """
         for ch, res in sensor_resonator_mappings.items():
             virtual_name = self._get_virtual_name(ch)
             sensor_dot = SensorDot(
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
-                readout_resonator=res,
             )
+            sensor_dot.physical_channel.readout = res
             self.sensor_dots[virtual_name] = sensor_dot
+
+        if sensor_drain_mappings is not None:
+            for ch, drain in sensor_drain_mappings.items():
+                virtual_name = self._get_virtual_name(ch)
+                if virtual_name in self.sensor_dots:
+                    sensor_dot = self.sensor_dots[virtual_name]
+                    # Set the reservoir to the drain, which should already have the readout element attached
+                    sensor_dot.readout_reservoir = drain
+                else:
+                    sensor_dot = SensorDot(
+                        id=virtual_name,
+                        physical_channel=ch.get_reference(),
+                    )
+                    sensor_dot.readout_reservoir = drain
+                    self.sensor_dots[virtual_name] = sensor_dot
 
     def register_barrier_gates(self, barrier_channels: List[Channel]) -> None:
         for ch in barrier_channels:

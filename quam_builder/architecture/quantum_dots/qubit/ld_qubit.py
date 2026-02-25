@@ -215,3 +215,23 @@ class LDQubit(VoltageMacroMixin, Qubit):
     def virtual_z(self, phase: float) -> None:
         """Apply a virtual Z rotation"""
         frame_rotation_2pi(phase / (2 * np.pi), self.xy_channel.name)
+    
+    def _validate_readout_quantum_dot(self, qd_name): 
+        """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
+        if qd_name not in self.machine.quantum_dots:
+            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
+        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
+        if qd_pair is None:
+            raise ValueError(
+                f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
+            )
+        
+    @property
+    def preferred_readout_quantum_dot(self) -> str:
+        return self._preferred_readout_quantum_dot
+
+    @preferred_readout_quantum_dot.setter
+    def preferred_readout_quantum_dot(self, value: str):
+        if value is not None and not isinstance(self.quantum_dot, str):
+            self._validate_readout_quantum_dot(value)
+        self._preferred_readout_quantum_dot = value
