@@ -63,23 +63,23 @@ class TestAddDefaultLDVQubitPulses:
         expected_pulses = ["x180", "x90", "y180", "y90", "-x90", "-y90"]
 
         for qubit_name, qubit in machine_with_pulses.qubits.items():
-            if qubit.xy_channel is None:
+            if qubit.xy is None:
                 continue
             for pulse_name in expected_pulses:
                 assert (
-                    pulse_name in qubit.xy_channel.operations
+                    pulse_name in qubit.xy.operations
                 ), f"Pulse {pulse_name} missing from qubit {qubit_name}"
 
     def test_xy_pulse_properties(self, machine_with_pulses):
         """Verify x180 and y90 pulse properties on a real qubit."""
-        qubit = next(q for q in machine_with_pulses.qubits.values() if q.xy_channel is not None)
+        qubit = next(q for q in machine_with_pulses.qubits.values() if q.xy is not None)
 
-        x180 = qubit.xy_channel.operations["x180"]
+        x180 = qubit.xy.operations["x180"]
         assert x180.length == 1000
         assert x180.amplitude == 0.2
         assert x180.axis_angle == pytest.approx(0.0)
 
-        y90 = qubit.xy_channel.operations["y90"]
+        y90 = qubit.xy.operations["y90"]
         assert y90.amplitude == 0.1
         assert y90.axis_angle == pytest.approx(1.5707963, rel=1e-5)
 
@@ -92,5 +92,5 @@ class TestAddDefaultLDVQubitPulses:
     def test_six_xy_operations_per_qubit(self, machine_with_pulses):
         """Verify each qubit with an XY channel has exactly 6 default operations."""
         for qubit in machine_with_pulses.qubits.values():
-            if qubit.xy_channel is not None:
-                assert len(qubit.xy_channel.operations) == 6
+            if qubit.xy is not None:
+                assert len(qubit.xy.operations) == 6

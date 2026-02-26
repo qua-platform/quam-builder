@@ -210,7 +210,7 @@ class TestQuantumDotsTwoStageWorkflow:
         assert len(machine.quantum_dot_pairs) == 2
 
         for qubit in machine.qubits.values():
-            assert getattr(qubit, "xy_channel", None) is not None
+            assert getattr(qubit, "xy", None) is not None
 
     def test_incremental_drive_lines(self, temp_dir):
         """Stage 1 with shared instruments, Stage 2 adds only drive lines."""
@@ -253,7 +253,7 @@ class TestQuantumDotsTwoStageWorkflow:
 
         assert len(machine.qubits) == 3
         for qubit in machine.qubits.values():
-            assert getattr(qubit, "xy_channel", None) is not None
+            assert getattr(qubit, "xy", None) is not None
 
 
 class TestQuantumDotsBaseQuamOnly:

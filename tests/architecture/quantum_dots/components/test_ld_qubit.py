@@ -25,9 +25,9 @@ class TestLDQubitProperties:
         qubit = qd_machine.qubits["Q1"]
         assert isinstance(qubit.quantum_dot, QuantumDot)
 
-    def test_xy_channel_none_by_default(self, qd_machine):
+    def test_xy_none_by_default(self, qd_machine):
         qubit = qd_machine.qubits["Q1"]
-        assert qubit.xy_channel is None
+        assert qubit.xy is None
 
 
 class TestThermalizationTime:
