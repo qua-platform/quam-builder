@@ -253,11 +253,11 @@ def register_qubit_with_points(
     Returns:
         LDQubit: The configured qubit instance with voltage points
     """
-    # Register the qubit, linking it to a quantum dot and XY channel
+    # Register the qubit, linking it to a quantum dot and XY
     machine.register_qubit(
         qubit_name="Q1",
         quantum_dot_id="virtual_dot_1",
-        xy_channel=xy_drive,
+        xy=xy_drive,
         readout_quantum_dot="virtual_dot_2",  # Partner dot for PSB readout
     )
 
@@ -340,7 +340,7 @@ def add_qubit_macros(qubit: LDQubit):
 
         def apply(self, **kwargs):
             """
-            Apply a microwave drive pulse to the qubit's XY channel.
+            Apply a microwave drive pulse to the qubit's XY.
 
             Args (via kwargs):
                 duration: Pulse duration in clock cycles (4ns each). If None, uses default.
@@ -352,10 +352,10 @@ def add_qubit_macros(qubit: LDQubit):
             # Navigate to the qubit: self.parent is the macros dict, parent.parent is the qubit
             parent_qubit = self.parent.parent
 
-            if parent_qubit.xy_channel is None:
-                raise ValueError(f"No XY channel configured for qubit {parent_qubit.id}")
+            if parent_qubit.xy is None:
+                raise ValueError(f"No XY configured for qubit {parent_qubit.id}")
 
-            parent_qubit.xy_channel.play(
+            parent_qubit.xy.play(
                 self.pulse_name,
                 amplitude_scale=amp_scale,
                 duration=duration,
@@ -458,7 +458,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
                 with for_(t, t_ini, t < t_final, t + dt):
                     with for_(f, f_ini, f < f_final, f + df):
                         # Set the drive frequency for this iteration
-                        update_frequency(qubit.xy_channel.name, f)
+                        update_frequency(qubit.xy.name, f)
 
                         # Step 1: Initialize - load electron into dot
                         qubit.step_to_point("init")

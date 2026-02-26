@@ -83,7 +83,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         )
         instance.voltage_sequences = {}
 
-        if type(instance) is BaseQuamQD:
+        if type(instance) is BaseQuamQD:  # pylint: disable=unidiomatic-typecheck
             instance.__class__ = cls
 
         # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD.
@@ -125,7 +125,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         self,
         quantum_dot_id: str,
         qubit_name: str,
-        xy_channel: XYDriveBase = None,
+        xy: XYDriveBase = None,
         readout_quantum_dot: str = None,
     ) -> None:
         """
@@ -134,7 +134,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
         d = quantum_dot_id
         dot = self.quantum_dots[d]  # Assume a single quantum dot for a LD Qubit
-        qubit = LDQubit(id=d, quantum_dot=dot.get_reference(), xy_channel=xy_channel)
+        qubit = LDQubit(id=d, quantum_dot=dot.get_reference(), xy=xy)
         if readout_quantum_dot is not None:
             qubit.preferred_readout_quantum_dot = readout_quantum_dot
 

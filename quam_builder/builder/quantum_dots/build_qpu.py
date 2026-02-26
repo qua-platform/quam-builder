@@ -339,19 +339,19 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
         ):
             _, qubit_suffix = plunger_id.split("_", 1)
             qubit_name = f"q{qubit_suffix}"
-            xy_channel = None
+            xy = None
 
             if qubit_name in self.assembly.qubit_id_to_xy_info:
                 xy_type, wiring_path, _ = self.assembly.qubit_id_to_xy_info[qubit_name]
                 if xy_type == "IQ":
-                    xy_channel = XYDriveIQ(
+                    xy = XYDriveIQ(
                         id=f"{qubit_name}_xy",
                         opx_output_I=f"{wiring_path}/opx_output_I",
                         opx_output_Q=f"{wiring_path}/opx_output_Q",
                         frequency_converter_up=f"{wiring_path}/frequency_converter_up",
                     )
                 elif xy_type == "MW":
-                    xy_channel = XYDriveMW(
+                    xy = XYDriveMW(
                         id=f"{qubit_name}_xy",
                         opx_output=f"{wiring_path}/opx_output",
                     )
@@ -359,7 +359,7 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
             self.machine.register_qubit(
                 quantum_dot_id=self.assembly.plunger_virtual_names[plunger_id],
                 qubit_name=qubit_name,
-                xy_channel=xy_channel,
+                xy=xy,
             )
             self.machine.qubits[qubit_name].grid_location = _set_default_grid_location(
                 qubit_number, number_of_qubits
