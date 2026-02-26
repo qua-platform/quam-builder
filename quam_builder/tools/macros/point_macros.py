@@ -4,7 +4,7 @@ This module provides macros for voltage point operations following QUAM's
 Pulse → Macro → Operation pattern with reference-based serialization.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from quam import QuamComponent
 from quam.core import quam_dataclass
@@ -44,6 +44,7 @@ class BasePointMacro(QuamMacro):
 
     point_ref: str | None = None
     macro_type: str = "base"
+    updates_voltage_tracking: ClassVar[bool] = True
 
     @property
     def voltage_sequence(self) -> "VoltageSequence":
