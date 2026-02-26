@@ -194,8 +194,8 @@ class TestStage1Build:
 
         # XY drives should NOT be in the quantum dot
         quantum_dot = result.quantum_dots["virtual_dot_1"]
-        # BaseQuamQD quantum dots don't have XY channels at this stage
-        assert not hasattr(quantum_dot, "xy_channel")
+        # BaseQuamQD quantum dots don't have XY at this stage
+        assert not hasattr(quantum_dot, "xy")
 
 
 class TestStage2Build:
@@ -306,8 +306,8 @@ class TestStage2Build:
         # Verify XY drive is created
         assert "q1" in result.qubits
         qubit = result.qubits["q1"]
-        assert getattr(qubit, "xy_channel", None) is not None
-        assert qubit.xy_channel.id == "q1_xy"
+        assert getattr(qubit, "xy", None) is not None
+        assert qubit.xy.id == "q1_xy"
 
     def test_creates_qubit_pairs(self):
         """Stage 2 should create qubit pairs from quantum dot pairs."""

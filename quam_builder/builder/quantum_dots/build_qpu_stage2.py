@@ -195,7 +195,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
 
         return quantum_dot_id
 
-    def _create_xy_channel(self, qubit_id: str) -> Optional[Any]:
+    def _create_xy(self, qubit_id: str) -> Optional[Any]:
         """Create XY drive channel for qubit if wiring exists.
 
         Args:
@@ -244,21 +244,21 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             # Map to quantum dot
             quantum_dot_id = self._map_qubit_to_dot(qubit_id)
 
-            # Create XY channel
-            xy_channel = self._create_xy_channel(qubit_id)
+            # Create XY
+            xy = self._create_xy(qubit_id)
 
             # Register qubit
             qubit_name = qubit_id
             self.machine.register_qubit(
                 qubit_name=qubit_name,
                 quantum_dot_id=quantum_dot_id,
-                xy_channel=xy_channel,
+                xy=xy,
                 readout_quantum_dot=None,  # TODO: Add readout dot support
             )
 
             logger.info(
                 f"Registered qubit {qubit_name} → quantum_dot {quantum_dot_id} "
-                f"(XY drive: {xy_channel is not None})"
+                f"(XY drive: {xy is not None})"
             )
 
     def _register_qubit_pairs(self):
