@@ -2,8 +2,7 @@ from quam.core import quam_dataclass
 from quam.components.channels import IQChannel
 from quam import QuamComponent
 from typing import Union, ClassVar
-from qm.qua import align, wait, update_frequency
-import numpy as np
+from qm.qua import update_frequency
 
 __all__ = ["TWPA"]
 
@@ -18,7 +17,6 @@ class TWPA(QuamComponent):
             Can be a string, or an integer in which case it will add`Channel._default_label`.
         pump (IQChannel): The pump component(sticky element) used for continuous output. 
         pump_ (IQChannel): The pump component(non sticky element)used for TWPA calibration
-        spectroscopy (IQChannel): Probe tone used for calibrating the saturation power of the TWPA
 
         max_avg_gain (float): The maximum average gain around the readout resonators related to the TWPA
         max_avg_snr_improvement (float): The maximum average SNR improvement around the readout resonators related to the TWPA
@@ -32,7 +30,8 @@ class TWPA(QuamComponent):
         
         dispersive_feature (float): dispersive feature of the twpa defined from it's designed parameters
         qubits (list): list of qubits of which the signals are amplified by the twpa
-       
+        pumpline_attenuation (float): attenuation in dB of the pump line from the OPX to the input of the TWPA
+        signalline_attenuation (float): attenuation in dB on the signal line from the OPX to the input of the TWPA
         initialization (bool): whether to use the twpa in the QUA program or not
         _initialized_ids (ClassVar[set]): A class-level set to track initialized twpa object IDs externally.
             This won't be serialized since it's not an instance attribute.
@@ -43,7 +42,6 @@ class TWPA(QuamComponent):
 
     pump: IQChannel = None
     pump_: IQChannel = None
-    spectroscopy: IQChannel = None
 
     max_avg_gain: float = None
     max_avg_snr_improvement: float = None
@@ -57,7 +55,9 @@ class TWPA(QuamComponent):
 
     dispersive_feature: float = None
     qubits: list = None
-    
+
+    pumpline_attenuation: float = None
+    signalline_attenuation: float = None    
     initialization: bool = True
     _initialized_ids: ClassVar[set] = set()
     
