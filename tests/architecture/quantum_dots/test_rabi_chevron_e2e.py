@@ -122,7 +122,7 @@ class DriveMacro(QuamMacro):
         duration = kwargs.get("duration", None)
         amp_scale = kwargs.get("amplitude_scale", self.amplitude_scale)
         parent_qubit = self.parent.parent
-        parent_qubit.xy_channel.play(
+        parent_qubit.xy.play(
             self.pulse_name,
             amplitude_scale=amp_scale,
             duration=duration,
@@ -159,7 +159,7 @@ def rabi_setup():
     machine.register_qubit(
         quantum_dot_id="virtual_dot_1",
         qubit_name="Q1",
-        xy_channel=xy_drive,
+        xy=xy_drive,
         readout_quantum_dot="virtual_dot_2",
     )
     qubit = machine.qubits["Q1"]
@@ -214,12 +214,12 @@ class TestQubitRegistration:
         assert "Q1" in machine.qubits
         assert qubit is machine.qubits["Q1"]
 
-    def test_xy_channel_set(self, rabi_setup):
+    def test_xy_set(self, rabi_setup):
         _, qubit = rabi_setup
-        assert qubit.xy_channel is not None
-        assert qubit.xy_channel.id == "Q1_xy"
-        assert "drive" in qubit.xy_channel.operations
-        assert "gaussian" in qubit.xy_channel.operations
+        assert qubit.xy is not None
+        assert qubit.xy.id == "Q1_xy"
+        assert "drive" in qubit.xy.operations
+        assert "gaussian" in qubit.xy.operations
 
     def test_qubit_has_quantum_dot(self, rabi_setup):
         _, qubit = rabi_setup
@@ -284,7 +284,7 @@ class TestQUAProgramFlow:
             with qua.for_(n, 0, n < 2, n + 1):
                 with qua.for_(t, 50, t < 200, t + 50):
                     with qua.for_(f, int(10e3), f < int(30e6), f + int(10e6)):
-                        qua.update_frequency(qubit.xy_channel.name, f)
+                        qua.update_frequency(qubit.xy.name, f)
                         qubit.step_to_point("init")
                         qua.align()
                         qubit.step_to_point("operate")
@@ -308,7 +308,7 @@ class TestConfigGeneration:
     def test_xy_drive_in_config(self, rabi_setup):
         machine, qubit = rabi_setup
         config = machine.generate_config()
-        assert qubit.xy_channel.name in config["elements"]
+        assert qubit.xy.name in config["elements"]
 
     def test_readout_resonator_in_config(self, rabi_setup):
         machine, _ = rabi_setup
