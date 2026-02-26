@@ -230,7 +230,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     )
 
     # === STAGE 2: Define Pulse Macros ===
-    # These drive microwave transitions (assuming pulses are already added to xy_channel)
+    # These drive microwave transitions (assuming pulses are already added to xy)
     # Note: Pulses must be added first via qubit.add_xy_pulse(name, pulse_obj)
 
     x180_macro = PulseMacro(pulse="x180")
@@ -329,14 +329,14 @@ def example_06_operations_registry(machine) -> None:
 
     for q in [qubit, qubit2]:
         # Add pulse operations
-        q.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
-        q.macros["x180"] = PulseMacro(pulse=q.xy_channel.operations["x180"].get_reference())
+        q.xy.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
+        q.macros["x180"] = PulseMacro(pulse=q.xy.operations["x180"].get_reference())
 
-        q.xy_channel.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        q.macros["y90"] = PulseMacro(pulse=q.xy_channel.operations["y90"].get_reference())
+        q.xy.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+        q.macros["y90"] = PulseMacro(pulse=q.xy.operations["y90"].get_reference())
 
-        q.xy_channel.operations["x90"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        q.macros["x90"] = PulseMacro(pulse=q.xy_channel.operations["x90"].get_reference())
+        q.xy.operations["x90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+        q.macros["x90"] = PulseMacro(pulse=q.xy.operations["x90"].get_reference())
 
         # Add voltage point macros using fluent API
         (

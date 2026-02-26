@@ -19,6 +19,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components.ports import MWFEMAnalogOutputPort
 from quam.components import pulses
 
@@ -27,6 +29,10 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from qm.qua import *
 
 
+state_path = os.environ.get("QUAM_STATE_PATH")
+if not state_path:
+    print("QUAM_STATE_PATH not set; skipping LD example. Set it to run.")
+    raise SystemExit(0)
 machine = LossDiVincenzoQuam.load()
 
 lf_fem = 6
@@ -72,32 +78,37 @@ xy_q4 = XYDriveMW(
 
 
 # Register qubits. For ST qubits, quantum_dots should be a tuple
+required_dots = {f"virtual_dot_{i}" for i in range(1, 5)}
+missing = required_dots - set(machine.quantum_dots.keys())
+if missing:
+    print(f"Missing required quantum dots in state: {sorted(missing)}. Skipping.")
+    raise SystemExit(0)
 machine.register_qubit(
     qubit_name="Q1",
     quantum_dot_id="virtual_dot_1",
     readout_quantum_dot="virtual_dot_2",
-    xy_channel=xy_q1,
+    xy=xy_q1,
 )
 
 machine.register_qubit(
     qubit_name="Q2",
     quantum_dot_id="virtual_dot_2",
     readout_quantum_dot="virtual_dot_1",
-    xy_channel=xy_q2,
+    xy=xy_q2,
 )
 
 machine.register_qubit(
     qubit_name="Q3",
     quantum_dot_id="virtual_dot_3",
     readout_quantum_dot="virtual_dot_4",
-    xy_channel=xy_q3,
+    xy=xy_q3,
 )
 
 machine.register_qubit(
     qubit_name="Q4",
     quantum_dot_id="virtual_dot_4",
     readout_quantum_dot="virtual_dot_3",
-    xy_channel=xy_q4,
+    xy=xy_q4,
 )
 
 # Fill out the grid location and arbitrary larmor frequencies of the qubit

@@ -196,3 +196,10 @@ misc.xml
 quam-builder.iml
 /quam_builder/architecture/quantum_dots/examples/config/
 /quam_builder/architecture/quantum_dots/examples/quam_state/
+.quam_builder/architecture/quantum_dots/examples/configs.py
+quam_builder/architecture/quantum_dots/examples/configs.py
+quam_builder/architecture/quantum_dots/examples/data/
+
+# QM connection configs (contain credentials)
+.qm_cluster_config.json
+.qm_saas_credentials.json
