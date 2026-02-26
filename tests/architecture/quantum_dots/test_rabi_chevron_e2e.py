@@ -118,6 +118,15 @@ class DriveMacro(QuamMacro):
     pulse_name: str = "drive"
     amplitude_scale: float = None
 
+    @property
+    def inferred_duration(self) -> float | None:
+        try:
+            parent_qubit = self.parent.parent
+            pulse = parent_qubit.xy.operations[self.pulse_name]
+            return pulse.length * 1e-9
+        except Exception:
+            return None
+
     def apply(self, **kwargs):
         duration = kwargs.get("duration", None)
         amp_scale = kwargs.get("amplitude_scale", self.amplitude_scale)
@@ -132,6 +141,18 @@ class DriveMacro(QuamMacro):
 @quam_dataclass
 class MeasureMacro(QuamMacro):
     pulse_name: str = "readout"
+
+    @property
+    def inferred_duration(self) -> float | None:
+        try:
+            parent_qubit = self.parent.parent
+            resonator = parent_qubit.quantum_dot.machine.sensor_dots[
+                "virtual_sensor_1"
+            ].readout_resonator
+            pulse = resonator.operations[self.pulse_name]
+            return (64 * 4 + pulse.length) * 1e-9
+        except Exception:
+            return None
 
     def apply(self, **kwargs):
         pulse = kwargs.get("pulse_name", self.pulse_name)

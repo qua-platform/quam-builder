@@ -466,6 +466,32 @@ class VoltageSequence:
         """
         self._common_voltages_change(voltages, duration, ramp_duration=ramp_duration)
 
+    def track_sticky_duration(self, duration_ns: int) -> None:
+        """Track hold time at current channel levels without emitting pulses.
+
+        This is used when non-voltage macros execute while voltage channels are
+        sticky at non-zero levels. It updates integrated-voltage trackers only.
+        """
+        if not self._track_integrated_voltage:
+            return
+        if not isinstance(duration_ns, int):
+            raise TypeError("duration_ns must be an integer number of nanoseconds.")
+        if duration_ns < 0:
+            raise TypeError("duration_ns must be non-negative.")
+        if duration_ns % CLOCK_CYCLE_NS != 0:
+            raise TypeError(
+                f"duration_ns ({duration_ns}ns) must be a multiple of {CLOCK_CYCLE_NS}ns."
+            )
+        if duration_ns == 0:
+            return
+
+        for tracker in self.state_trackers.values():
+            tracker.update_integrated_voltage(
+                level=tracker.current_level,
+                duration=duration_ns,
+                ramp_duration=None,
+            )
+
     def step_to_point(self, name: str, duration: Optional[DurationType] = None):
         """
         Steps all channels to the voltages defined in a predefined tuning point.
