@@ -336,6 +336,16 @@ def add_qubit_macros(qubit: LDQubit):
         pulse_name: str = "drive"
         amplitude_scale: float = None
 
+        @property
+        def inferred_duration(self) -> float | None:
+            """Default drive duration in seconds when using the configured pulse length."""
+            try:
+                parent_qubit = self.parent.parent
+                pulse = parent_qubit.xy.operations[self.pulse_name]
+                return pulse.length * 1e-9
+            except Exception:
+                return None
+
         def apply(self, **kwargs):
             """
             Apply a microwave drive pulse to the qubit's XY channel.
@@ -379,6 +389,28 @@ def add_qubit_macros(qubit: LDQubit):
         """
 
         pulse_name: str = "readout"
+
+        @property
+        def inferred_duration(self) -> float | None:
+            """Readout macro duration in seconds (wait + pulse) when resolvable."""
+            try:
+                parent_qubit = self.parent.parent
+                machine = parent_qubit.machine
+                qd_pair_id = machine.find_quantum_dot_pair(
+                    parent_qubit.quantum_dot.id, parent_qubit.preferred_readout_quantum_dot
+                )
+                if (
+                    qd_pair_id is not None
+                    and qd_pair_id in machine.quantum_dot_pairs
+                    and machine.quantum_dot_pairs[qd_pair_id].sensor_dots
+                ):
+                    sensor_dot = machine.quantum_dot_pairs[qd_pair_id].sensor_dots[0]
+                else:
+                    sensor_dot = next(iter(machine.sensor_dots.values()))
+                readout_pulse = sensor_dot.readout_resonator.operations[self.pulse_name]
+                return (64 * 4 + readout_pulse.length) * 1e-9
+            except Exception:
+                return None
 
         def apply(self, **kwargs) -> Tuple:
             """
