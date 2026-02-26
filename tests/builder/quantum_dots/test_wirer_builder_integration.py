@@ -275,7 +275,7 @@ class TestWirerBuilderIntegration:
 
         assert len(machine_stage2.qubits) == len(self.EXAMPLE_QUANTUM_DOTS)
         for qubit in machine_stage2.qubits.values():
-            assert getattr(qubit, "xy_channel", None) is not None
+            assert getattr(qubit, "xy", None) is not None
 
     def test_workflow_with_multiple_qubits(self, instruments, temp_dir):
         """Test workflow with multiple qubits and qubit pairs."""
@@ -371,9 +371,7 @@ class TestWirerBuilderIntegration:
         # Verify qubits (Stage 2) have XY drives
         assert hasattr(machine, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine.qubits.items():
-            assert hasattr(
-                qubit, "xy_channel"
-            ), f"Qubit {qubit_name} should have xy_channel attribute"
+            assert hasattr(qubit, "xy"), f"Qubit {qubit_name} should have xy attribute"
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
@@ -429,8 +427,8 @@ class TestWirerBuilderIntegration:
         # Verify qubits (Stage 2) have pulses (if they have xy channels)
         assert hasattr(machine, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine.qubits.items():
-            if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
-                assert len(qubit.xy_channel.operations) > 0
+            if hasattr(qubit, "xy") and qubit.xy is not None:
+                assert len(qubit.xy.operations) > 0
 
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""

@@ -306,8 +306,8 @@ class TestStage2Build:
         # Verify XY drive is created
         assert "q1" in result.qubits
         qubit = result.qubits["q1"]
-        assert getattr(qubit, "xy_channel", None) is not None
-        assert qubit.xy_channel.id == "q1_xy"
+        assert getattr(qubit, "xy", None) is not None
+        assert qubit.xy.id == "q1_xy"
 
     def test_creates_qubit_pairs(self):
         """Stage 2 should create qubit pairs from quantum dot pairs."""

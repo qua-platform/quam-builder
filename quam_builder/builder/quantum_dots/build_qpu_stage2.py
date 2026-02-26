@@ -252,7 +252,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             self.machine.register_qubit(
                 qubit_name=qubit_name,
                 quantum_dot_id=quantum_dot_id,
-                xy_channel=xy_channel,
+                xy=xy_channel,
                 readout_quantum_dot=None,  # TODO: Add readout dot support
             )
 

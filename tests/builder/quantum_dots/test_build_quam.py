@@ -200,8 +200,8 @@ class TestAddPulses:
     def test_add_pulses_populates_xy_operations(self, built_machine):
         add_pulses(built_machine)
         for qubit in built_machine.qubits.values():
-            if qubit.xy_channel is not None:
-                assert len(qubit.xy_channel.operations) > 0
+            if qubit.xy is not None:
+                assert len(qubit.xy.operations) > 0
 
     def test_add_pulses_handles_empty_machine(self):
         machine = LossDiVincenzoQuam()

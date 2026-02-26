@@ -359,7 +359,7 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
             self.machine.register_qubit(
                 quantum_dot_id=self.assembly.plunger_virtual_names[plunger_id],
                 qubit_name=qubit_name,
-                xy_channel=xy_channel,
+                xy=xy_channel,
             )
             self.machine.qubits[qubit_name].grid_location = _set_default_grid_location(
                 qubit_number, number_of_qubits
