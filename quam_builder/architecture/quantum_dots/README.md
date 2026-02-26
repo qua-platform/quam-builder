@@ -356,6 +356,19 @@ Implication: virtual gates do not maintain state across calls. To preserve a vir
   voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom voltage limit
   ```
 
+### Custom Macro Duration Contract
+
+When voltage channels are sticky and compensation tracking is enabled, non-voltage
+macros must expose a deterministic `inferred_duration` (in **seconds**) so hold
+time at the current DC level can be tracked correctly.
+
+- Implement `inferred_duration` on custom macros in seconds (for example, `100e-9`).
+- If a macro directly performs voltage-sequence operations that already update
+  integrated-voltage tracking, set `updates_voltage_tracking = True` on that macro
+  class to avoid double counting.
+- Prefer calling macros through component dispatch (`component.macro_name(...)`)
+  so sticky-duration interception is applied.
+
 ## 5. Foundation for Virtual Gates
 
 `GateSet` and `VoltageSequence` provide the physical voltage control layer necessary for `VirtualGateSet`.

@@ -4,7 +4,10 @@ This module provides the infrastructure for storing and dynamically
 accessing macros as methods.
 """
 
-from typing import Dict
+import math
+import warnings
+from numbers import Real
+from typing import Dict, Set, Tuple
 
 from dataclasses import field
 
@@ -36,6 +39,9 @@ class MacroDispatchMixin(QuantumComponent):
     """
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
+    _sticky_tracking_warned_macros: Set[Tuple[str, str]] = field(
+        default_factory=set, init=False, repr=False, metadata={"exclude": True}
+    )
 
     def __post_init__(self):
         """Initialize macro containers and set parent links."""
@@ -70,8 +76,75 @@ class MacroDispatchMixin(QuantumComponent):
         macros = self.__dict__.get("macros", {})
         if name in macros:
             macro = macros[name]
-            return lambda **kwargs: macro.apply(**kwargs)
+            return lambda **kwargs: self._execute_macro_with_sticky_tracking(macro, **kwargs)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")
+
+    def _macro_warning_key(self, macro: QuamMacro) -> Tuple[str, str]:
+        """Create a stable warning key for one-time macro warnings."""
+        macro_class_name = type(macro).__name__
+        try:
+            macro_id = str(getattr(macro, "inferred_id", getattr(macro, "id", macro_class_name)))
+        except Exception:  # pragma: no cover - defensive fallback
+            macro_id = macro_class_name
+        return macro_class_name, macro_id
+
+    def _warn_once_missing_macro_duration(self, macro: QuamMacro, reason: str) -> None:
+        """Warn once per macro id/class when sticky tracking duration is unavailable."""
+        key = self._macro_warning_key(macro)
+        if key in self._sticky_tracking_warned_macros:
+            return
+        self._sticky_tracking_warned_macros.add(key)
+        warnings.warn(
+            (
+                "Skipping sticky-voltage tracking for macro "
+                f"'{key[1]}' ({key[0]}): {reason}. "
+                "Define `inferred_duration` in seconds for non-voltage macros."
+            ),
+            stacklevel=3,
+        )
+
+    def _duration_ns_for_sticky_tracking(self, macro: QuamMacro) -> int | None:
+        """Resolve macro inferred duration (seconds) to quantized nanoseconds."""
+        duration_seconds = getattr(macro, "inferred_duration", None)
+        if duration_seconds is None:
+            self._warn_once_missing_macro_duration(
+                macro, "missing or unresolved `inferred_duration`"
+            )
+            return None
+        if isinstance(duration_seconds, bool) or not isinstance(duration_seconds, Real):
+            self._warn_once_missing_macro_duration(
+                macro, f"non-numeric `inferred_duration` value '{duration_seconds}'"
+            )
+            return None
+
+        duration_seconds_f = float(duration_seconds)
+        if not math.isfinite(duration_seconds_f) or duration_seconds_f < 0:
+            self._warn_once_missing_macro_duration(
+                macro, f"invalid `inferred_duration` value '{duration_seconds}'"
+            )
+            return None
+
+        # Convert seconds -> ns and quantize to OPX clock-cycle boundaries.
+        quantized_duration_ns = int(round(duration_seconds_f * 1e9 / 4.0)) * 4
+        return max(quantized_duration_ns, 0)
+
+    def _execute_macro_with_sticky_tracking(self, macro: QuamMacro, **kwargs):
+        """Execute a macro and account for sticky voltage hold time when needed."""
+        result = macro.apply(**kwargs)
+
+        if getattr(macro, "updates_voltage_tracking", False):
+            return result
+
+        duration_ns = self._duration_ns_for_sticky_tracking(macro)
+        if duration_ns in (None, 0):
+            return result
+
+        voltage_sequence = getattr(self, "voltage_sequence", None)
+        track_fn = getattr(voltage_sequence, "track_sticky_duration", None)
+        if callable(track_fn):
+            track_fn(duration_ns)
+
+        return result
 
     def _resolve_macro_ref(self, name_or_ref: str, description: str) -> str:
         """Convert macro name to reference string, validating existence.
