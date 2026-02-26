@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
-  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
+- A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
+- Updated the TWPA component with isolation pump and added corresponding builder functions.
+
 ### Fixed
 - NV center - fix invalid `SPCM` component.
 

@@ -3,9 +3,15 @@ from typing import Union, Optional
 from numpy import sqrt, ceil
 from quam.components import Octave, LocalOscillator, FrequencyConverter
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.builder.superconducting.pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
+    add_default_twpa_pulses,
+)
+from quam_builder.builder.superconducting.add_twpa_component import (
+    add_twpa_pump_component,
+    add_twpa_isolation_component,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
@@ -25,9 +31,7 @@ from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 
-def build_quam(
-    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuam:
+def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuam:
     """Builds the QuAM by adding various components and saving the machine configuration.
 
     Args:
@@ -132,13 +136,30 @@ def add_transmons(machine: AnyQuam):
                             transmon_pair, wiring_path, ports
                         )
                     elif line_type == WiringLineType.ZZ_DRIVE.value:
-                        add_transmon_pair_zz_drive_component(
-                            transmon_pair, wiring_path, ports
-                        )
+                        add_transmon_pair_zz_drive_component(transmon_pair, wiring_path, ports)
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
                     machine.active_qubit_pair_names.append(transmon_pair.name)
+
+        elif element_type == "twpas":
+            number_of_twpas = len(wiring_by_element.items())
+            twpa_number = 0
+            for twpa_id, wiring_by_line_type in wiring_by_element.items():
+                twpa = TWPA(id=twpa_id)
+                machine.twpas[twpa_id] = twpa
+                machine.twpas[twpa_id].grid_location = _set_default_grid_location(
+                    twpa_number, number_of_twpas
+                )
+                twpa_number += 1
+                for line_type, ports in wiring_by_line_type.items():
+                    wiring_path = f"#/wiring/{element_type}/{twpa_id}/{line_type}"
+                    if line_type == WiringLineType.TWPA_PUMP.value:
+                        add_twpa_pump_component(twpa, wiring_path, ports)
+                    elif line_type == WiringLineType.TWPA_ISOLATION.value:
+                        add_twpa_isolation_component(twpa, wiring_path, ports)
+                    else:
+                        raise ValueError(f"Unknown line type: {line_type}")
 
 
 def add_pulses(machine: AnyQuam):
@@ -154,6 +175,10 @@ def add_pulses(machine: AnyQuam):
     if hasattr(machine, "qubit_pairs"):
         for qubit_pair in machine.qubit_pairs.values():
             add_default_transmon_pair_pulses(qubit_pair)
+
+    if hasattr(machine, "twpas"):
+        for twpa in machine.twpas.values():
+            add_default_twpa_pulses(twpa)
 
 
 def add_octaves(
@@ -180,9 +205,7 @@ def add_octaves(
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(
-                            reference
-                        ).split("/")[2]
+                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -207,9 +230,7 @@ def add_external_mixers(machine: AnyQuam) -> AnyQuam:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split(
-                            "/"
-                        )[2]
+                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
                         transmon_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",

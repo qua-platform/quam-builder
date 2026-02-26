@@ -53,6 +53,14 @@ def create_wiring(connectivity: Connectivity) -> dict:
                         wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
                     )
 
+            elif line_type in [
+                WiringLineType.TWPA_PUMP,
+                WiringLineType.TWPA_ISOLATION,
+            ]:
+                for k, v in twpa_wiring(channels).items():
+                    set_nested_value_with_path(
+                        wiring, f"twpas/{element_id}/{line_type.value}/{k}", v
+                    )
             else:
                 raise ValueError(f"Unknown line type {line_type}")
 
@@ -107,6 +115,22 @@ def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPai
 
     return qubit_pair_line_wiring
 
+def twpa_wiring(channels: List[AnyInstrumentChannel]) -> dict:
+    """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a twpa and the same line type.
+
+    Args:
+        channels (List[AnyInstrumentChannel]): The list of instrument channels.
+
+    Returns:
+        dict: A dictionary containing QUAM-compatible JSON references.
+    """
+    twpa_line_wiring = {}
+    for channel in channels:
+        if not (channel.signal_type == "digital" and channel.io_type == "input"):
+            key, reference = get_channel_port(channel, channels)
+            twpa_line_wiring[key] = reference
+
+    return twpa_line_wiring
 
 def get_channel_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> tuple:
     """Determines the key and JSON reference for a given channel.
