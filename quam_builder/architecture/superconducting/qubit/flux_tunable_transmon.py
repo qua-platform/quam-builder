@@ -1,3 +1,5 @@
+from typing import Union
+
 from quam.core import quam_dataclass
 
 from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon import (

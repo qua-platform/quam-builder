@@ -5,16 +5,28 @@ from typing import Dict, Union, ClassVar, Type
 from quam.core import quam_dataclass
 from qm.qua import update_frequency
 
-from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
+from quam_builder.architecture.superconducting.qubit import (
+    FluxTunableTransmon,
+    FixedFrequencyTransmon,
+)
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
+from quam_builder.architecture.superconducting.qpu.flux_tunable_quam import (
+    FluxTunableQuam,
+)
+from quam_builder.architecture.superconducting.cavity.cavity import Cavity
 
-
-__all__ = ["FluxTunableQuam", "FluxTunableTransmon", "FluxTunableTransmonPair"]
+__all__ = [
+    "CavityQuam",
+    "FluxTunableQuam",
+    "FluxTunableTransmon",
+    "FluxTunableTransmonPair",
+    "Cavity",
+]
 
 
 @quam_dataclass
-class FluxTunableQuam(BaseQuam):
+class CavityQuam(FluxTunableQuam):
     """Example of a QUAM composed of flux tunable transmons.
 
     Attributes:
@@ -38,6 +50,7 @@ class FluxTunableQuam(BaseQuam):
 
     qubits: Dict[str, FluxTunableTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
+    cavities: Dict[str, Cavity] = field(default_factory=dict)
 
     @classmethod
     def load(cls, *args, **kwargs) -> "FluxTunableQuam":

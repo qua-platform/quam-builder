@@ -6,9 +6,8 @@ import numpy as np
 from quam.components.macro import QubitPairMacro
 from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
-from quam.utils.qua_types import (
-    ScalarInt
-)
+from quam.utils.qua_types import ScalarInt
+
 __all__ = ["CZGate"]
 
 
@@ -65,7 +64,7 @@ class CZGate(QubitPairMacro):
       unwanted frequency shifts during the CZ gate.
     - Maintaining qubit states: keeping spectator qubits in specific states during the gate.
     - Multi-qubit gate synchronization: ensuring all qubits are properly aligned and synchronized.
-    
+
     The three spectator qubit parameters work together:
     - ``spectator_qubits``: Dictionary mapping qubit names (str) to qubit objects. These are the
       qubit instances that will be controlled during the gate.
@@ -75,7 +74,7 @@ class CZGate(QubitPairMacro):
     - ``spectator_qubits_phase_shift``: Dictionary mapping qubit names (str) to phase shift values
       (float, in units of 2π). These frame rotations are applied to the spectator qubits after
       the flux pulses, similar to phase_shift_control and phase_shift_target.
-    
+
     Usage Example:
     ```python
     # Configure spectator qubits for crosstalk compensation
@@ -101,7 +100,7 @@ class CZGate(QubitPairMacro):
         "q1": 0.01,  # Small phase correction for q1 (0.01 * 2π)
         "q2": 0.0    # No phase correction needed for q2
     }
-    
+
     # When apply() is called, spectator qubits will:
     # 1. Be aligned with control and target qubits
     # 2. Have their flux pulses played in parallel with the control qubit pulse
@@ -110,7 +109,7 @@ class CZGate(QubitPairMacro):
     ```
     Note: The keys in all three dictionaries must match (same qubit names). Only qubits listed
     in both ``spectator_qubits`` and ``spectator_qubits_control`` will have flux pulses applied.
-    
+
     spectator_qubits: dict[str, Any]
          Optional dictionary of spectator qubit objects.
     spectator_qubits_control: dict[str, Pulse]
@@ -175,7 +174,7 @@ class CZGate(QubitPairMacro):
     spectator_qubits: dict[str, Any] = field(default_factory=dict)
     spectator_qubits_control: dict[str, Pulse] = field(default_factory=dict)
     spectator_qubits_phase_shift: dict[str, float] = field(default_factory=dict)
-    
+
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
     duration_control: ScalarInt = None
@@ -207,9 +206,8 @@ class CZGate(QubitPairMacro):
         phase_shift_control=None,
         phase_shift_target=None,
         **kwargs,
-        
     ) -> None:
-        
+
         # Build list of spectator qubits and their pulse names
         spectator_qubits_list = []
         spectator_pulse_names = {}
@@ -224,17 +222,19 @@ class CZGate(QubitPairMacro):
         self.qubit_pair.qubit_control.align(align_list)
 
         # Spectator qubit flux pulses
-        for qubit_name, spectator_qubit in zip(self.spectator_qubits.keys(), spectator_qubits_list):
+        for qubit_name, spectator_qubit in zip(
+            self.spectator_qubits.keys(), spectator_qubits_list
+        ):
             if qubit_name in spectator_pulse_names:
                 spectator_qubit.z.play(spectator_pulse_names[qubit_name])
-        
+
         # Control qubit flux
         self.qubit_pair.qubit_control.z.play(
             self.flux_pulse_control_label,
             amplitude_scale=amplitude_scale_control,
-            duration=duration_control
+            duration=duration_control,
         )
-        
+
         # Coupler flux
         if self.coupler_flux_pulse is not None:
             self.qubit_pair.coupler.play(
@@ -244,8 +244,10 @@ class CZGate(QubitPairMacro):
             )
 
         # Align all resources after playing pulses
-        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
-        
+        self.qubit_pair.qubit_control.align(
+            [self.qubit_pair.qubit_target] + spectator_qubits_list
+        )
+
         # Apply phase shifts
         if phase_shift_control is not None:
             self.qubit_pair.qubit_control.xy.frame_rotation_2pi(phase_shift_control)
@@ -264,4 +266,6 @@ class CZGate(QubitPairMacro):
                 self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
 
         # Final alignment
-        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
+        self.qubit_pair.qubit_control.align(
+            [self.qubit_pair.qubit_target] + spectator_qubits_list
+        )
