@@ -6,9 +6,13 @@ from .default_macros import *
 
 try:
     from .point_macros import *
-except ImportError:
-    # Avoid circular import errors when voltage_sequence/components pull in macros.
-    pass
+except ImportError as _e:
+    # Guard against the known circular import when voltage_sequence/components
+    # pull in this package during their own initialisation. Re-raise anything
+    # that is not caused by that cycle so genuine missing-dependency errors
+    # are not silently swallowed.
+    if "voltage_sequence" not in str(_e) and "VoltageSequence" not in str(_e):
+        raise
 
 __all__ = [
     *composable_macros.__all__,
