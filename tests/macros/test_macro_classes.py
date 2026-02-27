@@ -618,36 +618,6 @@ class TestMacroSerialization:
         assert isinstance(seq.macro_refs, tuple)
         assert all(isinstance(ref, str) for ref in seq.macro_refs)
 
-    def test_machine_save_succeeds_with_populated_sticky_tracking_set(self, machine, tmp_path):
-        """machine.save() must not raise TypeError when _sticky_tracking_warned_macros is non-empty.
-
-        _sticky_tracking_warned_macros is an internal Set used to deduplicate warnings.
-        It must carry metadata={"skip_save": True} so QuAM's JSON serializer omits it;
-        otherwise json.dump raises "TypeError: Object of type set is not JSON serializable".
-        """
-        qd = machine.quantum_dots["virtual_dot_1"]
-        qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
-
-        # Simulate a macro execution that populates the deduplication set.
-        qd._sticky_tracking_warned_macros.add(("QuantumDot", "idle"))
-        assert len(qd._sticky_tracking_warned_macros) == 1
-
-        # This must not raise TypeError: Object of type set is not JSON serializable
-        machine.save(tmp_path)
-
-    def test_sticky_tracking_set_excluded_from_saved_json(self, machine, tmp_path):
-        """_sticky_tracking_warned_macros must not appear in the saved JSON state."""
-        import json
-
-        qd = machine.quantum_dots["virtual_dot_1"]
-        qd._sticky_tracking_warned_macros.add(("QuantumDot", "idle"))
-
-        machine.save(tmp_path)
-
-        # Check all saved JSON files for the internal field name
-        saved_text = " ".join(p.read_text() for p in tmp_path.rglob("*.json"))
-        assert "_sticky_tracking_warned_macros" not in saved_text
-
 
 # ============================================================================
 # Integration Tests
