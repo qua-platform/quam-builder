@@ -1,5 +1,8 @@
 """Tests for canonical macro-name catalogs and default macro maps."""
 
+from quam_builder.architecture.quantum_dots.operations import (
+    default_operations as operations_module,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     SINGLE_QUBIT_MACROS,
 )
@@ -54,3 +57,19 @@ def test_two_qubit_enum_values_are_default_keys():
 
     assert canonical_two_qubit_names.issubset(TWO_QUBIT_MACROS.keys())
     assert canonical_two_qubit_names.issubset(TWO_QUBIT_MACRO_NAMES)
+
+
+def test_default_operations_match_canonical_enums():
+    """Default operation registry names should match canonical enum names."""
+    expected_operation_names = {
+        *(name.value for name in VoltagePointName),
+        *(name.value for name in SingleQubitMacroName),
+        *(name.value for name in TwoQubitMacroName),
+    }
+    registered_operation_names = set(operations_module.operations_registry.data.keys())
+
+    assert registered_operation_names == expected_operation_names
+    assert registered_operation_names.isdisjoint(SINGLE_QUBIT_MACRO_ALIASES)
+    assert expected_operation_names.issubset(operations_module.__all__)
+    for operation_name in expected_operation_names:
+        assert callable(getattr(operations_module, operation_name))
