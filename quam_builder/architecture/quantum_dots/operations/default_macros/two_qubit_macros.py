@@ -5,6 +5,10 @@
 
 from quam.components.macro import QubitPairMacro
 
+from quam_builder.architecture.quantum_dots.operations.names import (
+    TwoQubitMacroName,
+    VoltagePointName,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
     InitializeStateMacro,
@@ -26,13 +30,19 @@ __all__ = [
 class Initialize2QMacro(InitializeStateMacro, QubitPairMacro):
     """Initialize qubit pair by ramping to the `initialize` voltage point."""
 
+    point_name: str = VoltagePointName.INITIALIZE.value
+
 
 class Measure2QMacro(MeasureStateMacro, QubitPairMacro):
     """Move qubit pair to the `measure` voltage point."""
 
+    point_name: str = VoltagePointName.MEASURE.value
+
 
 class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
     """Move qubit pair to the `empty` voltage point."""
+
+    point_name: str = VoltagePointName.EMPTY.value
 
 
 class _Unsupported2QGateMacro(QubitPairMacro):
@@ -51,34 +61,34 @@ class _Unsupported2QGateMacro(QubitPairMacro):
 class CNOTMacro(_Unsupported2QGateMacro):
     """Default placeholder for CNOT (override required)."""
 
-    gate_name: str = "cnot"
+    gate_name: str = TwoQubitMacroName.CNOT.value
 
 
 class CZMacro(_Unsupported2QGateMacro):
     """Default placeholder for CZ (override required)."""
 
-    gate_name: str = "cz"
+    gate_name: str = TwoQubitMacroName.CZ.value
 
 
 class SwapMacro(_Unsupported2QGateMacro):
     """Default placeholder for SWAP (override required)."""
 
-    gate_name: str = "swap"
+    gate_name: str = TwoQubitMacroName.SWAP.value
 
 
 class ISwapMacro(_Unsupported2QGateMacro):
     """Default placeholder for iSWAP (override required)."""
 
-    gate_name: str = "iswap"
+    gate_name: str = TwoQubitMacroName.ISWAP.value
 
 
 TWO_QUBIT_MACROS = {
-    "initialize": Initialize2QMacro,
-    "measure": Measure2QMacro,
-    "empty": Empty2QMacro,
-    "cnot": CNOTMacro,
-    "cz": CZMacro,
-    "swap": SwapMacro,
-    "iswap": ISwapMacro,
+    VoltagePointName.INITIALIZE.value: Initialize2QMacro,
+    VoltagePointName.MEASURE.value: Measure2QMacro,
+    VoltagePointName.EMPTY.value: Empty2QMacro,
+    TwoQubitMacroName.CNOT.value: CNOTMacro,
+    TwoQubitMacroName.CZ.value: CZMacro,
+    TwoQubitMacroName.SWAP.value: SwapMacro,
+    TwoQubitMacroName.ISWAP.value: ISwapMacro,
 }
 # Default two-qubit macro factories for ``LDQubitPair`` components.

@@ -25,6 +25,14 @@ Voltage-point names are centralized in [`names.py`](./names.py):
 These are represented by `VoltagePointName` (`StrEnum`) and reused by default state macros.
 Default state macros assume these points exist in each relevant voltage sequence (for example via `with_step_point(...)`).
 
+Canonical macro names are also centralized as enums in the same module:
+
+- `SingleQubitMacroName` for built-in 1Q defaults (`xy_drive`, `x`, `y`, `z`, `x180`, ...)
+- `TwoQubitMacroName` for built-in 2Q defaults (`cnot`, `cz`, `swap`, `iswap`)
+
+Alias spellings (for example `-x90`, `-y90`) remain explicit strings via
+`SINGLE_QUBIT_MACRO_ALIASES` and `SINGLE_QUBIT_MACRO_ALIAS_MAP`.
+
 ## Default Macro Logic by Component Type
 
 ### Utility macros (all macro-dispatch components)

@@ -12,6 +12,12 @@ import numpy as np
 from qm.qua import wait
 from quam.components.macro import QubitMacro
 
+from quam_builder.architecture.quantum_dots.operations.names import (
+    SingleQubitMacroName,
+    VoltagePointName,
+    X_NEG_90_ALIAS,
+    Y_NEG_90_ALIAS,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
     InitializeStateMacro,
@@ -47,13 +53,19 @@ def _quantize_ns(duration_ns: float) -> int:
 class Initialize1QMacro(InitializeStateMacro, QubitMacro):
     """Initialize qubit by ramping to the `initialize` voltage point."""
 
+    point_name: str = VoltagePointName.INITIALIZE.value
+
 
 class Measure1QMacro(MeasureStateMacro, QubitMacro):
     """Move qubit to the `measure` voltage point."""
 
+    point_name: str = VoltagePointName.MEASURE.value
+
 
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
     """Move qubit to the `empty` voltage point."""
+
+    point_name: str = VoltagePointName.EMPTY.value
 
 
 class XYDriveMacro(QubitMacro):
@@ -73,7 +85,7 @@ class XYDriveMacro(QubitMacro):
     temporary frame rotation before the pulse and restoring it afterwards.
     """
 
-    reference_pulse_name: str = "x180"
+    reference_pulse_name: str = SingleQubitMacroName.X_180.value
     reference_angle: float = float(np.pi)
     max_amplitude_scale: float = 1.0
     default_angle: float = float(np.pi)
@@ -89,13 +101,20 @@ class XYDriveMacro(QubitMacro):
                 )
             return pulse_name
 
-        for candidate in (self.reference_pulse_name, "x180", "x90"):
+        for candidate in (
+            self.reference_pulse_name,
+            SingleQubitMacroName.X_180.value,
+            SingleQubitMacroName.X_90.value,
+        ):
             if candidate in self.qubit.xy.operations:
                 return candidate
 
         raise KeyError(
             f"No reference pulse found for qubit '{self.qubit.id}'. "
-            f"Expected one of: '{self.reference_pulse_name}', 'x180', 'x90'."
+            "Expected one of: "
+            f"'{self.reference_pulse_name}', "
+            f"'{SingleQubitMacroName.X_180.value}', "
+            f"'{SingleQubitMacroName.X_90.value}'."
         )
 
     def _reference_duration_ns(self, pulse_name: str) -> int | None:
@@ -193,9 +212,11 @@ class _AxisRotationMacro(QubitMacro):
     phase: float = 0.0
 
     def _xy_drive_macro(self):
-        macro = self.qubit.macros.get("xy_drive")
+        macro = self.qubit.macros.get(SingleQubitMacroName.XY_DRIVE.value)
         if macro is None:
-            raise KeyError("Missing canonical macro 'xy_drive' on qubit.")
+            raise KeyError(
+                f"Missing canonical macro '{SingleQubitMacroName.XY_DRIVE.value}' on qubit."
+            )
         return macro
 
     @property
@@ -208,7 +229,12 @@ class _AxisRotationMacro(QubitMacro):
     def apply(self, angle: float | None = None, **kwargs):
         """Apply rotation around fixed XY axis by delegating to `xy_drive`."""
         target_angle = self.default_angle if angle is None else float(angle)
-        return self.qubit.call_macro("xy_drive", angle=target_angle, phase=self.phase, **kwargs)
+        return self.qubit.call_macro(
+            SingleQubitMacroName.XY_DRIVE.value,
+            angle=target_angle,
+            phase=self.phase,
+            **kwargs,
+        )
 
 
 class XMacro(_AxisRotationMacro):
@@ -268,56 +294,56 @@ class _FixedAxisAngleMacro(QubitMacro):
 class X180Macro(_FixedAxisAngleMacro):
     """Apply 180-degree rotation around X axis via canonical `x` macro."""
 
-    axis_macro_name: str = "x"
+    axis_macro_name: str = SingleQubitMacroName.X.value
     default_angle: float = float(np.pi)
 
 
 class X90Macro(_FixedAxisAngleMacro):
     """Apply 90-degree rotation around X axis via canonical `x` macro."""
 
-    axis_macro_name: str = "x"
+    axis_macro_name: str = SingleQubitMacroName.X.value
     default_angle: float = float(np.pi / 2)
 
 
 class XNeg90Macro(_FixedAxisAngleMacro):
     """Apply -90-degree rotation around X axis via canonical `x` macro."""
 
-    axis_macro_name: str = "x"
+    axis_macro_name: str = SingleQubitMacroName.X.value
     default_angle: float = float(-np.pi / 2)
 
 
 class Y180Macro(_FixedAxisAngleMacro):
     """Apply 180-degree rotation around Y axis via canonical `y` macro."""
 
-    axis_macro_name: str = "y"
+    axis_macro_name: str = SingleQubitMacroName.Y.value
     default_angle: float = float(np.pi)
 
 
 class Y90Macro(_FixedAxisAngleMacro):
     """Apply 90-degree rotation around Y axis via canonical `y` macro."""
 
-    axis_macro_name: str = "y"
+    axis_macro_name: str = SingleQubitMacroName.Y.value
     default_angle: float = float(np.pi / 2)
 
 
 class YNeg90Macro(_FixedAxisAngleMacro):
     """Apply -90-degree rotation around Y axis via canonical `y` macro."""
 
-    axis_macro_name: str = "y"
+    axis_macro_name: str = SingleQubitMacroName.Y.value
     default_angle: float = float(-np.pi / 2)
 
 
 class Z180Macro(_FixedAxisAngleMacro):
     """Apply virtual 180-degree Z rotation via canonical `z` macro."""
 
-    axis_macro_name: str = "z"
+    axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle: float = float(np.pi)
 
 
 class Z90Macro(_FixedAxisAngleMacro):
     """Apply virtual 90-degree Z rotation via canonical `z` macro."""
 
-    axis_macro_name: str = "z"
+    axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle: float = float(np.pi / 2)
 
 
@@ -346,23 +372,23 @@ class IdentityMacro(QubitMacro):
 
 
 SINGLE_QUBIT_MACROS = {
-    "initialize": Initialize1QMacro,
-    "measure": Measure1QMacro,
-    "empty": Empty1QMacro,
-    "xy_drive": XYDriveMacro,
-    "x": XMacro,
-    "y": YMacro,
-    "z": ZMacro,
-    "x180": X180Macro,
-    "x90": X90Macro,
-    "x_neg90": XNeg90Macro,
-    "-x90": XNeg90Macro,
-    "y180": Y180Macro,
-    "y90": Y90Macro,
-    "y_neg90": YNeg90Macro,
-    "-y90": YNeg90Macro,
-    "z180": Z180Macro,
-    "z90": Z90Macro,
-    "I": IdentityMacro,
+    VoltagePointName.INITIALIZE.value: Initialize1QMacro,
+    VoltagePointName.MEASURE.value: Measure1QMacro,
+    VoltagePointName.EMPTY.value: Empty1QMacro,
+    SingleQubitMacroName.XY_DRIVE.value: XYDriveMacro,
+    SingleQubitMacroName.X.value: XMacro,
+    SingleQubitMacroName.Y.value: YMacro,
+    SingleQubitMacroName.Z.value: ZMacro,
+    SingleQubitMacroName.X_180.value: X180Macro,
+    SingleQubitMacroName.X_90.value: X90Macro,
+    SingleQubitMacroName.X_NEG_90.value: XNeg90Macro,
+    X_NEG_90_ALIAS: XNeg90Macro,
+    SingleQubitMacroName.Y_180.value: Y180Macro,
+    SingleQubitMacroName.Y_90.value: Y90Macro,
+    SingleQubitMacroName.Y_NEG_90.value: YNeg90Macro,
+    Y_NEG_90_ALIAS: YNeg90Macro,
+    SingleQubitMacroName.Z_180.value: Z180Macro,
+    SingleQubitMacroName.Z_90.value: Z90Macro,
+    SingleQubitMacroName.IDENTITY.value: IdentityMacro,
 }
 # Default single-qubit macro factories for ``LDQubit`` components.
