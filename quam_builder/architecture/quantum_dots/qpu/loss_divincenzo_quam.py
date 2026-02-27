@@ -75,7 +75,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         validate_type: bool = True,
         fix_attrs: bool = True,
     ):
-        """Load machine from file and recreate voltage sequences"""
+        """Load machine, upgrade to LD schema, and wire runtime macro defaults."""
         instance = super().load(
             filepath_or_dict=filepath_or_dict,
             validate_type=validate_type,
@@ -83,7 +83,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         )
         instance.voltage_sequences = {}
 
-        if type(instance) is BaseQuamQD:
+        if isinstance(instance, BaseQuamQD) and not isinstance(instance, cls):
             instance.__class__ = cls
 
         # We only create empty fields here if it does not already have it. This is in-case the instance is a BaseQuamQD.
@@ -97,6 +97,10 @@ class LossDiVincenzoQuam(BaseQuamQD):
             instance.active_qubit_names = []
         if not hasattr(instance, "active_qubit_pair_names"):
             instance.active_qubit_pair_names = []
+
+        from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
+        wire_machine_macros(instance)
 
         return instance
 

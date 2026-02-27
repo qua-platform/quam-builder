@@ -1,14 +1,15 @@
-from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional, Type, ClassVar
+# Quantum component inheritance depth is framework-driven for QuAM dataclasses.
+# pylint: disable=too-many-ancestors
+
+from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
-from quam_builder.architecture.quantum_dots.operations import SINGLE_QUBIT_MACROS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
@@ -65,8 +66,6 @@ class LDQubit(VoltageMacroMixin, Qubit):
     T2ramsey: float = None
     T2echo: float = None
     thermalization_time_factor: int = 5
-
-    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = SINGLE_QUBIT_MACROS
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 

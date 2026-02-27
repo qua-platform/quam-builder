@@ -6,6 +6,7 @@ This module provides components and tools for building quantum dot-based quantum
 
 from .components import *
 from .examples import *
+from .macro_engine import *
 from .operations import *
 from .qpu import *
 from .qubit import *
@@ -14,6 +15,7 @@ from .qubit_pair import *
 __all__ = [
     *components.__all__,
     *examples.__all__,
+    *macro_engine.__all__,
     *operations.__all__,
     *qpu.__all__,
     *qubit.__all__,

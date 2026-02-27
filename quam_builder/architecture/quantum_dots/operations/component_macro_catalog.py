@@ -1,0 +1,40 @@
+"""Default component->macro catalog registration for quantum-dot architecture."""
+
+from __future__ import annotations
+
+from quam_builder.architecture.quantum_dots.operations.default_macros import (
+    QPU_STATE_MACROS,
+    SINGLE_QUBIT_MACROS,
+    TWO_QUBIT_MACROS,
+)
+from quam_builder.architecture.quantum_dots.operations.macro_registry import (
+    register_component_macro_factories,
+)
+
+_REGISTERED = False
+
+__all__ = [
+    "register_default_component_macro_factories",
+]
+
+
+def register_default_component_macro_factories() -> None:
+    """Register built-in macro factories for core quantum-dot component types.
+
+    Registration is idempotent and intentionally centralized to keep default
+    behavior decoupled from component class definitions.
+    """
+    global _REGISTERED
+    if _REGISTERED:
+        return
+
+    # Import lazily to avoid import-cycle side effects during module initialization.
+    from quam_builder.architecture.quantum_dots.components import QPU
+    from quam_builder.architecture.quantum_dots.qubit import LDQubit
+    from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
+
+    register_component_macro_factories(QPU, QPU_STATE_MACROS)
+    register_component_macro_factories(LDQubit, SINGLE_QUBIT_MACROS)
+    register_component_macro_factories(LDQubitPair, TWO_QUBIT_MACROS)
+
+    _REGISTERED = True
