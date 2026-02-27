@@ -40,7 +40,7 @@ class MacroDispatchMixin(QuantumComponent):
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
     _sticky_tracking_warned_macros: Set[Tuple[str, str]] = field(
-        default_factory=set, init=False, repr=False, metadata={"exclude": True}
+        default_factory=set, init=False, repr=False, metadata={"skip_save": True}
     )
 
     def __post_init__(self):
