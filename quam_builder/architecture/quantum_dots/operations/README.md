@@ -459,3 +459,9 @@ See [`../examples/default_macro_overrides_example.py`](../examples/default_macro
 2. one-macro instance override
 3. type-level override
 4. program build using default + overridden macros
+
+See [`../examples/default_macro_defaults_example.py`](../examples/default_macro_defaults_example.py) for:
+
+1. default-only wiring (no profile and no runtime overrides)
+2. parameterizing built-in default macro instances on components
+3. program build using parameterized default macros only
