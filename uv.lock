@@ -3794,8 +3794,8 @@ dependencies = [
 
 [[package]]
 name = "qualang-tools"
-version = "0.21.0"
-source = { git = "https://github.com/qua-platform/py-qua-tools.git?rev=fix%2Fquantum-dots-wiring-patch#b7f7c6bcec47ce7776f5be883d1a9e4b2ddfd50b" }
+version = "0.21.1"
+source = { git = "https://github.com/qua-platform/py-qua-tools.git?rev=main#db8e38e4d04d66b781a0f0a3a4267844aa059904" }
 dependencies = [
     { name = "grpclib" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -3854,7 +3854,7 @@ wheels = [
 
 [[package]]
 name = "quam"
-version = "0.5.0a2"
+version = "0.5.0a3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -3864,9 +3864,9 @@ dependencies = [
     { name = "qualibrate-config", version = "0.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typeguard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/c2/f40e162b57cb142123a1cc82ed27df561852ed6e5ce91b65332714eed137/quam-0.5.0a2.tar.gz", hash = "sha256:11f4ace4af26cf2401f17e62c878d036053bd49d7834010e526c0d873de7d778", size = 311636, upload-time = "2025-11-17T19:11:29.251Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/f9/0c2a1cf334326343aea59fc5cbcb271c05920e1b32f26492fa92dd56f451/quam-0.5.0a3.tar.gz", hash = "sha256:674fb4eba34b43cb4d855362167c4510f31bfdf7560ba3fb8d9bfb0e655ce704", size = 334641, upload-time = "2026-01-20T09:45:51.743Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/b1/3113ecba4fd590bfd8a9e9dbee8b072ef5702f893823e1edda6c2611e361/quam-0.5.0a2-py3-none-any.whl", hash = "sha256:4ef313529305e8a45f44a6812e1d99e08871c3a50b7dde8c39996411d4667207", size = 91037, upload-time = "2025-11-17T19:11:27.915Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/1d/a67ef41a5f05df98614f371e655dfa161ef6d172fd784bdda5472d653ccd/quam-0.5.0a3-py3-none-any.whl", hash = "sha256:bca0c9e5a8e759487f99bd8a189989b25571a128f480bc559334dba72ccc6366", size = 95479, upload-time = "2026-01-20T09:45:50.301Z" },
 ]
 
 [[package]]
@@ -3936,7 +3936,7 @@ requires-dist = [
     { name = "qcodes-contrib-drivers", specifier = ">=0.22.0" },
     { name = "qm-qua", specifier = ">=1.2.2" },
     { name = "qm-saas", specifier = ">=1.1.7" },
-    { name = "qualang-tools", git = "https://github.com/qua-platform/py-qua-tools.git?rev=fix%2Fquantum-dots-wiring-patch" },
+    { name = "qualang-tools", git = "https://github.com/qua-platform/py-qua-tools.git?rev=main" },
     { name = "quam", specifier = ">=0.4.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "xarray", specifier = ">=2024.7.0" },
