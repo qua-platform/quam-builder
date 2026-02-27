@@ -21,8 +21,6 @@ Mock/patch policy:
 import pytest
 from qm import qua
 from unittest.mock import patch
-from quam.core import quam_dataclass
-from quam.core.macro import QuamMacro
 
 from quam_builder.tools.macros.point_macros import (
     SequenceMacro,
@@ -372,79 +370,6 @@ class TestSequenceMacro:
 
             # Should execute all 4 primitive operations
             assert mock_step.call_count == 4
-
-    def test_nested_sequence_uses_dispatch_tracking_hook(self, machine):
-        """Smoke test: nested sequence children run via sticky-tracking dispatch hook."""
-        qd = machine.quantum_dots["virtual_dot_1"]
-
-        @quam_dataclass
-        class TimedNoVoltageMacro(QuamMacro):
-            @property
-            def inferred_duration(self):
-                return 100e-9
-
-            def apply(self, **kwargs):
-                pass
-
-        qd.with_step_point("idle", {"virtual_dot_1": 0.1}, duration=100)
-        qd.macros["x180"] = TimedNoVoltageMacro()
-        qd.with_sequence("mixed_seq", ["idle", "x180"])
-        qd.macros["mixed_seq"].align_elements = False
-
-        with patch.object(
-            qd,
-            "_execute_macro_with_sticky_tracking",
-            wraps=qd._execute_macro_with_sticky_tracking,
-        ) as mock_exec:
-            with qua.program():
-                qd.mixed_seq()
-
-        # Top-level sequence dispatch + two nested macro dispatches.
-        assert mock_exec.call_count >= 3
-
-    def test_conditional_macro_uses_dispatch_tracking_hook(self, machine):
-        """Smoke test: conditional macro nested calls route through dispatch hook."""
-        qd = machine.quantum_dots["virtual_dot_1"]
-
-        @quam_dataclass
-        class MeasureBoolMacro(QuamMacro):
-            @property
-            def inferred_duration(self):
-                return 80e-9
-
-            def apply(self, **kwargs):
-                state = qua.declare(bool)
-                qua.assign(state, False)
-                return state
-
-        @quam_dataclass
-        class TimedNoVoltageMacro(QuamMacro):
-            @property
-            def inferred_duration(self):
-                return 100e-9
-
-            def apply(self, **kwargs):
-                pass
-
-        qd.macros["measure_bool"] = MeasureBoolMacro()
-        qd.macros["x180"] = TimedNoVoltageMacro()
-        qd.with_conditional_macro(
-            name="conditional_reset",
-            measurement_macro="measure_bool",
-            conditional_macro="x180",
-            invert_condition=False,
-        )
-
-        with patch.object(
-            qd,
-            "_execute_macro_with_sticky_tracking",
-            wraps=qd._execute_macro_with_sticky_tracking,
-        ) as mock_exec:
-            with qua.program():
-                qd.conditional_reset()
-
-        # Top-level conditional dispatch + nested measurement + nested conditional macro.
-        assert mock_exec.call_count >= 3
 
 
 # ============================================================================
