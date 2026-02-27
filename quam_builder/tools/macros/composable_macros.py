@@ -1,7 +1,7 @@
 """Composable macros for building complex quantum operation sequences."""
 
 from dataclasses import field
-from typing import ClassVar, List, Optional
+from typing import List, Optional
 
 from qm import qua
 from quam import QuamComponent
@@ -34,7 +34,6 @@ class ConditionalMacro(QuamMacro):
     measurement_macro: str
     conditional_macro: str
     invert_condition: bool = False
-    updates_voltage_tracking: ClassVar[bool] = True
 
     def __call__(self, **overrides):
         """Invoke macro as callable (QUAM convention).
@@ -117,30 +116,18 @@ class ConditionalMacro(QuamMacro):
         measurement = self._resolve_macro(self.measurement_macro)
         conditional = self._resolve_macro(self.conditional_macro)
 
-        owner_component = self.parent.parent
-        execute_macro = getattr(owner_component, "_execute_macro_with_sticky_tracking", None)
-
         # Execute measurement
-        if callable(execute_macro):
-            state = execute_macro(measurement)
-        else:
-            state = measurement.apply()
+        state = measurement.apply()
 
         # Apply conditional macro based on condition
         use_inverted = invert_condition if invert_condition is not None else self.invert_condition
 
         if use_inverted:
             with qua.if_(~state):
-                if callable(execute_macro):
-                    execute_macro(conditional, **kwargs)
-                else:
-                    conditional.apply(**kwargs)
+                conditional.apply(**kwargs)
         else:
             with qua.if_(state):
-                if callable(execute_macro):
-                    execute_macro(conditional, **kwargs)
-                else:
-                    conditional.apply(**kwargs)
+                conditional.apply(**kwargs)
 
         return state
 
@@ -164,7 +151,6 @@ class SequenceMacro(QuamMacro):
     description: Optional[str] = None
     return_index: Optional[int] = None
     align_elements = True
-    updates_voltage_tracking: ClassVar[bool] = True
 
     def __call__(self, *args, **kwargs):
         """Execute sequence as callable."""
@@ -276,28 +262,17 @@ class SequenceMacro(QuamMacro):
         """
         res = []
         previous_element = None
-        owner_component = self.parent.parent
-        execute_macro = getattr(owner_component, "_execute_macro_with_sticky_tracking", None)
-
-        for macro in self.resolved_macros(owner_component):
-            if callable(execute_macro):
-                r = execute_macro(macro, **kwargs)
-            else:
-                r = macro.apply(**kwargs)
+        for macro in self.resolved_macros(self.parent.parent):
+            r = macro.apply(**kwargs)
 
             # Get the component that owns this macro (macro.parent is 'macros' dict, parent.parent is the component)
             new_element = macro.parent.parent
 
             if previous_element is not None and self.align_elements:
 
-                if isinstance(previous_element, (Qubit, QubitPair)) and not isinstance(
-                    new_element, (Qubit, QubitPair)
-                ):
+                if isinstance(previous_element, (Qubit, QubitPair)) and not isinstance(new_element, (Qubit, QubitPair)):
                     previous_element.align()
-                elif (
-                    isinstance(previous_element, (Qubit, QubitPair))
-                    and previous_element == new_element
-                ):
+                elif isinstance(previous_element, (Qubit, QubitPair)) and previous_element==new_element:
                     previous_element.align()
                 elif isinstance(previous_element, (Qubit)) and isinstance(new_element, (Qubit)):
                     previous_element.align(new_element)
