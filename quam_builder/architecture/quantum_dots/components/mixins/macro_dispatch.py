@@ -1,86 +1,131 @@
-"""Macro dispatch mixin for dynamic macro invocation.
+"""Macro dispatch mixin with compiled-call caching and sticky-voltage tracking."""
 
-This module provides the infrastructure for storing and dynamically
-accessing macros as methods.
-"""
+from __future__ import annotations
 
 import math
 import warnings
+import weakref
 from numbers import Real
-from typing import Dict, Set, Tuple
+from typing import Callable, Dict, Set, Tuple
 
 from dataclasses import field
 
+from quam.components import QuantumComponent
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-from quam.components import QuantumComponent
 
-from quam_builder.tools.macros.default_macros import DEFAULT_MACROS
+from quam_builder.architecture.quantum_dots.operations.component_macro_catalog import (
+    register_default_component_macro_factories,
+)
+from quam_builder.architecture.quantum_dots.operations.macro_registry import (
+    get_default_macro_factories,
+)
 
 __all__ = ["MacroDispatchMixin"]
+
+_DISPATCH_CACHE: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+_WARNED_MACRO_KEYS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+# Runtime-only caches keyed by component instance (never serialized).
 
 
 @quam_dataclass
 class MacroDispatchMixin(QuantumComponent):
-    """Mixin providing macro storage and dynamic dispatch infrastructure.
-
-    This mixin enables components to:
-    - Store macros in a serializable dictionary
-    - Access macros as methods via __getattr__
-    - Automatically initialize default macros
-
-    Features:
-        - Dynamic macro access: Macros in self.macros are callable as methods
-        - Serializable: All state stored in self.macros dict, compatible with QuAM serialization
-
-    Example:
-        component.macros['idle'] = StepPointMacro(...)
-        component.idle()  # Calls the macro via __getattr__
-    """
+    """Mixin for macro storage, compiled dispatch, and runtime tracking."""
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
-    _sticky_tracking_warned_macros: Set[Tuple[str, str]] = field(
-        default_factory=set, init=False, repr=False, metadata={"exclude": True}
-    )
 
     def __post_init__(self):
-        """Initialize macro containers and set parent links."""
-        # Ensure macro containers exist and set parent links when possible
-        if not hasattr(self, "macros") or self.macros is None:
+        """Initialize macro storage, defaults, and runtime callable cache."""
+        self._ensure_macros_dict()
+        self.ensure_default_macros()
+        self._rebuild_macro_dispatch()
+
+    def _dispatch_cache(self) -> Dict[str, tuple[QuamMacro, Callable]]:
+        """Return per-instance compiled-dispatch cache."""
+        cache = _DISPATCH_CACHE.get(self)
+        if cache is None:
+            cache = {}
+            _DISPATCH_CACHE[self] = cache
+        return cache
+
+    def _warned_macro_keys(self) -> Set[Tuple[str, str]]:
+        """Return per-instance set of macro warning keys already emitted."""
+        keys = _WARNED_MACRO_KEYS.get(self)
+        if keys is None:
+            keys = set()
+            _WARNED_MACRO_KEYS[self] = keys
+        return keys
+
+    def _ensure_macros_dict(self) -> None:
+        """Ensure ``self.macros`` exists before default materialization."""
+        if getattr(self, "macros", None) is None:
             self.macros = {}
 
-        # Add default macros if not already present
-        for macro_name, macro_class in DEFAULT_MACROS.items():
+    def ensure_default_macros(self) -> None:
+        """Materialize default macro instances for this component type."""
+        register_default_component_macro_factories()
+        for macro_name, macro_class in get_default_macro_factories(self).items():
             if macro_name not in self.macros:
-                # Use a fresh copy per component to avoid sharing parent links
                 self.macros[macro_name] = macro_class()
 
-        # Attach parents for any pre-populated entries
-        for macro in self.macros.values():
+    def _compile_macro_callable(self, macro: QuamMacro):
+        """Compile a callable wrapper that preserves sticky tracking behavior."""
+
+        def _call(**kwargs):
+            return self._execute_macro_with_sticky_tracking(macro, **kwargs)
+
+        return _call
+
+    def _get_compiled_macro_callable(self, macro_name: str) -> Callable:
+        """Return cached callable for macro, recompiling when macro instance changes."""
+        if macro_name not in self.macros:
+            raise KeyError(
+                f"Macro '{macro_name}' not found on {type(self).__name__}. "
+                f"Available macros: {sorted(self.macros.keys())}"
+            )
+
+        macro = self.macros[macro_name]
+        cache = self._dispatch_cache()
+        cached = cache.get(macro_name)
+        if cached is not None and cached[0] is macro:
+            return cached[1]
+
+        if getattr(macro, "parent", None) is None:
+            macro.parent = self
+        compiled = self._compile_macro_callable(macro)
+        cache[macro_name] = (macro, compiled)
+        return compiled
+
+    def _rebuild_macro_dispatch(self) -> None:
+        """Rebuild compiled-call cache from current macro mapping."""
+        cache = self._dispatch_cache()
+        cache.clear()
+        for macro_name, macro in self.macros.items():
             if getattr(macro, "parent", None) is None:
                 macro.parent = self
+            cache[macro_name] = (macro, self._compile_macro_callable(macro))
+
+    def _invalidate_macro_dispatch(self, macro_name: str) -> None:
+        """Invalidate one cached macro callable."""
+        self._dispatch_cache().pop(macro_name, None)
+
+    def set_macro(self, name: str, macro: QuamMacro) -> None:
+        """Add or replace a macro and keep compiled dispatch in sync."""
+        self.macros[name] = macro
+        self._invalidate_macro_dispatch(name)
+
+    def call_macro(self, name: str, **kwargs):
+        """Execute a macro by name through compiled dispatch."""
+        return self._get_compiled_macro_callable(name)(**kwargs)
 
     def __getattr__(self, name):
-        """Enable calling macros as methods via attribute access.
-
-        This allows dynamically-registered macros to be called as if they were
-        methods decorated with @QuantumComponent.register_macro, providing a
-        cleaner API: component.my_macro() instead of component.macros['my_macro']()
-
-        Example:
-            component.macros['idle'] = StepPointMacro(...)
-            component.idle()  # Calls the macro via __getattr__
-        """
-        # __getattr__ is only called after normal attribute lookup fails,
-        # so we only need to check macros here
-        macros = self.__dict__.get("macros", {})
-        if name in macros:
-            macro = macros[name]
-            return lambda **kwargs: self._execute_macro_with_sticky_tracking(macro, **kwargs)
+        """Expose macros as methods via attribute access."""
+        if name in self.macros:
+            return self._get_compiled_macro_callable(name)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")
 
     def _macro_warning_key(self, macro: QuamMacro) -> Tuple[str, str]:
-        """Create a stable warning key for one-time macro warnings."""
+        """Build a stable key used to suppress duplicate warning messages."""
         macro_class_name = type(macro).__name__
         try:
             macro_id = str(getattr(macro, "inferred_id", getattr(macro, "id", macro_class_name)))
@@ -89,11 +134,11 @@ class MacroDispatchMixin(QuantumComponent):
         return macro_class_name, macro_id
 
     def _warn_once_missing_macro_duration(self, macro: QuamMacro, reason: str) -> None:
-        """Warn once per macro id/class when sticky tracking duration is unavailable."""
         key = self._macro_warning_key(macro)
-        if key in self._sticky_tracking_warned_macros:
+        warned_keys = self._warned_macro_keys()
+        if key in warned_keys:
             return
-        self._sticky_tracking_warned_macros.add(key)
+        warned_keys.add(key)
         warnings.warn(
             (
                 "Skipping sticky-voltage tracking for macro "
@@ -104,7 +149,7 @@ class MacroDispatchMixin(QuantumComponent):
         )
 
     def _duration_ns_for_sticky_tracking(self, macro: QuamMacro) -> int | None:
-        """Resolve macro inferred duration (seconds) to quantized nanoseconds."""
+        """Resolve macro duration to 4 ns-quantized nanoseconds for tracking."""
         duration_seconds = getattr(macro, "inferred_duration", None)
         if duration_seconds is None:
             self._warn_once_missing_macro_duration(
@@ -124,12 +169,11 @@ class MacroDispatchMixin(QuantumComponent):
             )
             return None
 
-        # Convert seconds -> ns and quantize to OPX clock-cycle boundaries.
         quantized_duration_ns = int(round(duration_seconds_f * 1e9 / 4.0)) * 4
         return max(quantized_duration_ns, 0)
 
     def _execute_macro_with_sticky_tracking(self, macro: QuamMacro, **kwargs):
-        """Execute a macro and account for sticky voltage hold time when needed."""
+        """Execute macro and update sticky-voltage integral when needed."""
         result = macro.apply(**kwargs)
 
         if getattr(macro, "updates_voltage_tracking", False):
@@ -147,18 +191,7 @@ class MacroDispatchMixin(QuantumComponent):
         return result
 
     def _resolve_macro_ref(self, name_or_ref: str, description: str) -> str:
-        """Convert macro name to reference string, validating existence.
-
-        Args:
-            name_or_ref: Either a macro name (e.g., 'measure') or reference string (starts with '#')
-            description: Description for error messages (e.g., 'Measurement macro')
-
-        Returns:
-            str: Reference string to the macro
-
-        Raises:
-            KeyError: If name_or_ref is a macro name that doesn't exist in self.macros
-        """
+        """Resolve macro name-or-reference into canonical reference string."""
         if name_or_ref.startswith("#"):
             return name_or_ref
         if name_or_ref not in self.macros:
