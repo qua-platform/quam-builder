@@ -58,6 +58,9 @@ Canonical chain:
 - `x` and `y` delegate to `xy_drive` with phase offsets.
 - `x90`/`x180`/`x_neg90` and `y*` wrappers delegate to canonical `x`/`y`.
 - `z90`/`z180` wrappers delegate to canonical `z`.
+- Negative XY angles are encoded as positive-angle drives with an additional `+pi`
+  phase shift (on top of the axis phase), so amplitude scaling is based on
+  `abs(angle)`.
 
 Practical consequence: overriding one canonical macro (for example `xy_drive` or `x`) automatically affects all wrappers above it.
 

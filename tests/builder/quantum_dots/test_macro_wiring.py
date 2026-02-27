@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from unittest.mock import patch
+from quam.components import pulses
 
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
@@ -49,6 +50,15 @@ def _build_machine():
     machine = _BaseQpuBuilder(machine).build()
     machine = _LDQubitBuilder(machine).build()
     return machine
+
+
+def _seed_reference_pulses(machine):
+    for qubit in machine.qubits.values():
+        if qubit.xy is None:
+            continue
+        qubit.xy.operations.setdefault(
+            "x180", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
+        )
 
 
 class TunedX180Macro(X180Macro):
@@ -133,3 +143,37 @@ def test_fixed_angle_macros_delegate_to_canonical_axes():
     with patch.object(q1, "call_macro", return_value=None) as mock_call:
         q1.macros["z90"].apply()
     mock_call.assert_called_once_with("z", angle=pytest.approx(np.pi / 2))
+
+
+def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
+    """Negative X should map to +pi phase shift with positive amplitude scale."""
+    machine = _build_machine()
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with (
+        patch.object(q1, "virtual_z", return_value=None) as mock_vz,
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+    ):
+        q1.x(angle=-np.pi / 2)
+
+    assert mock_vz.call_args_list[0].args[0] == pytest.approx(np.pi)
+    assert mock_vz.call_args_list[1].args[0] == pytest.approx(-np.pi)
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.5)
+
+
+def test_negative_y_rotation_is_phase_shifted_positive_angle_drive():
+    """Negative Y should map to (pi/2 + pi) phase shift with positive amplitude scale."""
+    machine = _build_machine()
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with (
+        patch.object(q1, "virtual_z", return_value=None) as mock_vz,
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+    ):
+        q1.y(angle=-np.pi / 2)
+
+    assert mock_vz.call_args_list[0].args[0] == pytest.approx(3 * np.pi / 2)
+    assert mock_vz.call_args_list[1].args[0] == pytest.approx(-3 * np.pi / 2)
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.5)

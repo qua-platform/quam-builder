@@ -66,6 +66,9 @@ class XYDriveMacro(QubitMacro):
     - `|angle| > pi`: saturate amplitude at `max_amplitude_scale` and stretch
       duration proportionally.
 
+    Negative angles are represented as a +pi phase shift on the requested axis,
+    so amplitude scaling is always computed from `abs(angle)`.
+
     The optional `phase` rotates the drive axis in the XY plane by applying a
     temporary frame rotation before the pulse and restoring it afterwards.
     """
@@ -113,23 +116,28 @@ class XYDriveMacro(QubitMacro):
         if math.isclose(relative, 0.0):
             return 0, 0.0
 
-        sign = -1.0 if angle < 0 else 1.0
-        amplitude_abs = min(relative, self.max_amplitude_scale)
-        amplitude_scale = sign * amplitude_abs
+        amplitude_scale = min(relative, self.max_amplitude_scale)
 
         base_duration_ns = self._reference_duration_ns(pulse_name)
         if base_duration_ns is None:
             return None, amplitude_scale
 
-        stretch = relative / amplitude_abs
+        stretch = relative / amplitude_scale
         duration_ns = _quantize_ns(base_duration_ns * stretch)
         return duration_ns, amplitude_scale
+
+    @staticmethod
+    def _normalize_angle_sign_to_phase(angle: float, phase: float) -> tuple[float, float]:
+        """Encode negative-angle rotations as positive angle + pi phase offset."""
+        if angle < 0:
+            return abs(angle), phase + float(np.pi)
+        return angle, phase
 
     def inferred_duration_for_angle(self, angle: float) -> float | None:
         """Infer runtime duration (seconds) for a given rotation angle."""
         try:
             pulse_name = self._resolve_pulse_name(None)
-            duration_ns, _ = self._angle_to_drive_params(angle, pulse_name)
+            duration_ns, _ = self._angle_to_drive_params(abs(angle), pulse_name)
         except Exception:  # pragma: no cover - defensive
             return None
 
@@ -155,6 +163,7 @@ class XYDriveMacro(QubitMacro):
         if math.isclose(target_angle, 0.0):
             return None
 
+        target_angle, phase = self._normalize_angle_sign_to_phase(target_angle, phase)
         resolved_pulse_name = self._resolve_pulse_name(pulse_name)
         auto_duration, auto_amplitude_scale = self._angle_to_drive_params(
             target_angle, resolved_pulse_name
