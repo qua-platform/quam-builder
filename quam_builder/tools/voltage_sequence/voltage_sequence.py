@@ -339,6 +339,8 @@ class VoltageSequence:
                     "Ensure hold `duration` is sufficient."
                 )
 
+        changed_gates = set(target_voltages_dict.keys())
+
         if self._keep_levels:
             target_voltages_dict = (
                 self._keep_levels_tracker.update_voltage_dict_with_current(
@@ -347,6 +349,16 @@ class VoltageSequence:
             )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
+        # For virtual gate sets: 
+        if hasattr(self.gate_set, 'influence_map'):
+            affected = set()
+            for gate in changed_gates:
+                affected = affected | self.gate_set.influence_map.get(gate, {gate})
+            full_target_voltages_dict = {
+                ch: v for ch, v in full_target_voltages_dict.items()
+                if ch in affected
+            }
+            
         if ensure_align:
             # this align is need for general use, as "step_to_voltages" adds math that can offset pulses in time
             # ensure_align allows to overwrite this, (currently only set to False inside apply_compensation_pulse)

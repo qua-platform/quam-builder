@@ -4,7 +4,7 @@
 # pylint: disable=unsubscriptable-object
 
 from dataclasses import field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 import warnings
 import numpy as np
 
@@ -180,7 +180,28 @@ class VirtualGateSet(GateSet):
 
     layers: List[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
+    _influence_map: Dict[str, Set[str]] = field(default_factory=dict)
 
+    @property
+    def influence_map(self) -> Dict[str, Set[str]]:
+        """A dictionary mapping each target gate to the set of source gates that influence it. Cache value to avoid constant recalculation."""
+        return self._influence_map
+
+    def _calculate_influence_map(self) -> None:
+        """Calculates the influence map for the virtualization layer. Each gate will be mapped to a set of physical gates that it influences."""
+        # Base physical gates do not influence any others, so they are mapped to an empty set
+        influence_map = {gate: {gate} for gate in list(self.channels.keys())}
+        for layer in self.layers: 
+            for source_gate in layer.source_gates: 
+                influenced_set = set()
+                dummy_dict = {source_gate: 1.0}
+                resolved_voltages = self.resolve_voltages(dummy_dict)
+                for physical_gate, value in resolved_voltages.items():
+                    if value != 0.0:
+                        influenced_set.add(physical_gate)
+                influence_map[source_gate] = influenced_set
+        self._influence_map = influence_map
+    
     @property
     def valid_channel_names(self) -> list[str]:
         """
@@ -338,6 +359,7 @@ class VirtualGateSet(GateSet):
             use_pseudoinverse=use_pseudoinverse,
         )
         self.layers.append(virtualization_layer)
+        self._calculate_influence_map()
         return virtualization_layer
 
     def add_to_layer(
@@ -451,7 +473,7 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
-
+        self._calculate_influence_map()
         return layer
 
     def resolve_voltages(
