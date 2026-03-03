@@ -27,3 +27,15 @@ def machine():
         ),
     )
     return machine
+
+
+@pytest.fixture
+def virtual_gate_set(machine):
+    """A VirtualGateSet whose channels match the test machine (ch1, ch2)."""
+    return VirtualGateSet(
+        id="test_vgs",
+        channels={
+            "ch1": "#../gate_set/channels/ch1",
+            "ch2": "#../gate_set/channels/ch2",
+        },
+    )
