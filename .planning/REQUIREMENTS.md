@@ -9,9 +9,9 @@ Requirements for milestone v1.0 — QD Operations. Each maps to roadmap phases.
 
 ### Catalog Registration
 
-- [ ] **CAT-01**: `QuantumDot` is registered in the component catalog with state macros (`initialize`, `measure`, `empty`) — voltage-based, delegating to the dot's preferred `QuantumDotPair` macro
-- [ ] **CAT-02**: `QuantumDotPair` is registered in the component catalog with its own state macro implementations (`initialize`, `measure`, `empty`)
-- [ ] **CAT-03**: `SensorDot` is registered in the component catalog with a `measure` macro dispatching via the readout resonator — no `initialize` or `empty`
+- [x] **CAT-01**: `QuantumDot` is registered in the component catalog with state macros (`initialize`, `measure`, `empty`) — voltage-based, delegating to the dot's preferred `QuantumDotPair` macro
+- [x] **CAT-02**: `QuantumDotPair` is registered in the component catalog with its own state macro implementations (`initialize`, `measure`, `empty`)
+- [x] **CAT-03**: `SensorDot` is registered in the component catalog with a `measure` macro dispatching via the readout resonator — no `initialize` or `empty`
 
 ### Tests
 
@@ -62,9 +62,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAT-01 | Phase 1 | Pending |
-| CAT-02 | Phase 1 | Pending |
-| CAT-03 | Phase 1 | Pending |
+| CAT-01 | Phase 1 | Complete |
+| CAT-02 | Phase 1 | Complete |
+| CAT-03 | Phase 1 | Complete |
 | TEST-04 | Phase 1 | Complete |
 | TEST-01 | Phase 2 | Pending |
 | TEST-02 | Phase 2 | Pending |
