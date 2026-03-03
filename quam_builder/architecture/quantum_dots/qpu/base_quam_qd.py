@@ -568,6 +568,8 @@ class BaseQuamQD(QuamRoot):
         if target == "opx" or target == "both":
             full_matrix = create_new_matrix([row[:] for row in vgs.layers[0].matrix])
             vgs.layers[0].matrix = full_matrix
+            if hasattr(vgs, "influence_map"):
+                vgs._calculate_influence_map()
         if target == "dc" or target == "both":
             full_matrix = create_new_matrix(
                 [row[:] for row in self.virtual_dc_sets[vgs.id].layers[0].matrix]
@@ -599,6 +601,8 @@ class BaseQuamQD(QuamRoot):
             self.virtual_gate_sets[virtual_gate_set_name].layers[0].matrix = [
                 row[:] for row in compensation_matrix
             ]
+            if hasattr(self.virtual_gate_sets[virtual_gate_set_name], "influence_map"):
+                self.virtual_gate_sets[virtual_gate_set_name]._calculate_influence_map()
         if target == "dc" or target == "both":
             self.virtual_dc_sets[virtual_gate_set_name].layers[0].matrix = [
                 row[:] for row in compensation_matrix
