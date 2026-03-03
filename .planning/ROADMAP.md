@@ -40,7 +40,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Running `make test` produces passing assertions that `SensorDot.macros` contains `measure` but not `initialize` or `empty` after wiring
   4. The `LDQubit` delegation chain (`X180Macro` → `XMacro` → `XYDriveMacro`) is covered by a test that calls `macro.apply()` end-to-end and asserts the correct QUA method was invoked
   5. A save/load round-trip test for `QuantumDot`, `QuantumDotPair`, and `SensorDot` macro instances completes without error and the restored macros are functionally equivalent
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Verify catalog tests pass; mark TEST-01/02/03 complete
+- [ ] 02-02-PLAN.md — Add X180Macro smoke + mock tests (TEST-05)
+- [ ] 02-03-PLAN.md — Add save/load round-trip test (TEST-06)
 
 ### Phase 3: OperationsRegistry Clarification
 **Goal**: Developers reading `default_operations.py` and `operations/README.md` understand when to use `operations_registry.x(q)` vs `q.x()` vs `q.macros["x"].apply()` without ambiguity
@@ -70,6 +75,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
-| 2. Test Coverage | 0/TBD | Not started | - |
+| 2. Test Coverage | 0/3 | Not started | - |
 | 3. OperationsRegistry Clarification | 0/TBD | Not started | - |
 | 4. Customer Documentation | 0/TBD | Not started | - |
