@@ -37,6 +37,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.FLUX,
                 WiringLineType.LASER,
                 WiringLineType.SPCM,
+                WiringLineType.PLUNGER_GATE,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
                     set_nested_value_with_path(
@@ -51,6 +52,27 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
                     set_nested_value_with_path(
                         wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
+                    )
+
+            elif line_type in [
+                WiringLineType.SENSOR_GATE,
+                WiringLineType.RF_RESONATOR,
+            ]:
+                for k, v in qubit_wiring(channels, element_id, line_type).items():
+                    set_nested_value_with_path(
+                        wiring, f"readout/{element_id}/{line_type.value}/{k}", v
+                    )
+
+            elif line_type == WiringLineType.BARRIER_GATE:
+                for k, v in qubit_wiring(channels, element_id, line_type).items():
+                    set_nested_value_with_path(
+                        wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
+                    )
+
+            elif line_type == WiringLineType.GLOBAL_GATE:
+                for k, v in qubit_wiring(channels, element_id, line_type).items():
+                    set_nested_value_with_path(
+                        wiring, f"globals/{element_id}/{line_type.value}/{k}", v
                     )
 
             else:
