@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 02-01-PLAN.md — Verify catalog tests pass; mark TEST-01/02/03 complete
-- [ ] 02-02-PLAN.md — Add X180Macro smoke + mock tests (TEST-05)
+- [x] 02-02-PLAN.md — Add X180Macro smoke + mock tests (TEST-05)
 - [ ] 02-03-PLAN.md — Add save/load round-trip test (TEST-06)
 
 ### Phase 3: OperationsRegistry Clarification
