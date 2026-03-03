@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Verify catalog tests pass; mark TEST-01/02/03 complete
+- [x] 02-01-PLAN.md — Verify catalog tests pass; mark TEST-01/02/03 complete
 - [ ] 02-02-PLAN.md — Add X180Macro smoke + mock tests (TEST-05)
 - [ ] 02-03-PLAN.md — Add save/load round-trip test (TEST-06)
 
@@ -75,6 +75,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
-| 2. Test Coverage | 0/3 | Not started | - |
+| 2. Test Coverage | 1/3 | In Progress | - |
 | 3. OperationsRegistry Clarification | 0/TBD | Not started | - |
 | 4. Customer Documentation | 0/TBD | Not started | - |
