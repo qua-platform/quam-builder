@@ -6,6 +6,7 @@ All objects are real — no mocks or stubs.
 from unittest.mock import MagicMock
 
 from quam_builder.architecture.quantum_dots.components import SensorDot
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.components.sensor_dot import Projector
 
 
@@ -115,3 +116,24 @@ class TestSensorDotMeasureMacro:
         macro.parent = mock_sd
         macro.apply(foo="bar")
         mock_resonator.measure.assert_called_once_with(foo="bar")
+
+
+class TestSensorDotCatalog:
+    """Verify SensorDot receives measure-only macro after wire_machine_macros()."""
+
+    def test_has_measure_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for sd in qd_machine.sensor_dots.values():
+            assert "measure" in sd.macros, f"{sd.id} missing 'measure' macro"
+
+    def test_no_initialize_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for sd in qd_machine.sensor_dots.values():
+            assert (
+                "initialize" not in sd.macros
+            ), f"{sd.id} must not have 'initialize' macro (CAT-03)"
+
+    def test_no_empty_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for sd in qd_machine.sensor_dots.values():
+            assert "empty" not in sd.macros, f"{sd.id} must not have 'empty' macro (CAT-03)"
