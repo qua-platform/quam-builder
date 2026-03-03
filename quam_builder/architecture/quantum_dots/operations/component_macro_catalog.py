@@ -38,3 +38,13 @@ def register_default_component_macro_factories() -> None:
     register_component_macro_factories(LDQubitPair, TWO_QUBIT_MACROS)
 
     _REGISTERED = True
+
+
+def _reset_registration() -> None:
+    """Reset global registration state. FOR TESTING ONLY.
+
+    Called by the reset_catalog pytest fixture to ensure each test that
+    explicitly verifies registration behavior starts from a clean slate.
+    """
+    global _REGISTERED
+    _REGISTERED = False

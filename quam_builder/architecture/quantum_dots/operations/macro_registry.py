@@ -75,3 +75,8 @@ def get_default_macro_factories(component: object) -> MacroFactoryMap:
             resolved.update(_COMPONENT_MACRO_FACTORIES[key])
 
     return resolved
+
+
+def _reset_registry() -> None:
+    """Clear all registered macro factories. FOR TESTING ONLY."""
+    _COMPONENT_MACRO_FACTORIES.clear()
