@@ -13,6 +13,7 @@ __all__ = [
     "InitializeStateMacro",
     "MeasureStateMacro",
     "EmptyStateMacro",
+    "SensorDotMeasureMacro",
     "QPUInitializeMacro",
     "QPUMeasureMacro",
     "QPUEmptyMacro",
@@ -138,6 +139,22 @@ class EmptyStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
         owner.step_to_point(self.point_name, duration=hold)
+
+
+@quam_dataclass
+class SensorDotMeasureMacro(QuamMacro):
+    """Dispatch measure to the SensorDot readout resonator.
+
+    This macro calls ``owner.readout_resonator.measure()`` so that
+    sensor-dot measurement is accessible through the macro catalog
+    (``sensor_dot.macros["measure"].apply()``) rather than the legacy
+    ``sensor_dot.measure()`` direct method.
+    """
+
+    def apply(self, *args, **kwargs):
+        """Dispatch measure to the attached readout resonator."""
+        owner = _owner_component(self)
+        owner.readout_resonator.measure(*args, **kwargs)
 
 
 def _iter_qpu_targets(machine: Any):
