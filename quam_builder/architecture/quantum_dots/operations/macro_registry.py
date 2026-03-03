@@ -24,6 +24,9 @@ MacroFactoryMap = Dict[str, Type[QuamMacro]]
 _COMPONENT_MACRO_FACTORIES: Dict[str, MacroFactoryMap] = {}
 # Internal registry keyed by fully-qualified component class name.
 
+_REPLACE_KEYS: set = set()
+# Keys registered with replace=True — do not inherit from bases.
+
 
 def _component_key(component_type: type) -> str:
     """Create a stable key for component-type registrations."""
@@ -45,7 +48,11 @@ def register_component_macro_factories(
             If False (default), merge into the existing mapping (new keys win).
     """
     key = _component_key(component_type)
-    if replace or key not in _COMPONENT_MACRO_FACTORIES:
+    if replace:
+        _REPLACE_KEYS.add(key)
+        _COMPONENT_MACRO_FACTORIES[key] = dict(macro_factories)
+        return
+    if key not in _COMPONENT_MACRO_FACTORIES:
         _COMPONENT_MACRO_FACTORIES[key] = dict(macro_factories)
         return
 
@@ -72,7 +79,12 @@ def get_default_macro_factories(component: object) -> MacroFactoryMap:
     for component_type in reversed(type(component).mro()):
         key = _component_key(component_type)
         if key in _COMPONENT_MACRO_FACTORIES:
-            resolved.update(_COMPONENT_MACRO_FACTORIES[key])
+            if key in _REPLACE_KEYS:
+                # Do not inherit from bases — use only this type's factories.
+                resolved = dict(UTILITY_MACRO_FACTORIES)
+                resolved.update(_COMPONENT_MACRO_FACTORIES[key])
+            else:
+                resolved.update(_COMPONENT_MACRO_FACTORIES[key])
 
     return resolved
 
@@ -80,3 +92,4 @@ def get_default_macro_factories(component: object) -> MacroFactoryMap:
 def _reset_registry() -> None:
     """Clear all registered macro factories. FOR TESTING ONLY."""
     _COMPONENT_MACRO_FACTORIES.clear()
+    _REPLACE_KEYS.clear()
