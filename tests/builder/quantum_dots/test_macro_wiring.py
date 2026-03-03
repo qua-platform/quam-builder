@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from unittest.mock import patch
+from qm import qua
 from quam.components import pulses
 
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
@@ -143,6 +144,34 @@ def test_fixed_angle_macros_delegate_to_canonical_axes():
     with patch.object(q1, "call_macro", return_value=None) as mock_call:
         q1.macros["z90"].apply()
     mock_call.assert_called_once_with("z", angle=pytest.approx(np.pi / 2))
+
+
+def test_x180_macro_produces_valid_qua_program():
+    """X180Macro.apply() inside qua.program() produces a valid non-None QUA program."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with qua.program() as prog:
+        q1.macros["x180"].apply()
+
+    assert prog is not None
+
+
+def test_x180_macro_triggers_play():
+    """X180Macro.apply() triggers play_xy_pulse via delegation chain."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with patch.object(q1, "play_xy_pulse", return_value=None) as mock_play:
+        with qua.program():
+            q1.macros["x180"].apply()
+
+    assert mock_play.call_count >= 1
+    assert mock_play.call_args.args[0] == "x180"
 
 
 def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
