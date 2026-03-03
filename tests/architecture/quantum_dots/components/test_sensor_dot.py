@@ -3,6 +3,8 @@
 All objects are real — no mocks or stubs.
 """
 
+from unittest.mock import MagicMock
+
 from quam_builder.architecture.quantum_dots.components import SensorDot
 from quam_builder.architecture.quantum_dots.components.sensor_dot import Projector
 
@@ -85,3 +87,31 @@ class TestSensorDotInQuantumDotPair:
         p1 = qd_machine.quantum_dot_pairs["dot1_dot2_pair"]
         p2 = qd_machine.quantum_dot_pairs["dot3_dot4_pair"]
         assert p1.sensor_dots[0] is p2.sensor_dots[0]
+
+
+class TestSensorDotMeasureMacro:
+    """Tests for SensorDotMeasureMacro (dispatch to readout resonator)."""
+
+    def test_sensor_dot_measure_macro_importable(self):
+        """SensorDotMeasureMacro is importable from state_macros."""
+        from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+            SensorDotMeasureMacro,
+        )
+
+        assert SensorDotMeasureMacro is not None
+
+    def test_sensor_dot_measure_macro_apply_calls_readout_resonator_measure(self):
+        """SensorDotMeasureMacro.apply() calls owner.readout_resonator.measure()."""
+        from quam.core.macro import QuamMacro
+        from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+            SensorDotMeasureMacro,
+        )
+
+        assert issubclass(SensorDotMeasureMacro, QuamMacro)
+        mock_resonator = MagicMock()
+        mock_sd = MagicMock(spec=SensorDot)
+        mock_sd.readout_resonator = mock_resonator
+        macro = SensorDotMeasureMacro()
+        macro.parent = mock_sd
+        macro.apply(foo="bar")
+        mock_resonator.measure.assert_called_once_with(foo="bar")
