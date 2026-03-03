@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-03T22:40:51.550Z"
+last_activity: 2026-03-03 — Roadmap created for v1.0 QD Operations milestone
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
+---
+
 # State: quam-builder
 
 ## Project Reference
@@ -14,7 +30,7 @@ Plan: — of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-03-03 — Roadmap created for v1.0 QD Operations milestone
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -34,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-catalog-registration P01 | 20 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -45,6 +62,8 @@ Progress: [░░░░░░░░░░] 0%
 - State macros and XYDriveMacro have real QUA implementations; two-qubit gate macros are explicit placeholders
 - TEST-04 (registry reset fixture) grouped with Phase 1 so fixture exists before any new catalog tests are written in Phase 2
 - SensorDot separate vs MRO-inherited registration: decision deferred to Phase 1 planning (document the choice)
+- [Phase 01-catalog-registration]: SensorDotMeasureMacro uses QuamMacro (not QubitMacro) — SensorDot is voltage-only
+- [Phase 01-catalog-registration]: reset_catalog fixture autouse=False to avoid breaking registration-dependent tests
 
 ### Pending Todos
 
@@ -56,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Roadmap created — ready to plan Phase 1
+Last session: 2026-03-03T22:40:47.684Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None

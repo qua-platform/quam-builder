@@ -18,7 +18,7 @@ Requirements for milestone v1.0 — QD Operations. Each maps to roadmap phases.
 - [ ] **TEST-01**: `QuantumDot` default macros (`initialize`, `measure`, `empty`) are asserted in tests using the existing mock pattern
 - [ ] **TEST-02**: `QuantumDotPair` default macros are asserted in tests
 - [ ] **TEST-03**: `SensorDot` default `measure` macro is asserted; `initialize`/`empty` are absent from its catalog entry
-- [ ] **TEST-04**: Registry reset fixture/helper added to prevent `_REGISTERED` flag contaminating cross-test state
+- [x] **TEST-04**: Registry reset fixture/helper added to prevent `_REGISTERED` flag contaminating cross-test state
 - [ ] **TEST-05**: `LDQubit` single-qubit delegation chain (`X180Macro → XMacro → XYDriveMacro`) is covered by end-to-end test
 - [ ] **TEST-06**: Save/load round-trip test for `QuantumDot`, `QuantumDotPair`, and `SensorDot` macro instances
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAT-01 | Phase 1 | Pending |
 | CAT-02 | Phase 1 | Pending |
 | CAT-03 | Phase 1 | Pending |
-| TEST-04 | Phase 1 | Pending |
+| TEST-04 | Phase 1 | Complete |
 | TEST-01 | Phase 2 | Pending |
 | TEST-02 | Phase 2 | Pending |
 | TEST-03 | Phase 2 | Pending |
