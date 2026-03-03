@@ -28,3 +28,10 @@ def test_reset_allows_fresh_registration():
     macro_registry._reset_registry()
     # Should not raise; idempotent re-registration
     component_macro_catalog.register_default_component_macro_factories()
+
+
+def test_reset_catalog_fixture_provides_fresh_state(reset_catalog):
+    """Tests using reset_catalog fixture see fresh registration state."""
+    # After reset_catalog runs, registry should be empty and _REGISTERED False
+    assert component_macro_catalog._REGISTERED is False
+    assert len(macro_registry._COMPONENT_MACRO_FACTORIES) == 0
