@@ -5,6 +5,7 @@ from __future__ import annotations
 from quam_builder.architecture.quantum_dots.operations.default_macros import (
     QPU_STATE_MACROS,
     SINGLE_QUBIT_MACROS,
+    STATE_POINT_MACROS,
     TWO_QUBIT_MACROS,
 )
 from quam_builder.architecture.quantum_dots.operations.macro_registry import (
@@ -36,6 +37,33 @@ def register_default_component_macro_factories() -> None:
     register_component_macro_factories(QPU, QPU_STATE_MACROS)
     register_component_macro_factories(LDQubit, SINGLE_QUBIT_MACROS)
     register_component_macro_factories(LDQubitPair, TWO_QUBIT_MACROS)
+
+    # Phase 1 additions: QuantumDot voltage-only components
+    from quam_builder.architecture.quantum_dots.components.quantum_dot import (
+        QuantumDot,
+    )
+    from quam_builder.architecture.quantum_dots.components.quantum_dot_pair import (
+        QuantumDotPair,
+    )
+    from quam_builder.architecture.quantum_dots.components.sensor_dot import (
+        SensorDot,
+    )
+    from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+        SensorDotMeasureMacro,
+    )
+    from quam_builder.architecture.quantum_dots.operations.names import (
+        VoltagePointName,
+    )
+
+    register_component_macro_factories(QuantumDot, STATE_POINT_MACROS)
+    register_component_macro_factories(QuantumDotPair, STATE_POINT_MACROS)
+    # SensorDot inherits from QuantumDot — replace=True prevents initialize/empty
+    # from flowing down via MRO resolution. CAT-03: measure only.
+    register_component_macro_factories(
+        SensorDot,
+        {VoltagePointName.MEASURE.value: SensorDotMeasureMacro},
+        replace=True,
+    )
 
     _REGISTERED = True
 
