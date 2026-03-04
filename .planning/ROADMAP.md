@@ -54,7 +54,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The `OperationsRegistry` module docstring in `default_operations.py` explains its role relative to direct component method dispatch in 3-5 sentences with concrete examples
   2. `operations/README.md` contains a table with three rows — `operations_registry.x180(q)`, `q.x180()`, `q.macros["x180"].apply()` — each with a "when to use" column and applicable component types
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — Add module docstring (OPS-01) and README comparison table (OPS-02)
 
 ### Phase 4: Customer Documentation
 **Goal**: A new lab customer can discover and use all four macro customization workflows (use defaults / type-level override / instance-level override / external macro package) from the tutorial alone, without reading library source code
@@ -76,5 +79,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
 | 2. Test Coverage | 1/3 | In Progress | - |
-| 3. OperationsRegistry Clarification | 0/TBD | Not started | - |
+| 3. OperationsRegistry Clarification | 0/1 | Not started | - |
 | 4. Customer Documentation | 0/TBD | Not started | - |

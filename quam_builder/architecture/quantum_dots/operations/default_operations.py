@@ -1,8 +1,14 @@
 """Gate-level operations for quantum-dot components using QuAM OperationsRegistry.
 
-Each registered function is intentionally empty because ``OperationsRegistry``
-uses the function signature/name as operation metadata and dispatches calls to
-``component.macros[operation_name]`` at runtime.
+OperationsRegistry is a typed facade that provides operation names (e.g. `x180`,
+`measure`) as callables; each call dispatches to the component's macro at runtime.
+Use `operations_registry.x180(q)` when writing generic algorithms that work across
+component types; use `q.x180()` for component-specific code where the component
+type is known. OperationsRegistry is not required for most users — `q.x180()` is
+the natural direct call; the registry is a convenience for protocol-style code.
+Each registered function here is intentionally empty because the registry uses
+the function signature and name as operation metadata and dispatches to
+`component.macros[operation_name]` at runtime.
 """
 
 from quam.core import OperationsRegistry
