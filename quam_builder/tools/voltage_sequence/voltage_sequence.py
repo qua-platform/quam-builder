@@ -385,7 +385,12 @@ class VoltageSequence:
                     ramp_duration,
                 )
 
-            if ramp_duration is None or (
+            if not is_qua_type(delta_v) and delta_v == 0.0:
+                # Skip the play command if the delta_v is zero. Also no need to update tracker.
+                # Integrated voltage is already tracked above.
+                continue
+
+            elif ramp_duration is None or (
                 not is_qua_type(ramp_duration) and int(float(str(ramp_duration))) == 0
             ):
                 self._play_step_on_channel(channel_obj, delta_v, duration)
@@ -397,7 +402,11 @@ class VoltageSequence:
                     duration,
                 )
             tracker.current_level = target_voltage
-        if self._track_integrated_voltage and hasattr(self.gate_set, "influence_map") and self.limit_play_commands:
+        if (
+            self._track_integrated_voltage
+            and hasattr(self.gate_set, "influence_map")
+            and self.limit_play_commands
+        ):
             for ch_name in self.gate_set.channels:
                 if ch_name not in affected:
                     tracker = self.state_trackers[ch_name]
