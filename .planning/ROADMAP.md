@@ -68,7 +68,11 @@ Plans:
   2. The tutorial explicitly demonstrates the `@quam_dataclass` constraint for custom macro classes and shows the anti-pattern (non-decorated class) alongside the correct form
   3. A standalone Python script example exists demonstrating the external macro package workflow with a self-contained importable macro class
   4. Both the notebook and script reference the correct component types (`QuantumDot`, `QuantumDotPair`, `SensorDot`) and produce no runtime errors when executed
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Jupyter notebook tutorial covering all four workflows + @quam_dataclass demo (DOCS-01)
+- [ ] 04-02-PLAN.md — Python script example for external macro package workflow (DOCS-02)
 
 ## Progress
 
@@ -80,4 +84,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
 | 2. Test Coverage | 1/3 | In Progress | - |
 | 3. OperationsRegistry Clarification | 1/1 | Complete   | 2026-03-04 |
-| 4. Customer Documentation | 0/TBD | Not started | - |
+| 4. Customer Documentation | 0/2 | Not started | - |
