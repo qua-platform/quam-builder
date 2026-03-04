@@ -104,6 +104,7 @@ class VoltageSequence:
         track_integrated_voltage: bool = True,
         keep_levels: bool = True,
         enforce_qua_calcs: bool = False,
+        limit_play_commands: bool = True,
     ):
         """
         Initializes the VoltageSequence.
@@ -137,6 +138,7 @@ class VoltageSequence:
 
         self._batched_voltages = None
         self._prog_id = None
+        self.limit_play_commands: bool = limit_play_commands
 
     def _initialise_attenuation_qua_vars(self) -> None:
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
@@ -344,7 +346,7 @@ class VoltageSequence:
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
         # For virtual gate sets:
-        if hasattr(self.gate_set, "influence_map"):
+        if hasattr(self.gate_set, "influence_map") and self.limit_play_commands:
             affected = set()
             for gate in changed_gates:
                 affected = affected | self.gate_set.influence_map.get(gate, {gate})
@@ -395,7 +397,7 @@ class VoltageSequence:
                     duration,
                 )
             tracker.current_level = target_voltage
-        if self._track_integrated_voltage and hasattr(self.gate_set, "influence_map"):
+        if self._track_integrated_voltage and hasattr(self.gate_set, "influence_map") and self.limit_play_commands:
             for ch_name in self.gate_set.channels:
                 if ch_name not in affected:
                     tracker = self.state_trackers[ch_name]
