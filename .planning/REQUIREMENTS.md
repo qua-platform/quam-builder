@@ -30,7 +30,7 @@ Requirements for milestone v1.0 — QD Operations. Each maps to roadmap phases.
 ### Documentation
 
 - [x] **DOCS-01**: Jupyter notebook tutorial covering all four customer workflows: use defaults / type-level override / instance-level override / external package — executable without QM hardware
-- [ ] **DOCS-02**: Python script example demonstrating the external macro package workflow
+- [x] **DOCS-02**: Python script example demonstrating the external macro package workflow
 
 ## v2 Requirements
 
@@ -74,7 +74,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-01 | Phase 3 | Complete |
 | OPS-02 | Phase 3 | Complete |
 | DOCS-01 | Phase 4 | Complete |
-| DOCS-02 | Phase 4 | Pending |
+| DOCS-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 13 total
