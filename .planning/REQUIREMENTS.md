@@ -24,8 +24,8 @@ Requirements for milestone v1.0 — QD Operations. Each maps to roadmap phases.
 
 ### OperationsRegistry
 
-- [ ] **OPS-01**: `OperationsRegistry` module docstring clarifies its role relative to direct `component.x180()` dispatch
-- [ ] **OPS-02**: Operations `README.md` includes a table clarifying `operations_registry.x180(q)` vs `q.x180()` vs `q.macros["x180"].apply()`
+- [x] **OPS-01**: `OperationsRegistry` module docstring clarifies its role relative to direct `component.x180()` dispatch
+- [x] **OPS-02**: Operations `README.md` includes a table clarifying `operations_registry.x180(q)` vs `q.x180()` vs `q.macros["x180"].apply()`
 
 ### Documentation
 
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-03 | Phase 2 | Complete |
 | TEST-05 | Phase 2 | Complete |
 | TEST-06 | Phase 2 | Complete |
-| OPS-01 | Phase 3 | Pending |
-| OPS-02 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Complete |
+| OPS-02 | Phase 3 | Complete |
 | DOCS-01 | Phase 4 | Pending |
 | DOCS-02 | Phase 4 | Pending |
 

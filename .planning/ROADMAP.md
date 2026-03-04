@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Catalog Registration** - Register QuantumDot, QuantumDotPair, and SensorDot in the component catalog with state macros; add registry reset fixture
 - [ ] **Phase 2: Test Coverage** - Assert macro presence and behavior for all three new component types; cover existing LDQubit delegation chain and save/load round-trips
-- [ ] **Phase 3: OperationsRegistry Clarification** - Add module docstring and README table clarifying the three dispatch paths
+- [x] **Phase 3: OperationsRegistry Clarification** - Add module docstring and README table clarifying the three dispatch paths (completed 2026-03-04)
 - [ ] **Phase 4: Customer Documentation** - Jupyter notebook tutorial and Python script example covering all four macro customization workflows
 
 ## Phase Details
@@ -57,7 +57,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 03-01-PLAN.md — Add module docstring (OPS-01) and README comparison table (OPS-02)
+- [x] 03-01-PLAN.md — Add module docstring (OPS-01) and README comparison table (OPS-02)
 
 ### Phase 4: Customer Documentation
 **Goal**: A new lab customer can discover and use all four macro customization workflows (use defaults / type-level override / instance-level override / external macro package) from the tutorial alone, without reading library source code
@@ -79,5 +79,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
 | 2. Test Coverage | 1/3 | In Progress | - |
-| 3. OperationsRegistry Clarification | 0/1 | Not started | - |
+| 3. OperationsRegistry Clarification | 1/1 | Complete   | 2026-03-04 |
 | 4. Customer Documentation | 0/TBD | Not started | - |
