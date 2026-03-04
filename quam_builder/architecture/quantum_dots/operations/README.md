@@ -81,6 +81,18 @@ From [`default_macros/two_qubit_macros.py`](./default_macros/two_qubit_macros.py
 
 Default two-qubit gate macros are explicit placeholders (`NotImplementedError`) until user calibration logic is supplied through overrides.
 
+## Invocation Paths: Registry vs Direct vs Macro
+
+All three invocation paths ultimately execute `macro.apply()`. Choose based on your use case:
+
+| Invocation | When to use | Applicable component types |
+|------------|-------------|----------------------------|
+| `operations_registry.x180(q)` | Generic algorithms, type-safe protocol code, IDE completion | LDQubit (1Q gates); LDQubitPair (2Q gates); QuantumDot, QuantumDotPair, SensorDot (state macros) |
+| `q.x180()` | Component-specific code; natural direct call; includes sticky-voltage tracking | Same as registry |
+| `q.macros["x180"].apply()` | Lowest-level access; bypasses compiled dispatch and sticky-voltage tracking; use when you need the macro object itself (introspection, custom dispatch) or when tracking is irrelevant | Any component with `macros` dict |
+
+See [`default_operations.py`](./default_operations.py) module docstring for the registry vs direct comparison in prose.
+
 ## When and Where Macros Are Wired
 
 Wiring happens in three places:
