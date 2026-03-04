@@ -71,7 +71,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Jupyter notebook tutorial covering all four workflows + @quam_dataclass demo (DOCS-01)
+- [x] 04-01-PLAN.md — Jupyter notebook tutorial covering all four workflows + @quam_dataclass demo (DOCS-01) (completed 2026-03-04)
 - [ ] 04-02-PLAN.md — Python script example for external macro package workflow (DOCS-02)
 
 ## Progress
@@ -84,4 +84,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Catalog Registration | 2/2 | Complete | 2026-03-03 |
 | 2. Test Coverage | 1/3 | In Progress | - |
 | 3. OperationsRegistry Clarification | 1/1 | Complete   | 2026-03-04 |
-| 4. Customer Documentation | 0/2 | Not started | - |
+| 4. Customer Documentation | 1/2 | In Progress|  |

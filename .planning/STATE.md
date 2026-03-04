@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 03-operationsregistry-clarification-03-01-PLAN.md
-last_updated: "2026-03-04T00:15:53.814Z"
+stopped_at: Completed 04-customer-documentation-04-01-PLAN.md
+last_updated: "2026-03-04T00:33:07.665Z"
 last_activity: 2026-03-04 — Completed 03-01 OperationsRegistry docstring + README table
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # State: quam-builder
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 3 of 4 (OperationsRegistry Clarification)
-Plan: 1 of 1 in current phase
-Status: Phase 3 complete
-Last activity: 2026-03-04 — Completed 03-01 OperationsRegistry docstring + README table
+Phase: 4 of 4 (Customer Documentation)
+Plan: 1 of 2 in current phase
+Status: Phase 4 in progress (04-01 complete)
+Last activity: 2026-03-04 — Completed 04-01 macro customization notebook tutorial
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 02-test-coverage P03 | 5min | 1 tasks | 1 files |
 | Phase 02-test-coverage P02 | 15 | 2 tasks | 1 files |
 | Phase 03-operationsregistry-clarification P01 | 6min | 2 tasks | 2 files |
+| Phase 04-customer-documentation P01 | 15 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Progress: [██████████] 100%
 - [Phase 01-catalog-registration]: SensorDotMeasureMacro uses QuamMacro (not QubitMacro) — SensorDot is voltage-only
 - [Phase 01-catalog-registration]: reset_catalog fixture autouse=False to avoid breaking registration-dependent tests
 - [Phase 01-catalog-registration]: SensorDot replace=True implemented in macro_registry — _REPLACE_KEYS prevents MRO inheritance
+- [Phase 04-customer-documentation]: Use InitializeStateMacro from library (not notebook-defined GoodMacro) for @quam_dataclass demo — notebook-defined classes lack module path
 
 ### Pending Todos
 
@@ -77,10 +79,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 4 tutorial format (Jupyter notebook vs Python script) flagged in research as unresolved — DOCS-01 requests a notebook, DOCS-02 requests a script; confirm notebook is acceptable for this project before starting Phase 4 planning
+- None (DOCS-01 complete; notebook format validated)
 
 ## Session Continuity
 
-Last session: 2026-03-04T00:12:53.160Z
-Stopped at: Completed 03-operationsregistry-clarification-03-01-PLAN.md
+Last session: 2026-03-04T00:33:04.711Z
+Stopped at: Completed 04-customer-documentation-04-01-PLAN.md
 Resume file: None
