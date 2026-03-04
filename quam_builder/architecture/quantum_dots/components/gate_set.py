@@ -220,6 +220,7 @@ class GateSet(QuantumComponent):
         track_integrated_voltage: bool = False,
         keep_levels: bool = True,
         enforce_qua_calcs: bool = False,
+        limit_play_commands: bool = True,
     ) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
@@ -243,4 +244,4 @@ class GateSet(QuantumComponent):
             VoltageSequence,
         )
 
-        return VoltageSequence(self, track_integrated_voltage, keep_levels, enforce_qua_calcs)
+        return VoltageSequence(self, track_integrated_voltage, keep_levels, enforce_qua_calcs, limit_play_commands)
