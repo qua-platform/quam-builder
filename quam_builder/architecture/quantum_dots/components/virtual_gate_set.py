@@ -189,7 +189,7 @@ class VirtualGateSet(GateSet):
 
     def _calculate_influence_map(self) -> None:
         """Calculates the influence map by probing each gate with a unit voltage."""
-        # Base physical gates do not influence any others, so they are mapped to a itself
+        # Base physical gates do not influence any others, so they are mapped to itself
         influence_map = {gate: [gate] for gate in self.channels.keys()}
         for layer in self.layers:
             for source_gate in layer.source_gates:
