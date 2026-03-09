@@ -41,6 +41,36 @@ def _resonator() -> ReadoutResonatorSingle:
     )
 
 
+def _two_dot_machine_with_readout() -> LossDiVincenzoQuam:
+    machine = LossDiVincenzoQuam()
+    p1 = _gate(1, "p1")
+    p2 = _gate(2, "p2")
+    b1 = _gate(3, "b1")
+    s1 = _gate(4, "s1")
+
+    machine.create_virtual_gate_set(
+        virtual_channel_mapping={
+            "vd1": p1,
+            "vd2": p2,
+            "vb1": b1,
+            "vs1": s1,
+        },
+        gate_set_id="qpu",
+    )
+    machine.register_channel_elements(
+        plunger_channels=[p1, p2],
+        barrier_channels=[b1],
+        sensor_resonator_mappings={s1: _resonator()},
+    )
+    machine.register_quantum_dot_pair(
+        id="pair_12",
+        quantum_dot_ids=["vd1", "vd2"],
+        sensor_dot_ids=["vs1"],
+        barrier_gate_id="vb1",
+    )
+    return machine
+
+
 class TestMachineCreation:
     def test_empty_machine(self):
         machine = LossDiVincenzoQuam()
@@ -221,6 +251,16 @@ class TestQubitRegistration:
         for q in qd_machine.qubits.values():
             assert isinstance(q, LDQubit)
 
+    def test_register_qubit_stores_preferred_readout_quantum_dot(self):
+        machine = _two_dot_machine_with_readout()
+        machine.register_qubit(
+            quantum_dot_id="vd1",
+            qubit_name="Q1",
+            readout_quantum_dot="vd2",
+        )
+
+        assert machine.qubits["Q1"].preferred_readout_quantum_dot == "vd2"
+
     def test_qubit_pairs_registered(self, qd_machine):
         assert set(qd_machine.qubit_pairs.keys()) == {"Q1_Q2", "Q3_Q4"}
         for qp in qd_machine.qubit_pairs.values():
@@ -269,3 +309,16 @@ class TestSerialization:
     def test_to_dict_contains_quantum_dots(self, qd_machine):
         d = qd_machine.to_dict()
         assert "quantum_dots" in d
+
+    def test_round_trip_preserves_preferred_readout_quantum_dot(self, tmp_path):
+        machine = _two_dot_machine_with_readout()
+        machine.register_qubit(
+            quantum_dot_id="vd1",
+            qubit_name="Q1",
+            readout_quantum_dot="vd2",
+        )
+
+        machine.save(tmp_path, include_defaults=False)
+        loaded = LossDiVincenzoQuam.load(tmp_path)
+
+        assert loaded.qubits["Q1"].preferred_readout_quantum_dot == "vd2"
