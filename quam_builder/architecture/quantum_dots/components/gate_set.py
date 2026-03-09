@@ -244,4 +244,6 @@ class GateSet(QuantumComponent):
             VoltageSequence,
         )
 
-        return VoltageSequence(self, track_integrated_voltage, keep_levels, enforce_qua_calcs, limit_play_commands)
+        return VoltageSequence(
+            self, track_integrated_voltage, keep_levels, enforce_qua_calcs, limit_play_commands
+        )
