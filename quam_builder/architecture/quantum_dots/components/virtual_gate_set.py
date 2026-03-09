@@ -193,6 +193,7 @@ class VirtualGateSet(GateSet):
         influence_map = {gate: [gate] for gate in self.channels.keys()}
         for layer in self.layers:
             for source_gate in layer.source_gates:
+                # TODO: This is an inefficient way to get the influence map. It should be replaced with a more efficient method.
                 dummy_dict = {source_gate: 1.0}
                 resolved_voltages = self.resolve_voltages(dummy_dict)
                 influence_map[source_gate] = [pg for pg, v in resolved_voltages.items() if v != 0.0]
