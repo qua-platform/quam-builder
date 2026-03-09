@@ -8,7 +8,7 @@ import pytest
 from quam.components import StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDrive
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDriveIQ
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pulses,
     add_default_ldv_qubit_pair_pulses,
@@ -23,7 +23,7 @@ class TestAddDefaultLDVQubitPulses:
         """Test that XY pulses are added when qubit has xy channel."""
         # Create a mock qubit with xy channel
         qubit = MagicMock()
-        qubit.xy_channel = XYDrive(opx_output="/tmp/opx", id="xy_drive")
+        qubit.xy_channel = XYDriveIQ(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy_channel.operations = {}
 
         # Add default pulses
@@ -57,7 +57,7 @@ class TestAddDefaultLDVQubitPulses:
     def test_add_pulses_to_qubit_with_both_xy_and_resonator(self):
         """Test adding pulses when qubit has both xy and resonator."""
         qubit = MagicMock()
-        qubit.xy_channel = XYDrive(opx_output="/tmp/opx", id="xy_drive")
+        qubit.xy_channel = XYDriveIQ(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy_channel.operations = {}
         qubit.resonator = ReadoutResonatorSingle(
             id="readout_resonator",
@@ -87,7 +87,7 @@ class TestAddDefaultLDVQubitPulses:
     def test_xy_pulse_properties(self):
         """Test that XY pulses have correct properties."""
         qubit = MagicMock()
-        qubit.xy_channel = XYDrive(opx_output="/tmp/opx", id="xy_drive")
+        qubit.xy_channel = XYDriveIQ(opx_output="/tmp/opx", id="xy_drive")
         qubit.xy_channel.operations = {}
 
         add_default_ldv_qubit_pulses(qubit)
