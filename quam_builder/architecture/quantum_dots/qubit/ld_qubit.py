@@ -57,6 +57,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
 
     quantum_dot: QuantumDot
     xy: XYDriveBase = None
+    preferred_readout_quantum_dot: Optional[str] = None
 
     larmor_frequency: float = None
 
