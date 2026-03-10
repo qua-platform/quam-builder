@@ -181,6 +181,7 @@ class VirtualGateSet(GateSet):
     layers: List[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
     _influence_map: Dict[str, List[str]] = field(default_factory=dict)
+    play_threshold: float = 2 ** (-16)  # resolution of the QUA fixed type
 
     @property
     def influence_map(self) -> Dict[str, Set[str]]:
@@ -194,9 +195,13 @@ class VirtualGateSet(GateSet):
         for layer in self.layers:
             for source_gate in layer.source_gates:
                 # TODO: This is an inefficient way to get the influence map. It should be replaced with a more efficient method.
-                dummy_dict = {source_gate: 1.0}
+                dummy_dict = {
+                    source_gate: 2.5
+                }  # Maximum dummy input, so that the resulting map should represent the maximum possible output
                 resolved_voltages = self.resolve_voltages(dummy_dict)
-                influence_map[source_gate] = [pg for pg, v in resolved_voltages.items() if v != 0.0]
+                influence_map[source_gate] = [
+                    pg for pg, v in resolved_voltages.items() if abs(v) > self.play_threshold
+                ]
         self._influence_map = influence_map
 
     @property
