@@ -8,6 +8,7 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 import numpy as np
 from typing import Union
 
@@ -316,4 +317,17 @@ def add_default_transmon_pair_pulses(
         if transmon_pair.zz_drive is not None:
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
+            )
+
+
+def add_default_twpa_pulses(twpa: TWPA):
+    """Adds default pulses to a TWPA pump.
+
+    Args:
+        twpa (TWPA): The TWPA to which the pulses will be added.
+    """
+    if hasattr(twpa, "pump"):
+        if twpa.pump is not None:
+            twpa.pump.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.25, length=2 * u.us, axis_angle=0
             )

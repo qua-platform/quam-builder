@@ -7,6 +7,7 @@ from qm.qua import update_frequency
 
 from quam_builder.architecture.superconducting.qubit import FluxTunableTransmon
 from quam_builder.architecture.superconducting.qubit_pair import FluxTunableTransmonPair
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
 
@@ -35,6 +36,7 @@ class FluxTunableQuam(BaseQuam):
 
     qubit_type: ClassVar[Type[FluxTunableTransmon]] = FluxTunableTransmon
     qubit_pair_type: ClassVar[Type[FluxTunableTransmonPair]] = FluxTunableTransmonPair
+    twpa_type: ClassVar[Type[TWPA]] = TWPA
 
     qubits: Dict[str, FluxTunableTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FluxTunableTransmonPair] = field(default_factory=dict)
