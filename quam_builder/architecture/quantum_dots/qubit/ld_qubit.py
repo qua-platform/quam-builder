@@ -25,7 +25,7 @@ __all__ = ["LDQubit"]
 
 
 @quam_dataclass
-class LDQubit(VoltageMacroMixin, Qubit):
+class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     # pylint: disable=no-member
     """
     An example QUAM component for a Loss DiVincenzo Qubit
@@ -56,7 +56,7 @@ class LDQubit(VoltageMacroMixin, Qubit):
     grid_location: str = None
 
     quantum_dot: QuantumDot
-    xy_channel: XYDriveBase = None
+    xy: XYDriveBase = None
 
     larmor_frequency: float = None
 
@@ -165,16 +165,16 @@ class LDQubit(VoltageMacroMixin, Qubit):
         wait(duration, *channel_names)
 
     def add_xy_pulse(self, pulse_name: str, pulse) -> None:
-        self.xy_channel.add_pulse(name=pulse_name, pulse=pulse)
+        self.xy.add_pulse(name=pulse_name, pulse=pulse)
 
     def set_xy_frequency(self, frequency: float, recenter_LO: bool = True):
         """
-        Configure the LO+IF of the xy_channel. Use this function to update the drive frequency to the calibrated Larmor frequency
+        Configure the LO+IF of xy. Use this function to update the drive frequency to the calibrated Larmor frequency
         """
-        if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.id}")
+        if self.xy is None:
+            raise ValueError(f"No XY configured on Qubit {self.id}")
 
-        LO_frequency = self.xy_channel.LO_frequency
+        LO_frequency = self.xy.LO_frequency
         intermediate_frequency = frequency - LO_frequency
 
         if abs(intermediate_frequency) > 400e6:
@@ -182,14 +182,14 @@ class LDQubit(VoltageMacroMixin, Qubit):
                 print(
                     f"Intermediate Frequency exceeds ±400MHz ({intermediate_frequency/1e6 : .2f}MHz). Setting LO to {frequency/1e9: .4f}GHz"
                 )
-                self.xy_channel.LO_frequency = frequency
-                self.xy_channel.intermediate_frequency = 0
+                self.xy.LO_frequency = frequency
+                self.xy.intermediate_frequency = 0
             else:
                 raise ValueError(
                     f"Intermediate Frequency ({intermediate_frequency/1e6 : .2f}MHz) exceeds ±400MHz"
                 )
         else:
-            self.xy_channel.intermediate_frequency = intermediate_frequency
+            self.xy.intermediate_frequency = intermediate_frequency
 
     def play_xy_pulse(
         self,
@@ -198,14 +198,14 @@ class LDQubit(VoltageMacroMixin, Qubit):
         amplitude_scale: float = None,
         **kwargs,
     ) -> None:
-        """Play a pulse from the XY channel associated with the Qubit"""
-        if self.xy_channel is None:
-            raise ValueError(f"No XY Channel on Qubit {self.id}")
+        """Play a pulse from the XY associated with the Qubit"""
+        if self.xy is None:
+            raise ValueError(f"No XY configured on Qubit {self.id}")
 
-        if pulse_name not in self.xy_channel.operations:
-            raise ValueError(f"Pulse {pulse_name} not in XY Channel operations")
+        if pulse_name not in self.xy.operations:
+            raise ValueError(f"Pulse {pulse_name} not in XY operations")
 
-        self.xy_channel.play(
+        self.xy.play(
             pulse_name=pulse_name,
             amplitude_scale=amplitude_scale,
             duration=pulse_duration,
@@ -214,4 +214,24 @@ class LDQubit(VoltageMacroMixin, Qubit):
 
     def virtual_z(self, phase: float) -> None:
         """Apply a virtual Z rotation"""
-        frame_rotation_2pi(phase / (2 * np.pi), self.xy_channel.name)
+        frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
+
+    def _validate_readout_quantum_dot(self, qd_name):
+        """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
+        if qd_name not in self.machine.quantum_dots:
+            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
+        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
+        if qd_pair is None:
+            raise ValueError(
+                f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
+            )
+
+    @property
+    def preferred_readout_quantum_dot(self) -> str:
+        return self._preferred_readout_quantum_dot
+
+    @preferred_readout_quantum_dot.setter
+    def preferred_readout_quantum_dot(self, value: str):
+        if value is not None and not isinstance(self.quantum_dot, str):
+            self._validate_readout_quantum_dot(value)
+        self._preferred_readout_quantum_dot = value

@@ -279,7 +279,7 @@ class TestWirerBuilderIntegration:
 
         assert len(machine_stage2.qubits) == len(self.EXAMPLE_QUANTUM_DOTS)
         for qubit in machine_stage2.qubits.values():
-            assert getattr(qubit, "xy_channel", None) is not None
+            assert getattr(qubit, "xy", None) is not None
 
     def test_workflow_with_multiple_qubits(self, instruments, temp_dir):
         """Test workflow with multiple qubits and qubit pairs."""
@@ -380,10 +380,8 @@ class TestWirerBuilderIntegration:
         # Note: qubits are in machine_loaded.qubits, not quantum_dots
         assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine_loaded.qubits.items():
-            # Check if qubit has an xy_channel attribute
-            assert hasattr(
-                qubit, "xy_channel"
-            ), f"Qubit {qubit_name} should have xy_channel attribute"
+            # Check if qubit has an xy attribute
+            assert hasattr(qubit, "xy"), f"Qubit {qubit_name} should have xy attribute"
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
         """Test that sensor dots are registered with resonators."""
@@ -437,12 +435,12 @@ class TestWirerBuilderIntegration:
         # build_quam does both Stage 1 and Stage 2, creating qubits with XY drives
         build_quam(machine_loaded, calibration_db_path=temp_dir)
 
-        # Verify qubits (Stage 2) have pulses (if they have xy channels)
+        # Verify qubits (Stage 2) have pulses (if they have XY)
         assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
         for qubit_name, qubit in machine_loaded.qubits.items():
-            if hasattr(qubit, "xy_channel") and qubit.xy_channel is not None:
+            if hasattr(qubit, "xy") and qubit.xy is not None:
                 # Should have XY operations
-                assert len(qubit.xy_channel.operations) > 0
+                assert len(qubit.xy.operations) > 0
 
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""

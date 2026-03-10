@@ -52,6 +52,10 @@ from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
 )
+from quam_builder.architecture.quantum_dots.components.readout_transport import (
+    ReadoutTransportSingle,
+)
+from quam_builder.architecture.quantum_dots.components.reservoir import DrainSingle
 from qm.qua import *
 
 
@@ -118,6 +122,16 @@ resonator = ReadoutResonatorSingle(
     opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
 )
 
+drain = DrainSingle(
+    id="drain",
+    opx_output=("con1", 1),  # Dummy output
+    readout=ReadoutTransportSingle(
+        id="readout_transport",
+        opx_input=LFFEMAnalogInputPort("con1", lf_fem, port_id=2),
+    ),
+)
+
+
 #####################################
 ###### Create Virtual Gate Set ######
 #####################################
@@ -148,6 +162,7 @@ machine.register_channel_elements(
     plunger_channels=[p1, p2, p3, p4],
     barrier_channels=[b1, b2, b3],
     sensor_resonator_mappings={s1: resonator},
+    sensor_transport_mappings={s1: drain},
 )
 
 ##################################################################
