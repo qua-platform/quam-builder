@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(reason="Requires ConnectivityQuantumDots not yet in qualang_tools")
+
 from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.qop_connectivity import build_quam_wiring

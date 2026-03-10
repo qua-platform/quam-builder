@@ -26,8 +26,10 @@ allow-direct-references = true
 
 [dependency-groups]
 dev = [
+    "astroid>=3.0",
     "ipykernel>=7.0.0a1",
     "pre-commit",
+    "pylint>=3.0",
     "pytest>=8.3.5",
     "pytest-cov",
     "pytest-mock>=3.14.0",

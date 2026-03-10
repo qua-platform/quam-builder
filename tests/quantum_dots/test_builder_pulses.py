@@ -8,7 +8,7 @@ import pytest
 from quam.components import StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDrive
+from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDriveIQ
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pulses,
     add_default_ldv_qubit_pair_pulses,
