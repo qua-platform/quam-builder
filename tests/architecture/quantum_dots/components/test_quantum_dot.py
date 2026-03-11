@@ -6,6 +6,7 @@ All objects are real — no mocks or stubs.
 from qm import qua
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 
 
 class TestQuantumDotProperties:
@@ -100,3 +101,22 @@ class TestQuantumDotPlay:
         with qua.program() as prog:
             qd.play("half_max_square")
         assert prog is not None
+
+
+class TestQuantumDotCatalog:
+    """Verify QuantumDot receives state macros after wire_machine_macros()."""
+
+    def test_has_initialize_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for qd in qd_machine.quantum_dots.values():
+            assert "initialize" in qd.macros, f"{qd.id} missing 'initialize' macro"
+
+    def test_has_measure_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for qd in qd_machine.quantum_dots.values():
+            assert "measure" in qd.macros, f"{qd.id} missing 'measure' macro"
+
+    def test_has_empty_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for qd in qd_machine.quantum_dots.values():
+            assert "empty" in qd.macros, f"{qd.id} missing 'empty' macro"

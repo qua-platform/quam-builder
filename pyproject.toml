@@ -27,6 +27,7 @@ allow-direct-references = true
 [dependency-groups]
 dev = [
     "ipykernel>=7.0.0a1",
+    "nbconvert",
     "pre-commit",
     "pylint>=3.0",
     "astroid>=3.0",

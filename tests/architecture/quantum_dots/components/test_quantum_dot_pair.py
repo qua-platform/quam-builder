@@ -5,6 +5,7 @@ All objects are real — no mocks or stubs.
 
 from qm import qua
 
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDot,
     SensorDot,
@@ -97,3 +98,22 @@ class TestQuantumDotPairVoltagePoints:
         with qua.program() as prog:
             pair.step_to_point("sym")
         assert prog is not None
+
+
+class TestQuantumDotPairCatalog:
+    """Verify QuantumDotPair receives state macros after wire_machine_macros()."""
+
+    def test_has_initialize_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for pair in qd_machine.quantum_dot_pairs.values():
+            assert "initialize" in pair.macros, f"{pair.id} missing 'initialize' macro"
+
+    def test_has_measure_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for pair in qd_machine.quantum_dot_pairs.values():
+            assert "measure" in pair.macros, f"{pair.id} missing 'measure' macro"
+
+    def test_has_empty_macro(self, qd_machine, reset_catalog):
+        wire_machine_macros(qd_machine)
+        for pair in qd_machine.quantum_dot_pairs.values():
+            assert "empty" in pair.macros, f"{pair.id} missing 'empty' macro"
