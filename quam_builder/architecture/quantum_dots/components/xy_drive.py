@@ -45,7 +45,6 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
     """
 
     RF_frequency: int
-    add_default_pulses: bool = True
 
     @property
     def intermediate_frequency(
@@ -56,19 +55,6 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
     @intermediate_frequency.setter
     def intermediate_frequency(self, val):
         self.RF_frequency = val
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.add_default_pulses:
-            if "gaussian" not in self.operations:
-                self.operations["gaussian"] = pulses.GaussianPulse(
-                    length=100, amplitude=0.2, sigma=40
-                )
-            if "pi" not in self.operations:
-                self.operations["pi"] = pulses.SquarePulse(length=104, amplitude=0.2)
-
-            if "pi_half" not in self.operations:
-                self.operations["pi_half"] = pulses.SquarePulse(length=52, amplitude=0.2)
 
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""

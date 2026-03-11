@@ -1,12 +1,23 @@
-"""Macro dispatch mixin with compiled-call caching and sticky-voltage tracking."""
+"""Macro dispatch mixin with compiled-call caching.
+
+Provides the ``MacroDispatchMixin`` base class that gives any quantum-dot
+component automatic macro storage, default materialization from the
+:mod:`~quam_builder.architecture.quantum_dots.operations.macro_registry`,
+and a compiled-dispatch cache for fast ``component.macro_name()`` calls.
+
+The dispatch cache is a per-instance ``WeakKeyDictionary`` that maps
+macro names to ``(macro_instance, compiled_callable)`` tuples.  When a
+macro is replaced via :meth:`set_macro`, only that entry is invalidated.
+The cache is never serialized — it is rebuilt on each ``__post_init__``.
+
+Macro execution goes directly through ``macro.apply(**kwargs)`` without
+any additional tracking or wrapping.
+"""
 
 from __future__ import annotations
 
-import math
-import warnings
 import weakref
-from numbers import Real
-from typing import Callable, Dict, Set, Tuple
+from typing import Callable, Dict
 
 from dataclasses import field
 
@@ -24,13 +35,27 @@ from quam_builder.architecture.quantum_dots.operations.macro_registry import (
 __all__ = ["MacroDispatchMixin"]
 
 _DISPATCH_CACHE: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
-_WARNED_MACRO_KEYS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
-# Runtime-only caches keyed by component instance (never serialized).
+# Runtime-only cache keyed by component instance (never serialized).
 
 
 @quam_dataclass
 class MacroDispatchMixin(QuantumComponent):
-    """Mixin for macro storage, compiled dispatch, and runtime tracking."""
+    """Mixin for macro storage and compiled dispatch.
+
+    Any component that inherits from this mixin gains:
+
+    * A ``macros`` dict populated with architecture defaults on construction.
+    * Attribute-based macro invocation (``component.x180()`` dispatches to
+      ``component.macros["x180"].apply()``).
+    * A compiled-dispatch cache that avoids repeated lookups.
+
+    Example::
+
+        qubit = machine.qubits["q1"]
+        qubit.x180()                     # attribute dispatch
+        qubit.call_macro("x180")         # explicit dispatch
+        qubit.macros["x180"].apply()     # lowest-level access
+    """
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
 
@@ -48,14 +73,6 @@ class MacroDispatchMixin(QuantumComponent):
             _DISPATCH_CACHE[self] = cache
         return cache
 
-    def _warned_macro_keys(self) -> Set[Tuple[str, str]]:
-        """Return per-instance set of macro warning keys already emitted."""
-        keys = _WARNED_MACRO_KEYS.get(self)
-        if keys is None:
-            keys = set()
-            _WARNED_MACRO_KEYS[self] = keys
-        return keys
-
     def _ensure_macros_dict(self) -> None:
         """Ensure ``self.macros`` exists before default materialization."""
         if getattr(self, "macros", None) is None:
@@ -69,10 +86,10 @@ class MacroDispatchMixin(QuantumComponent):
                 self.macros[macro_name] = macro_class()
 
     def _compile_macro_callable(self, macro: QuamMacro):
-        """Compile a callable wrapper that preserves sticky tracking behavior."""
+        """Compile a callable wrapper for a macro."""
 
         def _call(**kwargs):
-            return self._execute_macro_with_sticky_tracking(macro, **kwargs)
+            return macro.apply(**kwargs)
 
         return _call
 
@@ -123,72 +140,6 @@ class MacroDispatchMixin(QuantumComponent):
         if name in self.macros:
             return self._get_compiled_macro_callable(name)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")
-
-    def _macro_warning_key(self, macro: QuamMacro) -> Tuple[str, str]:
-        """Build a stable key used to suppress duplicate warning messages."""
-        macro_class_name = type(macro).__name__
-        try:
-            macro_id = str(getattr(macro, "inferred_id", getattr(macro, "id", macro_class_name)))
-        except Exception:  # pragma: no cover - defensive fallback
-            macro_id = macro_class_name
-        return macro_class_name, macro_id
-
-    def _warn_once_missing_macro_duration(self, macro: QuamMacro, reason: str) -> None:
-        key = self._macro_warning_key(macro)
-        warned_keys = self._warned_macro_keys()
-        if key in warned_keys:
-            return
-        warned_keys.add(key)
-        warnings.warn(
-            (
-                "Skipping sticky-voltage tracking for macro "
-                f"'{key[1]}' ({key[0]}): {reason}. "
-                "Define `inferred_duration` in seconds for non-voltage macros."
-            ),
-            stacklevel=3,
-        )
-
-    def _duration_ns_for_sticky_tracking(self, macro: QuamMacro) -> int | None:
-        """Resolve macro duration to 4 ns-quantized nanoseconds for tracking."""
-        duration_seconds = getattr(macro, "inferred_duration", None)
-        if duration_seconds is None:
-            self._warn_once_missing_macro_duration(
-                macro, "missing or unresolved `inferred_duration`"
-            )
-            return None
-        if isinstance(duration_seconds, bool) or not isinstance(duration_seconds, Real):
-            self._warn_once_missing_macro_duration(
-                macro, f"non-numeric `inferred_duration` value '{duration_seconds}'"
-            )
-            return None
-
-        duration_seconds_f = float(duration_seconds)
-        if not math.isfinite(duration_seconds_f) or duration_seconds_f < 0:
-            self._warn_once_missing_macro_duration(
-                macro, f"invalid `inferred_duration` value '{duration_seconds}'"
-            )
-            return None
-
-        quantized_duration_ns = int(round(duration_seconds_f * 1e9 / 4.0)) * 4
-        return max(quantized_duration_ns, 0)
-
-    def _execute_macro_with_sticky_tracking(self, macro: QuamMacro, **kwargs):
-        """Execute macro and update sticky-voltage integral when needed."""
-        result = macro.apply(**kwargs)
-
-        if getattr(macro, "updates_voltage_tracking", False):
-            return result
-
-        duration_ns = self._duration_ns_for_sticky_tracking(macro)
-        if duration_ns in (None, 0):
-            return result
-
-        voltage_sequence = getattr(self, "voltage_sequence", None)
-        track_fn = getattr(voltage_sequence, "track_sticky_duration", None)
-        if callable(track_fn):
-            track_fn(duration_ns)
-
-        return result
 
     def _resolve_macro_ref(self, name_or_ref: str, description: str) -> str:
         """Resolve macro name-or-reference into canonical reference string."""

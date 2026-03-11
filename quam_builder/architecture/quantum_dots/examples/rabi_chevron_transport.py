@@ -187,7 +187,6 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             full_scale_power_dbm=10,
         ),
         intermediate_frequency=100e6,
-        add_default_pulses=True,
     )
     # Add a variable-length drive pulse for Rabi experiments
     length = 100

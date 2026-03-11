@@ -11,7 +11,9 @@ Core modules:
 - [`default_macros/`](./default_macros): built-in macro classes and default per-component macro maps.
 - [`macro_registry.py`](./macro_registry.py): component-type -> default macro factory registration/resolution.
 - [`component_macro_catalog.py`](./component_macro_catalog.py): idempotent registration of architecture defaults (`QPU`, `LDQubit`, `LDQubitPair`).
-- [`../macro_engine/wiring.py`](../macro_engine/wiring.py): runtime wiring API (`wire_machine_macros`) that materializes defaults and applies overrides.
+- [`pulse_registry.py`](./pulse_registry.py): component-type -> default pulse factory registration/resolution (parallel to macro registry).
+- [`component_pulse_catalog.py`](./component_pulse_catalog.py): idempotent registration of default pulse factories (`LDQubit` XY pulses, `SensorDot` readout).
+- [`../macro_engine/wiring.py`](../macro_engine/wiring.py): runtime wiring API (`wire_machine_macros`) that materializes macro and pulse defaults and applies overrides.
 - [`default_operations.py`](./default_operations.py): operation signatures exposed through `OperationsRegistry`.
 
 ## Canonical Voltage Point Enums
@@ -88,8 +90,8 @@ All three invocation paths ultimately execute `macro.apply()`. Choose based on y
 | Invocation | When to use | Applicable component types |
 |------------|-------------|----------------------------|
 | `operations_registry.x180(q)` | Generic algorithms, type-safe protocol code, IDE completion | LDQubit (1Q gates); LDQubitPair (2Q gates); QuantumDot, QuantumDotPair, SensorDot (state macros) |
-| `q.x180()` | Component-specific code; natural direct call; includes sticky-voltage tracking | Same as registry |
-| `q.macros["x180"].apply()` | Lowest-level access; bypasses compiled dispatch and sticky-voltage tracking; use when you need the macro object itself (introspection, custom dispatch) or when tracking is irrelevant | Any component with `macros` dict |
+| `q.x180()` | Component-specific code; natural direct call via compiled dispatch | Same as registry |
+| `q.macros["x180"].apply()` | Lowest-level access; bypasses compiled dispatch; use when you need the macro object itself (introspection, custom dispatch) | Any component with `macros` dict |
 
 See [`default_operations.py`](./default_operations.py) module docstring for the registry vs direct comparison in prose.
 
@@ -421,18 +423,96 @@ Serialization behavior:
 3. Keep two-qubit calibrated logic in profile/type-level overrides and specialize only exceptional instances.
 4. Use `strict=True` for CI and release configs.
 
-## Sticky-Voltage Tracking Compatibility
+## Default Pulse Wiring
 
-Macro dispatch still goes through [`../components/mixins/macro_dispatch.py`](../components/mixins/macro_dispatch.py), so sticky-voltage tracking remains active:
+`wire_machine_macros()` also wires default pulses onto component channels. Pulse wiring is additive — only pulse names not already present are added.
 
-- Voltage-updating macros should set `updates_voltage_tracking = True`.
-- Non-voltage macros should expose `inferred_duration` (seconds), quantized to 4 ns downstream.
+### Qubit XY Drive Pulses
 
-This preserves non-voltage hold-time tracking with the current macro call path.
+For each qubit in `machine.qubits` with an `xy` drive, these `GaussianPulse` defaults are added to `qubit.xy.operations`:
+
+| Pulse Name | Amplitude | Axis Angle (IQ/MW) | Axis Angle (SingleChannel) |
+|------------|-----------|---------------------|---------------------------|
+| `x180` | 0.2 | 0.0 | `None` |
+| `x90` | 0.1 | 0.0 | `None` |
+| `y180` | 0.2 | π/2 | `None` |
+| `y90` | 0.1 | π/2 | `None` |
+| `-x90` | −0.1 | 0.0 | `None` |
+| `-y90` | −0.1 | π/2 | `None` |
+
+All pulses: length 1000 ns, sigma 167 ns.
+
+### Sensor Dot Readout Pulses
+
+For each sensor dot in `machine.sensor_dots` with a `readout_resonator`, a default `SquareReadoutPulse` named `"readout"` is added (length 2000 ns, amplitude 0.1).
+
+### Pulse Override Schema
+
+Pulse overrides use the same scoping as macro overrides, under a `pulses` key:
+
+```toml
+# Type-level: all LDQubits get a shorter x180 pulse
+[component_types.LDQubit.pulses]
+x180 = {type = "GaussianPulse", length = 500, amplitude = 0.3, sigma = 83}
+
+# Instance-level: qubit q1 gets a custom x180
+[instances."qubits.q1".pulses]
+x180 = {type = "GaussianPulse", length = 800, amplitude = 0.15, sigma = 133}
+
+# Remove a pulse
+[instances."qubits.q2".pulses]
+"-y90" = {enabled = false}
+```
+
+Supported pulse types: `GaussianPulse`, `SquarePulse`, `SquareReadoutPulse`, `DragPulse`.
+
+Precedence (last wins): default → type-level override → instance-level override.
+
+Python runtime overrides work the same way:
+
+```python
+wire_machine_macros(
+    machine,
+    macro_overrides={
+        "component_types": {
+            "LDQubit": {
+                "pulses": {
+                    "x180": {"type": "GaussianPulse", "length": 500, "amplitude": 0.3, "sigma": 83},
+                }
+            }
+        },
+        "instances": {
+            "qubits.q1": {
+                "pulses": {
+                    "x180": {"type": "GaussianPulse", "length": 800, "amplitude": 0.15, "sigma": 133},
+                }
+            }
+        },
+    },
+)
+```
+
+### Pulse Registry (Advanced)
+
+For custom component types that need default pulses, use the pulse registry directly:
+
+```python
+from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
+    register_component_pulse_factories,
+)
+from quam.components.pulses import SquarePulse
+
+register_component_pulse_factories(
+    MyCustomComponent,
+    {"drive": lambda: SquarePulse(length=200, amplitude=0.5)},
+)
+```
+
+The registry follows MRO resolution: derived classes can override individual pulse names registered on a base class.
 
 ## Public APIs
 
-Register defaults for a custom component type:
+Register macro defaults for a custom component type:
 
 ```python
 from quam_builder.architecture.quantum_dots.operations.macro_registry import (
@@ -442,7 +522,17 @@ from quam_builder.architecture.quantum_dots.operations.macro_registry import (
 register_component_macro_factories(MyComponent, {"my_macro": MyMacroClass})
 ```
 
-Wire defaults + overrides:
+Register pulse defaults for a custom component type:
+
+```python
+from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
+    register_component_pulse_factories,
+)
+
+register_component_pulse_factories(MyComponent, {"drive": lambda: SquarePulse(length=200, amplitude=0.5)})
+```
+
+Wire defaults + overrides (macros and pulses):
 
 ```python
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
@@ -477,3 +567,10 @@ See [`../examples/default_macro_defaults_example.py`](../examples/default_macro_
 1. default-only wiring (no profile and no runtime overrides)
 2. parameterizing built-in default macro instances on components
 3. program build using parameterized default macros only
+
+See [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py) for:
+
+1. default pulse wiring via `wire_machine_macros`
+2. type-level pulse overrides (all qubits of a type)
+3. instance-level pulse overrides (one specific qubit)
+4. disabling specific pulses

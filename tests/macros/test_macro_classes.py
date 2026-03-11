@@ -373,8 +373,8 @@ class TestSequenceMacro:
             # Should execute all 4 primitive operations
             assert mock_step.call_count == 4
 
-    def test_nested_sequence_uses_dispatch_tracking_hook(self, machine):
-        """Smoke test: nested sequence children run via sticky-tracking dispatch hook."""
+    def test_nested_sequence_executes_mixed_macros(self, machine):
+        """Smoke test: nested sequence children run via compiled dispatch."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
         @quam_dataclass
@@ -391,19 +391,15 @@ class TestSequenceMacro:
         qd.with_sequence("mixed_seq", ["idle", "x180"])
         qd.macros["mixed_seq"].align_elements = False
 
-        with patch.object(
-            qd,
-            "_execute_macro_with_sticky_tracking",
-            wraps=qd._execute_macro_with_sticky_tracking,
-        ) as mock_exec:
+        with patch.object(qd.voltage_sequence, "step_to_point") as mock_step:
             with qua.program():
                 qd.mixed_seq()
 
-        # Top-level sequence dispatch + two nested macro dispatches.
-        assert mock_exec.call_count >= 3
+        # step_to_point called once for the idle macro
+        assert mock_step.call_count == 1
 
-    def test_conditional_macro_uses_dispatch_tracking_hook(self, machine):
-        """Smoke test: conditional macro nested calls route through dispatch hook."""
+    def test_conditional_macro_executes_nested_macros(self, machine):
+        """Smoke test: conditional macro nested calls route through compiled dispatch."""
         qd = machine.quantum_dots["virtual_dot_1"]
 
         @quam_dataclass
@@ -435,16 +431,11 @@ class TestSequenceMacro:
             invert_condition=False,
         )
 
-        with patch.object(
-            qd,
-            "_execute_macro_with_sticky_tracking",
-            wraps=qd._execute_macro_with_sticky_tracking,
-        ) as mock_exec:
-            with qua.program():
-                qd.conditional_reset()
+        with qua.program():
+            result = qd.conditional_reset()
 
-        # Top-level conditional dispatch + nested measurement + nested conditional macro.
-        assert mock_exec.call_count >= 3
+        # Should return the measurement result (a QUA bool variable)
+        assert result is not None
 
 
 # ============================================================================

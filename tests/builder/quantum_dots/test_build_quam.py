@@ -38,7 +38,6 @@ from quam_builder.builder.quantum_dots.build_quam import (
     build_loss_divincenzo_quam,
     add_qpu,
     add_ports,
-    add_pulses,
     _resolve_calibration_db_path,
     _set_default_grid_location,
 )
@@ -161,7 +160,7 @@ class TestAddQPU:
 
 
 class TestAddPulses:
-    """Tests for the add_pulses function using a real machine from the pipeline."""
+    """Tests for pulse wiring via wire_machine_macros using a real machine from the pipeline."""
 
     @pytest.fixture
     def built_machine(self):
@@ -197,17 +196,20 @@ class TestAddPulses:
         yield machine
         shutil.rmtree(tmp)
 
-    def test_add_pulses_populates_xy_operations(self, built_machine):
-        add_pulses(built_machine)
+    def test_wire_machine_macros_populates_xy_operations(self, built_machine):
+        """Pulses are wired onto qubit XY drives by wire_machine_macros."""
         for qubit in built_machine.qubits.values():
             if qubit.xy is not None:
                 assert len(qubit.xy.operations) > 0
+                assert "x180" in qubit.xy.operations
 
-    def test_add_pulses_handles_empty_machine(self):
+    def test_wire_machine_macros_handles_empty_machine(self):
+        from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
         machine = LossDiVincenzoQuam()
         machine.qubits = {}
         machine.qubit_pairs = {}
-        add_pulses(machine)
+        wire_machine_macros(machine, strict=False)
 
 
 class TestBuildQuam:

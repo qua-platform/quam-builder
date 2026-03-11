@@ -1,12 +1,14 @@
 """Default pulse configurations for quantum dot qubits and qubit pairs.
 
-This module provides functions to add standard pulse configurations to
-Loss-DiVincenzo qubits, including:
-- Single-qubit rotation pulses (X and Y rotations at 90° and 180°)
-- Readout pulses for sensor resonators
-- Placeholder two-qubit gate pulses for qubit pairs
+.. deprecated::
+    This module is superseded by the macro-engine pulse wiring system.
+    Use ``wire_machine_macros()`` from
+    ``quam_builder.architecture.quantum_dots.macro_engine`` instead.
+    Pulse defaults are now registered via ``component_pulse_catalog`` and
+    applied automatically during ``wire_machine_macros()``.
 """
 
+import warnings
 from typing import Any, Union
 import numpy as np
 from quam.components.pulses import GaussianPulse, SquareReadoutPulse, DragPulse
@@ -21,24 +23,18 @@ u = unit(coerce_to_integer=True)
 def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
     """Add default Gaussian pulses for Loss-DiVincenzo qubit single-qubit gates.
 
-    Configures standard single-qubit rotation pulses using Gaussian envelopes:
-    - X and Y rotations at 180° (pi pulses)
-    - X and Y rotations at ±90° (pi/2 pulses)
-
-    Default pulse parameters:
-    - Length: 1000 ns
-    - Amplitude: 0.2 (180°), 0.1 (90°)
-    - Sigma: length / 6 (for Gaussian envelope)
-
-    Pulses are added to the qubit's xy (ESR/MW drive) if present.
+    .. deprecated::
+        Use ``wire_machine_macros()`` instead. Pulses are now wired automatically.
 
     Args:
         qubit: Loss-DiVincenzo qubit instance to configure.
-
-    Note:
-        These are placeholder values. Actual pulse parameters should be determined
-        through calibration for your specific quantum dot device.
     """
+    warnings.warn(
+        "add_default_ldv_qubit_pulses() is deprecated. "
+        "Use wire_machine_macros() from quam_builder.architecture.quantum_dots.macro_engine instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # ESR/MW drive pulses (if xy exists)
     if hasattr(qubit, "xy") and qubit.xy is not None:
         pulse_length = 1000  # ns
@@ -105,19 +101,18 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
 def add_default_resonator_pulses(resonator: ReadoutResonatorBase) -> None:
     """Add default square readout pulse to sensor resonator.
 
-    Configures a square readout pulse for charge sensing via the readout resonator.
-
-    Default pulse parameters:
-    - Length: 2000 ns
-    - Amplitude: 0.1
+    .. deprecated::
+        Use ``wire_machine_macros()`` instead. Pulses are now wired automatically.
 
     Args:
         resonator: Readout resonator instance to configure.
-
-    Note:
-        These are placeholder values. Actual readout pulse parameters should be
-        optimized through calibration to maximize SNR for your sensor dot system.
     """
+    warnings.warn(
+        "add_default_resonator_pulses() is deprecated. "
+        "Use wire_machine_macros() from quam_builder.architecture.quantum_dots.macro_engine instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     readout_length = 2000  # ns
     readout_amp = 0.1
     if isinstance(resonator, ReadoutResonatorBase):
@@ -131,27 +126,16 @@ def add_default_resonator_pulses(resonator: ReadoutResonatorBase) -> None:
 def add_default_ldv_qubit_pair_pulses(qubit_pair: Any) -> None:
     """Placeholder for adding two-qubit gate pulses to qubit pairs.
 
-    Two-qubit gates in quantum dot systems typically involve:
-    - Barrier gate voltage pulses to control exchange coupling
-    - Coordinated plunger gate adjustments
-    - Timing-critical pulse sequences
-
-    This function is currently a placeholder. Implementations are highly
-    system-specific and depend on:
-    - Exchange coupling mechanism (direct exchange, virtual gates, etc.)
-    - Device geometry and materials
-    - Operating regime (singlet-triplet, loss-divincenzo, hybrid, etc.)
+    .. deprecated::
+        Use ``wire_machine_macros()`` instead. Pulses are now wired automatically.
 
     Args:
         qubit_pair: Qubit pair instance to configure.
-
-    Note:
-        Users should implement custom two-qubit gate calibrations based on
-        their specific quantum dot architecture and coupling mechanism.
     """
-    # Placeholder implementation
-    # In production, this would configure exchange pulses, SWAP gates, CZ gates, etc.
-    # Example structure:
-    # if hasattr(qubit_pair, "barrier_channel"):
-    #     qubit_pair.barrier_channel.operations["exchange"] = pulse_config
+    warnings.warn(
+        "add_default_ldv_qubit_pair_pulses() is deprecated. "
+        "Use wire_machine_macros() from quam_builder.architecture.quantum_dots.macro_engine instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     pass

@@ -12,6 +12,7 @@ from wiring specifications. It orchestrates:
 # Public builder APIs intentionally expose explicit parameter sets.
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 
+import warnings
 from pathlib import Path
 from typing import Optional, Union
 
@@ -27,11 +28,6 @@ from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 from quam_builder.architecture.quantum_dots.components import QPU
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
-from quam_builder.builder.quantum_dots.pulses import (
-    add_default_ldv_qubit_pair_pulses,
-    add_default_ldv_qubit_pulses,
-    add_default_resonator_pulses,
-)
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
@@ -208,7 +204,6 @@ def build_loss_divincenzo_quam(
         machine.qpu = QPU()
 
     add_ports(machine)
-    add_pulses(machine)
     wire_machine_macros(
         machine,
         macro_profile_path=macro_profile_path,
@@ -331,10 +326,6 @@ class _OrchestratedQuamBuilder:
         """Build and register QPU elements."""
         add_qpu(self.machine, qubit_pair_sensor_map=self.qubit_pair_sensor_map)
 
-    def add_pulses(self) -> None:
-        """Add default pulse configurations."""
-        add_pulses(self.machine)
-
 
 def add_ports(machine: AnyQuam) -> None:
     """Register all I/O ports referenced in wiring specifications.
@@ -371,30 +362,6 @@ def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> N
             used for each qubit pair.
     """
     _QpuBuilder(machine, qubit_pair_sensor_map=qubit_pair_sensor_map).build()
-
-
-def add_pulses(machine: AnyQuam) -> None:
-    """Add default pulse configurations to qubits and resonators.
-
-    Configures:
-    - Single-qubit rotation pulses (X, Y, ±90°, 180°)
-    - Readout pulses for sensor resonators
-    - Placeholder two-qubit gate pulses
-
-    Args:
-        machine: QuAM instance with qubits and sensors registered.
-    """
-    if hasattr(machine, "qubits"):
-        for ldv_qubit in machine.qubits.values():
-            add_default_ldv_qubit_pulses(ldv_qubit)
-
-    if hasattr(machine, "qubit_pairs"):
-        for qubit_pair in machine.qubit_pairs.values():
-            add_default_ldv_qubit_pair_pulses(qubit_pair)
-
-    if hasattr(machine, "sensor_dots"):
-        for sensor_dot in machine.sensor_dots.values():
-            add_default_resonator_pulses(sensor_dot.readout_resonator)
 
 
 def _resolve_calibration_db_path(
@@ -487,3 +454,26 @@ def add_external_mixers(machine: AnyQuam) -> AnyQuam:
                         machine.mixers[mixer_name] = frequency_converter
 
     return machine
+
+
+def add_pulses(machine: LossDiVincenzoQuam) -> None:
+    """Add default pulses to all qubits and sensor dots on a machine.
+
+    .. deprecated::
+        Use ``wire_machine_macros()`` from
+        ``quam_builder.architecture.quantum_dots.macro_engine`` instead.
+        Default pulses are now wired automatically during ``wire_machine_macros()``.
+
+    Args:
+        machine: LossDiVincenzoQuam instance to add pulses to.
+    """
+    warnings.warn(
+        "add_pulses() is deprecated. "
+        "Use wire_machine_macros() from quam_builder.architecture.quantum_dots.macro_engine instead. "
+        "Pulses are now wired automatically during wire_machine_macros().",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from quam_builder.architecture.quantum_dots.macro_engine.wiring import _ensure_default_pulses
+
+    _ensure_default_pulses(machine)

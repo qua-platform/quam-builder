@@ -445,7 +445,6 @@ def _create_xy_drive_from_wiring(
             id=drive_id,
             RF_frequency=int(intermediate_frequency),
             opx_output=f"{wiring_path}/opx_output",
-            add_default_pulses=False,
         )
 
     raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'.")

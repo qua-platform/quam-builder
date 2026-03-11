@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -58,17 +58,11 @@ def _resolve_default_point_duration_ns(owner: Any, point_name: str) -> Optional[
 
 @quam_dataclass
 class InitializeStateMacro(QuamMacro):
-    """Move component to initialize voltage point using a ramp transition.
-
-    Notes:
-        - ``updates_voltage_tracking=True`` because voltage tracking is already
-          handled by the voltage-sequence helpers called by this macro.
-    """
+    """Move component to initialize voltage point using a ramp transition."""
 
     point_name: str = VoltagePointName.INITIALIZE.value
     ramp_duration: int = 16
     hold_duration: int | None = None
-    updates_voltage_tracking: ClassVar[bool] = True
 
     @property
     def inferred_duration(self) -> float | None:
@@ -100,7 +94,6 @@ class MeasureStateMacro(QuamMacro):
 
     point_name: str = VoltagePointName.MEASURE.value
     hold_duration: int | None = None
-    updates_voltage_tracking: ClassVar[bool] = True
 
     @property
     def inferred_duration(self) -> float | None:
@@ -124,7 +117,6 @@ class EmptyStateMacro(QuamMacro):
 
     point_name: str = VoltagePointName.EMPTY.value
     hold_duration: int | None = None
-    updates_voltage_tracking: ClassVar[bool] = True
 
     @property
     def inferred_duration(self) -> float | None:
@@ -202,7 +194,6 @@ class MeasurePSBPairMacro(QuamMacro):
 
     point_name: str = VoltagePointName.MEASURE.value
     hold_duration: int | None = None
-    updates_voltage_tracking: ClassVar[bool] = True
 
     def apply(self, hold_duration: int | None = None, **kwargs):
         """Step to measure point, then perform PSB readout via sensor dot."""
@@ -249,7 +240,6 @@ class _QPUStateDispatchMacro(QuamMacro):
     """Dispatch a state macro to active machine components."""
 
     macro_name: str
-    updates_voltage_tracking: ClassVar[bool] = True
 
     def apply(self, **kwargs):
         """Dispatch configured state macro to each selected machine target."""

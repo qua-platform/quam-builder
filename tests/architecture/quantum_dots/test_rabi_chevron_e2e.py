@@ -71,8 +71,11 @@ def create_rabi_machine() -> Tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutRes
         id="Q1_xy",
         RF_frequency=int(100e6),
         opx_output=LFFEMAnalogOutputPort("con1", 2, port_id=5, output_mode="direct"),
-        add_default_pulses=True,
     )
+    # Add the pulses that were previously added by XYDriveSingle.__post_init__
+    xy_drive.operations["gaussian"] = pulses.GaussianPulse(length=100, amplitude=0.2, sigma=40)
+    xy_drive.operations["pi"] = pulses.SquarePulse(length=104, amplitude=0.2)
+    xy_drive.operations["pi_half"] = pulses.SquarePulse(length=52, amplitude=0.2)
     xy_drive.operations["drive"] = pulses.GaussianPulse(
         length=100,
         amplitude=0.2,
