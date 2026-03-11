@@ -207,7 +207,7 @@ def build_loss_divincenzo_quam(
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
 
-    # Add default pulses
+    add_ports(machine)
     add_pulses(machine)
     wire_machine_macros(
         machine,

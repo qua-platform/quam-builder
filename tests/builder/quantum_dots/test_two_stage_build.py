@@ -458,6 +458,97 @@ class TestIntegration:
             assert "virtual_dot_1" in result.quantum_dots
 
 
+class TestStage2WiringBehaviours:
+    """Tests for Stage 2 wiring behaviours added by the builder."""
+
+    def _build_two_dot_one_sensor_one_pair(self, qubit_pair_sensor_map=None):
+        """Build a 2-dot, 1-sensor, 1-pair machine through both stages."""
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                },
+                "q2": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
+                    WiringLineType.DRIVE.value: _mw_drive_ports("q2"),
+                },
+            },
+            "qubit_pairs": {
+                "q1_q2": {WiringLineType.BARRIER_GATE.value: _barrier_ports("q1_q2")},
+            },
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: _sensor_ports("s1"),
+                    WiringLineType.RF_RESONATOR.value: _resonator_ports("s1"),
+                },
+            },
+        }
+        builder1 = _BaseQpuBuilder(machine)
+        machine = builder1.build()
+
+        builder2 = _LDQubitBuilder(
+            machine,
+            qubit_pair_sensor_map=qubit_pair_sensor_map or {"q1_q2": ["sensor_1"]},
+        )
+        return builder2.build()
+
+    def test_sensor_dots_wired_to_quantum_dot_pairs(self):
+        """Sensor dots should be wired to quantum dot pairs via qubit_pair_sensor_map."""
+        machine = self._build_two_dot_one_sensor_one_pair(
+            qubit_pair_sensor_map={"q1_q2": ["sensor_1"]}
+        )
+        pair = machine.qubit_pairs["q1_q2"]
+        assert "#/sensor_dots/virtual_sensor_1" in pair.quantum_dot_pair.sensor_dots
+
+    def test_preferred_readout_quantum_dot_set_on_qubits(self):
+        """Each qubit's preferred_readout_quantum_dot should be the partner's dot."""
+        machine = self._build_two_dot_one_sensor_one_pair()
+        assert machine.qubits["q1"].preferred_readout_quantum_dot == "virtual_dot_2"
+        assert machine.qubits["q2"].preferred_readout_quantum_dot == "virtual_dot_1"
+
+    def test_readout_resonator_not_sticky(self):
+        """Readout resonators should not have sticky enabled."""
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: _sensor_ports("s1"),
+                    WiringLineType.RF_RESONATOR.value: _resonator_ports("s1"),
+                },
+            },
+            "qubits": {
+                "q1": {WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")},
+            },
+        }
+        builder = _BaseQpuBuilder(machine)
+        machine = builder.build()
+
+        sensor = machine.sensor_dots["virtual_sensor_1"]
+        assert sensor.readout_resonator.sticky is None
+
+    def test_readout_resonator_intermediate_frequency_zero(self):
+        """Readout resonator intermediate_frequency should default to 0."""
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: _sensor_ports("s1"),
+                    WiringLineType.RF_RESONATOR.value: _resonator_ports("s1"),
+                },
+            },
+            "qubits": {
+                "q1": {WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")},
+            },
+        }
+        builder = _BaseQpuBuilder(machine)
+        machine = builder.build()
+
+        sensor = machine.sensor_dots["virtual_sensor_1"]
+        assert sensor.readout_resonator.intermediate_frequency == 0
+
+
 class TestHighLevelAPI:
     """Tests for high-level build functions."""
 

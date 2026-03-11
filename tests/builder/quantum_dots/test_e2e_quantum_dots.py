@@ -327,3 +327,130 @@ class TestQuantumDotsLargeSystem:
         assert len(machine.sensor_dots) == 4
         assert len(machine.qubits) == 8
         assert len(machine.quantum_dot_pairs) == 7
+
+
+class TestTwoStageWiringIntegration:
+    """E2E tests verifying the four wiring behaviours added to the two-stage pipeline."""
+
+    GLOBAL_GATES = [1]
+    SENSOR_DOTS = [1, 2]
+    QUANTUM_DOTS = [1, 2, 3]
+    QUANTUM_DOT_PAIRS = [(1, 2), (2, 3)]
+    QUBIT_PAIR_SENSOR_MAP = {"q1_q2": ["sensor_1"], "q2_q3": ["sensor_2"]}
+
+    @pytest.fixture
+    def instruments(self):
+        instruments = Instruments()
+        instruments.add_mw_fem(controller=1, slots=[1])
+        instruments.add_lf_fem(controller=1, slots=[2, 3])
+        return instruments
+
+    def _run_two_stage(self, instruments, temp_dir):
+        """Run the full two-stage workflow and return the final machine."""
+        # Stage 1: dot layer only (no drive lines)
+        connectivity_s1 = Connectivity()
+        connectivity_s1.add_voltage_gate_lines(voltage_gates=self.GLOBAL_GATES, name="rb")
+        connectivity_s1.add_sensor_dots(
+            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False, use_mw_fem=False
+        )
+        connectivity_s1.add_quantum_dots(quantum_dots=self.QUANTUM_DOTS, add_drive_lines=False)
+        connectivity_s1.add_quantum_dot_pairs(quantum_dot_pairs=self.QUANTUM_DOT_PAIRS)
+        allocate_wiring(connectivity_s1, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity_s1, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
+        machine = build_base_quam(
+            machine, calibration_db_path=temp_dir, connect_qdac=False, save=False
+        )
+
+        # Stage 2: add qubits with drive lines
+        instruments_s2 = Instruments()
+        instruments_s2.add_mw_fem(controller=1, slots=[1])
+        instruments_s2.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity_s2 = Connectivity()
+        connectivity_s2.add_voltage_gate_lines(voltage_gates=self.GLOBAL_GATES, name="rb")
+        connectivity_s2.add_sensor_dots(
+            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False, use_mw_fem=False
+        )
+        connectivity_s2.add_quantum_dot_pairs(quantum_dot_pairs=self.QUANTUM_DOT_PAIRS)
+        connectivity_s2.add_quantum_dots(
+            quantum_dots=self.QUANTUM_DOTS,
+            add_drive_lines=True,
+            use_mw_fem=True,
+            shared_drive_line=True,
+        )
+        allocate_wiring(connectivity_s2, instruments_s2)
+
+        machine = build_quam_wiring(
+            connectivity_s2, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
+        machine = build_loss_divincenzo_quam(
+            machine,
+            qubit_pair_sensor_map=self.QUBIT_PAIR_SENSOR_MAP,
+            implicit_mapping=True,
+            save=False,
+        )
+        return machine
+
+    def test_two_stage_ports_materialized(self, instruments, temp_dir):
+        """All wiring port references should have corresponding port objects."""
+        machine = self._run_two_stage(instruments, temp_dir)
+
+        def _collect_port_refs(obj, refs=None):
+            if refs is None:
+                refs = set()
+            if isinstance(obj, dict):
+                for v in obj.values():
+                    _collect_port_refs(v, refs)
+            elif isinstance(obj, str) and obj.startswith("#/ports/"):
+                refs.add(obj)
+            return refs
+
+        wiring_refs = _collect_port_refs(machine.wiring)
+        for ref in wiring_refs:
+            parts = ref.lstrip("#/").split("/")
+            node = machine
+            for part in parts:
+                if isinstance(node, dict):
+                    assert part in node, f"Port reference {ref} not materialized"
+                    node = node[part]
+                else:
+                    assert hasattr(node, part), f"Port reference {ref} not materialized"
+                    node = getattr(node, part)
+
+    def test_two_stage_sensor_dots_wired_to_pairs(self, instruments, temp_dir):
+        """Each quantum dot pair should have sensor dots populated per the map."""
+        machine = self._run_two_stage(instruments, temp_dir)
+
+        pair_q1_q2 = machine.qubit_pairs["q1_q2"]
+        assert len(pair_q1_q2.quantum_dot_pair.sensor_dots) > 0
+        assert "#/sensor_dots/virtual_sensor_1" in pair_q1_q2.quantum_dot_pair.sensor_dots
+
+        pair_q2_q3 = machine.qubit_pairs["q2_q3"]
+        assert len(pair_q2_q3.quantum_dot_pair.sensor_dots) > 0
+        assert "#/sensor_dots/virtual_sensor_2" in pair_q2_q3.quantum_dot_pair.sensor_dots
+
+    def test_two_stage_preferred_readout_dot(self, instruments, temp_dir):
+        """Each qubit should have preferred_readout_quantum_dot set.
+
+        When a qubit belongs to multiple pairs, the last pair processed
+        wins (same last-write-wins semantics as the original quam_factory).
+        We verify the exact expected values for this 3-dot, 2-pair topology:
+        pairs processed in order q1_q2 then q2_q3.
+        """
+        machine = self._run_two_stage(instruments, temp_dir)
+
+        assert machine.qubits["q1"].preferred_readout_quantum_dot == "virtual_dot_2"
+        assert machine.qubits["q2"].preferred_readout_quantum_dot == "virtual_dot_3"
+        assert machine.qubits["q3"].preferred_readout_quantum_dot == "virtual_dot_2"
+
+    def test_two_stage_resonator_not_sticky(self, instruments, temp_dir):
+        """Readout resonators should not have sticky enabled after two-stage build."""
+        machine = self._run_two_stage(instruments, temp_dir)
+
+        for sensor in machine.sensor_dots.values():
+            rr = sensor.readout_resonator
+            assert rr.sticky is None, f"Readout resonator {rr.id} should not have sticky"
