@@ -120,13 +120,13 @@ class TestAddQPU:
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q1/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {"opx_output": "#/wiring/qubits/q1/xy/opx_output"},
+                    WiringLineType.DRIVE.value: {"opx_output": "#/ports/mw_outputs/con1/1/1"},
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q2/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {"opx_output": "#/wiring/qubits/q2/xy/opx_output"},
+                    WiringLineType.DRIVE.value: {"opx_output": "#/ports/mw_outputs/con1/1/2"},
                 },
             }
         }

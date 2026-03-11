@@ -54,8 +54,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
                             Format: {
                                 "q1": {
-                                    "type": "IQ" | "MW",  # Drive type
-                                    "wiring_path": "#/wiring/qubits/q1/xy",  # JSON path to ports
+                                    "type": "IQ" | "MW" | "Single",
+                                    "wiring_path": "#/wiring/qubits/q1/xy",
                                     "intermediate_frequency": 500e6  # Optional IF (Hz)
                                 },
                                 ...
@@ -126,13 +126,13 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         """Extract XY drive wiring from machine.wiring if available.
 
         Scans machine.wiring for qubit drive lines and automatically determines
-        the drive type (IQ or MW) based on the port configuration.
+        the drive type (IQ, MW, or Single) based on the port configuration.
 
         Returns:
             Dict mapping qubit_id to XY drive configuration:
             {
                 "q1": {
-                    "type": "IQ" or "MW",
+                    "type": "IQ" | "MW" | "Single",
                     "wiring_path": "#/wiring/qubits/q1/xy",
                     "intermediate_frequency": 500e6
                 },
@@ -153,15 +153,16 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         for qubit_id, line_types in qubits_wiring.items():
             drive_wiring = line_types.get(WiringLineType.DRIVE.value)
             if drive_wiring:
-                # Determine drive type (IQ or MW) by inspecting port configuration
-                # IQ drives have opx_output_I/Q + frequency_converter_up
-                # MW drives have single opx_output port
+                # Determine drive type by inspecting port configuration:
+                #   IQ     – opx_output_I/Q + frequency_converter_up
+                #   MW     – single opx_output pointing at mw_outputs
+                #   Single – single opx_output pointing at analog_outputs
                 drive_type = _validate_drive_ports(qubit_id, drive_wiring)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{WiringLineType.DRIVE.value}"
 
                 # Build XY drive configuration
                 xy_wiring[qubit_id] = {
-                    "type": drive_type,  # "IQ" or "MW"
+                    "type": drive_type,  # "IQ", "MW", or "Single"
                     "wiring_path": wiring_path,  # JSON reference to ports
                     "intermediate_frequency": drive_wiring.get(
                         "intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY

@@ -21,7 +21,11 @@ from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
 )
-from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ, XYDriveMW
+from quam_builder.architecture.quantum_dots.components.xy_drive import (
+    XYDriveIQ,
+    XYDriveMW,
+    XYDriveSingle,
+)
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
@@ -201,12 +205,23 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
 def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
     """Validate qubit drive port configuration and determine drive type.
 
+    Distinguishes three configurations based on port keys *and* the port
+    reference path:
+
+    * **IQ** -- ``opx_output_I``, ``opx_output_Q``, ``frequency_converter_up``
+      present.  Used for LF-FEM baseband I/Q with an Octave or external mixer.
+    * **MW** -- single ``opx_output`` whose reference points at ``mw_outputs``.
+    * **Single** -- single ``opx_output`` whose reference points at
+      ``analog_outputs`` (LF-FEM / OPX+).  Used for baseband EDSR / ESR
+      driving without external upconversion.
+
     Args:
         qubit_id: Identifier of the qubit being validated.
-        ports: Port configuration mapping.
+        ports: Port configuration mapping (keys are port names, values are
+            JSON reference strings such as ``#/ports/analog_outputs/...``).
 
     Returns:
-        Drive type string: "IQ" for IQ mixing or "MW" for microwave.
+        Drive type string: ``"IQ"``, ``"MW"``, or ``"Single"``.
 
     Raises:
         ValueError: If port configuration is ambiguous or incomplete.
@@ -218,12 +233,32 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
         raise ValueError(
             f"Qubit {qubit_id} wiring is ambiguous: matches both IQ and MW drive ports"
         )
-    if not has_iq and not has_mw:
-        raise ValueError(
-            f"Qubit {qubit_id} wiring is incomplete: missing IQ ports {iq_out_channel_ports} "
-            f"and MW ports {mw_out_channel_ports}"
-        )
-    return "IQ" if has_iq else "MW"
+    if has_iq:
+        return "IQ"
+    if has_mw:
+        ref = ports.get("opx_output", "")
+        # When accessed through QuAM reference resolution, ref may be an
+        # actual port object rather than a string reference.
+        ref_str = str(ref)
+        if "mw_outputs" in ref_str or "MWFEM" in type(ref).__name__:
+            return "MW"
+        # Check the raw/unresolved value if available (QuAM dict wrapper)
+        raw_ref = None
+        if hasattr(ports, "get_raw_value"):
+            raw_ref = str(ports.get_raw_value("opx_output"))
+        elif hasattr(ports, "get_unreferenced_value"):
+            raw_ref = str(ports.get_unreferenced_value("opx_output"))
+        if raw_ref and "mw_outputs" in raw_ref:
+            return "MW"
+        # TODO: When qualang_tools supports LF-FEM IQ allocation for drive
+        # lines (two outputs + frequency converter), the IQ path above will
+        # match automatically.  The "Single" branch here covers the current
+        # DC-allocated single-port case only.
+        return "Single"
+    raise ValueError(
+        f"Qubit {qubit_id} wiring is incomplete: missing IQ ports {iq_out_channel_ports} "
+        f"and MW ports {mw_out_channel_ports}"
+    )
 
 
 def _build_virtual_mapping(
@@ -368,23 +403,29 @@ def _create_xy_drive_from_wiring(
     drive_type: str,
     wiring_path: str,
     intermediate_frequency: float = DEFAULT_INTERMEDIATE_FREQUENCY,
-) -> Any:  # Returns XYDriveIQ or XYDriveMW
+) -> Any:  # Returns XYDriveIQ, XYDriveMW, or XYDriveSingle
     """Create an XY drive channel from wiring specification.
 
     Args:
         qubit_id: Qubit identifier for naming the drive.
-        drive_type: Type of drive - 'IQ' or 'MW'.
+        drive_type: ``"IQ"``, ``"MW"``, or ``"Single"`` (see
+            :func:`_validate_drive_ports`).
         wiring_path: JSON path to wiring configuration for ports.
         intermediate_frequency: IF for the drive channel.
 
     Returns:
-        XYDriveIQ or XYDriveMW instance based on drive_type.
+        XYDriveIQ, XYDriveMW, or XYDriveSingle instance based on *drive_type*.
 
     Raises:
-        ValueError: If drive_type is not 'IQ' or 'MW'.
+        ValueError: If drive_type is not recognised.
     """
     drive_id = f"{qubit_id}_xy"
 
+    # TODO: XYDriveIQ is the preferred type for LF-FEM when IQ ports are
+    # available (allocated via WiringFrequency.RF with Octave fallback).
+    # XYDriveSingle is the baseband-only fallback for DC-allocated
+    # single-port drives.  Once qualang_tools exposes LF-FEM IQ allocation
+    # for drive lines, the "IQ" branch below will handle it automatically.
     if drive_type == "IQ":
         return XYDriveIQ(
             id=drive_id,
@@ -399,8 +440,15 @@ def _create_xy_drive_from_wiring(
             intermediate_frequency=intermediate_frequency,
             opx_output=f"{wiring_path}/opx_output",
         )
+    if drive_type == "Single":
+        return XYDriveSingle(
+            id=drive_id,
+            RF_frequency=int(intermediate_frequency),
+            opx_output=f"{wiring_path}/opx_output",
+            add_default_pulses=False,
+        )
 
-    raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ' or 'MW'.")
+    raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'.")
 
 
 # pylint: disable=undefined-all-variable

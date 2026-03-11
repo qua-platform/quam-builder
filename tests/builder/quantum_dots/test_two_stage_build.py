@@ -47,9 +47,13 @@ def _resonator_ports(sensor_id: str) -> dict:
     }
 
 
-def _mw_drive_ports(qubit_id: str) -> dict:
-    """Helper to create MW drive wiring."""
-    return {"opx_output": f"#/wiring/qubits/{qubit_id}/xy/opx_output"}
+def _drive_ports(qubit_id: str) -> dict:
+    """Helper to create LF-FEM single-channel drive wiring.
+
+    Uses a port-style reference containing 'analog_outputs' so
+    _validate_drive_ports classifies it as "Single" -> XYDriveSingle.
+    """
+    return {"opx_output": f"#/ports/analog_outputs/con1/3/{qubit_id[-1]}"}
 
 
 def _iq_drive_ports(qubit_id: str) -> dict:
@@ -184,7 +188,7 @@ class TestStage1Build:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
             }
         }
@@ -209,7 +213,7 @@ class TestStage2Build:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
             }
         }
@@ -233,11 +237,11 @@ class TestStage2Build:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q2"),
+                    WiringLineType.DRIVE.value: _drive_ports("q2"),
                 },
             }
         }
@@ -265,7 +269,7 @@ class TestStage2Build:
                 "qubits": {
                     "q1": {
                         WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                        WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                        WiringLineType.DRIVE.value: _drive_ports("q1"),
                     },
                 }
             }
@@ -292,7 +296,7 @@ class TestStage2Build:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
             }
         }
@@ -317,11 +321,11 @@ class TestStage2Build:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q2"),
+                    WiringLineType.DRIVE.value: _drive_ports("q2"),
                 },
             },
             "qubit_pairs": {
@@ -387,7 +391,7 @@ class TestIntegration:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
@@ -437,7 +441,7 @@ class TestIntegration:
                 "qubits": {
                     "q1": {
                         WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                        WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                        WiringLineType.DRIVE.value: _drive_ports("q1"),
                     },
                 }
             }
@@ -468,11 +472,11 @@ class TestStage2WiringBehaviours:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q2"),
+                    WiringLineType.DRIVE.value: _drive_ports("q2"),
                 },
             },
             "qubit_pairs": {
@@ -549,6 +553,117 @@ class TestStage2WiringBehaviours:
         assert sensor.readout_resonator.intermediate_frequency == 0
 
 
+class TestDriveTypeDetection:
+    """Tests for drive type detection distinguishing IQ, MW, and Single."""
+
+    def test_validate_drive_ports_returns_mw_for_mw_fem_ref(self):
+        """opx_output referencing mw_outputs should be classified as MW."""
+        from quam_builder.builder.quantum_dots.build_utils import _validate_drive_ports
+
+        ports = {"opx_output": "#/ports/mw_outputs/con1/1/1"}
+        assert _validate_drive_ports("q1", ports) == "MW"
+
+    def test_validate_drive_ports_returns_single_for_analog_ref(self):
+        """opx_output referencing analog_outputs should be classified as Single."""
+        from quam_builder.builder.quantum_dots.build_utils import _validate_drive_ports
+
+        ports = {"opx_output": "#/ports/analog_outputs/con1/3/1"}
+        assert _validate_drive_ports("q1", ports) == "Single"
+
+    def test_validate_drive_ports_returns_iq(self):
+        """IQ ports should still be classified as IQ."""
+        from quam_builder.builder.quantum_dots.build_utils import _validate_drive_ports
+
+        ports = _iq_drive_ports("q1")
+        assert _validate_drive_ports("q1", ports) == "IQ"
+
+    def test_create_xy_drive_single(self):
+        """_create_xy_drive_from_wiring should create XYDriveSingle for Single type."""
+        from quam_builder.builder.quantum_dots.build_utils import (
+            _create_xy_drive_from_wiring,
+        )
+        from quam_builder.architecture.quantum_dots.components.xy_drive import (
+            XYDriveSingle,
+        )
+
+        drive = _create_xy_drive_from_wiring(
+            qubit_id="q1",
+            drive_type="Single",
+            wiring_path="#/wiring/qubits/q1/xy",
+            intermediate_frequency=100e6,
+        )
+        assert isinstance(drive, XYDriveSingle)
+        assert drive.id == "q1_xy"
+        assert drive.RF_frequency == 100_000_000
+
+    def test_create_xy_drive_mw(self):
+        """_create_xy_drive_from_wiring should create XYDriveMW for MW type."""
+        from quam_builder.builder.quantum_dots.build_utils import (
+            _create_xy_drive_from_wiring,
+        )
+        from quam_builder.architecture.quantum_dots.components.xy_drive import (
+            XYDriveMW,
+        )
+
+        drive = _create_xy_drive_from_wiring(
+            qubit_id="q1",
+            drive_type="MW",
+            wiring_path="#/wiring/qubits/q1/xy",
+        )
+        assert isinstance(drive, XYDriveMW)
+
+    def test_stage2_single_drive_creates_xy_drive_single(self):
+        """Stage 2 with LF-FEM single drive should create XYDriveSingle."""
+        from quam_builder.architecture.quantum_dots.components.xy_drive import (
+            XYDriveSingle,
+        )
+
+        lf_drive = {"opx_output": "#/ports/analog_outputs/con1/3/1"}
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: lf_drive,
+                },
+            }
+        }
+        builder1 = _BaseQpuBuilder(machine)
+        machine = builder1.build()
+
+        builder2 = _LDQubitBuilder(machine)
+        result = builder2.build()
+
+        assert "q1" in result.qubits
+        assert isinstance(result.qubits["q1"].xy, XYDriveSingle)
+        assert result.qubits["q1"].xy.id == "q1_xy"
+
+    def test_stage2_mw_drive_creates_xy_drive_mw(self):
+        """Stage 2 with MW-FEM drive should create XYDriveMW."""
+        from quam_builder.architecture.quantum_dots.components.xy_drive import (
+            XYDriveMW,
+        )
+
+        mw_drive = {"opx_output": "#/ports/mw_outputs/con1/1/1"}
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: mw_drive,
+                },
+            }
+        }
+        builder1 = _BaseQpuBuilder(machine)
+        machine = builder1.build()
+
+        builder2 = _LDQubitBuilder(machine)
+        result = builder2.build()
+
+        assert "q1" in result.qubits
+        assert isinstance(result.qubits["q1"].xy, XYDriveMW)
+
+
 class TestHighLevelAPI:
     """Tests for high-level build functions."""
 
@@ -569,19 +684,16 @@ class TestHighLevelAPI:
 
     def test_build_loss_divincenzo_quam_function(self):
         """Test build_loss_divincenzo_quam() convenience function."""
-        # First create BaseQuamQD
         machine = BaseQuamQD()
         machine.wiring = {
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
                 },
             }
         }
         machine = build_base_quam(machine, save=False)
 
-        # Then convert to LossDiVincenzoQuam
         result = build_loss_divincenzo_quam(machine, save=False)
 
         assert isinstance(result, LossDiVincenzoQuam)
@@ -594,14 +706,12 @@ class TestHighLevelAPI:
             "qubits": {
                 "q1": {
                     WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
-                    WiringLineType.DRIVE.value: _mw_drive_ports("q1"),
                 },
             }
         }
 
         result = build_quam(machine, save=False)
 
-        # Should execute both stages
         assert isinstance(result, LossDiVincenzoQuam)
         assert "q1" in result.qubits
         assert "virtual_dot_1" in result.quantum_dots

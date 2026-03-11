@@ -10,6 +10,7 @@ Loss-DiVincenzo qubits, including:
 from typing import Any, Union
 import numpy as np
 from quam.components.pulses import GaussianPulse, SquareReadoutPulse, DragPulse
+from quam.components.channels import SingleChannel
 from qualang_tools.addons.calibration.calibrations import unit
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorBase
@@ -44,13 +45,20 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
         pulse_amp = 0.2
         sigma = pulse_length / 6
 
-        # X rotations
+        # SingleChannel (XYDriveSingle) uses real-valued waveforms only.
+        # IQ/MW channels use axis_angle for hardware IQ mixing.
+        # Y-axis rotations on SingleChannel are handled by the macro engine
+        # via virtual_z frame rotation, so no axis_angle is needed.
+        is_single = isinstance(qubit.xy, SingleChannel)
+        x_angle = None if is_single else 0.0
+        y_angle = None if is_single else float(np.pi / 2)
+
         qubit.xy.operations["x180"] = GaussianPulse(
             id="x180",
             length=pulse_length,
             amplitude=pulse_amp,
             sigma=sigma,
-            axis_angle=0.0,
+            axis_angle=x_angle,
         )
 
         qubit.xy.operations["x90"] = GaussianPulse(
@@ -58,16 +66,15 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             length=pulse_length,
             amplitude=pulse_amp / 2,
             sigma=sigma,
-            axis_angle=0.0,
+            axis_angle=x_angle,
         )
 
-        # Y rotations
         qubit.xy.operations["y180"] = GaussianPulse(
             id="y180",
             length=pulse_length,
             amplitude=pulse_amp,
             sigma=sigma,
-            axis_angle=float(np.pi / 2),
+            axis_angle=y_angle,
         )
 
         qubit.xy.operations["y90"] = GaussianPulse(
@@ -75,16 +82,15 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             length=pulse_length,
             amplitude=pulse_amp / 2,
             sigma=sigma,
-            axis_angle=float(np.pi / 2),
+            axis_angle=y_angle,
         )
 
-        # Minus rotations (useful for pulse sequences)
         qubit.xy.operations["-x90"] = GaussianPulse(
             id="-x90",
             length=pulse_length,
             amplitude=-pulse_amp / 2,
             sigma=sigma,
-            axis_angle=0.0,
+            axis_angle=x_angle,
         )
 
         qubit.xy.operations["-y90"] = GaussianPulse(
@@ -92,7 +98,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
             length=pulse_length,
             amplitude=-pulse_amp / 2,
             sigma=sigma,
-            axis_angle=float(np.pi / 2),
+            axis_angle=y_angle,
         )
 
 

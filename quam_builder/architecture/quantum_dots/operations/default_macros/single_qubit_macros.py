@@ -41,6 +41,7 @@ __all__ = [
     "YNeg90Macro",
     "Z180Macro",
     "Z90Macro",
+    "ZNeg90Macro",
     "IdentityMacro",
 ]
 
@@ -56,10 +57,35 @@ class Initialize1QMacro(InitializeStateMacro, QubitMacro):
     point_name: str = VoltagePointName.INITIALIZE.value
 
 
-class Measure1QMacro(MeasureStateMacro, QubitMacro):
-    """Move qubit to the `measure` voltage point."""
+class Measure1QMacro(QubitMacro):
+    """PSB measure macro for a single qubit.
 
-    point_name: str = VoltagePointName.MEASURE.value
+    Navigates from the qubit to its preferred readout quantum dot,
+    finds the corresponding QuantumDotPair, and delegates to the
+    pair's measure macro which performs the full PSB readout chain.
+    """
+
+    def apply(self, **kwargs):
+        """Perform PSB readout via the qubit's preferred readout dot pair.
+
+        Returns:
+            QUA boolean expression from the PSB state discrimination.
+        """
+        qubit = self.qubit
+        preferred_dot_id = getattr(qubit, "preferred_readout_quantum_dot", None)
+        if preferred_dot_id is None:
+            raise ValueError(f"Qubit '{qubit.id}' has no preferred_readout_quantum_dot set.")
+
+        own_dot = qubit.quantum_dot
+        machine = qubit.machine
+        pair_name = machine.find_quantum_dot_pair(own_dot.id, preferred_dot_id)
+        if pair_name is None:
+            raise ValueError(
+                f"No QuantumDotPair found for dots '{own_dot.id}' and " f"'{preferred_dot_id}'."
+            )
+
+        qd_pair = machine.quantum_dot_pairs[pair_name]
+        return qd_pair.call_macro(VoltagePointName.MEASURE.value, **kwargs)
 
 
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
@@ -178,6 +204,12 @@ class XYDriveMacro(QubitMacro):
         **kwargs,
     ):
         """Play a phase-rotated XY drive pulse with angle-based scaling."""
+        # Accept 'duration' as alias so callers can write qubit.x180(duration=t)
+        if pulse_duration is None:
+            pulse_duration = kwargs.pop("duration", None)
+        else:
+            kwargs.pop("duration", None)
+
         target_angle = self.default_angle if angle is None else float(angle)
         if math.isclose(target_angle, 0.0):
             return None
@@ -347,6 +379,13 @@ class Z90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi / 2)
 
 
+class ZNeg90Macro(_FixedAxisAngleMacro):
+    """Apply virtual -90-degree Z rotation via canonical `z` macro."""
+
+    axis_macro_name: str = SingleQubitMacroName.Z.value
+    default_angle: float = float(-np.pi / 2)
+
+
 class IdentityMacro(QubitMacro):
     """Identity operation implemented as wait."""
 
@@ -389,6 +428,7 @@ SINGLE_QUBIT_MACROS = {
     Y_NEG_90_ALIAS: YNeg90Macro,
     SingleQubitMacroName.Z_180.value: Z180Macro,
     SingleQubitMacroName.Z_90.value: Z90Macro,
+    SingleQubitMacroName.Z_NEG_90.value: ZNeg90Macro,
     SingleQubitMacroName.IDENTITY.value: IdentityMacro,
 }
 # Default single-qubit macro factories for ``LDQubit`` components.

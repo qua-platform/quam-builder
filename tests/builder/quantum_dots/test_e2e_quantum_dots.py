@@ -329,6 +329,100 @@ class TestQuantumDotsLargeSystem:
         assert len(machine.quantum_dot_pairs) == 7
 
 
+class TestLfFemSingleDriveWorkflow:
+    """E2E tests for LF-FEM-only systems using use_mw_fem=False.
+
+    When no MW-FEM is present and use_mw_fem=False is specified, the wirer
+    allocates single LF-FEM outputs for drive lines.  quam-builder should
+    create XYDriveSingle (not XYDriveMW) for these.
+    """
+
+    @pytest.fixture
+    def instruments(self):
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[3, 5])
+        return instruments
+
+    def _run_lf_only_two_stage(self, instruments, temp_dir):
+        """Two-stage build with LF-FEM only and use_mw_fem=False."""
+        sensor_dots = [1, 2]
+        quantum_dots = [1, 2, 3, 4]
+        dot_pairs = [(1, 2), (3, 4)]
+        qubit_pair_sensor_map = {"q1_q2": ["sensor_1"], "q3_q4": ["sensor_2"]}
+
+        # Stage 1
+        conn_s1 = Connectivity()
+        conn_s1.add_sensor_dots(
+            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+        )
+        conn_s1.add_quantum_dots(quantum_dots=quantum_dots, add_drive_lines=False)
+        conn_s1.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
+        allocate_wiring(conn_s1, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(conn_s1, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        machine = build_base_quam(
+            machine, calibration_db_path=temp_dir, connect_qdac=False, save=False
+        )
+
+        # Stage 2 with LF-FEM-only instruments and use_mw_fem=False
+        instruments_s2 = Instruments()
+        instruments_s2.add_lf_fem(controller=1, slots=[3, 5])
+
+        conn_s2 = Connectivity()
+        conn_s2.add_sensor_dots(
+            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+        )
+        conn_s2.add_quantum_dots(
+            quantum_dots=quantum_dots,
+            add_drive_lines=True,
+            use_mw_fem=False,
+            shared_drive_line=True,
+        )
+        conn_s2.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
+        allocate_wiring(conn_s2, instruments_s2)
+
+        machine = build_quam_wiring(conn_s2, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        machine = build_loss_divincenzo_quam(
+            machine,
+            qubit_pair_sensor_map=qubit_pair_sensor_map,
+            implicit_mapping=True,
+            save=False,
+        )
+        return machine
+
+    def test_lf_fem_drives_are_xy_drive_single(self, instruments, temp_dir):
+        """With use_mw_fem=False, all XY drives should be XYDriveSingle."""
+        from quam_builder.architecture.quantum_dots.components.xy_drive import (
+            XYDriveSingle,
+        )
+
+        machine = self._run_lf_only_two_stage(instruments, temp_dir)
+
+        assert len(machine.qubits) == 4
+        for qubit_id, qubit in machine.qubits.items():
+            assert (
+                getattr(qubit, "xy", None) is not None
+            ), f"Qubit {qubit_id} should have an XY drive"
+            assert isinstance(qubit.xy, XYDriveSingle), (
+                f"Qubit {qubit_id} XY drive should be XYDriveSingle, "
+                f"got {type(qubit.xy).__name__}"
+            )
+
+    def test_lf_fem_drive_port_refs_are_analog(self, instruments, temp_dir):
+        """XY drive port references should point at analog_outputs, not mw_outputs."""
+        machine = self._run_lf_only_two_stage(instruments, temp_dir)
+
+        for qubit_id in machine.qubits:
+            wiring_xy = machine.wiring["qubits"][qubit_id].get("xy", {})
+            raw_ref = wiring_xy.get_raw_value("opx_output")
+            ref = str(raw_ref)
+            assert "analog_outputs" in ref, (
+                f"Qubit {qubit_id} drive wiring should reference analog_outputs, " f"got: {ref}"
+            )
+            assert "mw_outputs" not in ref
+
+
 class TestTwoStageWiringIntegration:
     """E2E tests verifying the four wiring behaviours added to the two-stage pipeline."""
 

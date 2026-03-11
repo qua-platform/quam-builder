@@ -31,6 +31,7 @@ __all__ = [
     "y_neg90",
     "z180",
     "z90",
+    "z_neg90",
     "I",
     "cnot",
     "cz",
@@ -115,6 +116,11 @@ def z180(component: Qubit, **kwargs):
 @operations_registry.register_operation
 def z90(component: Qubit, **kwargs):
     """Dispatch to component.macros['z90']."""
+
+
+@operations_registry.register_operation
+def z_neg90(component: Qubit, **kwargs):
+    """Dispatch to component.macros['z_neg90']."""
 
 
 @operations_registry.register_operation

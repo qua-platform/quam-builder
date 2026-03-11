@@ -87,6 +87,25 @@ class QuantumDot(VoltageMacroMixin):
             return
         raise ValueError("External offset source not connected")
 
+    def __matmul__(self, other: "QuantumDot") -> "QuantumDotPair":
+        """Return the QuantumDotPair for ``self @ other``.
+
+        Looks up the pair by dot IDs on the machine. Raises ``ValueError``
+        if the two dots are not registered as a pair.
+        """
+        from .quantum_dot_pair import QuantumDotPair
+
+        if not isinstance(other, QuantumDot):
+            return NotImplemented
+
+        machine = self.machine
+        pair_name = machine.find_quantum_dot_pair(self.id, other.id)
+        if pair_name is None:
+            raise ValueError(
+                f"No QuantumDotPair registered for dots " f"'{self.id}' and '{other.id}'."
+            )
+        return machine.quantum_dot_pairs[pair_name]
+
     def play(
         self,
         pulse_name: str,
