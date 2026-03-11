@@ -116,6 +116,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         # Register qubits and qubit pairs
         self._register_qubits()
         self._register_qubit_pairs()
+        self._wire_sensor_dots_to_pairs()
+        self._set_preferred_readout_quantum_dots()
 
         # Type cast: machine is guaranteed to be LossDiVincenzoQuam at this point
         return cast(LossDiVincenzoQuam, self.machine)
@@ -320,3 +322,29 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             except Exception as e:
                 logger.error(f"Failed to register qubit pair {pair_id}: {e}")
                 continue
+
+    def _wire_sensor_dots_to_pairs(self):
+        """Populate quantum_dot_pair.sensor_dots from qubit_pair_sensor_map."""
+        for pair_id, sensor_names in self.qubit_pair_sensor_map.items():
+            qp = self.machine.qubit_pairs.get(pair_id)
+            if qp is None:
+                continue
+            qdp = qp.quantum_dot_pair
+            for sname in sensor_names:
+                for sid in self.machine.sensor_dots:
+                    if sid == sname or sid.endswith(f"_{sname.split('_')[-1]}"):
+                        ref = f"#/sensor_dots/{sid}"
+                        if ref not in qdp.sensor_dots:
+                            qdp.sensor_dots.append(ref)
+
+    def _set_preferred_readout_quantum_dots(self):
+        """Set preferred_readout_quantum_dot using cross-pair topology.
+
+        For each qubit pair (control, target), the readout dot for the
+        control qubit is the target's quantum dot and vice-versa.
+        """
+        for qp in self.machine.qubit_pairs.values():
+            qc = qp.qubit_control
+            qt = qp.qubit_target
+            qc.preferred_readout_quantum_dot = qt.quantum_dot.id
+            qt.preferred_readout_quantum_dot = qc.quantum_dot.id

@@ -32,6 +32,7 @@ from quam_builder.builder.qop_connectivity.channel_ports import (
 DEFAULT_GATE_SET_ID = "main_qpu"
 DEFAULT_STICKY_DURATION = 16
 DEFAULT_INTERMEDIATE_FREQUENCY = 500e6
+DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY = 0
 DEFAULT_READOUT_LENGTH = 200
 DEFAULT_READOUT_AMPLITUDE = 0.01
 
@@ -186,7 +187,7 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
     return resonator_cls(
         id=f"readout_resonator_{sensor_number}",
         frequency_bare=0,
-        intermediate_frequency=DEFAULT_INTERMEDIATE_FREQUENCY,
+        intermediate_frequency=DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY,
         operations={
             "readout": pulses.SquareReadoutPulse(
                 length=DEFAULT_READOUT_LENGTH, id="readout", amplitude=DEFAULT_READOUT_AMPLITUDE
@@ -194,7 +195,6 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
         },
         opx_output=f"{wiring_path}/opx_output",
         opx_input=f"{wiring_path}/opx_input",
-        sticky=_make_sticky_channel(),
     )
 
 
