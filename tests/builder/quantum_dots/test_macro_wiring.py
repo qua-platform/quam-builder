@@ -24,7 +24,7 @@ def _plunger_ports(qubit_id: str) -> dict:
 
 
 def _mw_drive_ports(qubit_id: str) -> dict:
-    return {"opx_output": f"#/wiring/qubits/{qubit_id}/xy/opx_output"}
+    return {"opx_output": f"#/ports/mw_outputs/con1/1/{qubit_id[-1]}"}
 
 
 def _barrier_ports(pair_id: str) -> dict:

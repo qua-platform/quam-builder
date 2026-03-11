@@ -18,6 +18,9 @@ from quam_builder.architecture.superconducting.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
 )
+from quam_builder.architecture.quantum_dots.components.xy_drive import (
+    XYDriveSingle,
+)
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
@@ -354,6 +357,13 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                     xy = XYDriveMW(
                         id=f"{qubit_name}_xy",
                         opx_output=f"{wiring_path}/opx_output",
+                    )
+                elif xy_type == "Single":
+                    xy = XYDriveSingle(
+                        id=f"{qubit_name}_xy",
+                        RF_frequency=int(DEFAULT_INTERMEDIATE_FREQUENCY),
+                        opx_output=f"{wiring_path}/opx_output",
+                        add_default_pulses=False,
                     )
 
             self.machine.register_qubit(
