@@ -1,15 +1,16 @@
-from typing import Union, Dict, TYPE_CHECKING, Type, ClassVar
+# Quantum component inheritance depth is framework-driven for QuAM dataclasses.
+# pylint: disable=too-many-ancestors
+
+from typing import Union, TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
-from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
 from quam_builder.architecture.quantum_dots.components import VoltageGate
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
-from quam_builder.architecture.quantum_dots.operations import TWO_QUBIT_MACROS
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 if TYPE_CHECKING:
@@ -42,8 +43,6 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
     qubit_target: LDQubit
 
     quantum_dot_pair: QuantumDotPair = None
-
-    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = TWO_QUBIT_MACROS
 
     def __post_init__(self):
         super().__post_init__()

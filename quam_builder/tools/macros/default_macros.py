@@ -10,7 +10,7 @@ from quam.core.macro.quam_macro import QuamMacro
 __all__ = [
     "AlignMacro",
     "WaitMacro",
-    "DEFAULT_MACROS",
+    "UTILITY_MACRO_FACTORIES",
 ]
 
 
@@ -64,7 +64,7 @@ class WaitMacro(QuamMacro):
         return self.duration * 1e-9
 
 
-DEFAULT_MACROS = {
+UTILITY_MACRO_FACTORIES = {
     "align": AlignMacro,
     "wait": WaitMacro,
 }
