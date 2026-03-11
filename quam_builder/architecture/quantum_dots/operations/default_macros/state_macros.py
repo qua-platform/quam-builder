@@ -14,6 +14,7 @@ __all__ = [
     "MeasureStateMacro",
     "EmptyStateMacro",
     "SensorDotMeasureMacro",
+    "MeasurePSBPairMacro",
     "QPUInitializeMacro",
     "QPUMeasureMacro",
     "QPUEmptyMacro",
@@ -143,18 +144,79 @@ class EmptyStateMacro(QuamMacro):
 
 @quam_dataclass
 class SensorDotMeasureMacro(QuamMacro):
-    """Dispatch measure to the SensorDot readout resonator.
+    """PSB readout via the SensorDot readout resonator with state assignment.
 
-    This macro calls ``owner.readout_resonator.measure()`` so that
-    sensor-dot measurement is accessible through the macro catalog
-    (``sensor_dot.macros["measure"].apply()``) rather than the legacy
-    ``sensor_dot.measure()`` direct method.
+    When called with a ``quantum_dot_pair_id``, applies the stored
+    projector and threshold for that pair to perform state discrimination,
+    returning a QUA boolean suitable for ``Cast.to_int()``.
+
+    Without a pair ID, falls back to a raw resonator measurement.
     """
 
-    def apply(self, *args, **kwargs):
-        """Dispatch measure to the attached readout resonator."""
+    pulse_name: str = "readout"
+
+    def apply(self, *args, quantum_dot_pair_id: Optional[str] = None, **kwargs):
+        """Measure the readout resonator and optionally perform state assignment.
+
+        Args:
+            quantum_dot_pair_id: If provided, apply the projector and threshold
+                stored on this sensor dot for the given pair, returning a QUA
+                boolean (projected_value > threshold).
+            *args, **kwargs: Forwarded to ``readout_resonator.measure()`` when
+                no pair ID is given.
+
+        Returns:
+            QUA boolean expression when ``quantum_dot_pair_id`` is set,
+            otherwise ``None`` (raw measurement stored in qua_vars).
+        """
+        from qm.qua import declare, fixed, assign
+
         owner = _owner_component(self)
-        owner.readout_resonator.measure(*args, **kwargs)
+
+        if quantum_dot_pair_id is None:
+            owner.readout_resonator.measure(*args, **kwargs)
+            return None
+
+        I = declare(fixed)
+        Q = declare(fixed)
+        owner.readout_resonator.measure(self.pulse_name, qua_vars=(I, Q))
+
+        threshold, projector = owner._readout_params(quantum_dot_pair_id)
+        wI = projector.get("wI", 1.0)
+        wQ = projector.get("wQ", 0.0)
+        offset = projector.get("offset", 0.0)
+
+        x = declare(fixed)
+        assign(x, I * wI + Q * wQ + offset)
+        return x > threshold
+
+
+@quam_dataclass
+class MeasurePSBPairMacro(QuamMacro):
+    """PSB measure macro for QuantumDotPair.
+
+    Steps to the measure voltage point, then dispatches readout to the
+    first coupled sensor dot with the pair ID for threshold lookup.
+    Returns a QUA boolean for state discrimination.
+    """
+
+    point_name: str = VoltagePointName.MEASURE.value
+    hold_duration: int | None = None
+    updates_voltage_tracking: ClassVar[bool] = True
+
+    def apply(self, hold_duration: int | None = None, **kwargs):
+        """Step to measure point, then perform PSB readout via sensor dot."""
+        owner = _owner_component(self)
+        hold = self.hold_duration if hold_duration is None else hold_duration
+        owner.step_to_point(self.point_name, duration=hold)
+
+        if not owner.sensor_dots:
+            raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
+        sensor_dot = owner.sensor_dots[0]
+        return sensor_dot.call_macro(
+            VoltagePointName.MEASURE.value,
+            quantum_dot_pair_id=owner.id,
+        )
 
 
 def _iter_qpu_targets(machine: Any):

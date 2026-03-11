@@ -153,7 +153,7 @@ def build_loss_divincenzo_quam(
         xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
                         Format: {
                             "q1": {
-                                "type": "IQ" or "MW",
+                                "type": "IQ" | "MW" | "Single",
                                 "wiring_path": "#/wiring/qubits/q1/xy",
                                 "intermediate_frequency": 500e6  # optional
                             },
@@ -185,7 +185,7 @@ def build_loss_divincenzo_quam(
         >>> # Load Stage 1 result from file (may not have wiring)
         >>> xy_wiring = {
         ...     "q1": {"type": "IQ", "wiring_path": "#/wiring/qubits/q1/xy"},
-        ...     "q2": {"type": "MW", "wiring_path": "#/wiring/qubits/q2/xy"},
+        ...     "q2": {"type": "Single", "wiring_path": "#/wiring/qubits/q2/xy"},
         ... }
         >>> ld_machine = build_loss_divincenzo_quam(
         ...     "path/to/base_quam_state",

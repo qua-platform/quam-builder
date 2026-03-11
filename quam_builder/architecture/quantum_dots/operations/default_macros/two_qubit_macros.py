@@ -13,6 +13,7 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     EmptyStateMacro,
     InitializeStateMacro,
     MeasureStateMacro,
+    _owner_component,
 )
 
 __all__ = [
@@ -33,10 +34,21 @@ class Initialize2QMacro(InitializeStateMacro, QubitPairMacro):
     point_name: str = VoltagePointName.INITIALIZE.value
 
 
-class Measure2QMacro(MeasureStateMacro, QubitPairMacro):
-    """Move qubit pair to the `measure` voltage point."""
+class Measure2QMacro(QubitPairMacro):
+    """PSB measure macro for LDQubitPair.
 
-    point_name: str = VoltagePointName.MEASURE.value
+    Delegates to the underlying QuantumDotPair's measure macro,
+    which performs the full PSB readout chain (voltage step -> sensor
+    dot readout -> threshold -> QUA boolean).
+    """
+
+    def apply(self, **kwargs):
+        """Delegate measurement to the underlying quantum_dot_pair."""
+        owner = _owner_component(self)
+        qd_pair = getattr(owner, "quantum_dot_pair", None)
+        if qd_pair is None:
+            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout.")
+        return qd_pair.call_macro(VoltagePointName.MEASURE.value, **kwargs)
 
 
 class Empty2QMacro(EmptyStateMacro, QubitPairMacro):

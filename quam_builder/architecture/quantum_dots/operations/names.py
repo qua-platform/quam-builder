@@ -46,6 +46,7 @@ class SingleQubitMacroName(StrEnum):
 
     Z_180 = "z180"
     Z_90 = "z90"
+    Z_NEG_90 = "z_neg90"
 
     IDENTITY = "I"
 
@@ -98,6 +99,7 @@ SINGLE_QUBIT_MACRO_NAMES = (
     Y_NEG_90_ALIAS,
     SingleQubitMacroName.Z_180.value,
     SingleQubitMacroName.Z_90.value,
+    SingleQubitMacroName.Z_NEG_90.value,
     SingleQubitMacroName.IDENTITY.value,
 )
 # Supported single-qubit macro names for default LD qubits.
