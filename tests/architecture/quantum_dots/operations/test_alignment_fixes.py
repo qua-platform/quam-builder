@@ -40,7 +40,9 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
 from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_macros import (
     Measure2QMacro,
 )
-from quam_builder.builder.quantum_dots.pulses import add_default_ldv_qubit_pulses
+from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
+    _make_xy_pulse_factories,
+)
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 
@@ -62,11 +64,10 @@ class TestSingleChannelPulses:
             id="test_xy",
             opx_output=LFFEMAnalogOutputPort("con1", 3, port_id=1),
             RF_frequency=100_000_000,
-            add_default_pulses=False,
         )
-        qubit = MagicMock(spec=LDQubit)
-        qubit.xy = xy
-        add_default_ldv_qubit_pulses(qubit)
+        default_pulses = _make_xy_pulse_factories(xy)
+        for name, pulse in default_pulses.items():
+            xy.operations[name] = pulse
 
         for name in ("x180", "x90", "-x90", "y180", "y90", "-y90"):
             pulse = xy.operations[name]
@@ -78,10 +79,9 @@ class TestSingleChannelPulses:
         """IQ channels should still get axis_angle values."""
         xy = MagicMock(spec=XYDriveIQ)
         xy.operations = {}
-        # XYDriveIQ is not a SingleChannel
-        qubit = MagicMock(spec=LDQubit)
-        qubit.xy = xy
-        add_default_ldv_qubit_pulses(qubit)
+        default_pulses = _make_xy_pulse_factories(xy)
+        for name, pulse in default_pulses.items():
+            xy.operations[name] = pulse
 
         x_pulse = xy.operations["x180"]
         assert x_pulse.axis_angle == 0.0

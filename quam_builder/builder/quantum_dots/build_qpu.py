@@ -363,7 +363,6 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                         id=f"{qubit_name}_xy",
                         RF_frequency=int(DEFAULT_INTERMEDIATE_FREQUENCY),
                         opx_output=f"{wiring_path}/opx_output",
-                        add_default_pulses=False,
                     )
 
             self.machine.register_qubit(
