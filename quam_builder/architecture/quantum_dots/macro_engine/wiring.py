@@ -1,9 +1,10 @@
-"""Macro wiring and user override utilities for quantum-dot machines.
+"""Macro and pulse wiring with user override utilities for quantum-dot machines.
 
 This module is the runtime entry point for:
 1. Materializing component defaults from the component-type registry.
 2. Applying user overrides from a TOML profile and/or Python mapping.
 3. Supporting partial overrides while retaining all untouched defaults.
+4. Wiring default pulses onto qubit XY drives and sensor dot resonators.
 """
 
 from __future__ import annotations
@@ -21,6 +22,11 @@ from quam_builder.architecture.quantum_dots.operations.macro_registry import (
 )
 from quam_builder.architecture.quantum_dots.operations.component_macro_catalog import (
     register_default_component_macro_factories,
+)
+from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
+    register_default_component_pulse_factories,
+    _make_xy_pulse_factories,
+    _make_readout_pulse,
 )
 
 __all__ = [
@@ -203,6 +209,171 @@ def _apply_macros_to_component(
         _set_component_macro(component, macro_name, macro)
 
 
+def _ensure_default_pulses(machine: Any) -> None:
+    """Materialize default pulses onto qubit XY drives and sensor dot resonators.
+
+    Called automatically at the end of :func:`wire_machine_macros`, after macro
+    wiring is complete.  Pulse wiring is additive: only pulse names not already
+    present in a channel's ``operations`` dict are added.  User-supplied or
+    override-supplied pulses always take precedence.
+
+    Qubit XY drives:
+        For each qubit in ``machine.qubits`` that has an ``xy`` drive with an
+        ``operations`` dict, adds six standard ``GaussianPulse`` rotations
+        (``x180``, ``x90``, ``y180``, ``y90``, ``-x90``, ``-y90``).  The pulse
+        parameters are drive-type aware: IQ/MW channels get ``axis_angle`` for
+        hardware mixing; ``SingleChannel`` uses ``axis_angle=None``.
+
+    Sensor dot readout resonators:
+        For each sensor dot in ``machine.sensor_dots`` that has a
+        ``readout_resonator`` with an ``operations`` dict, adds a default
+        ``SquareReadoutPulse`` named ``"readout"``.
+
+    Args:
+        machine: Target machine object with ``qubits`` and/or ``sensor_dots``
+            collections.
+    """
+    register_default_component_pulse_factories()
+
+    qubits = getattr(machine, "qubits", None)
+    if isinstance(qubits, Mapping):
+        for qubit in qubits.values():
+            xy = getattr(qubit, "xy", None)
+            if xy is None:
+                continue
+            operations = getattr(xy, "operations", None)
+            if operations is None:
+                continue
+            default_pulses = _make_xy_pulse_factories(xy)
+            for pulse_name, pulse in default_pulses.items():
+                if pulse_name not in operations:
+                    operations[pulse_name] = pulse
+
+    sensor_dots = getattr(machine, "sensor_dots", None)
+    if isinstance(sensor_dots, Mapping):
+        for sensor_dot in sensor_dots.values():
+            resonator = getattr(sensor_dot, "readout_resonator", None)
+            if resonator is None:
+                continue
+            operations = getattr(resonator, "operations", None)
+            if operations is None:
+                continue
+            if "readout" not in operations:
+                operations["readout"] = _make_readout_pulse()
+
+
+def _apply_pulse_overrides(
+    machine: Any,
+    merged_overrides: Mapping[str, Any],
+) -> None:
+    """Apply pulse overrides from a TOML profile or runtime mapping.
+
+    Called automatically at the end of :func:`wire_machine_macros`, after
+    ``_ensure_default_pulses`` has materialized defaults.
+
+    Override schema (inside both ``component_types`` and ``instances`` scopes)::
+
+        [component_types.LDQubit.pulses]
+        x180 = {type = "GaussianPulse", length = 500, amplitude = 0.3, sigma = 83}
+
+        [instances."qubits.q1".pulses]
+        x180 = {type = "GaussianPulse", length = 800, amplitude = 0.15, sigma = 133}
+
+    Supported pulse types: ``GaussianPulse``, ``SquarePulse``,
+    ``SquareReadoutPulse``, ``DragPulse`` (if available in the quam version).
+
+    To remove a pulse, set ``enabled = false``::
+
+        [instances."qubits.q1".pulses]
+        "-y90" = {enabled = false}
+
+    Precedence (last wins):
+        1. Default pulses from ``_ensure_default_pulses``
+        2. Type-level overrides (``component_types.<TypeName>.pulses``)
+        3. Instance-level overrides (``instances.<path>.pulses``)
+
+    Args:
+        machine: Target machine whose component pulses should be overridden.
+        merged_overrides: Combined TOML profile + runtime override mapping,
+            as produced by ``_deep_merge(profile_data, macro_overrides)``.
+    """
+    from quam.components import pulses as quam_pulses
+
+    _PULSE_TYPE_MAP = {
+        "GaussianPulse": quam_pulses.GaussianPulse,
+        "SquarePulse": quam_pulses.SquarePulse,
+        "SquareReadoutPulse": quam_pulses.SquareReadoutPulse,
+    }
+    if hasattr(quam_pulses, "DragPulse"):
+        _PULSE_TYPE_MAP["DragPulse"] = quam_pulses.DragPulse
+
+    def _apply_pulse_config_to_operations(operations: dict, pulses_config: Mapping, context: str):
+        for pulse_name, entry in pulses_config.items():
+            if not isinstance(entry, Mapping):
+                continue
+            enabled = entry.get("enabled", True)
+            if not enabled:
+                operations.pop(pulse_name, None)
+                continue
+            pulse_type_name = entry.get("type")
+            if pulse_type_name is None:
+                continue
+            pulse_cls = _PULSE_TYPE_MAP.get(pulse_type_name)
+            if pulse_cls is None:
+                raise ValueError(
+                    f"[{context}] Unknown pulse type '{pulse_type_name}'. "
+                    f"Known types: {sorted(_PULSE_TYPE_MAP)}"
+                )
+            params = {k: v for k, v in entry.items() if k not in ("type", "enabled")}
+            operations[pulse_name] = pulse_cls(**params)
+
+    def _get_pulse_target_operations(component: Any) -> dict | None:
+        """Find operations dict on a component's drive or resonator."""
+        xy = getattr(component, "xy", None)
+        if xy is not None:
+            return getattr(xy, "operations", None)
+        rr = getattr(component, "readout_resonator", None)
+        if rr is not None:
+            return getattr(rr, "operations", None)
+        return getattr(component, "operations", None)
+
+    components_by_path = dict(_iter_macro_components(machine))
+
+    type_overrides = merged_overrides.get("component_types", {})
+    if isinstance(type_overrides, Mapping):
+        for _, component in components_by_path.items():
+            for type_key in (
+                type(component).__name__,
+                f"{type(component).__module__}.{type(component).__qualname__}",
+            ):
+                type_config = type_overrides.get(type_key)
+                if type_config is None:
+                    continue
+                pulses_config = type_config.get("pulses", {})
+                if not isinstance(pulses_config, Mapping) or not pulses_config:
+                    continue
+                operations = _get_pulse_target_operations(component)
+                if operations is not None:
+                    _apply_pulse_config_to_operations(
+                        operations, pulses_config, f"component_types.{type_key}"
+                    )
+
+    instance_overrides = merged_overrides.get("instances", {})
+    if isinstance(instance_overrides, Mapping):
+        for component_path, component_config in instance_overrides.items():
+            if component_path not in components_by_path:
+                continue
+            pulses_config = component_config.get("pulses", {})
+            if not isinstance(pulses_config, Mapping) or not pulses_config:
+                continue
+            component = components_by_path[component_path]
+            operations = _get_pulse_target_operations(component)
+            if operations is not None:
+                _apply_pulse_config_to_operations(
+                    operations, pulses_config, f"instances.{component_path}"
+                )
+
+
 def wire_machine_macros(
     machine: Any,
     *,
@@ -210,12 +381,14 @@ def wire_machine_macros(
     macro_overrides: Mapping[str, Any] | None = None,
     strict: bool = True,
 ) -> None:
-    """Wire defaults and user-configured macro overrides onto machine components.
+    """Wire defaults and user-configured macro/pulse overrides onto machine components.
 
     Override schema (merged in this order: profile first, then runtime overrides):
 
     - component_types.<TypeName>.macros.<macro_name> = {factory, params?, enabled?}
     - instances.<collection.id>.macros.<macro_name> = {factory, params?, enabled?}
+    - component_types.<TypeName>.pulses.<pulse_name> = {type, ...params}
+    - instances.<collection.id>.pulses.<pulse_name> = {type, ...params}
 
     Args:
         machine: Target machine whose components should be wired.
@@ -279,3 +452,7 @@ def wire_machine_macros(
                 strict=strict,
                 context=f"instances.{component_path}",
             )
+
+    # Wire default pulses and apply pulse overrides.
+    _ensure_default_pulses(machine)
+    _apply_pulse_overrides(machine, merged_overrides)

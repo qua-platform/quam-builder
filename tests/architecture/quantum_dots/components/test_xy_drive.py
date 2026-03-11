@@ -34,24 +34,14 @@ class TestXYDriveSingleCreation:
         assert drive.RF_frequency == int(100e6)
         assert drive.intermediate_frequency == int(100e6)
 
-    def test_default_pulses_added(self):
+    def test_no_default_pulses_on_creation(self):
+        """XYDriveSingle no longer adds default pulses in __post_init__."""
         drive = XYDriveSingle(
             id="xy_single",
             RF_frequency=int(100e6),
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
-            add_default_pulses=True,
         )
-        assert "gaussian" in drive.operations
-        assert "pi" in drive.operations
-        assert "pi_half" in drive.operations
-
-    def test_no_default_pulses(self):
-        drive = XYDriveSingle(
-            id="xy_single",
-            RF_frequency=int(100e6),
-            opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
-            add_default_pulses=False,
-        )
+        # No pulses added at construction time — they come from wire_machine_macros
         assert "gaussian" not in drive.operations
         assert "pi" not in drive.operations
 
@@ -60,7 +50,6 @@ class TestXYDriveSingleCreation:
             id="xy_single",
             RF_frequency=int(100e6),
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
-            add_default_pulses=False,
         )
         drive.add_pulse("rabi", pulses.GaussianPulse(length=100, amplitude=0.2, sigma=20))
         assert "rabi" in drive.operations
@@ -68,12 +57,13 @@ class TestXYDriveSingleCreation:
 
 
 class TestXYDriveSingleInQUA:
-    def test_play_default_pulse_compiles(self):
+    def test_play_pulse_compiles(self):
         drive = XYDriveSingle(
             id="xy_single",
             RF_frequency=int(100e6),
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
         )
+        drive.operations["gaussian"] = pulses.GaussianPulse(length=100, amplitude=0.2, sigma=40)
         with qua.program() as prog:
             drive.play("gaussian")
         assert prog is not None
@@ -84,6 +74,7 @@ class TestXYDriveSingleInQUA:
             RF_frequency=int(100e6),
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
         )
+        drive.operations["pi"] = pulses.SquarePulse(length=104, amplitude=0.2)
         with qua.program() as prog:
             drive.play("pi", amplitude_scale=0.5)
         assert prog is not None
@@ -94,6 +85,7 @@ class TestXYDriveSingleInQUA:
             RF_frequency=int(100e6),
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
         )
+        drive.operations["gaussian"] = pulses.GaussianPulse(length=100, amplitude=0.2, sigma=40)
         with qua.program() as prog:
             t = qua.declare(int)
             qua.assign(t, 100)
