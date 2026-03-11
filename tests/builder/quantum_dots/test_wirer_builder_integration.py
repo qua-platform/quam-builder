@@ -116,14 +116,12 @@ class TestWirerBuilderIntegration:
         assert "qubits" in machine.wiring
         assert "qubit_pairs" in machine.wiring
 
-        # Build QuAM
-        machine_loaded = BaseQuamQD.load(temp_dir)
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        # Build QuAM without save/load round-trip
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
         # Verify QPU elements were created
-        assert len(machine_loaded.sensor_dots) > 0
-        assert len(machine_loaded.quantum_dots) > 0
-        assert len(machine_loaded.quantum_dots) > 0
+        assert len(machine.sensor_dots) > 0
+        assert len(machine.quantum_dots) > 0
 
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
@@ -309,15 +307,13 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        # Build QuAM
-        machine_loaded = BaseQuamQD.load(temp_dir)
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        # Build QuAM without save/load round-trip
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
         # Verify correct number of elements
-        assert len(machine_loaded.quantum_dots) == 4
-        assert len(machine_loaded.quantum_dots) == 4
-        assert len(machine_loaded.quantum_dot_pairs) == 3
-        assert len(machine_loaded.sensor_dots) == 2
+        assert len(machine.quantum_dots) == 4
+        assert len(machine.quantum_dot_pairs) == 3
+        assert len(machine.sensor_dots) == 2
 
     def test_virtual_gate_set_creation(self, instruments, temp_dir):
         """Test that virtual gate set is correctly created."""
@@ -338,15 +334,14 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
         # Verify virtual gate set was created
-        assert len(machine_loaded.virtual_gate_sets) > 0
-        assert "main_qpu" in machine_loaded.virtual_gate_sets
+        assert len(machine.virtual_gate_sets) > 0
+        assert "main_qpu" in machine.virtual_gate_sets
 
         # Verify virtual gate set has correct channels
-        vgs = machine_loaded.virtual_gate_sets["main_qpu"]
+        vgs = machine.virtual_gate_sets["main_qpu"]
         assert len(vgs.channels) >= 3  # At least 3 plunger gates
 
     def test_qubit_registration_with_xy_drives(self, instruments, temp_dir):
@@ -370,15 +365,12 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
         # build_quam does both Stage 1 and Stage 2, creating qubits with XY drives
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
         # Verify qubits (Stage 2) have XY drives
-        # Note: qubits are in machine_loaded.qubits, not quantum_dots
-        assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
-        for qubit_name, qubit in machine_loaded.qubits.items():
-            # Check if qubit has an xy attribute
+        assert hasattr(machine, "qubits"), "Machine should have qubits after build_quam"
+        for qubit_name, qubit in machine.qubits.items():
             assert hasattr(qubit, "xy"), f"Qubit {qubit_name} should have xy attribute"
 
     def test_sensor_dots_with_resonators(self, instruments, temp_dir):
@@ -429,15 +421,13 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
         # build_quam does both Stage 1 and Stage 2, creating qubits with XY drives
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
-        # Verify qubits (Stage 2) have pulses (if they have XY)
-        assert hasattr(machine_loaded, "qubits"), "Machine should have qubits after build_quam"
-        for qubit_name, qubit in machine_loaded.qubits.items():
+        # Verify qubits (Stage 2) have pulses (if they have xy channels)
+        assert hasattr(machine, "qubits"), "Machine should have qubits after build_quam"
+        for qubit_name, qubit in machine.qubits.items():
             if hasattr(qubit, "xy") and qubit.xy is not None:
-                # Should have XY operations
                 assert len(qubit.xy.operations) > 0
 
     def test_network_configuration_is_set(self, instruments, temp_dir):
@@ -492,13 +482,12 @@ class TestWirerBuilderIntegration:
             path=temp_dir,
         )
 
-        machine_loaded = BaseQuamQD.load(temp_dir)
-        build_quam(machine_loaded, calibration_db_path=temp_dir)
+        build_quam(machine, calibration_db_path=temp_dir, save=False)
 
         # Verify elements are populated
-        assert len(machine_loaded.sensor_dots) > 0
-        assert len(machine_loaded.quantum_dots) > 0
-        assert len(machine_loaded.quantum_dot_pairs) > 0
+        assert len(machine.sensor_dots) > 0
+        assert len(machine.quantum_dots) > 0
+        assert len(machine.quantum_dot_pairs) > 0
 
 
 class TestWirerOnly:

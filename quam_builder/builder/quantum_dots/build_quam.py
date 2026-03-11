@@ -9,6 +9,9 @@ from wiring specifications. It orchestrates:
 - Default pulse assignment
 """
 
+# Public builder APIs intentionally expose explicit parameter sets.
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+
 from pathlib import Path
 from typing import Optional, Union
 
@@ -22,12 +25,14 @@ from quam_builder.builder.quantum_dots.build_qpu import (
 )
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
+from quam_builder.architecture.quantum_dots.components import QPU
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.pulses import (
     add_default_ldv_qubit_pair_pulses,
     add_default_ldv_qubit_pulses,
     add_default_resonator_pulses,
 )
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 
@@ -36,6 +41,8 @@ def build_base_quam(
     calibration_db_path: Optional[Union[Path, str]] = None,
     qdac_ip: Optional[str] = None,
     connect_qdac: bool = False,
+    macro_profile_path: Optional[Union[Path, str]] = None,
+    macro_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> BaseQuamQD:
     """Build Stage 1: BaseQuamQD with physical quantum dots.
@@ -60,6 +67,8 @@ def build_base_quam(
         qdac_ip: IP address for QDAC connection. If provided with connect_qdac=True,
             connects to QDAC for external voltage control.
         connect_qdac: If True, connects to QDAC using qdac_ip or machine.network['qdac_ip'].
+        macro_profile_path: Optional TOML file with macro override definitions.
+        macro_overrides: Optional runtime override mapping merged on top of profile data.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -84,6 +93,13 @@ def build_base_quam(
 
     # Build Stage 1: Quantum dots only
     _BaseQpuBuilder(machine).build()
+    if getattr(machine, "qpu", None) is None:
+        machine.qpu = QPU()
+    wire_machine_macros(
+        machine,
+        macro_profile_path=macro_profile_path,
+        macro_overrides=macro_overrides,
+    )
 
     # Optional QDAC connection
     if connect_qdac:
@@ -118,6 +134,8 @@ def build_loss_divincenzo_quam(
     xy_drive_wiring: Optional[dict] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
     implicit_mapping: bool = True,
+    macro_profile_path: Optional[Union[Path, str]] = None,
+    macro_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> LossDiVincenzoQuam:
     """Build Stage 2: Convert BaseQuamQD to LossDiVincenzoQuam with qubits.
@@ -149,6 +167,8 @@ def build_loss_divincenzo_quam(
                               Format: {"q1_q2": ["sensor_1", "sensor_2"], ...}
         implicit_mapping: If True, uses q1→virtual_dot_1 mapping. If False,
                          requires explicit mapping configuration.
+        macro_profile_path: Optional TOML file with macro override definitions.
+        macro_overrides: Optional runtime override mapping merged on top of profile data.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -184,9 +204,16 @@ def build_loss_divincenzo_quam(
         implicit_mapping=implicit_mapping,
     )
     machine = builder.build()
+    if getattr(machine, "qpu", None) is None:
+        machine.qpu = QPU()
 
     # Add default pulses
     add_pulses(machine)
+    wire_machine_macros(
+        machine,
+        macro_profile_path=macro_profile_path,
+        macro_overrides=macro_overrides,
+    )
 
     if save:
         machine.save()
@@ -201,6 +228,8 @@ def build_quam(
     qubit_pair_sensor_map: Optional[dict] = None,
     qdac_ip: Optional[str] = None,
     connect_qdac: bool = False,
+    macro_profile_path: Optional[Union[Path, str]] = None,
+    macro_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> LossDiVincenzoQuam:  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Build complete QuAM configuration using two-stage process.
@@ -217,6 +246,8 @@ def build_quam(
         qubit_pair_sensor_map: Sensor mapping for qubit pairs.
         qdac_ip: IP address for QDAC connection.
         connect_qdac: If True, connects to QDAC for external voltage control.
+        macro_profile_path: Optional TOML file with macro override definitions.
+        macro_overrides: Optional runtime override mapping merged on top of profile data.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -245,6 +276,8 @@ def build_quam(
             calibration_db_path=calibration_db_path,
             qdac_ip=qdac_ip,
             connect_qdac=connect_qdac,
+            macro_profile_path=macro_profile_path,
+            macro_overrides=macro_overrides,
             save=False,  # Don't save yet
         )
 
@@ -252,6 +285,8 @@ def build_quam(
     machine = build_loss_divincenzo_quam(
         machine,
         qubit_pair_sensor_map=qubit_pair_sensor_map,
+        macro_profile_path=macro_profile_path,
+        macro_overrides=macro_overrides,
         save=save,
     )
 

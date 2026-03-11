@@ -648,11 +648,11 @@ class BaseQuamQD(QuamRoot):
                 actual_voltages[name] = value
 
         if not default_to_zero:
-            for qubit in self.qubits.keys():
+            for qubit, qubit_obj in self.qubits.items():
                 if qubit in voltages:
                     continue
                 else:
-                    voltages[qubit] = self.qubits[qubit].current_voltage
+                    voltages[qubit] = qubit_obj.current_voltage
 
         new_sequence.step_to_voltages(actual_voltages)
 
@@ -747,7 +747,7 @@ class BaseQuamQD(QuamRoot):
         validate_type: bool = True,
         fix_attrs: bool = True,
     ):
-        """Load machine from file and recreate voltage sequences"""
+        """Load machine, recreate runtime voltage sequences, and wire macros."""
         instance = super().load(
             filepath_or_dict=filepath_or_dict,
             validate_type=validate_type,
@@ -762,5 +762,9 @@ class BaseQuamQD(QuamRoot):
             )
 
         # We can also update the state_tracker here to hold the value held by QuantumDot.current_voltage.
+
+        from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
+        wire_machine_macros(instance)
 
         return instance
