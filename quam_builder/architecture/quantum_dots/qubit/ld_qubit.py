@@ -226,12 +226,8 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
                 f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
             )
 
-    @property
-    def preferred_readout_quantum_dot(self) -> str:
-        return self._preferred_readout_quantum_dot
-
-    @preferred_readout_quantum_dot.setter
-    def preferred_readout_quantum_dot(self, value: str):
-        if value is not None and not isinstance(self.quantum_dot, str):
-            self._validate_readout_quantum_dot(value)
-        self._preferred_readout_quantum_dot = value
+    def __setattr__(self, name, value):
+        if name == "preferred_readout_quantum_dot" and value is not None:
+            if hasattr(self, "quantum_dot") and not isinstance(self.quantum_dot, str):
+                self._validate_readout_quantum_dot(value)
+        super().__setattr__(name, value)
