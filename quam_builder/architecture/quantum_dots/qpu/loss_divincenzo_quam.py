@@ -81,7 +81,6 @@ class LossDiVincenzoQuam(BaseQuamQD):
             validate_type=validate_type,
             fix_attrs=fix_attrs,
         )
-        instance.voltage_sequences = {}
 
         if type(instance) is BaseQuamQD:  # pylint: disable=unidiomatic-typecheck
             instance.__class__ = cls
