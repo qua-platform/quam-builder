@@ -18,6 +18,8 @@ from qm import generate_qua_script
 from qm import Program
 
 from quam_builder.architecture.nv_center import qpu
+from pathlib import Path
+
 
 def serialize_qua_program(prog: Program, qpu: BaseQuamNA, path: str | None = None):
     name="ghz_program"
@@ -32,7 +34,7 @@ def serialize_qua_program(prog: Program, qpu: BaseQuamNA, path: str | None = Non
 def load_atoms():
     # For simplicity, we directly create atoms at the desired positions. 
     # In a real scenario, this would involve loading atoms from a MOT and rearranging them into the initial configuration.
-    atoms = [Atom.create(x=0, y=0), Atom.create(x=1, y=0), Atom.create(x=2, y=0)]
+    atoms = [Atom.create(x=0, y=0), Atom.create(x=1, y=0), Atom.create(x=2, y=0), Atom.create(x=3, y=0)]
     for i, atom in enumerate(atoms):
         atom.enter_region("prepare")
     return atoms
@@ -40,23 +42,29 @@ def load_atoms():
 def init_qpu():
     qpu = BaseQuamNA()
 
-    aod_channel_x = SingleChannel(opx_output=("con1", 1), id="ch1")
-    aod_channel_y = SingleChannel(opx_output=("con1", 2), id="ch2")
+    aod_channel_x = SingleChannel(opx_output=("con1",1, 1), id="ch1") 
+    aod_channel_y = SingleChannel(opx_output=("con1",1, 2), id="ch2")
 
-    SLM_channel = DigitalOutputChannel(opx_output=("con1", 3))
-    hamammatsu_channel = SingleChannel(opx_output=("con1", 4) ,id="ch4")
+    SLM_channel = DigitalOutputChannel(opx_output=("con1",1, 3))
+    hamammatsu_channel = SingleChannel(opx_output=("con1",1, 4) ,id="ch4")
     
-    drive_channel = SingleChannel(opx_output=("con1", 5), id="ch5")
-    readout_channel = SingleChannel(opx_output=("con1", 6), id="ch6")
-    prepare_channel = SingleChannel(opx_output=("con1", 7), id="ch7")
-    entangle_channel = SingleChannel(opx_output=("con1", 8), id="ch8")
+    drive_channel = SingleChannel(opx_output=("con1",1, 5), id="ch5")
+    readout_channel = SingleChannel(opx_output=("con1",1, 6), id="ch6")
+    prepare_channel = SingleChannel(opx_output=("con1",1, 7), id="ch7")
+    entangle_channel = SingleChannel(opx_output=("con1",1, 8), id="ch8")
     
     channels = [aod_channel_x, aod_channel_y, drive_channel, readout_channel, prepare_channel, entangle_channel]
     digital_channels = [SLM_channel, hamammatsu_channel]
+
     # Create the square pulse
     for channel in channels:
         channel.operations["h_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
-        qpu.register_channel(channel)  
+        qpu.register_channel(channel)
+
+    # Create the move pulse
+    for channel in channels:
+        channel.operations["move_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
+        qpu.register_channel(channel)
     
     # -- set QPU default parameters --
     qpu.tweezer_depth = 10
@@ -72,7 +80,7 @@ def init_qpu():
         qpu.register_regions(region)
 
     # -- Driver -- #
-    aod = AOD(id="AOD532", channels=(aod_channel_x, aod_channel_y), frequency_to_move=1)
+    aod = AOD(id="AOD532", channels=(aod_channel_x, aod_channel_y), frequency_to_move=1 , f_min=-70.0 * 1e6, f_max=70.0 * 1e6, max_total_power=1.0)
     slm = SLM(id="SLM532", channel=SLM_channel, frequency_to_move=1)
     for driver in [aod, slm]:
         qpu.register_driver(driver)
@@ -83,7 +91,7 @@ def init_qpu():
 
     return qpu
 
-def ghz_3(qpu):
+def ghz_4(qpu):
 
     # -- Initialize Tweezers --
 
@@ -91,65 +99,125 @@ def ghz_3(qpu):
     static_array = qpu.create_tweezer(
         spots=[(0, i) for i in range(30)],
         id="static_array",
-        drive="SLM532"
+        drive="SLM532",
+        current_powers=[0.5 for _ in range(30)]
     )
 
     # Dynamic tweezers via AOD
     dynamic_tweezer = qpu.create_tweezer(
-        spots=[(0, 0), (1, 0), (2, 0)],
+        spots=[(0, 0), (1, 0), (2, 0), (3, 0)],
         id="dynamic_tweezer",
-        drive="AOD532"
+        drive="AOD532",
+        current_powers=[0.5 for _ in range(4)]
+
     )
 
     drive_region = qpu.get_region("drive")
     entangle_region = qpu.get_region("entangle")
         
-
     # -- Initialize atoms --
-    atoms = load_atoms()
-
+    atoms = load_atoms()  # Should return 4 atoms now
 
     with program() as ghz_program:
         
+        # --- Stage 0: SLM On ---
         slm = qpu.get_driver("SLM532")
-        slm.enable() 
+        slm.on()
+        qpu.align()  # wait for SLM to be ready
 
-        # -- GHZ circuit sequence, macros needs to be implemented --
-        dynamic_tweezer.move(target=qpu.get_region("drive").center)
-        drive_region.global_h() # Should this be registered as a Channel.operations 
-        
-        # Dynamic tweezers via AOD
-        dynamic_tweezer.move(target=qpu.get_region("entangle").center)
-        
-        # CZ(0,1) and CZ(0,2)
-        initial_postion = atoms[0].position
+        # --- Stage 1: Move dynamic tweezers to drive region ---
+        dynamic_tweezer.ramp_on(target_power=1.0, duration=50)  # ramp-on before move
+        dynamic_tweezer.move(target=drive_region.center)
+        qpu.align()
+        dynamic_tweezer.ramp_off(duration=50)  # ramp-off after move
+
+        drive_region.global_h()
+        qpu.align()  # ensure Hadamard finished
+
+        # --- Stage 2: Move dynamic tweezers to entangle region ---
+        dynamic_tweezer.ramp_on(target_power=1.0, duration=50)
+        dynamic_tweezer.move(target=entangle_region.center)
+        qpu.align()
+        dynamic_tweezer.ramp_off(duration=50)
+
+        # --- Stage 3: Entanglement CZ gates ---
+        initial_pos = atoms[0].position
         a0_tweezer = qpu.create_tweezer(
-            spots=[initial_postion],
+            spots=[initial_pos],
+            current_powers=[1.0],
             name="a0_tweezer",
             drive="AOD532"
         )
-        a0_tweezer.move(target=atoms[1].position + ( 0, qpu.rydberg_distance))
-        entangle_region.global_cz()
-        a0_tweezer.move(target=atoms[2].position + ( 0, qpu.rydberg_distance))
-        entangle_region.global_cz()
-        a0_tweezer.move(target=initial_postion)
 
+        a0_tweezer2 = qpu.create_tweezer(
+            spots=[atoms[2].position],
+            current_powers=[1.0],
+            name="a0_tweezer2",
+            drive="AOD532"
+        )
+
+        # Step 1: entangle qubits 0&1 and 2&3 in parallel
+        a0_tweezer.ramp_on(target_power=1.0, duration=50)
+
+        x, y = atoms[1].position
+        a0_tweezer.move(target=(x, y + qpu.rydberg_distance))
+        a0_tweezer.ramp_off(duration=50)
         
-        # Mesurement
+
+        a0_tweezer2.ramp_on(target_power=1.0, duration=50)
+        x, y = atoms[3].position
+        a0_tweezer2.move(target=(x, y + qpu.rydberg_distance))
+        a0_tweezer2.ramp_off(duration=50)
+
+        qpu.align()  # wait for moves
+
+        entangle_region.global_cz() # CZ should not be given the tweezers within the region 
+        qpu.align()  # ensure CZs finished
+
+        # Step 2: entangle qubits 1 & 2
+        a0_tweezer.ramp_on(target_power=1.0, duration=50)
+        x, y = atoms[2].position
+        a0_tweezer.move(target=(x, y + qpu.rydberg_distance))
+        a0_tweezer.ramp_off(duration=50)
+        qpu.align()
+
+        entangle_region.global_cz()
+        qpu.align()
+
+        # Step 3: return dynamic tweezers
+        a0_tweezer.ramp_on(target_power=1.0, duration=50)
+        a0_tweezer.move(target=initial_pos)
+        a0_tweezer.ramp_off(duration=50)
+
+        a0_tweezer2.ramp_on(target_power=1.0, duration=50)
+        x, y = atoms[2].position
+        a0_tweezer2.move(target=(x, y + qpu.rydberg_distance))
+        a0_tweezer2.ramp_off(duration=50)
+
+        qpu.align()
+
+        # --- Stage 4: Measurement ---
+        dynamic_tweezer.ramp_on(target_power=1.0, duration=50)
         dynamic_tweezer.move(target=qpu.get_region("readout").center)
+        dynamic_tweezer.ramp_off(duration=50)
+        qpu.align()
+
         qpu.measure(region="readout", sensor="HAMMAMATSU")
+        qpu.align()
 
-        # -- Optional: disable SLM after usage --
-        slm.disable()  # static array pattern turned off
-
-    return ghz_program
+        # --- Stage 5: SLM Off ---
+        slm.off()
+        qpu.align()
+        
+        return ghz_program
 
 def main():
     qpu = init_qpu()
-    prog = ghz_3(qpu)
+    prog = ghz_4(qpu)
     config = qpu.generate_config()
     
-    serialize_qua_program(prog, qpu)
+    current_folder = Path(__file__).resolve().parent
+    serialize_qua_program(prog, qpu, path=current_folder)
 
     qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4") #Serialize 
     qm = qmm.open_qm(config)

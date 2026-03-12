@@ -15,11 +15,12 @@ class SLM(TweezerDriver):
         return self.id
     
     @QuantumComponent.register_macro
-    def enable(self):
+    def on(self):
         """Trigger the SLM to display the preloaded phase mask."""
         self.channel.current_voltage = 1.0
+        self.parent.parent.align(elements=[self])  # ensure timing alignment with other channels as the SLM turns on
 
     @QuantumComponent.register_macro
-    def disable(self):
+    def off(self):
         """Turn off the SLM."""
         self.channel.current_voltage = 0.0

@@ -4,6 +4,7 @@ from dataclasses import dataclass , field
 from quam.core import QuamRoot, quam_dataclass
 from quam.components import QuantumComponent
 from qm import qua , program
+from qm.qua import align
 
 
 from quam.components import SingleChannel
@@ -57,13 +58,19 @@ class  BaseQuamNA(QuamRoot):
     def create_tweezer(
         self,
         spots: list[tuple[float, float]],
+        current_powers: list[float],
         id: str | None = None,
         drive: str | None = None,
         name: str | None = None,
     ) -> Tweezer:
         # Backward compatibility: allow callers to pass "name" instead of "id".
         tweezer_id = id if id is not None else name
-        tweezer = Tweezer(spots=spots, id=tweezer_id, drive=drive)
+        if len(current_powers) != len(spots):
+            raise ValueError(
+                "Number of current_powers must match number of spots"
+            )
+
+        tweezer = Tweezer(spots=spots, current_powers=current_powers, id=tweezer_id, drive=drive)
         self.register_tweezer(tweezer)
         return tweezer
 
@@ -116,7 +123,17 @@ class  BaseQuamNA(QuamRoot):
         region = self.get_region(resolved_region_name)
         sensor = self.get_sensor(resolved_sensor_name)
 
-
         sensor.trigger()
         region.imaging_pulse(amplitude=0.5, length=100)
-        
+
+
+    @QuantumComponent.register_macro
+    def align(self, elements: list = None):
+        """
+        Insert a QUA align() barrier.
+        If no elements are provided, all registered elements are aligned.
+        """
+        if elements is None or len(elements) == 0:
+            align()
+        else:
+            align(*[el.name for el in elements])
