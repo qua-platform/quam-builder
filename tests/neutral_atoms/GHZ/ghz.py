@@ -1,4 +1,6 @@
 import os
+import matplotlib
+matplotlib.use("TkAgg")
 from qm import QuantumMachinesManager, SimulationConfig
 from quam_builder.architecture.neutral_atoms.base_quam_na import BaseQuamNA
 from quam_builder.architecture.neutral_atoms.atom import Atom
@@ -42,19 +44,27 @@ def load_atoms():
 def init_qpu():
     qpu = BaseQuamNA()
 
-    aod_channel_x = SingleChannel(opx_output=("con1",1, 1), id="ch1") 
-    aod_channel_y = SingleChannel(opx_output=("con1",1, 2), id="ch2")
+    # LF-FEMs are in slots 5 and 6 on cluster CS_4
+    aod_channel_x = SingleChannel(opx_output=("con1", 5, 1), id="ch1")
+    aod_channel_y = SingleChannel(opx_output=("con1", 5, 2), id="ch2")
 
-    SLM_channel = DigitalOutputChannel(opx_output=("con1",1, 3))
-    hamammatsu_channel = SingleChannel(opx_output=("con1",1, 4) ,id="ch4")
-    
-    drive_channel = SingleChannel(opx_output=("con1",1, 5), id="ch5")
-    readout_channel = SingleChannel(opx_output=("con1",1, 6), id="ch6")
-    prepare_channel = SingleChannel(opx_output=("con1",1, 7), id="ch7")
-    entangle_channel = SingleChannel(opx_output=("con1",1, 8), id="ch8")
-    
-    channels = [aod_channel_x, aod_channel_y, drive_channel, readout_channel, prepare_channel, entangle_channel]
-    digital_channels = [SLM_channel, hamammatsu_channel]
+    SLM_digital = DigitalOutputChannel(opx_output=("con1", 5, 1), delay=0, buffer=0)
+    SLM_channel = SingleChannel(
+        opx_output=("con1", 5, 3), id="SLM532",
+        digital_outputs={"do1": SLM_digital}
+    )
+    hamammatsu_channel = SingleChannel(opx_output=("con1", 5, 4), id="ch4")
+
+    drive_channel = SingleChannel(opx_output=("con1", 5, 5), id="ch5")
+    readout_channel = SingleChannel(opx_output=("con1", 5, 6), id="ch6")
+    prepare_channel = SingleChannel(opx_output=("con1", 5, 7), id="ch7")
+    entangle_channel = SingleChannel(opx_output=("con1", 5, 8), id="ch8")
+
+    # SLM pulses: on has digital marker high, off has no digital marker
+    SLM_channel.operations["slm_on"] = pulses.SquarePulse(amplitude=0.0, length=100, digital_marker="ON")
+    SLM_channel.operations["slm_off"] = pulses.SquarePulse(amplitude=0.0, length=100)
+
+    channels = [aod_channel_x, aod_channel_y, SLM_channel, drive_channel, readout_channel, prepare_channel, entangle_channel]
 
     # Create the square pulse
     for channel in channels:
@@ -65,7 +75,7 @@ def init_qpu():
     for channel in channels:
         channel.operations["move_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
         qpu.register_channel(channel)
-    
+
     # -- set QPU default parameters --
     qpu.tweezer_depth = 10
     qpu.scale = 1.0
@@ -81,7 +91,7 @@ def init_qpu():
 
     # -- Driver -- #
     aod = AOD(id="AOD532", channels=(aod_channel_x, aod_channel_y), frequency_to_move=1 , f_min=-70.0 * 1e6, f_max=70.0 * 1e6, max_total_power=1.0)
-    slm = SLM(id="SLM532", channel=SLM_channel, frequency_to_move=1)
+    slm = SLM(id="SLM532", channel_name="SLM532", frequency_to_move=1)
     for driver in [aod, slm]:
         qpu.register_driver(driver)
 
@@ -216,10 +226,10 @@ def main():
     prog = ghz_4(qpu)
     config = qpu.generate_config()
     
-    current_folder = Path(__file__).resolve().parent
-    serialize_qua_program(prog, qpu, path=current_folder)
+    # current_folder = Path(__file__).resolve().parent
+    # serialize_qua_program(prog, qpu, path=current_folder)
 
-    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4") #Serialize 
+    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4") #Serialize
     qm = qmm.open_qm(config)
 
     qmm.clear_all_job_results()
@@ -227,6 +237,15 @@ def main():
     # Run simulation (longer duration for full circuit)
     simulation_config = SimulationConfig(duration=2000)
     job = qmm.simulate(config, prog, simulation_config)
+
+    # Plot simulation output
+    import matplotlib.pyplot as plt
+
+
+    samples = job.get_simulated_samples()
+    samples.con1.plot()
+    plt.show()
+
 
 if __name__ == "__main__":
     main()
