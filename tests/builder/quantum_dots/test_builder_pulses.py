@@ -122,37 +122,31 @@ class TestAddDefaultLDVQubitPulsesIQ:
                     qubit.xy, XYDriveIQ
                 ), f"Expected XYDriveIQ, got {type(qubit.xy).__name__}"
 
-    def test_xy_pulses_present_on_qubits(self, machine_with_iq_pulses):
-        expected_pulses = ["x180", "x90", "y180", "y90", "-x90", "-y90"]
+    def test_gaussian_pulse_present_on_qubits(self, machine_with_iq_pulses):
         for qubit_name, qubit in machine_with_iq_pulses.qubits.items():
             if qubit.xy is None:
                 continue
-            for pulse_name in expected_pulses:
-                assert (
-                    pulse_name in qubit.xy.operations
-                ), f"Pulse {pulse_name} missing from qubit {qubit_name}"
+            assert (
+                "gaussian" in qubit.xy.operations
+            ), f"Pulse 'gaussian' missing from qubit {qubit_name}"
 
-    def test_xy_pulse_properties(self, machine_with_iq_pulses):
+    def test_gaussian_pulse_properties(self, machine_with_iq_pulses):
         qubit = next(q for q in machine_with_iq_pulses.qubits.values() if q.xy is not None)
 
-        x180 = qubit.xy.operations["x180"]
-        assert x180.length == 1000
-        assert x180.amplitude == 0.2
-        assert x180.axis_angle == pytest.approx(0.0)
-
-        y90 = qubit.xy.operations["y90"]
-        assert y90.amplitude == 0.1
-        assert y90.axis_angle == pytest.approx(1.5707963, rel=1e-5)
+        gaussian = qubit.xy.operations["gaussian"]
+        assert gaussian.length == 1000
+        assert gaussian.amplitude == 0.2
+        assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_iq_pulses):
         for qubit in machine_with_iq_pulses.qubits.values():
             if hasattr(qubit, "resonator") and qubit.resonator is not None:
                 assert "readout" in qubit.resonator.operations
 
-    def test_six_xy_operations_per_qubit(self, machine_with_iq_pulses):
+    def test_one_xy_operation_per_qubit(self, machine_with_iq_pulses):
         for qubit in machine_with_iq_pulses.qubits.values():
             if qubit.xy is not None:
-                assert len(qubit.xy.operations) == 6
+                assert len(qubit.xy.operations) == 1
 
 
 class TestAddDefaultLDVQubitPulsesMW:
@@ -165,34 +159,28 @@ class TestAddDefaultLDVQubitPulsesMW:
                     qubit.xy, XYDriveMW
                 ), f"Expected XYDriveMW, got {type(qubit.xy).__name__}"
 
-    def test_xy_pulses_present_on_qubits(self, machine_with_mw_pulses):
-        expected_pulses = ["x180", "x90", "y180", "y90", "-x90", "-y90"]
+    def test_gaussian_pulse_present_on_qubits(self, machine_with_mw_pulses):
         for qubit_name, qubit in machine_with_mw_pulses.qubits.items():
             if qubit.xy is None:
                 continue
-            for pulse_name in expected_pulses:
-                assert (
-                    pulse_name in qubit.xy.operations
-                ), f"Pulse {pulse_name} missing from qubit {qubit_name}"
+            assert (
+                "gaussian" in qubit.xy.operations
+            ), f"Pulse 'gaussian' missing from qubit {qubit_name}"
 
-    def test_xy_pulse_properties(self, machine_with_mw_pulses):
+    def test_gaussian_pulse_properties(self, machine_with_mw_pulses):
         qubit = next(q for q in machine_with_mw_pulses.qubits.values() if q.xy is not None)
 
-        x180 = qubit.xy.operations["x180"]
-        assert x180.length == 1000
-        assert x180.amplitude == 0.2
-        assert x180.axis_angle == pytest.approx(0.0)
-
-        y90 = qubit.xy.operations["y90"]
-        assert y90.amplitude == 0.1
-        assert y90.axis_angle == pytest.approx(1.5707963, rel=1e-5)
+        gaussian = qubit.xy.operations["gaussian"]
+        assert gaussian.length == 1000
+        assert gaussian.amplitude == 0.2
+        assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_mw_pulses):
         for qubit in machine_with_mw_pulses.qubits.values():
             if hasattr(qubit, "resonator") and qubit.resonator is not None:
                 assert "readout" in qubit.resonator.operations
 
-    def test_six_xy_operations_per_qubit(self, machine_with_mw_pulses):
+    def test_one_xy_operation_per_qubit(self, machine_with_mw_pulses):
         for qubit in machine_with_mw_pulses.qubits.values():
             if qubit.xy is not None:
-                assert len(qubit.xy.operations) == 6
+                assert len(qubit.xy.operations) == 1

@@ -201,7 +201,7 @@ class TestAddPulses:
         for qubit in built_machine.qubits.values():
             if qubit.xy is not None:
                 assert len(qubit.xy.operations) > 0
-                assert "x180" in qubit.xy.operations
+                assert "gaussian" in qubit.xy.operations
 
     def test_wire_machine_macros_handles_empty_machine(self):
         from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros

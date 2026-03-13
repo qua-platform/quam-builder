@@ -6,11 +6,16 @@ core quantum-dot component types (``LDQubit``, ``SensorDot``).
 
 Default pulse parameters
 ------------------------
-Single-qubit XY pulses (on ``qubit.xy``):
-    ``GaussianPulse`` — length 1000 ns, amplitude 0.2 (180 deg), sigma 167 ns.
-    Six standard rotations: ``x180``, ``x90``, ``y180``, ``y90``, ``-x90``, ``-y90``.
-    Drive-type aware: IQ/MW channels get ``axis_angle`` for hardware mixing;
-    ``SingleChannel`` (``XYDriveSingle``) uses ``axis_angle=None``.
+Single-qubit XY drive pulse (on ``qubit.xy``):
+    A single ``GaussianPulse`` named ``"gaussian"`` — length 1000 ns,
+    amplitude 0.2 (π rotation reference), sigma 167 ns.
+    This is the **single source of truth** for all XY rotations.
+    The ``XYDriveMacro`` scales amplitude for different rotation angles
+    and applies virtual-Z frame rotations for the rotation axis (X/Y),
+    so only one reference pulse is needed.
+
+    Drive-type aware: IQ/MW channels get ``axis_angle=0.0`` for hardware
+    mixing; ``SingleChannel`` (``XYDriveSingle``) uses ``axis_angle=None``.
 
 Readout pulse (on ``sensor_dot.readout_resonator``):
     ``SquareReadoutPulse`` — length 2000 ns, amplitude 0.1.
@@ -33,10 +38,10 @@ Usage::
 
 from __future__ import annotations
 
-import numpy as np
 from quam.components.channels import SingleChannel
 from quam.components.pulses import GaussianPulse, SquareReadoutPulse
 
+from quam_builder.architecture.quantum_dots.operations.names import DrivePulseName
 from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
     register_component_pulse_factories,
 )
@@ -58,24 +63,29 @@ _READOUT_AMP = 0.1
 
 
 def _make_xy_pulse_factories(drive_channel):
-    """Build default single-qubit rotation pulses for an XY drive channel.
+    """Build default XY drive reference pulse for an XY drive channel.
 
-    Returns a dict of six standard rotation pulses (``x180``, ``x90``,
-    ``y180``, ``y90``, ``-x90``, ``-y90``) as ``GaussianPulse`` instances.
+    Returns a dict with a single ``"gaussian"`` pulse — the reference
+    envelope used by ``XYDriveMacro`` for all single-qubit rotations.  The macro
+    handles amplitude scaling (for rotation angle) and virtual-Z frame rotation
+    (for rotation axis), so only one calibrated pulse is needed.
+
+    Users can register additional pulse types (e.g. ``"drag"``) and
+    point ``XYDriveMacro.reference_pulse_name`` at them to switch the
+    envelope used for all gates.
 
     Drive-type awareness:
         - ``SingleChannel`` (``XYDriveSingle``): ``axis_angle=None`` — real-valued
-          waveforms only, rotation axis encoded by amplitude sign.
-        - IQ/MW channels: ``axis_angle=0.0`` for X-axis, ``axis_angle=pi/2`` for
-          Y-axis — hardware IQ mixing handles the rotation axis.
+          waveforms only, rotation axis encoded via virtual-Z.
+        - IQ/MW channels: ``axis_angle=0.0`` — hardware IQ mixing; rotation
+          axis is set by virtual-Z frame rotation in the macro.
 
     Args:
         drive_channel: The XY drive channel instance. Checked with
             ``isinstance(drive_channel, SingleChannel)`` to determine pulse type.
 
     Returns:
-        Dict mapping pulse name to ``GaussianPulse`` instance with appropriate
-        ``axis_angle`` for the channel type.
+        Dict with one entry: ``{"gaussian": GaussianPulse(...)}``.
 
     Example::
 
@@ -83,51 +93,15 @@ def _make_xy_pulse_factories(drive_channel):
         qubit.xy.operations.update(pulses)
     """
     is_single = isinstance(drive_channel, SingleChannel)
-    x_angle = None if is_single else 0.0
-    y_angle = None if is_single else float(np.pi / 2)
+    axis_angle = None if is_single else 0.0
 
     return {
-        "x180": GaussianPulse(
-            id="x180",
+        DrivePulseName.GAUSSIAN.value: GaussianPulse(
+            id=DrivePulseName.GAUSSIAN.value,
             length=_PULSE_LENGTH,
             amplitude=_PULSE_AMP,
             sigma=_SIGMA,
-            axis_angle=x_angle,
-        ),
-        "x90": GaussianPulse(
-            id="x90",
-            length=_PULSE_LENGTH,
-            amplitude=_PULSE_AMP / 2,
-            sigma=_SIGMA,
-            axis_angle=x_angle,
-        ),
-        "y180": GaussianPulse(
-            id="y180",
-            length=_PULSE_LENGTH,
-            amplitude=_PULSE_AMP,
-            sigma=_SIGMA,
-            axis_angle=y_angle,
-        ),
-        "y90": GaussianPulse(
-            id="y90",
-            length=_PULSE_LENGTH,
-            amplitude=_PULSE_AMP / 2,
-            sigma=_SIGMA,
-            axis_angle=y_angle,
-        ),
-        "-x90": GaussianPulse(
-            id="-x90",
-            length=_PULSE_LENGTH,
-            amplitude=-_PULSE_AMP / 2,
-            sigma=_SIGMA,
-            axis_angle=x_angle,
-        ),
-        "-y90": GaussianPulse(
-            id="-y90",
-            length=_PULSE_LENGTH,
-            amplitude=-_PULSE_AMP / 2,
-            sigma=_SIGMA,
-            axis_angle=y_angle,
+            axis_angle=axis_angle,
         ),
     }
 

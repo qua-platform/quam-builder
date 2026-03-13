@@ -219,10 +219,11 @@ def _ensure_default_pulses(machine: Any) -> None:
 
     Qubit XY drives:
         For each qubit in ``machine.qubits`` that has an ``xy`` drive with an
-        ``operations`` dict, adds six standard ``GaussianPulse`` rotations
-        (``x180``, ``x90``, ``y180``, ``y90``, ``-x90``, ``-y90``).  The pulse
-        parameters are drive-type aware: IQ/MW channels get ``axis_angle`` for
-        hardware mixing; ``SingleChannel`` uses ``axis_angle=None``.
+        ``operations`` dict, adds a single ``GaussianPulse`` reference pulse
+        named ``"gaussian"``.  The ``XYDriveMacro`` scales amplitude for
+        rotation angle and applies virtual-Z for rotation axis, so only one
+        calibrated pulse is needed.  The pulse is drive-type aware: IQ/MW
+        channels get ``axis_angle=0.0``; ``SingleChannel`` uses ``axis_angle=None``.
 
     Sensor dot readout resonators:
         For each sensor dot in ``machine.sensor_dots`` that has a

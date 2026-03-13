@@ -1,16 +1,20 @@
 """Example: default pulse wiring and selective pulse overrides.
 
 This script demonstrates:
-1. Building a small quantum-dots machine with default pulses wired
+1. Building a small quantum-dots machine with default pulse wired
    automatically by ``wire_machine_macros``.
-2. Inspecting the default pulses on qubit XY drives and sensor dot resonators.
+2. Inspecting the default ``gaussian`` reference pulse on qubit XY drives.
 3. Applying type-level pulse overrides (all qubits of a type).
 4. Applying instance-level pulse overrides (one specific qubit).
-5. Disabling specific pulses via ``{enabled: false}``.
+5. Replacing the reference pulse type (e.g. Gaussian -> DRAG).
 
 The pulse wiring system is integrated into ``wire_machine_macros()`` and
 runs after macro wiring.  Default pulses are additive — only pulse names
 not already present on a channel's ``operations`` dict are added.
+
+Only one reference pulse (``gaussian``) is registered per qubit by default.
+``XYDriveMacro`` scales amplitude for rotation angle and applies virtual-Z
+for rotation axis, so all single-qubit gates derive from this single pulse.
 """
 
 # pylint: disable=no-member  # WiringLineType enum members are runtime-only
@@ -44,11 +48,11 @@ def _barrier_ports(pair_id: str) -> Dict[str, str]:
 
 
 def build_demo_machine() -> LossDiVincenzoQuam:
-    """Build a small machine with 2 qubits and default pulses.
+    """Build a small machine with 2 qubits and default pulse.
 
     ``wire_machine_macros()`` is called once during build and automatically
-    adds default GaussianPulse rotations to each qubit's XY drive:
-    x180, x90, y180, y90, -x90, -y90.
+    adds the default ``gaussian`` GaussianPulse reference to each qubit's
+    XY drive.  All single-qubit gate macros derive from this single pulse.
     """
     machine = BaseQuamQD()
     machine.wiring = {
@@ -91,15 +95,17 @@ def print_pulse_summary(machine: LossDiVincenzoQuam, title: str) -> None:
             amp = getattr(pulse, "amplitude", "?")
             axis = getattr(pulse, "axis_angle", "N/A")
             print(
-                f"    {pulse_name:>6s}: {cls_name}(length={length}, amplitude={amp}, axis_angle={axis})"
+                f"    {pulse_name:>10s}: {cls_name}(length={length}, amplitude={amp}, axis_angle={axis})"
             )
 
 
 def apply_type_level_overrides(machine: LossDiVincenzoQuam) -> None:
-    """Override x180 pulse for ALL LDQubit instances.
+    """Override gaussian pulse for ALL LDQubit instances.
 
     This uses the ``component_types`` scope to set a shorter, stronger
-    x180 Gaussian pulse on every qubit of type LDQubit.
+    gaussian pulse on every qubit of type LDQubit.
+    Since all gate macros derive from this single pulse, the change
+    affects x90, x180, y90, y180, etc. automatically.
     """
     wire_machine_macros(
         machine,
@@ -107,7 +113,7 @@ def apply_type_level_overrides(machine: LossDiVincenzoQuam) -> None:
             "component_types": {
                 "LDQubit": {
                     "pulses": {
-                        "x180": {
+                        "gaussian": {
                             "type": "GaussianPulse",
                             "length": 500,
                             "amplitude": 0.3,
@@ -121,10 +127,9 @@ def apply_type_level_overrides(machine: LossDiVincenzoQuam) -> None:
 
 
 def apply_instance_level_overrides(machine: LossDiVincenzoQuam) -> None:
-    """Override x180 on q1 only, and disable -y90 on q2.
+    """Override gaussian on q1 only.
 
     Instance-level overrides take precedence over type-level overrides.
-    Setting ``enabled: false`` removes the pulse from that qubit's operations.
     """
     wire_machine_macros(
         machine,
@@ -132,17 +137,12 @@ def apply_instance_level_overrides(machine: LossDiVincenzoQuam) -> None:
             "instances": {
                 "qubits.q1": {
                     "pulses": {
-                        "x180": {
+                        "gaussian": {
                             "type": "GaussianPulse",
                             "length": 800,
                             "amplitude": 0.15,
                             "sigma": 133,
                         },
-                    }
-                },
-                "qubits.q2": {
-                    "pulses": {
-                        "-y90": {"enabled": False},
                     }
                 },
             },
@@ -151,17 +151,17 @@ def apply_instance_level_overrides(machine: LossDiVincenzoQuam) -> None:
 
 
 def main() -> None:
-    # 1. Build machine with default pulses
+    # 1. Build machine with default pulse
     machine = build_demo_machine()
-    print_pulse_summary(machine, "Default Pulses")
+    print_pulse_summary(machine, "Default Pulse")
 
-    # 2. Apply type-level override: all qubits get a shorter x180
+    # 2. Apply type-level override: all qubits get a shorter gaussian
     apply_type_level_overrides(machine)
-    print_pulse_summary(machine, "After Type-Level Override (x180 on all LDQubits)")
+    print_pulse_summary(machine, "After Type-Level Override (gaussian on all LDQubits)")
 
-    # 3. Apply instance-level override: q1 gets custom x180, q2 loses -y90
+    # 3. Apply instance-level override: q1 gets custom gaussian
     apply_instance_level_overrides(machine)
-    print_pulse_summary(machine, "After Instance-Level Override (q1.x180 + q2.-y90 disabled)")
+    print_pulse_summary(machine, "After Instance-Level Override (q1.gaussian custom)")
 
 
 if __name__ == "__main__":

@@ -112,15 +112,13 @@ def build_demo_machine() -> LossDiVincenzoQuam:
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
 
-    # Seed minimal XY pulses used by the demo program.
+    # Seed minimal reference pulse used by the demo program.
+    # Only one pulse is needed — XYDriveMacro derives all rotations from it.
     for qubit in machine.qubits.values():
         if qubit.xy is None:
             continue
         qubit.xy.operations.setdefault(
-            "x90", pulses.GaussianPulse(length=32, amplitude=0.01, sigma=8)
-        )
-        qubit.xy.operations.setdefault(
-            "x180", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
+            "gaussian", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
         )
 
     wire_machine_macros(machine)
