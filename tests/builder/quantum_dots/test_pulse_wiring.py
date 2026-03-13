@@ -76,25 +76,19 @@ def _make_wired_machine() -> LossDiVincenzoQuam:
 class TestDefaultPulseWiring:
     """Test that _ensure_default_pulses adds pulses to the right places."""
 
-    def test_xy_drive_gets_default_pulses(self):
+    def test_xy_drive_gets_default_pulse(self):
         machine = _make_wired_machine()
         _ensure_default_pulses(machine)
 
         xy = machine.qubits["Q1"].xy
-        assert "x180" in xy.operations
-        assert "x90" in xy.operations
-        assert "y180" in xy.operations
-        assert "y90" in xy.operations
-        assert "-x90" in xy.operations
-        assert "-y90" in xy.operations
+        assert "gaussian" in xy.operations
 
     def test_single_channel_no_axis_angle(self):
         machine = _make_wired_machine()
         _ensure_default_pulses(machine)
 
         xy = machine.qubits["Q1"].xy
-        for name in ("x180", "x90", "-x90", "y180", "y90", "-y90"):
-            assert xy.operations[name].axis_angle is None
+        assert xy.operations["gaussian"].axis_angle is None
 
     def test_readout_resonator_gets_default_pulse(self):
         machine = _make_wired_machine()
@@ -107,12 +101,12 @@ class TestDefaultPulseWiring:
     def test_existing_pulses_not_overwritten(self):
         machine = _make_wired_machine()
         custom_pulse = quam_pulses.GaussianPulse(length=500, amplitude=0.3, sigma=83)
-        machine.qubits["Q1"].xy.operations["x180"] = custom_pulse
+        machine.qubits["Q1"].xy.operations["gaussian"] = custom_pulse
 
         _ensure_default_pulses(machine)
 
         # Custom pulse should be preserved
-        assert machine.qubits["Q1"].xy.operations["x180"] is custom_pulse
+        assert machine.qubits["Q1"].xy.operations["gaussian"] is custom_pulse
 
     def test_existing_readout_not_overwritten(self):
         machine = _make_wired_machine()
@@ -135,7 +129,7 @@ class TestWireMacrosPulseIntegration:
         wire_machine_macros(machine)
 
         xy = machine.qubits["Q1"].xy
-        assert "x180" in xy.operations
+        assert "gaussian" in xy.operations
 
         rr = machine.sensor_dots["virtual_sensor_1"].readout_resonator
         assert "readout" in rr.operations
@@ -146,7 +140,7 @@ class TestWireMacrosPulseIntegration:
             "component_types": {
                 "LDQubit": {
                     "pulses": {
-                        "x180": {
+                        "gaussian": {
                             "type": "GaussianPulse",
                             "length": 500,
                             "amplitude": 0.3,
@@ -158,18 +152,17 @@ class TestWireMacrosPulseIntegration:
         }
         wire_machine_macros(machine, macro_overrides=overrides)
 
-        x180 = machine.qubits["Q1"].xy.operations["x180"]
-        assert x180.length == 500
-        assert x180.amplitude == 0.3
+        gaussian = machine.qubits["Q1"].xy.operations["gaussian"]
+        assert gaussian.length == 500
+        assert gaussian.amplitude == 0.3
 
     def test_pulse_disable_via_mapping(self, reset_catalog):
         machine = _make_wired_machine()
-        overrides = {"component_types": {"LDQubit": {"pulses": {"-y90": {"enabled": False}}}}}
+        overrides = {"component_types": {"LDQubit": {"pulses": {"gaussian": {"enabled": False}}}}}
         wire_machine_macros(machine, macro_overrides=overrides)
 
         xy = machine.qubits["Q1"].xy
-        assert "x180" in xy.operations  # others still present
-        assert "-y90" not in xy.operations  # disabled
+        assert "gaussian" not in xy.operations
 
     def test_instance_pulse_override(self, reset_catalog):
         machine = _make_wired_machine()
@@ -177,7 +170,7 @@ class TestWireMacrosPulseIntegration:
             "instances": {
                 "qubits.Q1": {
                     "pulses": {
-                        "x180": {
+                        "gaussian": {
                             "type": "GaussianPulse",
                             "length": 800,
                             "amplitude": 0.15,
@@ -189,6 +182,6 @@ class TestWireMacrosPulseIntegration:
         }
         wire_machine_macros(machine, macro_overrides=overrides)
 
-        x180 = machine.qubits["Q1"].xy.operations["x180"]
-        assert x180.length == 800
-        assert x180.amplitude == 0.15
+        gaussian = machine.qubits["Q1"].xy.operations["gaussian"]
+        assert gaussian.length == 800
+        assert gaussian.amplitude == 0.15

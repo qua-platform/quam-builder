@@ -67,16 +67,14 @@ def build_demo_machine() -> LossDiVincenzoQuam:
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
 
-    # Seed minimal reference pulses used by default XY macros.
+    # Seed minimal reference pulse used by default XY macros.
+    # Only one pulse is needed — XYDriveMacro scales amplitude for angle
+    # and applies virtual-Z for rotation axis.
     for qubit in machine.qubits.values():
         if qubit.xy is None:
             continue
         qubit.xy.operations.setdefault(
-            SingleQubitMacroName.X_90.value,
-            pulses.GaussianPulse(length=32, amplitude=0.01, sigma=8),
-        )
-        qubit.xy.operations.setdefault(
-            SingleQubitMacroName.X_180.value,
+            "gaussian",
             pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16),
         )
 

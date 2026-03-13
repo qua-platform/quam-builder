@@ -1,6 +1,5 @@
 """Tests for the pulse catalog and pulse registry."""
 
-import numpy as np
 import pytest
 
 from quam.components.channels import SingleChannel
@@ -31,7 +30,7 @@ class TestMakeXYPulseFactories:
     """Test pulse factory creation for XY drives."""
 
     def test_single_channel_no_axis_angle(self):
-        """SingleChannel drives should produce pulses with axis_angle=None."""
+        """SingleChannel drives should produce pulse with axis_angle=None."""
         from quam.components.ports import LFFEMAnalogOutputPort
         from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveSingle
 
@@ -42,13 +41,13 @@ class TestMakeXYPulseFactories:
         )
         pulses = _make_xy_pulse_factories(xy)
 
-        assert set(pulses.keys()) == {"x180", "x90", "y180", "y90", "-x90", "-y90"}
-        for name, pulse in pulses.items():
-            assert isinstance(pulse, GaussianPulse), f"{name} should be GaussianPulse"
-            assert pulse.axis_angle is None, f"{name} should have axis_angle=None for SingleChannel"
+        assert set(pulses.keys()) == {"gaussian"}
+        pulse = pulses["gaussian"]
+        assert isinstance(pulse, GaussianPulse)
+        assert pulse.axis_angle is None
 
     def test_iq_channel_has_axis_angle(self):
-        """IQ/MW channels should produce pulses with axis_angle values."""
+        """IQ/MW channels should produce pulse with axis_angle=0.0."""
         from unittest.mock import MagicMock
         from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ
 
@@ -56,10 +55,7 @@ class TestMakeXYPulseFactories:
         # Not a SingleChannel
         pulses = _make_xy_pulse_factories(xy)
 
-        assert pulses["x180"].axis_angle == 0.0
-        assert pulses["y180"].axis_angle == pytest.approx(np.pi / 2)
-        assert pulses["x90"].axis_angle == 0.0
-        assert pulses["y90"].axis_angle == pytest.approx(np.pi / 2)
+        assert pulses["gaussian"].axis_angle == 0.0
 
     def test_pulse_parameters(self):
         """Verify default pulse parameters."""
@@ -69,16 +65,10 @@ class TestMakeXYPulseFactories:
         xy = MagicMock(spec=XYDriveIQ)
         pulses = _make_xy_pulse_factories(xy)
 
-        x180 = pulses["x180"]
-        assert x180.length == 1000
-        assert x180.amplitude == 0.2
-        assert x180.sigma == pytest.approx(1000 / 6)
-
-        x90 = pulses["x90"]
-        assert x90.amplitude == 0.1  # half of 180
-
-        neg_x90 = pulses["-x90"]
-        assert neg_x90.amplitude == -0.1
+        gaussian = pulses["gaussian"]
+        assert gaussian.length == 1000
+        assert gaussian.amplitude == 0.2
+        assert gaussian.sigma == pytest.approx(1000 / 6)
 
 
 class TestMakeReadoutPulse:

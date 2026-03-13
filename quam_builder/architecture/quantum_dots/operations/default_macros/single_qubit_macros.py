@@ -13,6 +13,7 @@ from qm.qua import wait
 from quam.components.macro import QubitMacro
 
 from quam_builder.architecture.quantum_dots.operations.names import (
+    DrivePulseName,
     SingleQubitMacroName,
     VoltagePointName,
     X_NEG_90_ALIAS,
@@ -111,7 +112,7 @@ class XYDriveMacro(QubitMacro):
     temporary frame rotation before the pulse and restoring it afterwards.
     """
 
-    reference_pulse_name: str = SingleQubitMacroName.X_180.value
+    reference_pulse_name: str = DrivePulseName.GAUSSIAN.value
     reference_angle: float = float(np.pi)
     max_amplitude_scale: float = 1.0
     default_angle: float = float(np.pi)
@@ -129,6 +130,8 @@ class XYDriveMacro(QubitMacro):
 
         for candidate in (
             self.reference_pulse_name,
+            DrivePulseName.GAUSSIAN.value,
+            DrivePulseName.DRAG.value,
             SingleQubitMacroName.X_180.value,
             SingleQubitMacroName.X_90.value,
         ):
