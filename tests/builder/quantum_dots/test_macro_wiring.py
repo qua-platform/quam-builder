@@ -58,7 +58,7 @@ def _seed_reference_pulses(machine):
         if qubit.xy is None:
             continue
         qubit.xy.operations.setdefault(
-            "x180", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
+            "gaussian", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
         )
 
 
@@ -171,7 +171,7 @@ def test_x180_macro_triggers_play():
             q1.macros["x180"].apply()
 
     assert mock_play.call_count >= 1
-    assert mock_play.call_args.args[0] == "x180"
+    assert mock_play.call_args.args[0] == "gaussian"
 
 
 def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():

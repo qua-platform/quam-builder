@@ -59,7 +59,7 @@ def _set_quam_state_path(tmp_path, monkeypatch):
 class TestSingleChannelPulses:
     """Verify that XYDriveSingle gets real-valued pulses (axis_angle=None)."""
 
-    def test_single_channel_pulses_have_no_axis_angle(self):
+    def test_single_channel_pulse_has_no_axis_angle(self):
         xy = XYDriveSingle(
             id="test_xy",
             opx_output=LFFEMAnalogOutputPort("con1", 3, port_id=1),
@@ -69,24 +69,21 @@ class TestSingleChannelPulses:
         for name, pulse in default_pulses.items():
             xy.operations[name] = pulse
 
-        for name in ("x180", "x90", "-x90", "y180", "y90", "-y90"):
-            pulse = xy.operations[name]
-            assert (
-                pulse.axis_angle is None
-            ), f"Pulse '{name}' should have axis_angle=None for SingleChannel"
+        pulse = xy.operations["gaussian"]
+        assert (
+            pulse.axis_angle is None
+        ), "Pulse 'gaussian' should have axis_angle=None for SingleChannel"
 
-    def test_iq_channel_pulses_have_axis_angle(self):
-        """IQ channels should still get axis_angle values."""
+    def test_iq_channel_pulse_has_axis_angle(self):
+        """IQ channels should still get axis_angle=0.0."""
         xy = MagicMock(spec=XYDriveIQ)
         xy.operations = {}
         default_pulses = _make_xy_pulse_factories(xy)
         for name, pulse in default_pulses.items():
             xy.operations[name] = pulse
 
-        x_pulse = xy.operations["x180"]
-        assert x_pulse.axis_angle == 0.0
-        y_pulse = xy.operations["y180"]
-        assert y_pulse.axis_angle == pytest.approx(np.pi / 2)
+        pulse = xy.operations["gaussian"]
+        assert pulse.axis_angle == 0.0
 
 
 # --------------------------------------------------------------------------- #

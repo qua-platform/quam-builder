@@ -427,20 +427,22 @@ Serialization behavior:
 
 `wire_machine_macros()` also wires default pulses onto component channels. Pulse wiring is additive — only pulse names not already present are added.
 
-### Qubit XY Drive Pulses
+### Qubit XY Drive Pulse
 
-For each qubit in `machine.qubits` with an `xy` drive, these `GaussianPulse` defaults are added to `qubit.xy.operations`:
+A single reference pulse is registered per qubit. `XYDriveMacro` scales amplitude for rotation angle and applies virtual-Z for rotation axis (X/Y), so all single-qubit gates derive from this one pulse.
 
-| Pulse Name | Amplitude | Axis Angle (IQ/MW) | Axis Angle (SingleChannel) |
-|------------|-----------|---------------------|---------------------------|
-| `x180` | 0.2 | 0.0 | `None` |
-| `x90` | 0.1 | 0.0 | `None` |
-| `y180` | 0.2 | π/2 | `None` |
-| `y90` | 0.1 | π/2 | `None` |
-| `-x90` | −0.1 | 0.0 | `None` |
-| `-y90` | −0.1 | π/2 | `None` |
+| Pulse Name | Type | Amplitude | Length | Sigma | Axis Angle (IQ/MW) | Axis Angle (SingleChannel) |
+|------------|------|-----------|--------|-------|---------------------|---------------------------|
+| `gaussian` | `GaussianPulse` | 0.2 | 1000 ns | 167 ns | 0.0 | `None` |
 
-All pulses: length 1000 ns, sigma 167 ns.
+Pulse names are centralized in `DrivePulseName` (`StrEnum`) in `names.py`:
+- `DrivePulseName.GAUSSIAN` = `"gaussian"` (default)
+- `DrivePulseName.DRAG` = `"drag"` (user-registered)
+
+To switch pulse type (e.g. Gaussian → DRAG):
+1. Register the new pulse: `qubit.xy.operations[DrivePulseName.DRAG.value] = DragPulse(...)`
+2. Update the macro: `qubit.macros["xy_drive"].reference_pulse_name = DrivePulseName.DRAG.value`
+3. All gate macros (x90, x180, y90, etc.) automatically use the new pulse.
 
 ### Sensor Dot Readout Pulses
 
@@ -451,17 +453,17 @@ For each sensor dot in `machine.sensor_dots` with a `readout_resonator`, a defau
 Pulse overrides use the same scoping as macro overrides, under a `pulses` key:
 
 ```toml
-# Type-level: all LDQubits get a shorter x180 pulse
+# Type-level: all LDQubits get a shorter gaussian pulse
 [component_types.LDQubit.pulses]
-x180 = {type = "GaussianPulse", length = 500, amplitude = 0.3, sigma = 83}
+gaussian = {type = "GaussianPulse", length = 500, amplitude = 0.3, sigma = 83}
 
-# Instance-level: qubit q1 gets a custom x180
+# Instance-level: qubit q1 gets a custom gaussian
 [instances."qubits.q1".pulses]
-x180 = {type = "GaussianPulse", length = 800, amplitude = 0.15, sigma = 133}
+gaussian = {type = "GaussianPulse", length = 800, amplitude = 0.15, sigma = 133}
 
 # Remove a pulse
 [instances."qubits.q2".pulses]
-"-y90" = {enabled = false}
+gaussian = {enabled = false}
 ```
 
 Supported pulse types: `GaussianPulse`, `SquarePulse`, `SquareReadoutPulse`, `DragPulse`.
@@ -477,14 +479,14 @@ wire_machine_macros(
         "component_types": {
             "LDQubit": {
                 "pulses": {
-                    "x180": {"type": "GaussianPulse", "length": 500, "amplitude": 0.3, "sigma": 83},
+                    "gaussian": {"type": "GaussianPulse", "length": 500, "amplitude": 0.3, "sigma": 83},
                 }
             }
         },
         "instances": {
             "qubits.q1": {
                 "pulses": {
-                    "x180": {"type": "GaussianPulse", "length": 800, "amplitude": 0.15, "sigma": 133},
+                    "gaussian": {"type": "GaussianPulse", "length": 800, "amplitude": 0.15, "sigma": 133},
                 }
             }
         },
@@ -573,4 +575,11 @@ See [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_examp
 1. default pulse wiring via `wire_machine_macros`
 2. type-level pulse overrides (all qubits of a type)
 3. instance-level pulse overrides (one specific qubit)
-4. disabling specific pulses
+
+See [`../examples/full_workflow_example.py`](../examples/full_workflow_example.py) for:
+
+1. wiring a Loss-DiVincenzo qubit machine (combined single-stage workflow)
+2. wiring default macros and pulses
+3. updating operation parameters
+4. swapping drive pulse type (Gaussian → DRAG)
+5. replacing macros (instance-level and type-level overrides)

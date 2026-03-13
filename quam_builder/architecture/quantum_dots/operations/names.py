@@ -10,6 +10,7 @@ __all__ = [
     "VoltagePointName",
     "SingleQubitMacroName",
     "TwoQubitMacroName",
+    "DrivePulseName",
     "X_NEG_90_ALIAS",
     "Y_NEG_90_ALIAS",
     "SINGLE_QUBIT_MACRO_ALIASES",
@@ -58,6 +59,23 @@ class TwoQubitMacroName(StrEnum):
     CZ = "cz"
     SWAP = "swap"
     ISWAP = "iswap"
+
+
+class DrivePulseName(StrEnum):
+    """Canonical drive pulse operation names for XY drive channels.
+
+    Each entry identifies a pulse envelope type registered in
+    ``qubit.xy.operations``.  The ``XYDriveMacro.reference_pulse_name``
+    field selects which pulse is used as the single source of truth
+    for all single-qubit rotations.
+
+    Users can register multiple pulse types (e.g. both ``gaussian``
+    and ``drag``) and switch between them by updating
+    ``reference_pulse_name`` on the macro.
+    """
+
+    GAUSSIAN = "gaussian"
+    DRAG = "drag"
 
 
 X_NEG_90_ALIAS = "-x90"
