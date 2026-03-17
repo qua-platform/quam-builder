@@ -1,8 +1,7 @@
-from typing import Literal, Optional, Union, Tuple, List
+from typing import List, Literal, Optional, Tuple, Union
 
 from qm.qua import *
 from qm.qua._expressions import QuaExpression, QuaVariable
-
 from quam.components.macro import QubitPairMacro
 from quam.core import quam_dataclass
 
@@ -92,27 +91,27 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         if cr_drive_amp_scaling is None:
             cr_drive_amp_scaling = self._cr.drive_amplitude_scaling
         else:
-            cr_drive_amp_scaling *= self._cr.drive_amplitude_scaling
+            cr_drive_amp_scaling = cr_drive_amp_scaling * self._cr.drive_amplitude_scaling
         if cr_drive_phase is None:
             cr_drive_phase = self._cr.drive_phase
         else:
-            cr_drive_phase += self._cr.drive_phase
+            cr_drive_phase = cr_drive_phase + self._cr.drive_phase
         if cr_cancel_amp_scaling is None:
             cr_cancel_amp_scaling = self._cr.cancel_amplitude_scaling
         else:
-            cr_cancel_amp_scaling *= self._cr.cancel_amplitude_scaling
+            cr_cancel_amp_scaling = cr_cancel_amp_scaling * self._cr.cancel_amplitude_scaling
         if cr_cancel_phase is None:
             cr_cancel_phase = self._cr.cancel_phase
         else:
-            cr_cancel_phase += self._cr.cancel_phase
+            cr_cancel_phase = cr_cancel_phase + self._cr.cancel_phase
         if qc_correction_phase is None:
             qc_correction_phase = self._cr.qc_correction_phase
         else:
-            qc_correction_phase += self._cr.qc_correction_phase
+            qc_correction_phase = qc_correction_phase + self._cr.qc_correction_phase
         if qt_correction_phase is None:
             qt_correction_phase = self._cr.qt_correction_phase
         else:
-            qt_correction_phase += self._cr.qt_correction_phase
+            qt_correction_phase = qt_correction_phase + self._cr.qt_correction_phase
 
         params = self._merge_params(
             dict(
