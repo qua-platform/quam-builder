@@ -171,9 +171,20 @@ class BaseQuamQD(QuamRoot):
             try:
                 self.qdac = Instrument.find_instrument(name)
             except KeyError:
-                self.qdac = QDAC2.QDac2(
-                    name, visalib="@py", address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET'
-                )
+                if "qdac_ip" in self.network:
+                    self.qdac = QDAC2.QDac2(
+                        name,
+                        visalib="@py",
+                        address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET',
+                    )
+                elif "qdac_usb_port" in self.network:
+                    self.qdac = QDAC2.QDac2(
+                        name, address=f'ASRL{self.network["qdac_usb_port"]}::INSTR'
+                    )
+                else:
+                    raise ValueError(
+                        "No QDAC network found in machine.network. Please add either 'qdac_ip' (str) or 'qdac_usb_port' (int)"
+                    )
 
             for channel in self.physical_channels.values():
                 if hasattr(channel, "qdac_spec"):
