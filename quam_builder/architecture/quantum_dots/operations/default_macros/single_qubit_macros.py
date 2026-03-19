@@ -55,7 +55,7 @@ def _quantize_ns(duration_ns: float) -> int:
 class Initialize1QMacro(InitializeStateMacro, QubitMacro):
     """Initialize qubit by ramping to the `initialize` voltage point."""
 
-    point_name: str = VoltagePointName.INITIALIZE.value
+    point: str = VoltagePointName.INITIALIZE.value
 
 
 class Measure1QMacro(QubitMacro):
@@ -92,7 +92,7 @@ class Measure1QMacro(QubitMacro):
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
     """Move qubit to the `empty` voltage point."""
 
-    point_name: str = VoltagePointName.EMPTY.value
+    point: str = VoltagePointName.EMPTY.value
 
 
 class XYDriveMacro(QubitMacro):
