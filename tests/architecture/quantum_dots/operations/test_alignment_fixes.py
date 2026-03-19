@@ -6,9 +6,11 @@ Covers:
 - Measure macro chain (SensorDot -> QuantumDotPair -> Qubit)
 """
 
+from inspect import signature
+from unittest.mock import MagicMock, call, patch
+
 import pytest
 import numpy as np
-from unittest.mock import patch, MagicMock
 
 from quam.components import pulses as quam_pulses, StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
@@ -34,6 +36,8 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
     Measure1QMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+    ExchangeStateMacro,
+    InitializeStateMacro,
     SensorDotMeasureMacro,
     MeasurePSBPairMacro,
 )
@@ -168,18 +172,110 @@ class TestMeasure1QNavigation:
 class TestMeasurePSBPairNavigation:
     """Test MeasurePSBPairMacro structure and error paths."""
 
-    def test_pair_macro_has_correct_point_name(self, reset_catalog):
+    def test_pair_macro_has_correct_point(self, reset_catalog):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         macro = pair.macros["measure"]
-        assert macro.point_name == VoltagePointName.MEASURE.value
+        assert macro.point == VoltagePointName.MEASURE.value
 
     def test_pair_has_sensor_dots(self, reset_catalog):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         assert len(pair.sensor_dots) > 0
+
+
+class TestStateMacroPointDispatch:
+    """Verify state macros dispatch on the new `point` keyword type."""
+
+    def test_state_macro_signature_uses_point_keyword(self):
+        initialize_sig = signature(InitializeStateMacro)
+        exchange_sig = signature(ExchangeStateMacro)
+        measure_pair_sig = signature(MeasurePSBPairMacro)
+
+        assert "point" in initialize_sig.parameters
+        assert "point_name" not in initialize_sig.parameters
+        assert "point" in exchange_sig.parameters
+        assert "return_point" in exchange_sig.parameters
+        assert "point_name" not in exchange_sig.parameters
+        assert "return_point_name" not in exchange_sig.parameters
+        assert "point" in measure_pair_sig.parameters
+        assert "point_name" not in measure_pair_sig.parameters
+
+    def test_initialize_state_macro_ramps_to_named_point(self):
+        macro = InitializeStateMacro(point="custom_init", ramp_duration=48, hold_duration=64)
+        owner = MagicMock()
+
+        with patch(
+            "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
+            return_value=owner,
+        ):
+            macro.apply()
+
+        owner.ramp_to_point.assert_called_once_with("custom_init", ramp_duration=48, duration=64)
+        owner.ramp_to_voltages.assert_not_called()
+
+    def test_initialize_state_macro_ramps_to_voltage_dict(self):
+        voltages = {"virtual_dot_1": 0.1, "virtual_barrier_1": -0.05}
+        macro = InitializeStateMacro(point=voltages, ramp_duration=48, hold_duration=64)
+        owner = MagicMock()
+
+        with patch(
+            "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
+            return_value=owner,
+        ):
+            macro.apply()
+
+        owner.ramp_to_voltages.assert_called_once_with(voltages, duration=64, ramp_duration=48)
+        owner.ramp_to_point.assert_not_called()
+
+    def test_exchange_state_macro_accepts_voltage_dict_targets(self):
+        exchange_voltages = {"virtual_dot_1": 0.2}
+        return_voltages = {"virtual_dot_1": 0.0}
+        macro = ExchangeStateMacro(
+            point=exchange_voltages,
+            return_point=return_voltages,
+            ramp_duration=32,
+            wait_duration=80,
+        )
+        owner = MagicMock()
+
+        with patch(
+            "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
+            return_value=owner,
+        ):
+            macro.apply()
+
+        owner.ramp_to_voltages.assert_has_calls(
+            [
+                call(exchange_voltages, duration=None, ramp_duration=32),
+                call(return_voltages, duration=None, ramp_duration=32),
+            ]
+        )
+        owner.ramp_to_point.assert_not_called()
+        owner.voltage_sequence.step_to_voltages.assert_called_once_with({}, duration=80)
+
+    def test_measure_psb_pair_macro_steps_to_voltage_dict(self):
+        voltages = {"virtual_dot_1": -0.1}
+        macro = MeasurePSBPairMacro(point=voltages, hold_duration=96)
+        sensor_dot = MagicMock()
+        owner = MagicMock()
+        owner.id = "dot1_dot2_pair"
+        owner.sensor_dots = [sensor_dot]
+
+        with patch(
+            "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
+            return_value=owner,
+        ):
+            macro.apply()
+
+        owner.step_to_voltages.assert_called_once_with(voltages, duration=96)
+        owner.step_to_point.assert_not_called()
+        sensor_dot.call_macro.assert_called_once_with(
+            VoltagePointName.MEASURE.value,
+            quantum_dot_pair_id="dot1_dot2_pair",
+        )
 
 
 class TestMeasure2QDelegation:
