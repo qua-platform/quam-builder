@@ -207,3 +207,4 @@ quam_builder/architecture/quantum_dots/examples/data/
 # Local-only tooling and IDE metadata
 /.claude/
 /.idea/inspectionProfiles/
+.planning/

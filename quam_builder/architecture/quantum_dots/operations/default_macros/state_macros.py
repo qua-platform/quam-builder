@@ -13,6 +13,7 @@ __all__ = [
     "InitializeStateMacro",
     "MeasureStateMacro",
     "EmptyStateMacro",
+    "ExchangeStateMacro",
     "SensorDotMeasureMacro",
     "MeasurePSBPairMacro",
     "QPUInitializeMacro",
@@ -132,6 +133,42 @@ class EmptyStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
         owner.step_to_point(self.point_name, duration=hold)
+
+
+@quam_dataclass
+class ExchangeStateMacro(QuamMacro):
+    """Ramp to exchange voltage point, wait, then ramp back to initialize.
+
+    The sequence is:
+    1. Ramp to the exchange point over ``ramp_duration`` ns.
+    2. Hold at exchange using a sticky voltage wait for ``wait_duration`` ns.
+    3. Ramp back to the initialize point over ``ramp_duration`` ns.
+    """
+
+    point_name: str = VoltagePointName.EXCHANGE.value
+    return_point_name: str = VoltagePointName.INITIALIZE.value
+    ramp_duration: int = 16
+    wait_duration: int = 16
+
+    def apply(
+        self,
+        ramp_duration: int | None = None,
+        wait_duration: int | None = None,
+        point_name: str | None = None,
+        **kwargs,
+    ):
+        """Execute the exchange pulse sequence with optional runtime overrides."""
+        owner = _owner_component(self)
+        ramp = self.ramp_duration if ramp_duration is None else ramp_duration
+        wait = self.wait_duration if wait_duration is None else wait_duration
+        point = self.point_name if point_name is None else point_name
+
+        # Ramp to exchange point
+        owner.ramp_to_point(point, ramp_duration=ramp)
+        # Hold at exchange — empty dict keeps sticky voltages while advancing time
+        owner.voltage_sequence.step_to_voltages({}, duration=wait)
+        # Ramp back to initialize
+        owner.ramp_to_point(self.return_point_name, ramp_duration=ramp)
 
 
 @quam_dataclass
