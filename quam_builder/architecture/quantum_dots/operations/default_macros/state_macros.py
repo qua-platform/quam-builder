@@ -8,6 +8,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
+from quam_builder.tools.qua_tools import VoltageLevelType
 
 __all__ = [
     "InitializeStateMacro",
@@ -22,6 +23,8 @@ __all__ = [
     "STATE_POINT_MACROS",
     "QPU_STATE_MACROS",
 ]
+
+PointType = str | dict[str, VoltageLevelType]
 
 
 def _owner_component(macro: QuamMacro) -> Any:
@@ -44,10 +47,12 @@ def _owner_component(macro: QuamMacro) -> Any:
     return owner
 
 
-def _resolve_default_point_duration_ns(owner: Any, point_name: str) -> Optional[int]:
+def _resolve_default_point_duration_ns(owner: Any, point: PointType) -> Optional[int]:
     """Best-effort lookup of a point's default hold duration in nanoseconds."""
+    if not isinstance(point, str):
+        return None
     try:
-        full_name = owner._create_point_name(point_name)
+        full_name = owner._create_point_name(point)
         point = owner.voltage_sequence.gate_set.macros[full_name]
         duration = getattr(point, "duration", None)
         if isinstance(duration, int):
@@ -57,11 +62,32 @@ def _resolve_default_point_duration_ns(owner: Any, point_name: str) -> Optional[
     return None
 
 
+def _step_to_target(owner: Any, point: PointType, duration: int | None = None) -> None:
+    """Step to either a named point or an explicit voltage dictionary."""
+    if isinstance(point, str):
+        owner.step_to_point(point, duration=duration)
+        return
+    owner.step_to_voltages(point, duration=duration)
+
+
+def _ramp_to_target(
+    owner: Any,
+    point: PointType,
+    ramp_duration: int,
+    duration: int | None = None,
+) -> None:
+    """Ramp to either a named point or an explicit voltage dictionary."""
+    if isinstance(point, str):
+        owner.ramp_to_point(point, ramp_duration=ramp_duration, duration=duration)
+        return
+    owner.ramp_to_voltages(point, duration=duration, ramp_duration=ramp_duration)
+
+
 @quam_dataclass
 class InitializeStateMacro(QuamMacro):
-    """Move component to initialize voltage point using a ramp transition."""
+    """Move component to initialize voltages using a ramp transition."""
 
-    point_name: str = VoltagePointName.INITIALIZE.value
+    point: PointType = VoltagePointName.INITIALIZE.value
     ramp_duration: int = 16
     hold_duration: int | None = None
 
@@ -71,7 +97,7 @@ class InitializeStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration
         if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point_name)
+            hold = _resolve_default_point_duration_ns(owner, self.point)
         if hold is None:
             return None
         return (self.ramp_duration + hold) * 1e-9
@@ -82,18 +108,18 @@ class InitializeStateMacro(QuamMacro):
         hold_duration: int | None = None,
         **kwargs,
     ):
-        """Ramp to the initialize point with optional runtime overrides."""
+        """Ramp to the initialize target with optional runtime overrides."""
         owner = _owner_component(self)
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         hold = self.hold_duration if hold_duration is None else hold_duration
-        owner.ramp_to_point(self.point_name, ramp_duration=ramp, duration=hold)
+        _ramp_to_target(owner, self.point, ramp_duration=ramp, duration=hold)
 
 
 @quam_dataclass
 class MeasureStateMacro(QuamMacro):
-    """Move component to measure voltage point."""
+    """Move component to measure voltages."""
 
-    point_name: str = VoltagePointName.MEASURE.value
+    point: PointType = VoltagePointName.MEASURE.value
     hold_duration: int | None = None
 
     @property
@@ -102,21 +128,21 @@ class MeasureStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration
         if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point_name)
+            hold = _resolve_default_point_duration_ns(owner, self.point)
         return hold * 1e-9 if hold is not None else None
 
     def apply(self, hold_duration: int | None = None, **kwargs):
-        """Step to the measure point with optional hold-duration override."""
+        """Step to the measure target with optional hold-duration override."""
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
-        owner.step_to_point(self.point_name, duration=hold)
+        _step_to_target(owner, self.point, duration=hold)
 
 
 @quam_dataclass
 class EmptyStateMacro(QuamMacro):
-    """Move component to empty voltage point."""
+    """Move component to empty voltages."""
 
-    point_name: str = VoltagePointName.EMPTY.value
+    point: PointType = VoltagePointName.EMPTY.value
     hold_duration: int | None = None
 
     @property
@@ -125,28 +151,28 @@ class EmptyStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration
         if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point_name)
+            hold = _resolve_default_point_duration_ns(owner, self.point)
         return hold * 1e-9 if hold is not None else None
 
     def apply(self, hold_duration: int | None = None, **kwargs):
-        """Step to the empty point with optional hold-duration override."""
+        """Step to the empty target with optional hold-duration override."""
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
-        owner.step_to_point(self.point_name, duration=hold)
+        _step_to_target(owner, self.point, duration=hold)
 
 
 @quam_dataclass
 class ExchangeStateMacro(QuamMacro):
-    """Ramp to exchange voltage point, wait, then ramp back to initialize.
+    """Ramp to exchange target, wait, then ramp back to initialize.
 
     The sequence is:
-    1. Ramp to the exchange point over ``ramp_duration`` ns.
+    1. Ramp to the exchange target over ``ramp_duration`` ns.
     2. Hold at exchange using a sticky voltage wait for ``wait_duration`` ns.
-    3. Ramp back to the initialize point over ``ramp_duration`` ns.
+    3. Ramp back to the initialize target over ``ramp_duration`` ns.
     """
 
-    point_name: str = VoltagePointName.EXCHANGE.value
-    return_point_name: str = VoltagePointName.INITIALIZE.value
+    point: PointType = VoltagePointName.EXCHANGE.value
+    return_point: PointType = VoltagePointName.INITIALIZE.value
     ramp_duration: int = 16
     wait_duration: int = 16
 
@@ -154,21 +180,23 @@ class ExchangeStateMacro(QuamMacro):
         self,
         ramp_duration: int | None = None,
         wait_duration: int | None = None,
-        point_name: str | None = None,
+        point: PointType | None = None,
+        return_point: PointType | None = None,
         **kwargs,
     ):
         """Execute the exchange pulse sequence with optional runtime overrides."""
         owner = _owner_component(self)
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         wait = self.wait_duration if wait_duration is None else wait_duration
-        point = self.point_name if point_name is None else point_name
+        exchange_point = self.point if point is None else point
+        exchange_return_point = self.return_point if return_point is None else return_point
 
-        # Ramp to exchange point
-        owner.ramp_to_point(point, ramp_duration=ramp)
+        # Ramp to exchange target
+        _ramp_to_target(owner, exchange_point, ramp_duration=ramp)
         # Hold at exchange — empty dict keeps sticky voltages while advancing time
         owner.voltage_sequence.step_to_voltages({}, duration=wait)
         # Ramp back to initialize
-        owner.ramp_to_point(self.return_point_name, ramp_duration=ramp)
+        _ramp_to_target(owner, exchange_return_point, ramp_duration=ramp)
 
 
 @quam_dataclass
@@ -224,19 +252,19 @@ class SensorDotMeasureMacro(QuamMacro):
 class MeasurePSBPairMacro(QuamMacro):
     """PSB measure macro for QuantumDotPair.
 
-    Steps to the measure voltage point, then dispatches readout to the
+    Steps to the measure target, then dispatches readout to the
     first coupled sensor dot with the pair ID for threshold lookup.
     Returns a QUA boolean for state discrimination.
     """
 
-    point_name: str = VoltagePointName.MEASURE.value
+    point: PointType = VoltagePointName.MEASURE.value
     hold_duration: int | None = None
 
     def apply(self, hold_duration: int | None = None, **kwargs):
-        """Step to measure point, then perform PSB readout via sensor dot."""
+        """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
-        owner.step_to_point(self.point_name, duration=hold)
+        _step_to_target(owner, self.point, duration=hold)
 
         if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")

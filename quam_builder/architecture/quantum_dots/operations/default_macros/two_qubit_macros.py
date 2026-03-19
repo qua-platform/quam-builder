@@ -32,7 +32,7 @@ __all__ = [
 class Initialize2QMacro(InitializeStateMacro, QubitPairMacro):
     """Initialize qubit pair by ramping to the `initialize` voltage point."""
 
-    point_name: str = VoltagePointName.INITIALIZE.value
+    point: str = VoltagePointName.INITIALIZE.value
 
 
 class Measure2QMacro(QubitPairMacro):
@@ -55,7 +55,7 @@ class Measure2QMacro(QubitPairMacro):
 class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
     """Move qubit pair to the `empty` voltage point."""
 
-    point_name: str = VoltagePointName.EMPTY.value
+    point: str = VoltagePointName.EMPTY.value
 
 
 class Exchange2QMacro(QubitPairMacro):
