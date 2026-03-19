@@ -163,12 +163,16 @@ class EmptyStateMacro(QuamMacro):
 
 @quam_dataclass
 class ExchangeStateMacro(QuamMacro):
-    """Ramp to exchange target, wait, then ramp back to initialize.
+    """Ramp to exchange target, hold, then ramp back to initialize.
 
     The sequence is:
-    1. Ramp to the exchange target over ``ramp_duration`` ns.
-    2. Hold at exchange using a sticky voltage wait for ``wait_duration`` ns.
-    3. Ramp back to the initialize target over ``ramp_duration`` ns.
+    1. Ramp to the exchange target over ``ramp_duration`` ns, then hold at that
+       voltage for ``wait_duration`` ns (post-ramp plateau on
+       ``ramp_to_voltages`` — equivalent to the former separate sticky
+       ``step_to_voltages`` wait).
+    2. Ramp back to the initialize target over ``ramp_duration`` ns (no extra
+       post-ramp hold; ``duration=0`` avoids ``None`` in integrated-voltage
+       tracking when QUA types are present).
     """
 
     point: PointType = VoltagePointName.EXCHANGE.value
@@ -191,12 +195,10 @@ class ExchangeStateMacro(QuamMacro):
         exchange_point = self.point if point is None else point
         exchange_return_point = self.return_point if return_point is None else return_point
 
-        # Ramp to exchange target
-        _ramp_to_target(owner, exchange_point, ramp_duration=ramp)
-        # Hold at exchange — empty dict keeps sticky voltages while advancing time
-        owner.voltage_sequence.step_to_voltages({}, duration=wait)
-        # Ramp back to initialize
-        _ramp_to_target(owner, exchange_return_point, ramp_duration=ramp)
+        # Ramp to exchange; hold at plateau for wait_duration (ns after ramp completes)
+        _ramp_to_target(owner, exchange_point, ramp_duration=ramp, duration=wait)
+        # Ramp back to initialize / return point
+        _ramp_to_target(owner, exchange_return_point, ramp_duration=ramp, duration=0)
 
 
 @quam_dataclass
