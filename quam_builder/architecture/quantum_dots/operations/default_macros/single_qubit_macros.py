@@ -229,6 +229,8 @@ class XYDriveMacro(QubitMacro):
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
 
+        self.qubit.voltage_sequence.step_to_voltages({}, duration=duration_ns)
+
         self.qubit.play_xy_pulse(
             resolved_pulse_name,
             pulse_duration=duration_ns,

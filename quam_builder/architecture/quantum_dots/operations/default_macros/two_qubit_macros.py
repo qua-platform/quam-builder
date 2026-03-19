@@ -21,6 +21,7 @@ __all__ = [
     "Initialize2QMacro",
     "Measure2QMacro",
     "Empty2QMacro",
+    "Exchange2QMacro",
     "CNOTMacro",
     "CZMacro",
     "SwapMacro",
@@ -55,6 +56,18 @@ class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
     """Move qubit pair to the `empty` voltage point."""
 
     point_name: str = VoltagePointName.EMPTY.value
+
+
+class Exchange2QMacro(QubitPairMacro):
+    """Exchange macro for LDQubitPair — delegates to the QuantumDotPair exchange macro."""
+
+    def apply(self, **kwargs):
+        """Delegate exchange to the underlying quantum_dot_pair."""
+        owner = _owner_component(self)
+        qd_pair = getattr(owner, "quantum_dot_pair", None)
+        if qd_pair is None:
+            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for exchange.")
+        return qd_pair.call_macro(VoltagePointName.EXCHANGE.value, **kwargs)
 
 
 class _Unsupported2QGateMacro(QubitPairMacro):
@@ -102,5 +115,6 @@ TWO_QUBIT_MACROS = {
     TwoQubitMacroName.CZ.value: CZMacro,
     TwoQubitMacroName.SWAP.value: SwapMacro,
     TwoQubitMacroName.ISWAP.value: ISwapMacro,
+    TwoQubitMacroName.EXCHANGE.value: Exchange2QMacro,
 }
 # Default two-qubit macro factories for ``LDQubitPair`` components.
