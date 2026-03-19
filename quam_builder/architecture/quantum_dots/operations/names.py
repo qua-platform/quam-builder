@@ -27,6 +27,7 @@ class VoltagePointName(StrEnum):
     INITIALIZE = "initialize"
     MEASURE = "measure"
     EMPTY = "empty"
+    EXCHANGE = "exchange"
 
 
 class SingleQubitMacroName(StrEnum):
@@ -59,6 +60,7 @@ class TwoQubitMacroName(StrEnum):
     CZ = "cz"
     SWAP = "swap"
     ISWAP = "iswap"
+    EXCHANGE = "exchange"
 
 
 class DrivePulseName(StrEnum):
@@ -128,5 +130,6 @@ TWO_QUBIT_MACRO_NAMES = (
     TwoQubitMacroName.CZ.value,
     TwoQubitMacroName.SWAP.value,
     TwoQubitMacroName.ISWAP.value,
+    TwoQubitMacroName.EXCHANGE.value,
 )
 # Supported two-qubit macro names for default LD qubit pairs.
