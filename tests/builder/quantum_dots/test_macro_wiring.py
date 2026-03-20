@@ -254,8 +254,45 @@ def test_xy_drive_default_amplitude_scale_flows_through_wrappers():
     assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.4)
 
 
-def test_fixed_angle_default_scale_composes_with_runtime_scale():
-    """Fixed-angle macro defaults should compose multiplicatively with runtime scaling."""
+def test_axis_default_scale_overrides_xy_drive_default():
+    """Axis defaults should shadow the canonical xy_drive default scale."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+    q1.macros["xy_drive"].default_amplitude_scale = 0.8
+    q1.macros["y"].default_amplitude_scale = 0.6
+
+    with (
+        patch.object(q1, "virtual_z", return_value=None),
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.y90()
+
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.3)
+
+
+def test_fixed_angle_default_scale_overrides_xy_drive_default():
+    """Fixed-angle defaults should shadow less-specific canonical defaults."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+    q1.macros["xy_drive"].default_amplitude_scale = 0.8
+    q1.macros["x90"].default_amplitude_scale = 1.2
+
+    with (
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.x90()
+
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.6)
+
+
+def test_fixed_angle_default_scale_overrides_lower_defaults_and_runtime_multiplies():
+    """Wrapper defaults should shadow lower defaults, while runtime scaling still multiplies."""
     machine = _build_machine()
     wire_machine_macros(
         machine,
@@ -272,6 +309,7 @@ def test_fixed_angle_default_scale_composes_with_runtime_scale():
     )
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
+    q1.macros["xy_drive"].default_amplitude_scale = 0.8
 
     with (
         patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,

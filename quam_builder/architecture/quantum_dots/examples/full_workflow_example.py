@@ -159,7 +159,7 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
         # Tune measure hold duration
         qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
 
-        # Apply a calibrated multiplicative scale on top of the reference pulse.
+        # Apply the canonical default scale used unless a more-specific gate overrides it.
         qubit.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85
 
         # Set identity wait duration
@@ -228,7 +228,7 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
 
 
 class TunedX180Macro(X180Macro):
-    """Custom X180 macro with extra multiplicative amplitude scaling."""
+    """Custom X180 macro with gate-specific default pulse scaling."""
 
     default_amplitude_scale: float = 0.78
 

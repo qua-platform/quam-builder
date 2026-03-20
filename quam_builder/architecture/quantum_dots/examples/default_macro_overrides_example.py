@@ -42,7 +42,7 @@ from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 
 
 class TunedX180Macro(X180Macro):
-    """Instance-level custom X180 macro with extra multiplicative amplitude scaling."""
+    """Instance-level custom X180 macro with gate-specific default pulse scaling."""
 
     default_amplitude_scale: float = 0.75
 
