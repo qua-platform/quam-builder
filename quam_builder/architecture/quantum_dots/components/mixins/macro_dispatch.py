@@ -133,6 +133,7 @@ class MacroDispatchMixin(QuantumComponent):
 
     def call_macro(self, name: str, **kwargs):
         """Execute a macro by name through compiled dispatch."""
+        ## TODO: Is this necessary?
         return self._get_compiled_macro_callable(name)(**kwargs)
 
     def __getattr__(self, name):

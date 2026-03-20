@@ -107,7 +107,7 @@ class Measure1QMacro(QubitMacro):
             )
 
         qd_pair = machine.quantum_dot_pairs[pair_name]
-        return qd_pair.call_macro(VoltagePointName.MEASURE, **kwargs)
+        return qd_pair.call_macro(SingleQubitMacroName.MEASURE, **kwargs)
 
 
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
