@@ -162,17 +162,18 @@ class XYDriveMacro(QubitMacro):
             f"'{SingleQubitMacroName.X_90}'."
         )
 
-    def _reference_duration_ns(self, pulse_name: str) -> int | None:
+    def _reference_duration_cc(self, pulse_name: str) -> int | None:
+        """Reference pulse duration in OPX clock cycles (4 ns each)."""
         pulse = self.qubit.xy.operations[pulse_name]
         length = getattr(pulse, "length", None)
-        return length if isinstance(length, int) else None
+        return length // 4 if isinstance(length, int) else None
 
     def _angle_to_drive_params(
         self,
         angle: float,
         pulse_name: str,
     ) -> tuple[int | None, float]:
-        """Convert rotation angle to `(duration_ns, amplitude_scale)`.
+        """Convert rotation angle to `(duration_cc, amplitude_scale)`.
 
         Duration is always the reference pulse duration (no stretching).
         Only amplitude is rescaled proportionally to the angle.
@@ -184,8 +185,8 @@ class XYDriveMacro(QubitMacro):
         if math.isclose(relative, 0.0):
             return 0, 0.0
 
-        base_duration_ns = self._reference_duration_ns(pulse_name)
-        return base_duration_ns, relative
+        base_duration_cc = self._reference_duration_cc(pulse_name)
+        return base_duration_cc, relative
 
     @staticmethod
     def _normalize_angle_sign_to_phase(angle: float, phase: float) -> tuple[float, float]:
@@ -198,11 +199,11 @@ class XYDriveMacro(QubitMacro):
         """Infer runtime duration (seconds) for a given rotation angle."""
         try:
             pulse_name = self._resolve_pulse_name(None)
-            duration_ns, _ = self._angle_to_drive_params(abs(angle), pulse_name)
+            duration_cc, _ = self._angle_to_drive_params(abs(angle), pulse_name)
         except Exception:  # pragma: no cover - defensive
             return None
 
-        return duration_ns * 1e-9 if isinstance(duration_ns, int) else None
+        return duration_cc * 4e-9 if isinstance(duration_cc, int) else None
 
     @property
     def inferred_duration(self) -> float | None:
@@ -221,6 +222,10 @@ class XYDriveMacro(QubitMacro):
     ):
         """Play a phase-rotated XY drive pulse with compositional scaling.
 
+        All durations are in OPX clock cycles (4 ns each), matching QUA's
+        ``play(duration=...)`` convention.  When omitted, the reference
+        pulse length (``pulse.length // 4``) is used automatically.
+
         Runtime ``amplitude_scale`` multiplies the angle-derived scale from the
         reference pulse instead of replacing it.
         """
@@ -236,11 +241,11 @@ class XYDriveMacro(QubitMacro):
 
         target_angle, phase = self._normalize_angle_sign_to_phase(target_angle, phase)
         resolved_pulse_name = self._resolve_pulse_name(pulse_name)
-        auto_duration, auto_amplitude_scale = self._angle_to_drive_params(
+        auto_duration_cc, auto_amplitude_scale = self._angle_to_drive_params(
             target_angle, resolved_pulse_name
         )
 
-        duration_ns = auto_duration if pulse_duration is None else pulse_duration
+        duration_cc = auto_duration_cc if pulse_duration is None else pulse_duration
         drive_scale = _compose_amplitude_scale(
             auto_amplitude_scale,
             amplitude_scale,
@@ -249,12 +254,15 @@ class XYDriveMacro(QubitMacro):
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
 
-        self.qubit.voltage_sequence.step_to_voltages({}, duration=duration_ns)
+        self.qubit.voltage_sequence.step_to_voltages(
+            {},
+            duration=duration_cc * 4 if duration_cc is not None else None,
+        )
 
         self.qubit.xy.play(
             pulse_name=resolved_pulse_name,
             amplitude_scale=drive_scale,
-            duration=duration_ns // 4 if duration_ns is not None else None,
+            duration=duration_cc,
             **kwargs,
         )
 
