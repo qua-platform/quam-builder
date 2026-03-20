@@ -103,9 +103,9 @@ def _add_tutorial_state_points(machine: LossDiVincenzoQuam) -> None:
     """Add voltage step points so default state macros can run."""
     for qubit in machine.qubits.values():
         dot_id = qubit.quantum_dot.id
-        qubit.with_step_point(VoltagePointName.INITIALIZE.value, {dot_id: 0.10}, duration=200)
-        qubit.with_step_point(VoltagePointName.MEASURE.value, {dot_id: 0.15}, duration=200)
-        qubit.with_step_point(VoltagePointName.EMPTY.value, {dot_id: 0.00}, duration=200)
+        qubit.add_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
+        qubit.add_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=200)
+        qubit.add_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=200)
 
     # Pairs share voltage sequence with dots; add points for both dots
     for pair in machine.quantum_dot_pairs.values():
@@ -113,6 +113,6 @@ def _add_tutorial_state_points(machine: LossDiVincenzoQuam) -> None:
         v_init: Dict[str, float] = {d: 0.10 for d in dot_ids}
         v_meas: Dict[str, float] = {d: 0.15 for d in dot_ids}
         v_empty: Dict[str, float] = {d: 0.00 for d in dot_ids}
-        pair.with_step_point(VoltagePointName.INITIALIZE.value, v_init, duration=200)
-        pair.with_step_point(VoltagePointName.MEASURE.value, v_meas, duration=200)
-        pair.with_step_point(VoltagePointName.EMPTY.value, v_empty, duration=200)
+        pair.add_point(VoltagePointName.INITIALIZE, v_init, duration=200)
+        pair.add_point(VoltagePointName.MEASURE, v_meas, duration=200)
+        pair.add_point(VoltagePointName.EMPTY, v_empty, duration=200)

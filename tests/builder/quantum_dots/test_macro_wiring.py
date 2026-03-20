@@ -7,7 +7,11 @@ from unittest.mock import patch
 from qm import qua
 from quam.components import pulses
 
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    wire_machine_macros,
+    macro,
+    overrides,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
     XYDriveMacro,
@@ -15,6 +19,10 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
 )
+from quam_builder.architecture.quantum_dots.operations.names import (
+    SingleQubitMacroName,
+)
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
@@ -70,21 +78,21 @@ class TunedX180Macro(X180Macro):
 
 
 def test_instance_override_path_supports_quam_mappings():
-    """Instance overrides should work for collections stored as Quam mappings."""
+    """Instance overrides should work for collections stored as Quam mappings.
+
+    Uses the typed API: instance_overrides with macro() helper.
+    Only q1 gets the override; q2 keeps the default X180Macro.
+    """
     machine = _build_machine()
 
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "instances": {
-                "qubits.q1": {
-                    "macros": {
-                        "x180": {
-                            "factory": TunedX180Macro,
-                        },
-                    }
+        instance_overrides={
+            "qubits.q1": overrides(
+                macros={
+                    SingleQubitMacroName.X_180: macro(TunedX180Macro),
                 }
-            }
+            ),
         },
         strict=True,
     )
@@ -94,22 +102,24 @@ def test_instance_override_path_supports_quam_mappings():
 
 
 def test_component_type_override_applies_to_all_instances():
-    """Component-type overrides should apply to each matching instance."""
+    """Component-type overrides should apply to each matching instance.
+
+    Uses the typed API: component_overrides keyed by the LDQubit class.
+    The macro() helper validates the factory and passes params through.
+    """
     machine = _build_machine()
 
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "component_types": {
-                "LDQubit": {
-                    "macros": {
-                        "initialize": {
-                            "factory": InitializeStateMacro,
-                            "params": {"ramp_duration": 48},
-                        }
-                    }
+        component_overrides={
+            LDQubit: overrides(
+                macros={
+                    SingleQubitMacroName.INITIALIZE: macro(
+                        InitializeStateMacro,
+                        ramp_duration=48,
+                    ),
                 }
-            }
+            ),
         },
         strict=True,
     )
@@ -120,22 +130,24 @@ def test_component_type_override_applies_to_all_instances():
 
 
 def test_component_type_override_sets_xy_drive_runtime_params():
-    """Override params should populate canonical xy_drive attributes after init."""
+    """Override params should populate canonical xy_drive attributes after init.
+
+    Uses the typed API with component_overrides to set reference_angle
+    on all LDQubits at once.
+    """
     machine = _build_machine()
 
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "component_types": {
-                "LDQubit": {
-                    "macros": {
-                        "xy_drive": {
-                            "factory": XYDriveMacro,
-                            "params": {"reference_angle": 1.5},
-                        }
-                    }
+        component_overrides={
+            LDQubit: overrides(
+                macros={
+                    SingleQubitMacroName.XY_DRIVE: macro(
+                        XYDriveMacro,
+                        reference_angle=1.5,
+                    ),
                 }
-            }
+            ),
         },
         strict=True,
     )

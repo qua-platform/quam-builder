@@ -38,7 +38,8 @@ def build_base_quam(
     qdac_ip: Optional[str] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
-    macro_overrides: Optional[dict] = None,
+    component_overrides: Optional[dict] = None,
+    instance_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> BaseQuamQD:
     """Build Stage 1: BaseQuamQD with physical quantum dots.
@@ -64,7 +65,10 @@ def build_base_quam(
             connects to QDAC for external voltage control.
         connect_qdac: If True, connects to QDAC using qdac_ip or machine.network['qdac_ip'].
         macro_profile_path: Optional TOML file with macro override definitions.
-        macro_overrides: Optional runtime override mapping merged on top of profile data.
+        component_overrides: Typed overrides keyed by component class. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
+        instance_overrides: Typed overrides keyed by component path string. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -94,7 +98,8 @@ def build_base_quam(
     wire_machine_macros(
         machine,
         macro_profile_path=macro_profile_path,
-        macro_overrides=macro_overrides,
+        component_overrides=component_overrides,
+        instance_overrides=instance_overrides,
     )
 
     # Optional QDAC connection
@@ -131,7 +136,8 @@ def build_loss_divincenzo_quam(
     qubit_pair_sensor_map: Optional[dict] = None,
     implicit_mapping: bool = True,
     macro_profile_path: Optional[Union[Path, str]] = None,
-    macro_overrides: Optional[dict] = None,
+    component_overrides: Optional[dict] = None,
+    instance_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> LossDiVincenzoQuam:
     """Build Stage 2: Convert BaseQuamQD to LossDiVincenzoQuam with qubits.
@@ -164,7 +170,10 @@ def build_loss_divincenzo_quam(
         implicit_mapping: If True, uses q1→virtual_dot_1 mapping. If False,
                          requires explicit mapping configuration.
         macro_profile_path: Optional TOML file with macro override definitions.
-        macro_overrides: Optional runtime override mapping merged on top of profile data.
+        component_overrides: Typed overrides keyed by component class. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
+        instance_overrides: Typed overrides keyed by component path string. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -207,7 +216,8 @@ def build_loss_divincenzo_quam(
     wire_machine_macros(
         machine,
         macro_profile_path=macro_profile_path,
-        macro_overrides=macro_overrides,
+        component_overrides=component_overrides,
+        instance_overrides=instance_overrides,
     )
 
     if save:
@@ -224,7 +234,8 @@ def build_quam(
     qdac_ip: Optional[str] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
-    macro_overrides: Optional[dict] = None,
+    component_overrides: Optional[dict] = None,
+    instance_overrides: Optional[dict] = None,
     save: bool = True,
 ) -> LossDiVincenzoQuam:  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Build complete QuAM configuration using two-stage process.
@@ -242,7 +253,10 @@ def build_quam(
         qdac_ip: IP address for QDAC connection.
         connect_qdac: If True, connects to QDAC for external voltage control.
         macro_profile_path: Optional TOML file with macro override definitions.
-        macro_overrides: Optional runtime override mapping merged on top of profile data.
+        component_overrides: Typed overrides keyed by component class. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
+        instance_overrides: Typed overrides keyed by component path string. See
+            :func:`~quam_builder.architecture.quantum_dots.macro_engine.overrides.overrides`.
         save: If True, saves the machine state after building.
 
     Returns:
@@ -272,7 +286,8 @@ def build_quam(
             qdac_ip=qdac_ip,
             connect_qdac=connect_qdac,
             macro_profile_path=macro_profile_path,
-            macro_overrides=macro_overrides,
+            component_overrides=component_overrides,
+            instance_overrides=instance_overrides,
             save=False,  # Don't save yet
         )
 
@@ -281,7 +296,8 @@ def build_quam(
         machine,
         qubit_pair_sensor_map=qubit_pair_sensor_map,
         macro_profile_path=macro_profile_path,
-        macro_overrides=macro_overrides,
+        component_overrides=component_overrides,
+        instance_overrides=instance_overrides,
         save=save,
     )
 

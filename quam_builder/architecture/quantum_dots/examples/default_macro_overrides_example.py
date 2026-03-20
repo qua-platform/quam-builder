@@ -1,11 +1,23 @@
-"""Example: default macro wiring plus selective and type-level overrides.
+"""Example: macro wiring with typed override helpers.
 
-This script demonstrates:
-1. Building a small two-qubit quantum-dots machine.
-2. Using default supported macros.
-3. Overriding only one macro while keeping all other defaults.
-4. Overriding a macro for all components of a given type.
-5. Building a QUA program that uses the wired macros.
+Demonstrates the recommended Python API for overriding macros and pulses:
+
+1. ``wire_machine_macros(machine)`` — wire all defaults.
+2. ``component_overrides={LDQubit: overrides(...)}`` — override all qubits of a type.
+3. ``instance_overrides={"qubits.q1": overrides(...)}`` — override one specific qubit.
+4. ``macro(Factory, **params)`` — validated macro entry (catches bad factories early).
+5. ``pulse("GaussianPulse", length=500, ...)`` — typed pulse entry.
+6. ``disabled()`` — remove a macro or pulse from a component.
+
+Key imports::
+
+    from quam_builder.architecture.quantum_dots.macro_engine import (
+        wire_machine_macros,  # wiring entry point
+        macro,                # build a macro override entry
+        disabled,             # remove a macro/pulse
+        pulse,                # build a pulse override entry
+        overrides,            # group macros + pulses for one component
+    )
 """
 
 # pylint: disable=no-member  # WiringLineType enum members are runtime-only
@@ -23,7 +35,11 @@ from quam.components import pulses
 from quam.components.macro import QubitPairMacro
 
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    wire_machine_macros,
+    macro,
+    overrides,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
 )
@@ -36,22 +52,33 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.architecture.quantum_dots.qubit.ld_qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 
 
+# ---------------------------------------------------------------------------
+# Custom macro classes (users would define these in their lab package)
+# ---------------------------------------------------------------------------
+
+
 class TunedX180Macro(X180Macro):
-    """Instance-level custom X180 macro placeholder used for override wiring."""
+    """Lab-calibrated X180 macro for a specific qubit.
+
+    Inheriting from the default X180Macro means the delegation chain
+    (x180 → x → xy_drive → qubit.xy.play) is preserved.
+    """
 
     pass
 
 
 class DemoCZMacro(QubitPairMacro):
-    """Type-level demo CZ macro.
+    """Placeholder CZ gate showing how users replace default 2Q stubs.
 
-    This is only an example placeholder to show how users replace the default
-    fail-fast two-qubit gate placeholders with calibration-specific logic.
+    Default two-qubit macros raise NotImplementedError — users replace
+    them with calibration-specific logic via overrides.
     """
 
     duration_ns: int = 64
@@ -71,6 +98,11 @@ class DemoCZMacro(QubitPairMacro):
             qua.wait(duration_cycles, control_xy, target_xy)
 
 
+# ---------------------------------------------------------------------------
+# Machine construction helpers (same as other examples)
+# ---------------------------------------------------------------------------
+
+
 def _plunger_ports(qubit_id: str) -> Dict[str, str]:
     return {"opx_output": f"#/wiring/qubits/{qubit_id}/p/opx_output"}
 
@@ -84,11 +116,7 @@ def _barrier_ports(pair_id: str) -> Dict[str, str]:
 
 
 def build_demo_machine() -> LossDiVincenzoQuam:
-    """Build a small machine with 2 qubits and 1 qubit pair.
-
-    This uses stage builders directly to avoid relying on external QuAM config
-    migration state that can vary by local environment.
-    """
+    """Build a small machine with 2 qubits and 1 qubit pair."""
     machine = BaseQuamQD()
     machine.wiring = {
         "qubits": {
@@ -102,9 +130,7 @@ def build_demo_machine() -> LossDiVincenzoQuam:
             },
         },
         "qubit_pairs": {
-            "q1_q2": {
-                WiringLineType.BARRIER_GATE.value: _barrier_ports("q1_q2")
-            },  # pylint: disable=no-member
+            "q1_q2": {WiringLineType.BARRIER_GATE.value: _barrier_ports("q1_q2")},
         },
     }
     machine = _BaseQpuBuilder(machine).build()
@@ -112,8 +138,6 @@ def build_demo_machine() -> LossDiVincenzoQuam:
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
 
-    # Seed minimal reference pulse used by the demo program.
-    # Only one pulse is needed — XYDriveMacro derives all rotations from it.
     for qubit in machine.qubits.values():
         if qubit.xy is None:
             continue
@@ -122,6 +146,7 @@ def build_demo_machine() -> LossDiVincenzoQuam:
             pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16),
         )
 
+    # Wire all defaults — no overrides yet
     wire_machine_macros(machine)
     return machine
 
@@ -130,9 +155,9 @@ def add_default_state_points(machine: LossDiVincenzoQuam) -> None:
     """Define canonical voltage points used by default state macros."""
     for qubit in machine.qubits.values():
         dot_id = qubit.quantum_dot.id
-        qubit.with_step_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
-        qubit.with_step_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=200)
-        qubit.with_step_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=200)
+        qubit.add_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
+        qubit.add_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=200)
+        qubit.add_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=200)
 
 
 def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
@@ -146,33 +171,46 @@ def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     print("q1_q2.cz:", type(pair.macros[TwoQubitMacroName.CZ]).__name__)
 
 
+# ---------------------------------------------------------------------------
+# Override wiring using the typed API
+# ---------------------------------------------------------------------------
+
+
 def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
-    """Apply one instance-level and one component-type override."""
+    """Apply component-type and instance-level overrides using the typed API.
+
+    This demonstrates the three key helpers:
+    - ``overrides(macros={...})`` groups macro overrides for a component
+    - ``macro(Factory, **params)`` creates a validated macro entry
+    - Component type keys use the actual class (LDQubit, LDQubitPair)
+    - Instance keys are path strings ("qubits.q1")
+    """
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "component_types": {
-                "LDQubit": {
-                    "macros": {
-                        VoltagePointName.INITIALIZE: {
-                            "factory": InitializeStateMacro,
-                            "params": {"ramp_duration": 64},
-                        }
-                    }
-                },
-                "LDQubitPair": {
-                    "macros": {
-                        TwoQubitMacroName.CZ: {"factory": DemoCZMacro},
-                    }
-                },
-            },
-            "instances": {
-                "qubits.q1": {
-                    "macros": {
-                        SingleQubitMacroName.X_180: {"factory": TunedX180Macro},
-                    }
+        # --- Override all LDQubits: custom initialize with longer ramp ---
+        # --- Override all LDQubitPairs: replace placeholder CZ ---
+        component_overrides={
+            LDQubit: overrides(
+                macros={
+                    SingleQubitMacroName.INITIALIZE: macro(
+                        InitializeStateMacro,
+                        ramp_duration=64,
+                    ),
                 }
-            },
+            ),
+            LDQubitPair: overrides(
+                macros={
+                    TwoQubitMacroName.CZ: macro(DemoCZMacro),
+                }
+            ),
+        },
+        # --- Override one specific qubit: custom X180 on q1 only ---
+        instance_overrides={
+            "qubits.q1": overrides(
+                macros={
+                    SingleQubitMacroName.X_180: macro(TunedX180Macro),
+                }
+            ),
         },
         strict=True,
     )
@@ -188,9 +226,9 @@ def build_program(machine: LossDiVincenzoQuam):
         q1.initialize()
         q2.initialize()
         q1.x90()
-        q1.x180()  # Uses TunedX180Macro after override.
+        q1.x180()  # Uses TunedX180Macro after override
         q2.empty()
-        pair.cz()  # Uses DemoCZMacro after override.
+        pair.cz()  # Uses DemoCZMacro after override
         q1.measure()
         q2.measure()
 

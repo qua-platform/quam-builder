@@ -188,11 +188,9 @@ def rabi_setup():
     )
     qubit = machine.qubits["Q1"]
 
-    (
-        qubit.with_step_point(name="init", voltages={"virtual_dot_1": 0.05}, duration=500)
-        .with_step_point(name="operate", voltages={"virtual_dot_1": 0.15}, duration=2000)
-        .with_step_point(name="readout", voltages={"virtual_dot_1": -0.05}, duration=2000)
-    )
+    qubit.add_point(point_name="init", voltages={"virtual_dot_1": 0.05}, duration=500)
+    qubit.add_point(point_name="operate", voltages={"virtual_dot_1": 0.15}, duration=2000)
+    qubit.add_point(point_name="readout", voltages={"virtual_dot_1": -0.05}, duration=2000)
 
     qubit.macros["drive"] = DriveMacro(pulse_name="drive")
     qubit.macros["measure"] = MeasureMacro(pulse_name="readout")
@@ -251,12 +249,14 @@ class TestQubitRegistration:
 
 
 class TestVoltagePoints:
-    """Section 2: fluent voltage-point definition."""
+    """Section 2: direct voltage-point definition."""
 
     def test_three_points_defined(self, rabi_setup):
         _, qubit = rabi_setup
+        gate_set_macros = qubit.voltage_sequence.gate_set.get_macros()
         for name in ("init", "operate", "readout"):
-            assert name in qubit.macros, f"Missing macro for point '{name}'"
+            full_name = f"{qubit.id}_{name}"
+            assert full_name in gate_set_macros, f"Missing voltage point '{full_name}'"
 
 
 class TestCustomMacros:

@@ -1,15 +1,32 @@
 """External macro catalog demonstrating lab-owned macro package pattern.
 
-This module provides build_macro_overrides() for use with wire_machine_macros.
-Custom macro classes use @quam_dataclass so they survive QuAM serialization.
+This module provides ``build_component_overrides()`` for use with
+``wire_machine_macros``.  Custom macro classes use ``@quam_dataclass``
+so they survive QuAM serialization.
+
+Usage::
+
+    from my_lab_macros.catalog import build_component_overrides
+    from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
+    wire_machine_macros(
+        machine,
+        component_overrides=build_component_overrides(),
+        strict=True,
+    )
 """
 
 from __future__ import annotations
 
 from quam.core import quam_dataclass
 
+from quam_builder.architecture.quantum_dots.components import QuantumDot
+from quam_builder.architecture.quantum_dots.macro_engine import macro, overrides
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
+)
+from quam_builder.architecture.quantum_dots.operations.names import (
+    SingleQubitMacroName,
 )
 
 
@@ -33,23 +50,26 @@ class LabInitializeMacro(InitializeStateMacro):
         return super().apply(ramp_duration=ramp, hold_duration=hold_duration, **kwargs)
 
 
-def build_macro_overrides() -> dict:
-    """Build macro overrides dict for wire_machine_macros.
+def build_component_overrides() -> dict:
+    """Build component_overrides for wire_machine_macros.
 
-    Returns a mapping suitable for:
-        wire_machine_macros(machine, macro_overrides=build_macro_overrides(), strict=True)
+    Returns a mapping keyed by component class, suitable for::
+
+        wire_machine_macros(
+            machine,
+            component_overrides=build_component_overrides(),
+            strict=True,
+        )
 
     Overrides QuantumDot.initialize with LabInitializeMacro.
     """
     return {
-        "component_types": {
-            "QuantumDot": {
-                "macros": {
-                    "initialize": {
-                        "factory": LabInitializeMacro,
-                        "params": {"lab_ramp_duration": 80},
-                    }
-                }
-            },
-        }
+        QuantumDot: overrides(
+            macros={
+                SingleQubitMacroName.INITIALIZE: macro(
+                    LabInitializeMacro,
+                    lab_ramp_duration=80,
+                ),
+            }
+        ),
     }
