@@ -6,7 +6,7 @@ shows how to:
 
 1. Wire a Loss-DiVincenzo qubit machine (combined single-stage workflow).
 2. Wire default macros via ``wire_machine_macros()``.
-3. Update an operation parameter (e.g. ramp_duration, default_amplitude_scale).
+3. Update operation parameters and the reference pulse itself.
 4. Update the drive pulse type (e.g. swap Gaussian for DRAG).
 5. Replace a particular macro (instance-level and type-level overrides).
 """
@@ -159,8 +159,8 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
         # Tune measure hold duration
         qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
 
-        # Apply the canonical default scale used unless a more-specific gate overrides it.
-        qubit.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85
+        # Update the source-of-truth gaussian amplitude directly.
+        qubit.xy.operations[DrivePulseName.GAUSSIAN].amplitude = 0.17
 
         # Set identity wait duration
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
@@ -168,10 +168,7 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
     q1 = machine.qubits["q1"]
     print(f"  q1.initialize.ramp_duration = {q1.macros[VoltagePointName.INITIALIZE].ramp_duration}")
     print(f"  q1.measure.hold_duration = {q1.macros[VoltagePointName.MEASURE].hold_duration}")
-    print(
-        "  q1.xy_drive.default_amplitude_scale = "
-        f"{q1.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale}"
-    )
+    print("  q1.gaussian.amplitude = " f"{q1.xy.operations[DrivePulseName.GAUSSIAN].amplitude}")
     print(f"  q1.I.duration = {q1.macros[SingleQubitMacroName.IDENTITY].duration}")
 
 
@@ -228,9 +225,9 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
 
 
 class TunedX180Macro(X180Macro):
-    """Custom X180 macro with gate-specific default pulse scaling."""
+    """Custom X180 macro placeholder used for macro replacement examples."""
 
-    default_amplitude_scale: float = 0.78
+    pass
 
 
 class DemoCZMacro(QubitPairMacro):
