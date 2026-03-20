@@ -119,12 +119,9 @@ class Empty1QMacro(EmptyStateMacro, QubitMacro):
 class XYDriveMacro(QubitMacro):
     """Canonical XY-drive macro with angle-to-drive-parameter conversion.
 
-    The macro converts rotation angle to drive amplitude and duration using a
-    reference pulse (`x180` by default):
-
-    - `|angle| <= pi`: scale amplitude while keeping the reference duration.
-    - `|angle| > pi`: saturate amplitude at `max_amplitude_scale` and stretch
-      duration proportionally.
+    The macro converts rotation angle to drive amplitude using a reference
+    pulse (`x180` by default).  Duration is always the reference pulse
+    duration — only amplitude is rescaled proportionally to the angle.
 
     Negative angles are represented as a +pi phase shift on the requested axis,
     so amplitude scaling is always computed from `abs(angle)`.
@@ -135,7 +132,6 @@ class XYDriveMacro(QubitMacro):
 
     reference_pulse_name: str = DrivePulseName.GAUSSIAN.value
     reference_angle: float = float(np.pi)
-    max_amplitude_scale: float = 1.0
     default_angle: float = float(np.pi)
 
     def _resolve_pulse_name(self, pulse_name: str | None) -> str:
@@ -177,7 +173,11 @@ class XYDriveMacro(QubitMacro):
         angle: float,
         pulse_name: str,
     ) -> tuple[int | None, float]:
-        """Convert rotation angle to `(duration_ns, amplitude_scale)`."""
+        """Convert rotation angle to `(duration_ns, amplitude_scale)`.
+
+        Duration is always the reference pulse duration (no stretching).
+        Only amplitude is rescaled proportionally to the angle.
+        """
         if self.reference_angle <= 0:
             raise ValueError("reference_angle must be positive.")
 
@@ -185,15 +185,8 @@ class XYDriveMacro(QubitMacro):
         if math.isclose(relative, 0.0):
             return 0, 0.0
 
-        amplitude_scale = min(relative, self.max_amplitude_scale)
-
         base_duration_ns = self._reference_duration_ns(pulse_name)
-        if base_duration_ns is None:
-            return None, amplitude_scale
-
-        stretch = relative / amplitude_scale
-        duration_ns = _quantize_ns(base_duration_ns * stretch)
-        return duration_ns, amplitude_scale
+        return base_duration_ns, relative
 
     @staticmethod
     def _normalize_angle_sign_to_phase(angle: float, phase: float) -> tuple[float, float]:
