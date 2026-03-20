@@ -69,32 +69,6 @@ class TestQuantumDotVoltageOps:
         assert prog is not None
 
 
-class TestQuantumDotFluentAPI:
-    def test_with_step_point_returns_self(self, qd_machine):
-        qd = list(qd_machine.quantum_dots.values())[0]
-        result = qd.with_step_point("load", {qd.id: 0.3}, duration=200)
-        assert result is qd
-
-    def test_chained_macros(self, qd_machine):
-        qd = list(qd_machine.quantum_dots.values())[0]
-        result = (
-            qd.with_step_point("idle", {qd.id: 0.0}, duration=100)
-            .with_step_point("load", {qd.id: 0.3}, duration=200)
-            .with_ramp_point("read", {qd.id: 0.5}, duration=100, ramp_duration=16)
-        )
-        assert result is qd
-        assert "idle" in qd.macros
-        assert "load" in qd.macros
-        assert "read" in qd.macros
-
-    def test_with_sequence(self, qd_machine):
-        qd = list(qd_machine.quantum_dots.values())[0]
-        qd.with_step_point("a", {qd.id: 0.1}, duration=100)
-        qd.with_step_point("b", {qd.id: 0.2}, duration=100)
-        qd.with_sequence("ab_seq", ["a", "b"])
-        assert "ab_seq" in qd.macros
-
-
 class TestQuantumDotPlay:
     def test_play_in_qua(self, qd_machine):
         qd = list(qd_machine.quantum_dots.values())[0]

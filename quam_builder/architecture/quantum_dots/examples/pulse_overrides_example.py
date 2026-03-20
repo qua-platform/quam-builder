@@ -1,16 +1,18 @@
 """Example: default pulse wiring and selective pulse overrides.
 
-This script demonstrates:
-1. Building a small quantum-dots machine with default pulse wired
-   automatically by ``wire_machine_macros``.
-2. Inspecting the default ``gaussian`` reference pulse on qubit XY drives.
-3. Applying type-level pulse overrides (all qubits of a type).
-4. Applying instance-level pulse overrides (one specific qubit).
-5. Replacing the reference pulse type (e.g. Gaussian -> DRAG).
+Demonstrates using the typed override API for pulse configuration:
 
-The pulse wiring system is integrated into ``wire_machine_macros()`` and
-runs after macro wiring.  Default pulses are additive — only pulse names
-not already present on a channel's ``operations`` dict are added.
+1. ``wire_machine_macros(machine)`` — adds default ``gaussian`` pulse to XY drives.
+2. ``component_overrides`` with ``pulse()`` helper — override all qubits of a type.
+3. ``instance_overrides`` with ``pulse()`` helper — override one specific qubit.
+
+Key imports for pulse overrides::
+
+    from quam_builder.architecture.quantum_dots.macro_engine import (
+        wire_machine_macros,
+        pulse,       # build a pulse override entry
+        overrides,   # group macros + pulses for one component
+    )
 
 Only one reference pulse (``gaussian``) is registered per qubit by default.
 ``XYDriveMacro`` scales amplitude for rotation angle and applies virtual-Z
@@ -29,7 +31,12 @@ from typing import Dict
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    wire_machine_macros,
+    pulse,
+    overrides,
+)
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
@@ -50,9 +57,9 @@ def _barrier_ports(pair_id: str) -> Dict[str, str]:
 def build_demo_machine() -> LossDiVincenzoQuam:
     """Build a small machine with 2 qubits and default pulse.
 
-    ``wire_machine_macros()`` is called once during build and automatically
-    adds the default ``gaussian`` GaussianPulse reference to each qubit's
-    XY drive.  All single-qubit gate macros derive from this single pulse.
+    ``wire_machine_macros()`` adds the default ``gaussian`` GaussianPulse
+    to each qubit's XY drive.  All single-qubit gate macros derive from
+    this single pulse.
     """
     machine = BaseQuamQD()
     machine.wiring = {
@@ -75,7 +82,6 @@ def build_demo_machine() -> LossDiVincenzoQuam:
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
 
-    # wire_machine_macros handles both macros AND pulses:
     wire_machine_macros(machine)
     return machine
 
@@ -89,11 +95,11 @@ def print_pulse_summary(machine: LossDiVincenzoQuam, title: str) -> None:
             continue
         ops = getattr(xy, "operations", {})
         print(f"\n  {qubit_id}.xy.operations:")
-        for pulse_name, pulse in sorted(ops.items()):
-            cls_name = type(pulse).__name__
-            length = getattr(pulse, "length", "?")
-            amp = getattr(pulse, "amplitude", "?")
-            axis = getattr(pulse, "axis_angle", "N/A")
+        for pulse_name, p in sorted(ops.items()):
+            cls_name = type(p).__name__
+            length = getattr(p, "length", "?")
+            amp = getattr(p, "amplitude", "?")
+            axis = getattr(p, "axis_angle", "N/A")
             print(
                 f"    {pulse_name:>10s}: {cls_name}(length={length}, amplitude={amp}, axis_angle={axis})"
             )
@@ -102,26 +108,20 @@ def print_pulse_summary(machine: LossDiVincenzoQuam, title: str) -> None:
 def apply_type_level_overrides(machine: LossDiVincenzoQuam) -> None:
     """Override gaussian pulse for ALL LDQubit instances.
 
-    This uses the ``component_types`` scope to set a shorter, stronger
-    gaussian pulse on every qubit of type LDQubit.
+    Uses ``component_overrides`` keyed by the ``LDQubit`` class.
+    The ``pulse()`` helper constructs a validated pulse entry.
+
     Since all gate macros derive from this single pulse, the change
     affects x90, x180, y90, y180, etc. automatically.
     """
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "component_types": {
-                "LDQubit": {
-                    "pulses": {
-                        "gaussian": {
-                            "type": "GaussianPulse",
-                            "length": 500,
-                            "amplitude": 0.3,
-                            "sigma": 83,
-                        },
-                    }
+        component_overrides={
+            LDQubit: overrides(
+                pulses={
+                    "gaussian": pulse("GaussianPulse", length=500, amplitude=0.3, sigma=83),
                 }
-            },
+            ),
         },
     )
 
@@ -129,23 +129,17 @@ def apply_type_level_overrides(machine: LossDiVincenzoQuam) -> None:
 def apply_instance_level_overrides(machine: LossDiVincenzoQuam) -> None:
     """Override gaussian on q1 only.
 
+    Uses ``instance_overrides`` keyed by the component path string.
     Instance-level overrides take precedence over type-level overrides.
     """
     wire_machine_macros(
         machine,
-        macro_overrides={
-            "instances": {
-                "qubits.q1": {
-                    "pulses": {
-                        "gaussian": {
-                            "type": "GaussianPulse",
-                            "length": 800,
-                            "amplitude": 0.15,
-                            "sigma": 133,
-                        },
-                    }
-                },
-            },
+        instance_overrides={
+            "qubits.q1": overrides(
+                pulses={
+                    "gaussian": pulse("GaussianPulse", length=800, amplitude=0.15, sigma=133),
+                }
+            ),
         },
     )
 

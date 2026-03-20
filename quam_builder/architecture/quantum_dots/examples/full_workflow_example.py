@@ -26,7 +26,11 @@ from quam.components import pulses
 from quam.components.macro import QubitPairMacro
 
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    wire_machine_macros,
+    macro,
+    overrides,
+)
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
     SingleQubitMacroName,
@@ -36,6 +40,8 @@ from quam_builder.architecture.quantum_dots.operations.names import (
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
 )
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.architecture.quantum_dots.qubit.ld_qubit_pair import LDQubitPair
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import build_quam
@@ -260,23 +266,21 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
 
     wire_machine_macros(
         machine,
-        macro_overrides={
-            # Type-level: replace CZ on ALL qubit pairs
-            "component_types": {
-                "LDQubitPair": {
-                    "macros": {
-                        TwoQubitMacroName.CZ: {"factory": DemoCZMacro},
-                    }
-                },
-            },
-            # Instance-level: replace X180 on q1 only
-            "instances": {
-                "qubits.q1": {
-                    "macros": {
-                        SingleQubitMacroName.X_180: {"factory": TunedX180Macro},
-                    }
-                },
-            },
+        # Type-level: replace CZ on ALL qubit pairs
+        component_overrides={
+            LDQubitPair: overrides(
+                macros={
+                    TwoQubitMacroName.CZ: macro(DemoCZMacro),
+                }
+            ),
+        },
+        # Instance-level: replace X180 on q1 only
+        instance_overrides={
+            "qubits.q1": overrides(
+                macros={
+                    SingleQubitMacroName.X_180: macro(TunedX180Macro),
+                }
+            ),
         },
         strict=True,
     )

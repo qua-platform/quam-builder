@@ -4,9 +4,9 @@ This script demonstrates the external macro package pattern — custom macros
 in a separate package, imported and passed to wire_machine_macros.
 Runs without QM hardware (no qm.open, qm.run, or machine.connect).
 
-Uses the tutorial machine with QuantumDot, QuantumDotPair, and SensorDot
-component types. Passes build_macro_overrides() from external_macro_demo
-to wire_machine_macros so that lab-owned macro logic survives upstream pulls.
+The key idea: keep lab-owned macro logic in a separate package so it
+survives upstream quam-builder pulls. The package exports a dict suitable
+for the ``component_overrides`` kwarg of ``wire_machine_macros``.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ if str(_project_root) not in sys.path:
 
 from qm import qua  # noqa: E402
 from quam_builder.architecture.quantum_dots.examples.external_macro_demo.catalog import (  # noqa: E402
-    build_macro_overrides,
+    build_component_overrides,
 )
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (  # noqa: E402
     build_tutorial_machine,
@@ -32,9 +32,13 @@ from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_mac
 def main() -> None:
     """Build machine, wire macros with external overrides, and verify."""
     machine = build_tutorial_machine()
+
+    # Pass the external catalog's overrides to wire_machine_macros.
+    # component_overrides is keyed by actual class objects (e.g. QuantumDot),
+    # so typos in class names are caught at import time, not wiring time.
     wire_machine_macros(
         machine,
-        macro_overrides=build_macro_overrides(),
+        component_overrides=build_component_overrides(),
         strict=True,
     )
 

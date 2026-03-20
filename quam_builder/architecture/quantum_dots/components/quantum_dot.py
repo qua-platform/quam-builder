@@ -1,3 +1,7 @@
+"""Quantum-dot component."""
+
+# pylint: disable=too-many-ancestors,not-callable
+
 from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
@@ -38,7 +42,7 @@ class QuantumDot(VoltageMacroMixin):
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
         get_offset: Returns the current value of the external voltage source.
         set_offset: Sets the external voltage source to the new value.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can NOT accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can NOT accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """

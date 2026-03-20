@@ -1,8 +1,8 @@
 """Demo package for external macro catalog workflow.
 
-Provides build_macro_overrides for use with wire_machine_macros.
+Provides build_component_overrides for use with wire_machine_macros.
 """
 
-from .catalog import LabInitializeMacro, build_macro_overrides
+from .catalog import LabInitializeMacro, build_component_overrides
 
-__all__ = ["LabInitializeMacro", "build_macro_overrides"]
+__all__ = ["LabInitializeMacro", "build_component_overrides"]

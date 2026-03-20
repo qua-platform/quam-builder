@@ -48,7 +48,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
         reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time).
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """

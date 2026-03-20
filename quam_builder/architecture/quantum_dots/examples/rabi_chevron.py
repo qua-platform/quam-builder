@@ -262,29 +262,23 @@ def register_qubit_with_points(
     qubit = machine.qubits["Q1"]
 
     # -------------------------------------------------------------------------
-    # Define Voltage Points using Fluent API
+    # Define voltage points explicitly
     # -------------------------------------------------------------------------
     # Note: All durations must be multiples of 4ns (OPX clock cycles)
-    (
-        qubit
-        # Init point: Load electron into dot at low voltage
-        .with_step_point(
-            name="init",
-            voltages={"virtual_dot_1": 0.05},
-            duration=500,  # 500ns hold time
-        )
-        # Operate point: Move to manipulation sweet spot
-        .with_step_point(
-            name="operate",
-            voltages={"virtual_dot_1": 0.15},
-            duration=2000,  # 2us hold time (will be overridden by drive duration)
-        )
-        # Readout point: Configure for PSB readout
-        .with_step_point(
-            name="readout",
-            voltages={"virtual_dot_1": -0.05},
-            duration=2000,  # 2us readout window
-        )
+    qubit.add_point(
+        point_name="init",
+        voltages={"virtual_dot_1": 0.05},
+        duration=500,  # 500ns hold time
+    )
+    qubit.add_point(
+        point_name="operate",
+        voltages={"virtual_dot_1": 0.15},
+        duration=2000,  # 2us hold time (will be overridden by drive duration)
+    )
+    qubit.add_point(
+        point_name="readout",
+        voltages={"virtual_dot_1": -0.05},
+        duration=2000,  # 2us readout window
     )
 
     return qubit
@@ -299,9 +293,9 @@ def add_qubit_macros(qubit: LDQubit):
     """
     Add drive and measure macros to the qubit using the QuamMacro pattern.
 
-    This follows the recommended approach from macro_examples.py where macros
-    are defined as QuamMacro subclasses and registered in qubit.macros. This
-    allows them to be called as methods (e.g., qubit.drive(duration=t)).
+    This follows the core QuAM pattern where custom QuamMacro subclasses are
+    registered in qubit.macros and then called as methods (for example,
+    qubit.drive(duration=t)).
 
     Macros defined:
     - DriveMacro: Applies MW pulse with optional duration override (for Rabi sweep)

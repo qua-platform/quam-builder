@@ -64,22 +64,6 @@ class TestLDQubitPairVoltageOps:
         assert prog is not None
 
 
-class TestLDQubitPairFluentAPI:
-    def test_with_step_point_returns_self(self, qd_machine):
-        pair = qd_machine.qubit_pairs["Q1_Q2"]
-        result = pair.with_step_point("idle", voltages={"dot1_dot2_epsilon": 0.0}, duration=100)
-        assert result is pair
-
-    def test_chained_operations(self, qd_machine):
-        pair = qd_machine.qubit_pairs["Q1_Q2"]
-        result = pair.with_step_point(
-            "idle", voltages={"dot1_dot2_epsilon": 0.0}, duration=100
-        ).with_step_point("exchange", voltages={"dot1_dot2_epsilon": 0.5}, duration=200)
-        assert result is pair
-        assert "idle" in pair.macros
-        assert "exchange" in pair.macros
-
-
 class TestMultiplePairs:
     def test_two_pairs_are_independent(self, qd_machine):
         p1 = qd_machine.qubit_pairs["Q1_Q2"]

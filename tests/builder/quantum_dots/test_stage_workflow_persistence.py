@@ -72,15 +72,11 @@ def _add_calibration_data(machine: BaseQuamQD) -> None:
     )
 
     quantum_dot = machine.quantum_dots["virtual_dot_1"]
-    quantum_dot.with_step_point(
-        "calibration_idle",
-        {"virtual_dot_1": 0.12},
-        duration=120,
-    ).with_sequence("calibration_sequence", ["calibration_idle"])
+    quantum_dot.add_point("calibration_idle", {"virtual_dot_1": 0.12}, duration=120)
 
 
 def test_calibration_data_persists_across_two_stage_build(tmp_path):
-    """Ensure virtual gates, points, and macros survive stage 2 wiring/build."""
+    """Ensure virtual gates and voltage points survive stage 2 wiring/build."""
     stage1_dir = Path(tmp_path) / "stage1"
     stage2_dir = Path(tmp_path) / "stage2"
 
@@ -130,8 +126,5 @@ def test_calibration_data_persists_across_two_stage_build(tmp_path):
     assert calibration_layer.source_gates == ["virtual_calibration_axis"]
 
     quantum_dot = machine_stage2.quantum_dots["virtual_dot_1"]
-    assert "calibration_idle" in quantum_dot.macros
-    assert "calibration_sequence" in quantum_dot.macros
-
     point_name = f"{quantum_dot.id}_calibration_idle"
     assert point_name in gate_set.macros

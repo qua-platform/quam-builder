@@ -199,7 +199,7 @@ machine.qubit_pairs["Q3_Q4"].add_point(
 #         machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
 #         machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
 
-#         # Can also use point macros saved in qubit and QD objects, inside a simultaneous block.
+#         # Can also use saved voltage points on qubit and QD objects inside a simultaneous block.
 #         # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once!
 #         with seq.simultaneous(duration = 1000):
 #             machine.qubits["Q1"].step_to_point("initialisation")

@@ -32,7 +32,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         go_to_detuning: In a simultaneous block, registers a dict input to the VoltageSequence to step or ramp the detuning to specified voltage.
         step_to_detuning: Step the voltage to the specified detuning value. Can only be used after the detuning axis is defined.
         ramp_to_detuning: Ramp the voltage to the specified detuning value. Can only be used after the detuning axis is defined.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
@@ -176,4 +176,4 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
         assign(state, Cast.to_int(x > threshold))
 
-    # Voltage point macro methods (add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin
+    # Voltage point methods (add_point, step_to_point, ramp_to_point) are provided by VoltageMacroMixin
