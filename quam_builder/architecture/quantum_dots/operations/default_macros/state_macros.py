@@ -272,7 +272,7 @@ class MeasurePSBPairMacro(QuamMacro):
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
         return sensor_dot.call_macro(
-            VoltagePointName.MEASURE.value,
+            VoltagePointName.MEASURE,
             quantum_dot_pair_id=owner.id,
         )
 

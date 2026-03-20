@@ -10,6 +10,7 @@ from quam.components import pulses
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
+    XYDriveMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
@@ -65,6 +66,8 @@ def _seed_reference_pulses(machine):
 class TunedX180Macro(X180Macro):
     """Simple marker macro used for instance-level override testing."""
 
+    default_amplitude_scale: float = 0.75
+
 
 def test_instance_override_path_supports_quam_mappings():
     """Instance overrides should work for collections stored as Quam mappings."""
@@ -76,7 +79,10 @@ def test_instance_override_path_supports_quam_mappings():
             "instances": {
                 "qubits.q1": {
                     "macros": {
-                        "x180": {"factory": TunedX180Macro},
+                        "x180": {
+                            "factory": TunedX180Macro,
+                            "params": {"default_amplitude_scale": 0.75},
+                        },
                     }
                 }
             }
@@ -85,6 +91,7 @@ def test_instance_override_path_supports_quam_mappings():
     )
 
     assert isinstance(machine.qubits["q1"].macros["x180"], TunedX180Macro)
+    assert machine.qubits["q1"].macros["x180"].default_amplitude_scale == pytest.approx(0.75)
     assert isinstance(machine.qubits["q2"].macros["x180"], X180Macro)
 
 
@@ -114,6 +121,32 @@ def test_component_type_override_applies_to_all_instances():
         assert qubit.macros["initialize"].ramp_duration == 48
 
 
+def test_component_type_override_sets_xy_drive_runtime_params():
+    """Override params should populate canonical xy_drive attributes after init."""
+    machine = _build_machine()
+
+    wire_machine_macros(
+        machine,
+        macro_overrides={
+            "component_types": {
+                "LDQubit": {
+                    "macros": {
+                        "xy_drive": {
+                            "factory": XYDriveMacro,
+                            "params": {"default_amplitude_scale": 0.85},
+                        }
+                    }
+                }
+            }
+        },
+        strict=True,
+    )
+
+    for qubit in machine.qubits.values():
+        assert isinstance(qubit.macros["xy_drive"], XYDriveMacro)
+        assert qubit.macros["xy_drive"].default_amplitude_scale == pytest.approx(0.85)
+
+
 def test_canonical_x_and_y_delegate_to_xy_drive():
     """Canonical axis macros should delegate into `xy_drive` with proper phase."""
     machine = _build_machine()
@@ -126,6 +159,20 @@ def test_canonical_x_and_y_delegate_to_xy_drive():
     with patch.object(q1, "call_macro", return_value=None) as mock_call:
         q1.macros["y"].apply(angle=np.pi / 4)
     mock_call.assert_called_once_with("xy_drive", angle=np.pi / 4, phase=pytest.approx(np.pi / 2))
+
+
+def test_runtime_phase_is_added_to_axis_phase():
+    """Runtime phase should compose additively with the canonical axis phase."""
+    machine = _build_machine()
+    q1 = machine.qubits["q1"]
+
+    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+        q1.macros["y"].apply(angle=np.pi / 4, phase=0.125)
+    mock_call.assert_called_once_with(
+        "xy_drive",
+        angle=np.pi / 4,
+        phase=pytest.approx(np.pi / 2 + 0.125),
+    )
 
 
 def test_fixed_angle_macros_delegate_to_canonical_axes():
@@ -174,6 +221,80 @@ def test_x180_macro_triggers_play():
     assert mock_play.call_args.args[0] == "gaussian"
 
 
+def test_runtime_amplitude_scale_multiplies_angle_scale():
+    """Runtime amplitude scaling should multiply the angle-derived pulse scaling."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with (
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.x90(amplitude_scale=0.5)
+
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.25)
+
+
+def test_xy_drive_default_amplitude_scale_flows_through_wrappers():
+    """The canonical xy_drive default amplitude scale should reach wrapper macros."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+    q1.macros["xy_drive"].default_amplitude_scale = 0.8
+
+    with (
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.x90()
+
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.4)
+
+
+def test_fixed_angle_default_scale_composes_with_runtime_scale():
+    """Fixed-angle macro defaults should compose multiplicatively with runtime scaling."""
+    machine = _build_machine()
+    wire_machine_macros(
+        machine,
+        macro_overrides={
+            "instances": {
+                "qubits.q1": {
+                    "macros": {
+                        "x180": {"factory": TunedX180Macro},
+                    }
+                }
+            }
+        },
+        strict=True,
+    )
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+
+    with (
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.x180(amplitude_scale=0.5)
+
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.375)
+
+
+def test_fixed_angle_inferred_duration_uses_xy_drive_angle_scaling():
+    """Fixed-angle inferred durations should be computed from canonical xy_drive."""
+    machine = _build_machine()
+    wire_machine_macros(machine, strict=True)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+    q1.macros["xy_drive"].max_amplitude_scale = 0.85
+
+    assert q1.macros["x"].inferred_duration == pytest.approx(1.176e-06)
+    assert q1.macros["x90"].inferred_duration == pytest.approx(1e-06)
+    assert q1.macros["y90"].inferred_duration == pytest.approx(1e-06)
+
+
 def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
     """Negative X should map to +pi phase shift with positive amplitude scale."""
     machine = _build_machine()
@@ -183,6 +304,7 @@ def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
     with (
         patch.object(q1, "virtual_z", return_value=None) as mock_vz,
         patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x(angle=-np.pi / 2)
 
@@ -200,6 +322,7 @@ def test_negative_y_rotation_is_phase_shifted_positive_angle_drive():
     with (
         patch.object(q1, "virtual_z", return_value=None) as mock_vz,
         patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.y(angle=-np.pi / 2)
 

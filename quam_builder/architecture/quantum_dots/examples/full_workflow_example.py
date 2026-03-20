@@ -6,7 +6,7 @@ shows how to:
 
 1. Wire a Loss-DiVincenzo qubit machine (combined single-stage workflow).
 2. Wire default macros via ``wire_machine_macros()``.
-3. Update an operation parameter (e.g. ramp_duration, max_amplitude_scale).
+3. Update an operation parameter (e.g. ramp_duration, default_amplitude_scale).
 4. Update the drive pulse type (e.g. swap Gaussian for DRAG).
 5. Replace a particular macro (instance-level and type-level overrides).
 """
@@ -30,6 +30,7 @@ from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_mac
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
     SingleQubitMacroName,
+    TwoQubitMacroName,
     VoltagePointName,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
@@ -130,11 +131,9 @@ def wire_defaults(machine: LossDiVincenzoQuam) -> None:
 
     q1 = machine.qubits["q1"]
     print(f"  q1 macros: {sorted(q1.macros.keys())}")
+    print(f"  q1 xy_drive pulse: {type(q1.xy.operations.get(DrivePulseName.GAUSSIAN)).__name__}")
     print(
-        f"  q1 xy_drive pulse: {type(q1.xy.operations.get(DrivePulseName.GAUSSIAN.value)).__name__}"
-    )
-    print(
-        f"  q1 reference_pulse_name: {q1.macros[SingleQubitMacroName.XY_DRIVE.value].reference_pulse_name}"
+        f"  q1 reference_pulse_name: {q1.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name}"
     )
 
 
@@ -155,26 +154,25 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
 
     for qubit in machine.qubits.values():
         # Tune initialize ramp duration
-        qubit.macros[VoltagePointName.INITIALIZE.value].ramp_duration = 64
+        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
 
         # Tune measure hold duration
-        qubit.macros[VoltagePointName.MEASURE.value].hold_duration = 240
+        qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
 
-        # Limit XY drive amplitude scaling
-        qubit.macros[SingleQubitMacroName.XY_DRIVE.value].max_amplitude_scale = 0.85
+        # Apply a calibrated multiplicative scale on top of the reference pulse.
+        qubit.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85
 
         # Set identity wait duration
-        qubit.macros[SingleQubitMacroName.IDENTITY.value].duration = 24
+        qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
     q1 = machine.qubits["q1"]
+    print(f"  q1.initialize.ramp_duration = {q1.macros[VoltagePointName.INITIALIZE].ramp_duration}")
+    print(f"  q1.measure.hold_duration = {q1.macros[VoltagePointName.MEASURE].hold_duration}")
     print(
-        f"  q1.initialize.ramp_duration = {q1.macros[VoltagePointName.INITIALIZE.value].ramp_duration}"
+        "  q1.xy_drive.default_amplitude_scale = "
+        f"{q1.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale}"
     )
-    print(f"  q1.measure.hold_duration = {q1.macros[VoltagePointName.MEASURE.value].hold_duration}")
-    print(
-        f"  q1.xy_drive.max_amplitude_scale = {q1.macros[SingleQubitMacroName.XY_DRIVE.value].max_amplitude_scale}"
-    )
-    print(f"  q1.I.duration = {q1.macros[SingleQubitMacroName.IDENTITY.value].duration}")
+    print(f"  q1.I.duration = {q1.macros[SingleQubitMacroName.IDENTITY].duration}")
 
 
 ########################################################################################################################
@@ -203,7 +201,7 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
             continue
 
         # 1. Register a DRAG pulse alongside the existing Gaussian
-        qubit.xy.operations[DrivePulseName.DRAG.value] = pulses.DragPulse(
+        qubit.xy.operations[DrivePulseName.DRAG] = pulses.DragPulse(
             length=500,
             amplitude=0.25,
             sigma=83,
@@ -213,14 +211,12 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
         )
 
         # 2. Point the macro at the new pulse
-        qubit.macros[SingleQubitMacroName.XY_DRIVE.value].reference_pulse_name = (
-            DrivePulseName.DRAG.value
-        )
+        qubit.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name = DrivePulseName.DRAG
 
     q1 = machine.qubits["q1"]
     print(f"  q1.xy.operations keys: {sorted(q1.xy.operations.keys())}")
     print(
-        f"  q1.xy_drive.reference_pulse_name = {q1.macros[SingleQubitMacroName.XY_DRIVE.value].reference_pulse_name}"
+        f"  q1.xy_drive.reference_pulse_name = {q1.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name}"
     )
     print(f"  Both gaussian and drag are registered; macro now uses drag.")
     print(f"  All gates (x90, y180, etc.) derive from the drag pulse automatically.")
@@ -232,18 +228,9 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
 
 
 class TunedX180Macro(X180Macro):
-    """Custom X180 macro with a calibrated amplitude scaling."""
+    """Custom X180 macro with extra multiplicative amplitude scaling."""
 
     default_amplitude_scale: float = 0.78
-
-    def apply(
-        self,
-        pulse_duration: int | None = None,
-        amplitude_scale: float | None = None,
-        **kwargs,
-    ):
-        scale = self.default_amplitude_scale if amplitude_scale is None else amplitude_scale
-        return super().apply(pulse_duration=pulse_duration, amplitude_scale=scale, **kwargs)
 
 
 class DemoCZMacro(QubitPairMacro):
@@ -281,7 +268,7 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
             "component_types": {
                 "LDQubitPair": {
                     "macros": {
-                        "cz": {"factory": DemoCZMacro},
+                        TwoQubitMacroName.CZ: {"factory": DemoCZMacro},
                     }
                 },
             },
@@ -289,7 +276,7 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
             "instances": {
                 "qubits.q1": {
                     "macros": {
-                        "x180": {"factory": TunedX180Macro},
+                        SingleQubitMacroName.X_180: {"factory": TunedX180Macro},
                     }
                 },
             },
@@ -301,9 +288,11 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
     q2 = machine.qubits["q2"]
     pair = machine.qubit_pairs["q1_q2"]
 
-    print(f"  q1.x180 class: {type(q1.macros['x180']).__name__} (overridden)")
-    print(f"  q2.x180 class: {type(q2.macros['x180']).__name__} (default)")
-    print(f"  q1_q2.cz class: {type(pair.macros['cz']).__name__} (overridden)")
+    print(
+        "  q1.x180 class: " f"{type(q1.macros[SingleQubitMacroName.X_180]).__name__} (overridden)"
+    )
+    print("  q2.x180 class: " f"{type(q2.macros[SingleQubitMacroName.X_180]).__name__} (default)")
+    print("  q1_q2.cz class: " f"{type(pair.macros[TwoQubitMacroName.CZ]).__name__} (overridden)")
 
 
 ########################################################################################################################

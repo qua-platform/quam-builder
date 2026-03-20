@@ -30,21 +30,21 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
 )
+from quam_builder.architecture.quantum_dots.operations.names import (
+    DrivePulseName,
+    SingleQubitMacroName,
+    TwoQubitMacroName,
+    VoltagePointName,
+)
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 
 
 class TunedX180Macro(X180Macro):
-    """Instance-level custom X180 macro with a default amplitude scaling."""
+    """Instance-level custom X180 macro with extra multiplicative amplitude scaling."""
 
     default_amplitude_scale: float = 0.75
-
-    def apply(
-        self, pulse_duration: int | None = None, amplitude_scale: float | None = None, **kwargs
-    ):
-        scale = self.default_amplitude_scale if amplitude_scale is None else amplitude_scale
-        return super().apply(pulse_duration=pulse_duration, amplitude_scale=scale, **kwargs)
 
 
 class DemoCZMacro(QubitPairMacro):
@@ -118,7 +118,8 @@ def build_demo_machine() -> LossDiVincenzoQuam:
         if qubit.xy is None:
             continue
         qubit.xy.operations.setdefault(
-            "gaussian", pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16)
+            DrivePulseName.GAUSSIAN,
+            pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16),
         )
 
     wire_machine_macros(machine)
@@ -129,9 +130,9 @@ def add_default_state_points(machine: LossDiVincenzoQuam) -> None:
     """Define canonical voltage points used by default state macros."""
     for qubit in machine.qubits.values():
         dot_id = qubit.quantum_dot.id
-        qubit.with_step_point("initialize", {dot_id: 0.10}, duration=200)
-        qubit.with_step_point("measure", {dot_id: 0.15}, duration=200)
-        qubit.with_step_point("empty", {dot_id: 0.00}, duration=200)
+        qubit.with_step_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
+        qubit.with_step_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=200)
+        qubit.with_step_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=200)
 
 
 def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
@@ -140,9 +141,9 @@ def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     pair = machine.qubit_pairs["q1_q2"]
     print(f"\n=== {title} ===")
     print("q1 macros:", sorted(q1.macros.keys()))
-    print("q1.initialize:", type(q1.macros["initialize"]).__name__)
-    print("q1.x180:", type(q1.macros["x180"]).__name__)
-    print("q1_q2.cz:", type(pair.macros["cz"]).__name__)
+    print("q1.initialize:", type(q1.macros[VoltagePointName.INITIALIZE]).__name__)
+    print("q1.x180:", type(q1.macros[SingleQubitMacroName.X_180]).__name__)
+    print("q1_q2.cz:", type(pair.macros[TwoQubitMacroName.CZ]).__name__)
 
 
 def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
@@ -153,7 +154,7 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
             "component_types": {
                 "LDQubit": {
                     "macros": {
-                        "initialize": {
+                        VoltagePointName.INITIALIZE: {
                             "factory": InitializeStateMacro,
                             "params": {"ramp_duration": 64},
                         }
@@ -161,14 +162,14 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
                 },
                 "LDQubitPair": {
                     "macros": {
-                        "cz": {"factory": DemoCZMacro},
+                        TwoQubitMacroName.CZ: {"factory": DemoCZMacro},
                     }
                 },
             },
             "instances": {
                 "qubits.q1": {
                     "macros": {
-                        "x180": {"factory": TunedX180Macro},
+                        SingleQubitMacroName.X_180: {"factory": TunedX180Macro},
                     }
                 }
             },

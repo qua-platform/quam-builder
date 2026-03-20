@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import importlib
+import inspect
 from pathlib import Path
 from typing import Any
 import tomllib
@@ -205,7 +206,21 @@ def _apply_macros_to_component(
             _remove_component_macro(component, macro_name, strict=strict)
             continue
 
-        macro = factory(**params)  # type: ignore[misc]
+        init_param_names = set(inspect.signature(factory).parameters)
+        init_params = {key: value for key, value in params.items() if key in init_param_names}
+        runtime_params = {
+            key: value for key, value in params.items() if key not in init_param_names
+        }
+
+        macro = factory(**init_params)  # type: ignore[misc]
+        for key, value in runtime_params.items():
+            if strict and not hasattr(macro, key):
+                raise TypeError(
+                    f"[{context}] Macro '{macro_name}' on component "
+                    f"{type(component).__name__}({getattr(component, 'id', '?')}) "
+                    f"does not expose attribute '{key}'."
+                )
+            setattr(macro, key, value)
         _set_component_macro(component, macro_name, macro)
 
 

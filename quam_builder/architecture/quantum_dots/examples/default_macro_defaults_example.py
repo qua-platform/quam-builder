@@ -21,6 +21,7 @@ from quam.components import pulses
 from quam_builder.architecture.quantum_dots.components import QPU
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.names import (
+    DrivePulseName,
     SingleQubitMacroName,
     VoltagePointName,
 )
@@ -74,7 +75,7 @@ def build_demo_machine() -> LossDiVincenzoQuam:
         if qubit.xy is None:
             continue
         qubit.xy.operations.setdefault(
-            "gaussian",
+            DrivePulseName.GAUSSIAN,
             pulses.GaussianPulse(length=64, amplitude=0.01, sigma=16),
         )
 
@@ -87,42 +88,42 @@ def add_default_state_points(machine: LossDiVincenzoQuam) -> None:
     """Define canonical voltage points consumed by state macros."""
     for qubit in machine.qubits.values():
         dot_id = qubit.quantum_dot.id
-        qubit.with_step_point(VoltagePointName.INITIALIZE.value, {dot_id: 0.10}, duration=200)
-        qubit.with_step_point(VoltagePointName.MEASURE.value, {dot_id: 0.15}, duration=220)
-        qubit.with_step_point(VoltagePointName.EMPTY.value, {dot_id: 0.00}, duration=180)
+        qubit.with_step_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
+        qubit.with_step_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=220)
+        qubit.with_step_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=180)
 
 
 def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
     """Tune parameters on already-wired default macro instances."""
     for qubit in machine.qubits.values():
-        qubit.macros[VoltagePointName.INITIALIZE.value].ramp_duration = 64
-        qubit.macros[VoltagePointName.MEASURE.value].hold_duration = 240
-        qubit.macros[SingleQubitMacroName.XY_DRIVE.value].max_amplitude_scale = 0.85
+        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
+        qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
+        qubit.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85
         # Identity duration may start as a reference; concretize before assigning numeric value.
-        qubit.macros[SingleQubitMacroName.IDENTITY.value].duration = None
-        qubit.macros[SingleQubitMacroName.IDENTITY.value].duration = 24
+        qubit.macros[SingleQubitMacroName.IDENTITY].duration = None
+        qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
 
 def print_macro_parameters(machine: LossDiVincenzoQuam) -> None:
     """Print key default-macro class bindings and tuned parameters."""
     q1 = machine.qubits["q1"]
     print("\n=== Default Macro Parameterization ===")
-    print("q1.initialize class:", type(q1.macros[VoltagePointName.INITIALIZE.value]).__name__)
-    print("q1.xy_drive class:", type(q1.macros[SingleQubitMacroName.XY_DRIVE.value]).__name__)
-    print("q1.I class:", type(q1.macros[SingleQubitMacroName.IDENTITY.value]).__name__)
+    print("q1.initialize class:", type(q1.macros[VoltagePointName.INITIALIZE]).__name__)
+    print("q1.xy_drive class:", type(q1.macros[SingleQubitMacroName.XY_DRIVE]).__name__)
+    print("q1.I class:", type(q1.macros[SingleQubitMacroName.IDENTITY]).__name__)
     print(
         "q1.initialize.ramp_duration:",
-        q1.macros[VoltagePointName.INITIALIZE.value].ramp_duration,
+        q1.macros[VoltagePointName.INITIALIZE].ramp_duration,
     )
     print(
         "q1.measure.hold_duration:",
-        q1.macros[VoltagePointName.MEASURE.value].hold_duration,
+        q1.macros[VoltagePointName.MEASURE].hold_duration,
     )
     print(
-        "q1.xy_drive.max_amplitude_scale:",
-        q1.macros[SingleQubitMacroName.XY_DRIVE.value].max_amplitude_scale,
+        "q1.xy_drive.default_amplitude_scale:",
+        q1.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale,
     )
-    print("q1.I.duration:", q1.macros[SingleQubitMacroName.IDENTITY.value].duration)
+    print("q1.I.duration:", q1.macros[SingleQubitMacroName.IDENTITY].duration)
 
 
 def build_program(machine: LossDiVincenzoQuam):
