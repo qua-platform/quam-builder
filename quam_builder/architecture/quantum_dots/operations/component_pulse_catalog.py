@@ -54,12 +54,12 @@ __all__ = [
 
 # Default single-qubit XY pulse parameters
 _PULSE_LENGTH = 1000  # ns
-_PULSE_AMP = 0.2  # 180° amplitude
+_PULSE_AMP = 1.0  # 180° amplitude
 _SIGMA = _PULSE_LENGTH / 6
 
 # Default readout pulse parameters
 _READOUT_LENGTH = 2000  # ns
-_READOUT_AMP = 0.1
+_READOUT_AMP = 1.0
 
 
 def _make_xy_pulse_factories(drive_channel):
