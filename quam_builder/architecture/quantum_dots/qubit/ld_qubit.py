@@ -191,27 +191,6 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         else:
             self.xy.intermediate_frequency = intermediate_frequency
 
-    def play_xy_pulse(
-        self,
-        pulse_name: str,
-        pulse_duration: Optional[int] = None,
-        amplitude_scale: float = None,
-        **kwargs,
-    ) -> None:
-        """Play a pulse from the XY associated with the Qubit"""
-        if self.xy is None:
-            raise ValueError(f"No XY configured on Qubit {self.id}")
-
-        if pulse_name not in self.xy.operations:
-            raise ValueError(f"Pulse {pulse_name} not in XY operations")
-
-        self.xy.play(
-            pulse_name=pulse_name,
-            amplitude_scale=amplitude_scale,
-            duration=pulse_duration,
-            **kwargs,
-        )
-
     def virtual_z(self, phase: float) -> None:
         """Apply a virtual Z rotation"""
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)

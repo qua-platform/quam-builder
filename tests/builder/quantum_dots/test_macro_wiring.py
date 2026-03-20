@@ -204,18 +204,18 @@ def test_x180_macro_produces_valid_qua_program():
 
 
 def test_x180_macro_triggers_play():
-    """X180Macro.apply() triggers play_xy_pulse via delegation chain."""
+    """X180Macro.apply() triggers xy.play via delegation chain."""
     machine = _build_machine()
     wire_machine_macros(machine, strict=True)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1, "play_xy_pulse", return_value=None) as mock_play:
+    with patch.object(q1.xy, "play", return_value=None) as mock_play:
         with qua.program():
             q1.macros["x180"].apply()
 
     assert mock_play.call_count >= 1
-    assert mock_play.call_args.args[0] == "gaussian"
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian"
 
 
 def test_runtime_amplitude_scale_multiplies_angle_scale():
@@ -226,7 +226,7 @@ def test_runtime_amplitude_scale_multiplies_angle_scale():
     q1 = machine.qubits["q1"]
 
     with (
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x90(amplitude_scale=0.5)
@@ -243,7 +243,7 @@ def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
     q1.xy.operations["gaussian"].amplitude = 0.15
 
     with (
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x180()
@@ -252,7 +252,7 @@ def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
         x180_scale = 1.0
 
     with (
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x90()
@@ -283,7 +283,7 @@ def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
 
     with (
         patch.object(q1, "virtual_z", return_value=None) as mock_vz,
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x(angle=-np.pi / 2)
@@ -301,7 +301,7 @@ def test_negative_y_rotation_is_phase_shifted_positive_angle_drive():
 
     with (
         patch.object(q1, "virtual_z", return_value=None) as mock_vz,
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.y(angle=-np.pi / 2)
