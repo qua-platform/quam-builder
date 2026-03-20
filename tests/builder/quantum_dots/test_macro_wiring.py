@@ -131,7 +131,7 @@ def test_component_type_override_sets_xy_drive_runtime_params():
                     "macros": {
                         "xy_drive": {
                             "factory": XYDriveMacro,
-                            "params": {"max_amplitude_scale": 0.85},
+                            "params": {"reference_angle": 1.5},
                         }
                     }
                 }
@@ -142,7 +142,7 @@ def test_component_type_override_sets_xy_drive_runtime_params():
 
     for qubit in machine.qubits.values():
         assert isinstance(qubit.macros["xy_drive"], XYDriveMacro)
-        assert qubit.macros["xy_drive"].max_amplitude_scale == pytest.approx(0.85)
+        assert qubit.macros["xy_drive"].reference_angle == pytest.approx(1.5)
 
 
 def test_canonical_x_and_y_delegate_to_xy_drive():
@@ -150,13 +150,13 @@ def test_canonical_x_and_y_delegate_to_xy_drive():
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
         q1.macros["x"].apply(angle=np.pi / 3)
-    mock_call.assert_called_once_with("xy_drive", angle=np.pi / 3, phase=0.0)
+    mock_apply.assert_called_once_with(angle=np.pi / 3, phase=0.0)
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
         q1.macros["y"].apply(angle=np.pi / 4)
-    mock_call.assert_called_once_with("xy_drive", angle=np.pi / 4, phase=pytest.approx(np.pi / 2))
+    mock_apply.assert_called_once_with(angle=np.pi / 4, phase=pytest.approx(np.pi / 2))
 
 
 def test_runtime_phase_is_added_to_axis_phase():
@@ -164,10 +164,9 @@ def test_runtime_phase_is_added_to_axis_phase():
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
         q1.macros["y"].apply(angle=np.pi / 4, phase=0.125)
-    mock_call.assert_called_once_with(
-        "xy_drive",
+    mock_apply.assert_called_once_with(
         angle=np.pi / 4,
         phase=pytest.approx(np.pi / 2 + 0.125),
     )
@@ -178,17 +177,17 @@ def test_fixed_angle_macros_delegate_to_canonical_axes():
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["x"], "apply", return_value=None) as mock_apply:
         q1.macros["x90"].apply()
-    mock_call.assert_called_once_with("x", angle=pytest.approx(np.pi / 2))
+    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["y"], "apply", return_value=None) as mock_apply:
         q1.macros["y90"].apply()
-    mock_call.assert_called_once_with("y", angle=pytest.approx(np.pi / 2))
+    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
 
-    with patch.object(q1, "call_macro", return_value=None) as mock_call:
+    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
         q1.macros["z90"].apply()
-    mock_call.assert_called_once_with("z", angle=pytest.approx(np.pi / 2))
+    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
 
 
 def test_x180_macro_produces_valid_qua_program():
@@ -263,17 +262,17 @@ def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
     assert q1.xy.operations["gaussian"].amplitude * x90_scale == pytest.approx(0.075)
 
 
-def test_fixed_angle_inferred_duration_uses_xy_drive_angle_scaling():
-    """Fixed-angle inferred durations should be computed from canonical xy_drive."""
+def test_fixed_angle_inferred_duration_uses_reference_pulse_length():
+    """Inferred duration should always equal the reference pulse length (no stretching)."""
     machine = _build_machine()
     wire_machine_macros(machine, strict=True)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
-    q1.macros["xy_drive"].max_amplitude_scale = 0.85
 
-    assert q1.macros["x"].inferred_duration == pytest.approx(1.176e-06)
-    assert q1.macros["x90"].inferred_duration == pytest.approx(1e-06)
-    assert q1.macros["y90"].inferred_duration == pytest.approx(1e-06)
+    ref_duration = q1.xy.operations["gaussian"].length * 1e-9
+    assert q1.macros["x"].inferred_duration == pytest.approx(ref_duration)
+    assert q1.macros["x90"].inferred_duration == pytest.approx(ref_duration)
+    assert q1.macros["y90"].inferred_duration == pytest.approx(ref_duration)
 
 
 def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():

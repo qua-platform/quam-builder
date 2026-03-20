@@ -17,7 +17,6 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     SINGLE_QUBIT_MACRO_ALIAS_MAP,
     SINGLE_QUBIT_MACRO_ALIASES,
     SINGLE_QUBIT_MACRO_NAMES,
-    STATE_MACRO_NAMES,
     TWO_QUBIT_MACRO_NAMES,
     SingleQubitMacroName,
     TwoQubitMacroName,
@@ -26,20 +25,39 @@ from quam_builder.architecture.quantum_dots.operations.names import (
 
 
 def test_state_macro_enum_values_are_default_keys():
-    """Voltage-point enum values should be used in default state macro maps."""
+    """STATE_POINT_MACROS keys should be a subset of VoltagePointName values.
+
+    Not every voltage point has a generic state macro — measure and exchange
+    are component-specific (handled by Measure1QMacro, MeasurePSBPairMacro,
+    ExchangeStateMacro, etc.) rather than generic STATE_POINT_MACROS entries.
+    """
     state_keys = {name.value for name in VoltagePointName}
 
-    assert state_keys.issubset(STATE_POINT_MACROS.keys())
-    assert state_keys.issubset(QPU_STATE_MACROS.keys())
-    assert set(STATE_MACRO_NAMES) == state_keys
+    assert set(STATE_POINT_MACROS.keys()).issubset(state_keys)
+    assert set(QPU_STATE_MACROS.keys()).issubset(state_keys)
 
 
 def test_single_qubit_enum_values_are_default_keys():
-    """Canonical 1Q enum names should be present in default 1Q map."""
-    canonical_single_qubit_names = {name.value for name in SingleQubitMacroName}
+    """Canonical 1Q gate enum names should be present in default 1Q map.
 
-    assert canonical_single_qubit_names.issubset(SINGLE_QUBIT_MACROS.keys())
-    assert canonical_single_qubit_names.issubset(SINGLE_QUBIT_MACRO_NAMES)
+    State-related names (initialize, measure, empty, exchange) are included
+    in SingleQubitMacroName for reference but may not all have entries in
+    SINGLE_QUBIT_MACROS since some are component-specific.
+    """
+    gate_names = {
+        name.value
+        for name in SingleQubitMacroName
+        if name
+        not in (
+            SingleQubitMacroName.INITIALIZE,
+            SingleQubitMacroName.MEASURE,
+            SingleQubitMacroName.EMPTY,
+            SingleQubitMacroName.EXCHANGE,
+        )
+    }
+
+    assert gate_names.issubset(SINGLE_QUBIT_MACROS.keys())
+    assert gate_names.issubset(SINGLE_QUBIT_MACRO_NAMES)
     assert set(SINGLE_QUBIT_MACRO_ALIASES).issubset(SINGLE_QUBIT_MACRO_NAMES)
 
 

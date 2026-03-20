@@ -11,8 +11,8 @@ from quam_builder.architecture.quantum_dots.operations.names import (
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
+    ExchangeStateMacro,
     InitializeStateMacro,
-    MeasureStateMacro,
     _owner_component,
 )
 
@@ -49,7 +49,7 @@ class Measure2QMacro(QubitPairMacro):
         qd_pair = getattr(owner, "quantum_dot_pair", None)
         if qd_pair is None:
             raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout.")
-        return qd_pair.call_macro(TwoQubitMacroName.MEASURE, **kwargs)
+        return qd_pair.macros[TwoQubitMacroName.MEASURE].apply(**kwargs)
 
 
 class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
@@ -58,16 +58,10 @@ class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
     point: str = VoltagePointName.EMPTY.value
 
 
-class Exchange2QMacro(QubitPairMacro):
-    """Exchange macro for LDQubitPair — delegates to the QuantumDotPair exchange macro."""
+class Exchange2QMacro(ExchangeStateMacro, QubitPairMacro):
+    """Exchange macro for LDQubitPair — ramp to exchange, wait, ramp back."""
 
-    def apply(self, **kwargs):
-        """Delegate exchange to the underlying quantum_dot_pair."""
-        owner = _owner_component(self)
-        qd_pair = getattr(owner, "quantum_dot_pair", None)
-        if qd_pair is None:
-            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for exchange.")
-        return qd_pair.call_macro(VoltagePointName.EXCHANGE, **kwargs)
+    point: str = VoltagePointName.EXCHANGE.value
 
 
 class _Unsupported2QGateMacro(QubitPairMacro):
@@ -78,7 +72,7 @@ class _Unsupported2QGateMacro(QubitPairMacro):
     def apply(self, **kwargs):
         """Raise explicit guidance to register a calibration-specific override."""
         raise NotImplementedError(
-            f"Default macro for '{self.gate_name}' is intentionally not implemented for "
+            f"Default macro for '{self.gate_name}' is not yet implemented for "
             f"component '{self.qubit_pair.id}'. Register a calibrated macro override."
         )
 

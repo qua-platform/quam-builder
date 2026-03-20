@@ -154,9 +154,6 @@ def _remove_component_macro(component: Any, name: str, strict: bool) -> None:
             raise KeyError(f"Macro '{name}' not found on component '{component.id}'.")
         return
     del macros[name]
-    invalidate = getattr(component, "_invalidate_macro_dispatch", None)
-    if callable(invalidate):
-        invalidate(name)
 
 
 def _normalize_macro_override(entry: Any) -> tuple[type[QuamMacro] | None, dict[str, Any], bool]:

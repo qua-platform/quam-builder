@@ -6,14 +6,14 @@ from typing import Any, Optional
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-from quam_builder.architecture.quantum_dots import TwoQubitMacroName
-
-from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
+from quam_builder.architecture.quantum_dots.operations.names import (
+    TwoQubitMacroName,
+    VoltagePointName,
+)
 from quam_builder.tools.qua_tools import VoltageLevelType
 
 __all__ = [
     "InitializeStateMacro",
-    "MeasureStateMacro",
     "EmptyStateMacro",
     "ExchangeStateMacro",
     "SensorDotMeasureMacro",
@@ -39,7 +39,7 @@ def _owner_component(macro: QuamMacro) -> Any:
         raise ValueError("Macro is not attached to a component.")
 
     # Macro parent can be either the owning component or an intermediate dict-like object.
-    if hasattr(direct_parent, "step_to_point") or hasattr(direct_parent, "call_macro"):
+    if hasattr(direct_parent, "step_to_point") or hasattr(direct_parent, "macros"):
         return direct_parent
 
     owner = getattr(direct_parent, "parent", None)
@@ -248,8 +248,7 @@ class MeasurePSBPairMacro(QuamMacro):
         if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
-        return sensor_dot.call_macro(
-            TwoQubitMacroName.MEASURE,
+        return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
             quantum_dot_pair_id=owner.id,
         )
 
@@ -294,11 +293,7 @@ class _QPUStateDispatchMacro(QuamMacro):
 
         results = {}
         for component in _iter_qpu_targets(machine):
-            call_macro = getattr(component, "call_macro", None)
-            if callable(call_macro):
-                results[component.id] = call_macro(self.macro_name, **kwargs)
-            else:
-                results[component.id] = component.macros[self.macro_name].apply(**kwargs)
+            results[component.id] = component.macros[self.macro_name].apply(**kwargs)
         return results
 
 
@@ -325,7 +320,6 @@ class QPUEmptyMacro(_QPUStateDispatchMacro):
 
 STATE_POINT_MACROS = {
     VoltagePointName.INITIALIZE.value: InitializeStateMacro,
-    VoltagePointName.MEASURE.value: MeasureStateMacro,
     VoltagePointName.EMPTY.value: EmptyStateMacro,
 }
 # Default state-macro factories for point-capable components.
