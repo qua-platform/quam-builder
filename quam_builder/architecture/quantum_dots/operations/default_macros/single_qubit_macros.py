@@ -52,6 +52,27 @@ def _quantize_ns(duration_ns: float) -> int:
     return max(int(round(duration_ns / 4.0)) * 4, 0)
 
 
+def _compose_phase(base_phase: float, extra_phase: float | None) -> float:
+    """Combine phase offsets across macro layers."""
+    if extra_phase is None:
+        return base_phase
+    return base_phase + extra_phase
+
+
+def _compose_amplitude_scale(
+    base_scale: float,
+    extra_scale: float | None,
+) -> float | None:
+    """Combine amplitude scales across macro layers.
+
+    Returns ``None`` only when the composition is an identity scaling.
+    """
+    scale = base_scale if extra_scale is None else base_scale * extra_scale
+    if extra_scale is None and math.isclose(scale, 1.0):
+        return None
+    return scale
+
+
 class Initialize1QMacro(InitializeStateMacro, QubitMacro):
     """Initialize qubit by ramping to the `initialize` voltage point."""
 
@@ -86,7 +107,7 @@ class Measure1QMacro(QubitMacro):
             )
 
         qd_pair = machine.quantum_dot_pairs[pair_name]
-        return qd_pair.call_macro(VoltagePointName.MEASURE.value, **kwargs)
+        return qd_pair.call_macro(VoltagePointName.MEASURE, **kwargs)
 
 
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
@@ -115,6 +136,7 @@ class XYDriveMacro(QubitMacro):
     reference_pulse_name: str = DrivePulseName.GAUSSIAN.value
     reference_angle: float = float(np.pi)
     max_amplitude_scale: float = 1.0
+    default_amplitude_scale: float = 1.0
     default_angle: float = float(np.pi)
 
     def _resolve_pulse_name(self, pulse_name: str | None) -> str:
@@ -130,10 +152,10 @@ class XYDriveMacro(QubitMacro):
 
         for candidate in (
             self.reference_pulse_name,
-            DrivePulseName.GAUSSIAN.value,
-            DrivePulseName.DRAG.value,
-            SingleQubitMacroName.X_180.value,
-            SingleQubitMacroName.X_90.value,
+            DrivePulseName.GAUSSIAN,
+            DrivePulseName.DRAG,
+            SingleQubitMacroName.X_180,
+            SingleQubitMacroName.X_90,
         ):
             if candidate in self.qubit.xy.operations:
                 return candidate
@@ -142,8 +164,8 @@ class XYDriveMacro(QubitMacro):
             f"No reference pulse found for qubit '{self.qubit.id}'. "
             "Expected one of: "
             f"'{self.reference_pulse_name}', "
-            f"'{SingleQubitMacroName.X_180.value}', "
-            f"'{SingleQubitMacroName.X_90.value}'."
+            f"'{SingleQubitMacroName.X_180}', "
+            f"'{SingleQubitMacroName.X_90}'."
         )
 
     def _reference_duration_ns(self, pulse_name: str) -> int | None:
@@ -206,7 +228,11 @@ class XYDriveMacro(QubitMacro):
         restore_frame: bool = True,
         **kwargs,
     ):
-        """Play a phase-rotated XY drive pulse with angle-based scaling."""
+        """Play a phase-rotated XY drive pulse with compositional scaling.
+
+        Runtime ``amplitude_scale`` multiplies the angle-derived scale from the
+        reference pulse instead of replacing it.
+        """
         # Accept 'duration' as alias so callers can write qubit.x180(duration=t)
         if pulse_duration is None:
             pulse_duration = kwargs.pop("duration", None)
@@ -224,7 +250,10 @@ class XYDriveMacro(QubitMacro):
         )
 
         duration_ns = auto_duration if pulse_duration is None else pulse_duration
-        drive_scale = auto_amplitude_scale if amplitude_scale is None else amplitude_scale
+        drive_scale = _compose_amplitude_scale(
+            auto_amplitude_scale * self.default_amplitude_scale,
+            amplitude_scale,
+        )
 
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
@@ -247,29 +276,45 @@ class _AxisRotationMacro(QubitMacro):
 
     default_angle: float = float(np.pi)
     phase: float = 0.0
+    default_amplitude_scale: float = 1.0
 
     def _xy_drive_macro(self):
-        macro = self.qubit.macros.get(SingleQubitMacroName.XY_DRIVE.value)
+        macro = self.qubit.macros.get(SingleQubitMacroName.XY_DRIVE)
         if macro is None:
-            raise KeyError(
-                f"Missing canonical macro '{SingleQubitMacroName.XY_DRIVE.value}' on qubit."
-            )
+            raise KeyError(f"Missing canonical macro '{SingleQubitMacroName.XY_DRIVE}' on qubit.")
         return macro
 
     @property
     def inferred_duration(self) -> float | None:
         """Infer runtime duration (seconds) for `default_angle`."""
+        return self.inferred_duration_for_angle(self.default_angle)
+
+    def inferred_duration_for_angle(self, angle: float) -> float | None:
+        """Infer runtime duration (seconds) for a given angle via `xy_drive`."""
         macro = self._xy_drive_macro()
         infer_fn = getattr(macro, "inferred_duration_for_angle", None)
-        return infer_fn(self.default_angle) if callable(infer_fn) else None
+        return infer_fn(angle) if callable(infer_fn) else None
 
     def apply(self, angle: float | None = None, **kwargs):
         """Apply rotation around fixed XY axis by delegating to `xy_drive`."""
         target_angle = self.default_angle if angle is None else float(angle)
+        phase = _compose_phase(self.phase, kwargs.pop("phase", None))
+        amplitude_scale = _compose_amplitude_scale(
+            self.default_amplitude_scale,
+            kwargs.pop("amplitude_scale", None),
+        )
+        if amplitude_scale is None:
+            return self.qubit.call_macro(
+                SingleQubitMacroName.XY_DRIVE,
+                angle=target_angle,
+                phase=phase,
+                **kwargs,
+            )
         return self.qubit.call_macro(
-            SingleQubitMacroName.XY_DRIVE.value,
+            SingleQubitMacroName.XY_DRIVE,
             angle=target_angle,
-            phase=self.phase,
+            phase=phase,
+            amplitude_scale=amplitude_scale,
             **kwargs,
         )
 
@@ -309,6 +354,8 @@ class _FixedAxisAngleMacro(QubitMacro):
 
     axis_macro_name: str
     default_angle: float
+    phase: float = 0.0
+    default_amplitude_scale: float = 1.0
 
     @property
     def inferred_duration(self) -> float | None:
@@ -325,7 +372,27 @@ class _FixedAxisAngleMacro(QubitMacro):
 
     def apply(self, angle: float | None = None, **kwargs):
         target_angle = self.default_angle if angle is None else float(angle)
-        return self.qubit.call_macro(self.axis_macro_name, angle=target_angle, **kwargs)
+        extra_phase = kwargs.pop("phase", None)
+        phase = _compose_phase(self.phase, extra_phase)
+        amplitude_scale = _compose_amplitude_scale(
+            self.default_amplitude_scale,
+            kwargs.pop("amplitude_scale", None),
+        )
+        if amplitude_scale is None and extra_phase is None and math.isclose(self.phase, 0.0):
+            return self.qubit.call_macro(
+                self.axis_macro_name,
+                angle=target_angle,
+                **kwargs,
+            )
+        call_kwargs = dict(kwargs)
+        call_kwargs["phase"] = phase
+        if amplitude_scale is not None:
+            call_kwargs["amplitude_scale"] = amplitude_scale
+        return self.qubit.call_macro(
+            self.axis_macro_name,
+            angle=target_angle,
+            **call_kwargs,
+        )
 
 
 class X180Macro(_FixedAxisAngleMacro):

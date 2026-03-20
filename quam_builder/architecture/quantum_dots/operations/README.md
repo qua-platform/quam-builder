@@ -26,6 +26,9 @@ Voltage-point names are centralized in [`names.py`](./names.py):
 
 These are represented by `VoltagePointName` (`StrEnum`) and reused by default state macros.
 Default state macros assume these points exist in each relevant voltage sequence (for example via `with_step_point(...)`).
+In Python examples below, prefer the enum members directly.
+These are `StrEnum`s, so `TwoQubitMacroName.CZ` already behaves like `"cz"`.
+In TOML profiles, use the serialized enum values (`initialize`, `x180`, `gaussian`, ...).
 
 Canonical macro names are also centralized as enums in the same module:
 
@@ -233,15 +236,16 @@ This is the common case and is fully supported.
 Example: override only `x180` on one qubit; all other macros remain default.
 
 ```python
+from quam_builder.architecture.quantum_dots.operations.names import SingleQubitMacroName
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 
 wire_machine_macros(
     machine,
     macro_overrides={
         "instances": {
-            "qubits.q1": {
-                "macros": {
-                    "x180": {
+                "qubits.q1": {
+                    "macros": {
+                    SingleQubitMacroName.X_180: {
                         "factory": "my_pkg.macros:TunedX180Macro",
                         "params": {"default_amplitude_scale": 0.78},
                     }
@@ -255,22 +259,27 @@ wire_machine_macros(
 
 Result:
 
-- `qubits.q1.macros["x180"]` is replaced.
+- `qubits.q1.macros[SingleQubitMacroName.X_180]` is replaced.
 - `qubits.q1` all other macro names are untouched.
 - all macros on other qubits are untouched.
+- If the replacement macro defines `default_amplitude_scale`, it composes
+  multiplicatively with the gaussian-derived angle scaling and with any
+  runtime `amplitude_scale=` passed at the call site.
 
 ## Type-Level Override + Instance-Level Specialization
 
 Pattern: set lab-wide default for a component type, then specialize one device instance.
 
 ```python
+from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
+
 wire_machine_macros(
     machine,
     macro_overrides={
         "component_types": {
             "LDQubit": {
                 "macros": {
-                    "initialize": {
+                    VoltagePointName.INITIALIZE: {
                         "factory": "my_pkg.macros:InitMacro",
                         "params": {"ramp_duration": 64},
                     }
@@ -280,7 +289,7 @@ wire_machine_macros(
         "instances": {
             "qubits.q2": {
                 "macros": {
-                    "initialize": {
+                    VoltagePointName.INITIALIZE: {
                         "factory": "my_pkg.macros:InitMacro",
                         "params": {"ramp_duration": 96},
                     }
@@ -321,6 +330,11 @@ Use this layout:
 ```python
 from __future__ import annotations
 
+from quam_builder.architecture.quantum_dots.operations.names import (
+    SingleQubitMacroName,
+    TwoQubitMacroName,
+    VoltagePointName,
+)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     XYDriveMacro,
 )
@@ -334,28 +348,31 @@ def build_macro_overrides() -> dict:
         "component_types": {
             "QPU": {
                 "macros": {
-                    "initialize": {"factory": LabInitializeQPU},
-                    "measure": {"factory": LabMeasureQPU},
-                    "empty": {"factory": LabEmptyQPU},
+                    VoltagePointName.INITIALIZE: {"factory": LabInitializeQPU},
+                    VoltagePointName.MEASURE: {"factory": LabMeasureQPU},
+                    VoltagePointName.EMPTY: {"factory": LabEmptyQPU},
                 }
             },
             "LDQubit": {
                 "macros": {
-                    "initialize": {"factory": LabInitialize1Q},
-                    "measure": {"factory": LabMeasure1Q},
-                    "empty": {"factory": LabEmpty1Q},
-                    "xy_drive": {"factory": XYDriveMacro, "params": {"max_amplitude_scale": 0.85}},
-                    "x": {"factory": LabX},
-                    "y": {"factory": LabY},
-                    "z": {"factory": LabZ},
+                    VoltagePointName.INITIALIZE: {"factory": LabInitialize1Q},
+                    VoltagePointName.MEASURE: {"factory": LabMeasure1Q},
+                    VoltagePointName.EMPTY: {"factory": LabEmpty1Q},
+                    SingleQubitMacroName.XY_DRIVE: {
+                        "factory": XYDriveMacro,
+                        "params": {"default_amplitude_scale": 0.85},
+                    },
+                    SingleQubitMacroName.X: {"factory": LabX},
+                    SingleQubitMacroName.Y: {"factory": LabY},
+                    SingleQubitMacroName.Z: {"factory": LabZ},
                 }
             },
             "LDQubitPair": {
                 "macros": {
-                    "cnot": {"factory": LabCNOT},
-                    "cz": {"factory": LabCZ},
-                    "swap": {"factory": LabSWAP},
-                    "iswap": {"factory": LabISWAP},
+                    TwoQubitMacroName.CNOT: {"factory": LabCNOT},
+                    TwoQubitMacroName.CZ: {"factory": LabCZ},
+                    TwoQubitMacroName.SWAP: {"factory": LabSWAP},
+                    TwoQubitMacroName.ISWAP: {"factory": LabISWAP},
                 }
             },
         }
@@ -381,6 +398,7 @@ This keeps custom defaults out of `quam-builder` itself, so pulling upstream cha
 ### Optional pattern: catalog defaults + local one-off tweak
 
 ```python
+from quam_builder.architecture.quantum_dots.operations.names import SingleQubitMacroName
 from my_lab_qd_macros.catalog import build_macro_overrides
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 
@@ -388,7 +406,9 @@ overrides = build_macro_overrides()
 overrides["instances"] = {
     "qubits.q3": {
         "macros": {
-            "x180": {"factory": "my_lab_qd_macros.single_qubit:Q3TunedX180"}
+            SingleQubitMacroName.X_180: {
+                "factory": "my_lab_qd_macros.single_qubit:Q3TunedX180"
+            }
         }
     }
 }
@@ -408,8 +428,8 @@ There are two storage layers:
 
 Macro parameter examples:
 
-- `machine.qubits["q1"].macros["initialize"].ramp_duration`
-- `machine.qubits["q1"].macros["xy_drive"].max_amplitude_scale`
+- `machine.qubits["q1"].macros[VoltagePointName.INITIALIZE].ramp_duration`
+- `machine.qubits["q1"].macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale`
 
 Serialization behavior:
 
@@ -418,8 +438,8 @@ Serialization behavior:
 
 ## Recommended Override Strategy
 
-1. Override canonical macros first (`xy_drive`, `x`, `y`, `z`) if you want broad behavioral changes.
-2. Override wrapper macros (`x90`, `x180`, etc.) only for fixed-angle special cases.
+1. Override the reference pulse or canonical `xy_drive` first if you want broad behavioral changes.
+2. Override wrapper macros (`x90`, `x180`, etc.) only for fixed-angle special cases or extra multiplicative scaling at that layer.
 3. Keep two-qubit calibrated logic in profile/type-level overrides and specialize only exceptional instances.
 4. Use `strict=True` for CI and release configs.
 
@@ -431,6 +451,77 @@ Serialization behavior:
 
 A single reference pulse is registered per qubit. `XYDriveMacro` scales amplitude for rotation angle and applies virtual-Z for rotation axis (X/Y), so all single-qubit gates derive from this one pulse.
 
+Composition rules:
+- `x`/`y` add their canonical axis phase to any runtime `phase=...`.
+- `x90`/`x180`/`y90` wrapper `default_amplitude_scale` values multiply through the stack.
+- `xy_drive` runtime `amplitude_scale=...` multiplies the angle-derived scale from the reference pulse instead of replacing it.
+
+### Single-Qubit Gate Composition Model
+
+Think of the stack as:
+
+`reference pulse -> xy_drive -> x/y axis macro -> fixed-angle wrapper -> runtime call-site kwargs`
+
+Source of truth:
+- `qubit.xy.operations[qubit.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name]`
+  is the calibrated envelope source of truth.
+- Pulse-envelope parameters such as `amplitude`, `length`, `sigma`, `axis_angle`,
+  `alpha`, and `anharmonicity` live on that pulse object, not in the wrapper macros.
+- Replacing the pulse object, or switching `reference_pulse_name`, updates the whole
+  single-qubit gate family.
+
+Modulation order:
+- `xy_drive` converts `angle` into an angle-derived amplitude scale using
+  `reference_angle` and `max_amplitude_scale`.
+- If `max_amplitude_scale` saturates, `xy_drive` stretches the play duration
+  relative to the reference pulse length so the effective rotation keeps scaling.
+- `xy_drive.default_amplitude_scale` multiplies the angle-derived scale.
+- `x` or `y` adds its axis phase (`0` for X, `pi/2` for Y) to any runtime `phase`.
+- A fixed-angle wrapper such as `x90` contributes its default angle and may also
+  contribute an extra multiplicative `default_amplitude_scale`.
+- Runtime `amplitude_scale` multiplies everything above; runtime `duration` /
+  `pulse_duration` overrides the auto-derived duration.
+
+Effective play parameters:
+- Effective phase =
+  `sign-normalization phase + axis phase + wrapper phase + runtime phase`
+- Effective amplitude scale =
+  `angle_scale * xy_drive.default_amplitude_scale * axis.default_amplitude_scale * fixed_wrapper.default_amplitude_scale * runtime amplitude_scale`
+- Effective duration =
+  `runtime duration override` if provided, otherwise the duration derived from the
+  reference pulse length and the angle-scaling logic
+
+Representative cases:
+
+1. Base calibration only
+   - Reference pulse: gaussian with `amplitude=0.2`, `length=1000`
+   - Call: `q.x180()`
+   - Result: plays the gaussian family reference with scale `1.0`, phase `0`, duration `1000 ns`
+
+2. Canonical macro calibration
+   - Reference pulse unchanged
+   - `q.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85`
+   - Call: `q.x180()`
+   - Result: effective pulse amplitude becomes `0.2 * 1.0 * 0.85`
+
+3. Higher-level wrapper calibration
+   - `q.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85`
+   - `q.macros[SingleQubitMacroName.X_180].default_amplitude_scale = 0.78`
+   - Call: `q.x180()`
+   - Result: effective pulse amplitude becomes `0.2 * 1.0 * 0.85 * 0.78`
+
+4. Runtime modulation
+   - Reference pulse unchanged
+   - Call: `q.y90(amplitude_scale=0.5, phase=0.1)`
+   - Result: effective phase becomes `pi/2 + 0.1`, and the runtime amplitude
+     scale multiplies the gaussian-derived `pi/2` scale rather than replacing it
+
+5. Saturated large-angle drive
+   - `q.macros[SingleQubitMacroName.XY_DRIVE].max_amplitude_scale = 0.85`
+   - Call: `q.x(angle=np.pi)`
+   - Result: amplitude scale caps at `0.85`, and duration stretches above the
+     reference pulse length to preserve the requested rotation
+
 | Pulse Name | Type | Amplitude | Length | Sigma | Axis Angle (IQ/MW) | Axis Angle (SingleChannel) |
 |------------|------|-----------|--------|-------|---------------------|---------------------------|
 | `gaussian` | `GaussianPulse` | 0.2 | 1000 ns | 167 ns | 0.0 | `None` |
@@ -440,8 +531,8 @@ Pulse names are centralized in `DrivePulseName` (`StrEnum`) in `names.py`:
 - `DrivePulseName.DRAG` = `"drag"` (user-registered)
 
 To switch pulse type (e.g. Gaussian → DRAG):
-1. Register the new pulse: `qubit.xy.operations[DrivePulseName.DRAG.value] = DragPulse(...)`
-2. Update the macro: `qubit.macros["xy_drive"].reference_pulse_name = DrivePulseName.DRAG.value`
+1. Register the new pulse: `qubit.xy.operations[DrivePulseName.DRAG] = DragPulse(...)`
+2. Update the macro: `qubit.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name = DrivePulseName.DRAG`
 3. All gate macros (x90, x180, y90, etc.) automatically use the new pulse.
 
 ### Sensor Dot Readout Pulses

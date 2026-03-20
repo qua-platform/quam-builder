@@ -249,12 +249,12 @@ class TestStateMacroPointDispatch:
 
         owner.ramp_to_voltages.assert_has_calls(
             [
-                call(exchange_voltages, duration=None, ramp_duration=32),
-                call(return_voltages, duration=None, ramp_duration=32),
+                call(exchange_voltages, duration=80, ramp_duration=32),
+                call(return_voltages, duration=0, ramp_duration=32),
             ]
         )
         owner.ramp_to_point.assert_not_called()
-        owner.voltage_sequence.step_to_voltages.assert_called_once_with({}, duration=80)
+        owner.voltage_sequence.step_to_voltages.assert_not_called()
 
     def test_measure_psb_pair_macro_steps_to_voltage_dict(self):
         voltages = {"virtual_dot_1": -0.1}
