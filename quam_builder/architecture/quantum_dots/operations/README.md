@@ -263,8 +263,9 @@ Result:
 - `qubits.q1` all other macro names are untouched.
 - all macros on other qubits are untouched.
 - If the replacement macro defines `default_amplitude_scale`, it composes
-  multiplicatively with the gaussian-derived angle scaling and with any
-  runtime `amplitude_scale=` passed at the call site.
+  with the gaussian-derived angle scaling and any runtime
+  `amplitude_scale=` passed at the call site, while shadowing less-specific
+  defaults such as `xy_drive.default_amplitude_scale`.
 
 ## Type-Level Override + Instance-Level Specialization
 
@@ -439,7 +440,7 @@ Serialization behavior:
 ## Recommended Override Strategy
 
 1. Override the reference pulse or canonical `xy_drive` first if you want broad behavioral changes.
-2. Override wrapper macros (`x90`, `x180`, etc.) only for fixed-angle special cases or extra multiplicative scaling at that layer.
+2. Override wrapper macros (`x90`, `x180`, etc.) for fixed-angle special cases that should shadow broader `xy_drive` defaults for that gate.
 3. Keep two-qubit calibrated logic in profile/type-level overrides and specialize only exceptional instances.
 4. Use `strict=True` for CI and release configs.
 
@@ -453,7 +454,8 @@ A single reference pulse is registered per qubit. `XYDriveMacro` scales amplitud
 
 Composition rules:
 - `x`/`y` add their canonical axis phase to any runtime `phase=...`.
-- `x90`/`x180`/`y90` wrapper `default_amplitude_scale` values multiply through the stack.
+- More-specific `default_amplitude_scale` values shadow less-specific defaults:
+  fixed-angle wrapper -> axis macro -> `xy_drive`.
 - `xy_drive` runtime `amplitude_scale=...` multiplies the angle-derived scale from the reference pulse instead of replacing it.
 
 ### Single-Qubit Gate Composition Model
@@ -475,18 +477,30 @@ Modulation order:
   `reference_angle` and `max_amplitude_scale`.
 - If `max_amplitude_scale` saturates, `xy_drive` stretches the play duration
   relative to the reference pulse length so the effective rotation keeps scaling.
-- `xy_drive.default_amplitude_scale` multiplies the angle-derived scale.
+- `xy_drive.default_amplitude_scale` provides the canonical default scale.
+- `x`/`y` can override that canonical default for their axis family.
 - `x` or `y` adds its axis phase (`0` for X, `pi/2` for Y) to any runtime `phase`.
 - A fixed-angle wrapper such as `x90` contributes its default angle and may also
-  contribute an extra multiplicative `default_amplitude_scale`.
-- Runtime `amplitude_scale` multiplies everything above; runtime `duration` /
+  override the lower default scale for that gate only.
+- Runtime `amplitude_scale` multiplies the resolved default scale; runtime `duration` /
   `pulse_duration` overrides the auto-derived duration.
+
+Default-scale precedence:
+- If no more-specific override is present, `xy_drive.default_amplitude_scale` is used.
+- If `x.default_amplitude_scale` or `y.default_amplitude_scale` is set, it shadows
+  `xy_drive.default_amplitude_scale` for that axis family.
+- If `x90.default_amplitude_scale`, `x180.default_amplitude_scale`, etc. is set,
+  it shadows the axis-level and canonical defaults for that fixed-angle gate.
 
 Effective play parameters:
 - Effective phase =
   `sign-normalization phase + axis phase + wrapper phase + runtime phase`
 - Effective amplitude scale =
-  `angle_scale * xy_drive.default_amplitude_scale * axis.default_amplitude_scale * fixed_wrapper.default_amplitude_scale * runtime amplitude_scale`
+  `angle_scale * resolved_default_scale * runtime amplitude_scale`
+- `resolved_default_scale` =
+  `fixed_wrapper.default_amplitude_scale`
+  else `axis.default_amplitude_scale`
+  else `xy_drive.default_amplitude_scale`
 - Effective duration =
   `runtime duration override` if provided, otherwise the duration derived from the
   reference pulse length and the angle-scaling logic
@@ -508,15 +522,25 @@ Representative cases:
    - `q.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85`
    - `q.macros[SingleQubitMacroName.X_180].default_amplitude_scale = 0.78`
    - Call: `q.x180()`
-   - Result: effective pulse amplitude becomes `0.2 * 1.0 * 0.85 * 0.78`
+   - Result: effective pulse amplitude becomes `0.2 * 1.0 * 0.78`
+   - The more-specific `x180` default shadows the broader `xy_drive` default.
 
-4. Runtime modulation
+4. Gate-specific `pi/2` calibration
+   - `q.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85`
+   - `q.macros[SingleQubitMacroName.X_90].default_amplitude_scale = 1.66`
+   - Call: `q.x90()`
+   - Result: effective pulse amplitude becomes `0.2 * 0.5 * 1.66`
+   - The `0.5` still comes from the reference pulse angle scaling; only the
+     default calibration source changes from `xy_drive` to `x90`.
+
+5. Runtime modulation
    - Reference pulse unchanged
    - Call: `q.y90(amplitude_scale=0.5, phase=0.1)`
    - Result: effective phase becomes `pi/2 + 0.1`, and the runtime amplitude
-     scale multiplies the gaussian-derived `pi/2` scale rather than replacing it
+     scale multiplies the gaussian-derived `pi/2` scale and the resolved
+     default scale rather than replacing them
 
-5. Saturated large-angle drive
+6. Saturated large-angle drive
    - `q.macros[SingleQubitMacroName.XY_DRIVE].max_amplitude_scale = 0.85`
    - Call: `q.x(angle=np.pi)`
    - Result: amplitude scale caps at `0.85`, and duration stretches above the
