@@ -57,22 +57,6 @@ class TestBarrierGateVoltageOps:
         assert prog is not None
 
 
-class TestBarrierGateFluentAPI:
-    def test_with_step_point_returns_self(self, qd_machine):
-        bg = list(qd_machine.barrier_gates.values())[0]
-        result = bg.with_step_point("open", {bg.id: 0.5}, duration=100)
-        assert result is bg
-
-    def test_chained(self, qd_machine):
-        bg = list(qd_machine.barrier_gates.values())[0]
-        result = bg.with_step_point("closed", {bg.id: 0.0}, duration=100).with_step_point(
-            "open", {bg.id: 0.5}, duration=100
-        )
-        assert result is bg
-        assert "closed" in bg.macros
-        assert "open" in bg.macros
-
-
 class TestBarrierGateInPair:
     def test_pair_barrier_gate(self, qd_machine):
         pair = qd_machine.quantum_dot_pairs["dot1_dot2_pair"]

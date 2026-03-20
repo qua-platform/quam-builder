@@ -60,11 +60,6 @@ class TestVoltageOperations:
 
         assert prog is not None
 
-    def test_add_point_with_step_macro(self, qd_machine):
-        qubit = qd_machine.qubits["Q1"]
-        qubit.add_point_with_step_macro("load", voltages={"virtual_dot_1": 0.2}, duration=200)
-        assert "load" in qubit.macros
-
     def test_ramp_to_point_in_qua(self, qd_machine):
         qubit = qd_machine.qubits["Q1"]
         qubit.add_point("target", {"virtual_dot_1": 0.3}, duration=100)
@@ -82,31 +77,3 @@ class TestReset:
             qubit.reset("thermal")
 
         assert prog is not None
-
-
-class TestFluentAPI:
-    def test_with_step_point_returns_self(self, qd_machine):
-        qubit = qd_machine.qubits["Q1"]
-        result = qubit.with_step_point("load", voltages={"virtual_dot_1": 0.1}, duration=100)
-        assert result is qubit
-
-    def test_with_ramp_point_returns_self(self, qd_machine):
-        qubit = qd_machine.qubits["Q1"]
-        result = qubit.with_ramp_point(
-            "unload", voltages={"virtual_dot_1": 0.0}, duration=100, ramp_duration=16
-        )
-        assert result is qubit
-
-    def test_chained_fluent_api(self, qd_machine):
-        qubit = qd_machine.qubits["Q1"]
-        result = (
-            qubit.with_step_point("idle", voltages={"virtual_dot_1": 0.0}, duration=100)
-            .with_step_point("load", voltages={"virtual_dot_1": 0.2}, duration=200)
-            .with_ramp_point(
-                "measure", voltages={"virtual_dot_1": 0.5}, duration=100, ramp_duration=16
-            )
-        )
-        assert result is qubit
-        assert "idle" in qubit.macros
-        assert "load" in qubit.macros
-        assert "measure" in qubit.macros

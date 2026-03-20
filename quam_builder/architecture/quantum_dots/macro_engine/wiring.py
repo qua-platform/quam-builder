@@ -29,6 +29,10 @@ from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog i
     _make_xy_pulse_factories,
     _make_readout_pulse,
 )
+from quam_builder.architecture.quantum_dots.macro_engine.overrides import (
+    ComponentOverrides,
+    _convert_typed_overrides,
+)
 
 __all__ = [
     "wire_machine_macros",
@@ -391,28 +395,94 @@ def wire_machine_macros(
     machine: Any,
     *,
     macro_profile_path: str | Path | None = None,
-    macro_overrides: Mapping[str, Any] | None = None,
+    component_overrides: Mapping[type | str, ComponentOverrides | Mapping] | None = None,
+    instance_overrides: Mapping[str, ComponentOverrides | Mapping] | None = None,
     strict: bool = True,
 ) -> None:
     """Wire defaults and user-configured macro/pulse overrides onto machine components.
 
-    Override schema (merged in this order: profile first, then runtime overrides):
+    Two override sources are merged in this order (last wins):
 
-    - component_types.<TypeName>.macros.<macro_name> = {factory, params?, enabled?}
-    - instances.<collection.id>.macros.<macro_name> = {factory, params?, enabled?}
-    - component_types.<TypeName>.pulses.<pulse_name> = {type, ...params}
-    - instances.<collection.id>.pulses.<pulse_name> = {type, ...params}
+    1. TOML profile from *macro_profile_path*.
+    2. Typed *component_overrides* / *instance_overrides* kwargs.
+
+    The typed kwargs accept class objects as component-type keys (e.g.
+    ``LDQubit``) and validate macro factories at construction time via
+    :func:`macro` / :func:`disabled` helpers from
+    :mod:`~quam_builder.architecture.quantum_dots.macro_engine.overrides`.
 
     Args:
         machine: Target machine whose components should be wired.
         macro_profile_path: Optional TOML file path.
-        macro_overrides: Optional runtime override mapping.
+        component_overrides: Overrides keyed by component class or class name.
+            Values are :class:`ComponentOverrides` (from :func:`overrides`)
+            or raw dicts.  Example::
+
+                from quam_builder.architecture.quantum_dots.macro_engine import (
+                    macro, overrides,
+                )
+
+                component_overrides={
+                    LDQubit: overrides(macros={
+                        SingleQubitMacroName.INITIALIZE: macro(InitMacro, ramp_duration=64),
+                    }),
+                }
+
+        instance_overrides: Overrides keyed by component path string
+            (e.g. ``"qubits.q2"``).  Values are :class:`ComponentOverrides`
+            or raw dicts.  Example::
+
+                instance_overrides={
+                    "qubits.q2": overrides(macros={
+                        SingleQubitMacroName.INITIALIZE: macro(InitMacro, ramp_duration=96),
+                    }),
+                }
+
         strict: If True, unknown paths/macros raise explicit errors.
+
+    Example:
+        Wire defaults only (most common)::
+
+            wire_machine_macros(machine)
+
+        Override initialize on all LDQubits::
+
+            from quam_builder.architecture.quantum_dots.macro_engine import (
+                wire_machine_macros, macro, overrides,
+            )
+            from quam_builder.architecture.quantum_dots.qubit import LDQubit
+            from quam_builder.architecture.quantum_dots.operations.names import (
+                SingleQubitMacroName,
+            )
+
+            wire_machine_macros(
+                machine,
+                component_overrides={
+                    LDQubit: overrides(macros={
+                        SingleQubitMacroName.INITIALIZE: macro(
+                            InitializeStateMacro, ramp_duration=64,
+                        ),
+                    }),
+                },
+            )
+
+        Override one qubit, keep all other defaults::
+
+            wire_machine_macros(
+                machine,
+                instance_overrides={
+                    "qubits.q1": overrides(macros={
+                        SingleQubitMacroName.X_180: macro(TunedX180Macro),
+                    }),
+                },
+            )
     """
 
     register_default_component_macro_factories()
     profile_data = load_macro_profile(macro_profile_path)
-    merged_overrides = _deep_merge(profile_data, macro_overrides or {})
+
+    typed_dict = _convert_typed_overrides(component_overrides, instance_overrides)
+    merged_overrides = _deep_merge(profile_data, typed_dict)
 
     components_by_path = dict(_iter_macro_components(machine))
 

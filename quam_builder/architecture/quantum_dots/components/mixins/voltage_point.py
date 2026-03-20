@@ -23,12 +23,6 @@ class VoltagePointMixin(VoltageControlMixin):
     This mixin extends VoltageControlMixin with point-based operations:
     - Creating and registering named voltage points
     - Navigating to points via step or ramp transitions
-    - Point reference management for macro creation
-
-    Following quam's Pulse -> Macro -> Operation pattern:
-    - Voltage point ~ Pulse definition
-    - PointMacro ~ PulseMacro
-    - Sequence/Operation ~ Gate
     """
 
     def add_point(
@@ -38,11 +32,10 @@ class VoltagePointMixin(VoltageControlMixin):
         duration: int = 16,
         replace_existing_point: bool = True,
     ) -> str:
-        """Define a voltage point in the gate set for later use by macros.
+        """Define a reusable voltage point in the gate set.
 
         This method registers a named voltage configuration in the VirtualGateSet
-        with a prefixed name: "{component.id}_{point_name}". Once registered,
-        the point can be referenced by StepPointMacro and RampPointMacro instances.
+        with a prefixed name: "{component.id}_{point_name}".
 
         Args:
             point_name: Local name for the point (without prefix). Used in macro references.
@@ -51,7 +44,7 @@ class VoltagePointMixin(VoltageControlMixin):
                      - LDQubit/LDQubitPair: Can use qubit names (e.g., 'Q0'), automatically
                        mapped to quantum dot IDs if _should_map_qubit_names() returns True
             duration: Default hold duration for this point (nanoseconds, default: 16).
-                     Can be overridden when creating macros or during execution.
+                     Can be overridden at call time by ``step_to_point`` or ``ramp_to_point``.
             replace_existing_point: If True (default), overwrites existing point with same name.
                                    If False, raises ValueError if point exists.
 
@@ -104,53 +97,11 @@ class VoltagePointMixin(VoltageControlMixin):
         """
         return f"{self.id}_{point_name}"
 
-    def _get_or_create_point_ref(
-        self,
-        macro_name: str,
-        voltages: Optional[Dict[str, float]],
-        duration: int,
-        replace_existing_point: bool,
-    ) -> str:
-        """Get reference to an existing point or create a new one.
-
-        Args:
-            macro_name: Name for the point (will be prefixed with component id)
-            voltages: Optional voltage values. If None, looks up existing point.
-            duration: Duration for the point (used when creating new point)
-            replace_existing_point: If True, overwrites existing point
-
-        Returns:
-            str: Reference string to the point
-
-        Raises:
-            KeyError: If voltages is None and the point doesn't exist
-        """
-        full_name = self._create_point_name(macro_name)
-
-        if voltages is not None:
-            self.add_point(
-                point_name=macro_name,
-                voltages=voltages,
-                duration=duration,
-                replace_existing_point=replace_existing_point,
-            )
-        else:
-            existing_points = self.voltage_sequence.gate_set.get_macros()
-            if full_name not in existing_points:
-                raise KeyError(
-                    f"Point '{macro_name}' (full name: '{full_name}') does not exist. "
-                    f"Available points: {list(existing_points.keys())}. "
-                    f"To create a new point, provide the 'voltages' parameter."
-                )
-
-        return self.voltage_sequence.gate_set.macros[full_name].get_reference()
-
     def step_to_point(self, point_name: str, duration: Optional[int] = None) -> None:
         """Step instantly to a pre-defined voltage point (convenience method).
 
         This is a convenience wrapper around voltage_sequence.step_to_point()
-        that handles automatic name prefixing. For reusable operations, consider
-        creating a StepPointMacro instead and storing it in self.macros.
+        that handles automatic name prefixing.
 
         Args:
             point_name: Local point name (without prefix, must be added via add_point())
@@ -165,10 +116,6 @@ class VoltagePointMixin(VoltageControlMixin):
                 # Direct usage (convenience)
                 quantum_dot.add_point('idle', voltages={'virtual_dot_0': 0.1})
                 quantum_dot.step_to_point('idle', duration=100)
-
-                # Equivalent using macro (reusable, serializable)
-                quantum_dot.macros['idle'] = StepPointMacro('idle', 100)
-                quantum_dot.macros['idle']()
         """
         full_name = self._create_point_name(point_name)
         self.voltage_sequence.step_to_point(name=full_name, duration=duration)
@@ -179,8 +126,7 @@ class VoltagePointMixin(VoltageControlMixin):
         """Ramp gradually to a pre-defined voltage point (convenience method).
 
         This is a convenience wrapper around voltage_sequence.ramp_to_point()
-        that handles automatic name prefixing. For reusable operations, consider
-        creating a RampPointMacro instead and storing it in self.macros.
+        that handles automatic name prefixing.
 
         Args:
             point_name: Local point name (without prefix, must be added via add_point())
@@ -196,10 +142,6 @@ class VoltagePointMixin(VoltageControlMixin):
                 # Direct usage (convenience)
                 quantum_dot.add_point('loading', voltages={'virtual_dot_0': 0.3})
                 quantum_dot.ramp_to_point('loading', ramp_duration=500, duration=200)
-
-                # Equivalent using macro (reusable, serializable)
-                quantum_dot.macros['load'] = RampPointMacro('loading', 200, 500)
-                quantum_dot.macros['load']()
         """
         full_name = self._create_point_name(point_name)
         self.voltage_sequence.ramp_to_point(

@@ -92,14 +92,3 @@ class MacroDispatchMixin(QuantumComponent):
                 macro.parent = self
             return macro.apply
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")
-
-    def _resolve_macro_ref(self, name_or_ref: str, description: str) -> str:
-        """Resolve macro name-or-reference into canonical reference string."""
-        if name_or_ref.startswith("#"):
-            return name_or_ref
-        if name_or_ref not in self.macros:
-            raise KeyError(
-                f"{description} '{name_or_ref}' not found in macros. "
-                f"Available macros: {list(self.macros.keys())}"
-            )
-        return f"#../{name_or_ref}"

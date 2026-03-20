@@ -12,7 +12,13 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveSingle
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    wire_machine_macros,
+    pulse,
+    disabled,
+    overrides as component_overrides_helper,
+)
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.macro_engine.wiring import (
     _ensure_default_pulses,
 )
@@ -134,53 +140,63 @@ class TestWireMacrosPulseIntegration:
         rr = machine.sensor_dots["virtual_sensor_1"].readout_resonator
         assert "readout" in rr.operations
 
-    def test_pulse_overrides_via_mapping(self, reset_catalog):
+    def test_pulse_overrides_via_component_overrides(self, reset_catalog):
+        """Override pulse on all LDQubits using typed component_overrides API.
+
+        Uses pulse() helper to define a shorter gaussian with different amplitude.
+        """
         machine = _make_wired_machine()
-        overrides = {
-            "component_types": {
-                "LDQubit": {
-                    "pulses": {
-                        "gaussian": {
-                            "type": "GaussianPulse",
-                            "length": 500,
-                            "amplitude": 0.3,
-                            "sigma": 83,
-                        }
+
+        wire_machine_macros(
+            machine,
+            component_overrides={
+                LDQubit: component_overrides_helper(
+                    pulses={
+                        "gaussian": pulse("GaussianPulse", length=500, amplitude=0.3, sigma=83),
                     }
-                }
-            }
-        }
-        wire_machine_macros(machine, macro_overrides=overrides)
+                ),
+            },
+        )
 
         gaussian = machine.qubits["Q1"].xy.operations["gaussian"]
         assert gaussian.length == 500
         assert gaussian.amplitude == 0.3
 
-    def test_pulse_disable_via_mapping(self, reset_catalog):
+    def test_pulse_disable_via_component_overrides(self, reset_catalog):
+        """Remove a pulse from all LDQubits using disabled() helper."""
         machine = _make_wired_machine()
-        overrides = {"component_types": {"LDQubit": {"pulses": {"gaussian": {"enabled": False}}}}}
-        wire_machine_macros(machine, macro_overrides=overrides)
+
+        wire_machine_macros(
+            machine,
+            component_overrides={
+                LDQubit: component_overrides_helper(
+                    pulses={
+                        "gaussian": disabled(),
+                    }
+                ),
+            },
+        )
 
         xy = machine.qubits["Q1"].xy
         assert "gaussian" not in xy.operations
 
     def test_instance_pulse_override(self, reset_catalog):
+        """Override pulse on one specific qubit using instance_overrides API.
+
+        Only qubits.Q1 gets the custom gaussian; others keep the default.
+        """
         machine = _make_wired_machine()
-        overrides = {
-            "instances": {
-                "qubits.Q1": {
-                    "pulses": {
-                        "gaussian": {
-                            "type": "GaussianPulse",
-                            "length": 800,
-                            "amplitude": 0.15,
-                            "sigma": 133,
-                        }
+
+        wire_machine_macros(
+            machine,
+            instance_overrides={
+                "qubits.Q1": component_overrides_helper(
+                    pulses={
+                        "gaussian": pulse("GaussianPulse", length=800, amplitude=0.15, sigma=133),
                     }
-                }
-            }
-        }
-        wire_machine_macros(machine, macro_overrides=overrides)
+                ),
+            },
+        )
 
         gaussian = machine.qubits["Q1"].xy.operations["gaussian"]
         assert gaussian.length == 800

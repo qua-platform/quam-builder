@@ -68,7 +68,7 @@ class BaseQuamQD(QuamRoot):
         register_sensor_dots: Internally create SensorDot objects from output physical channels, and their associated ReadoutResonator objects.
         register_barrier_gates: Internally create BarrierGate objects from the output physical channels.
         register_channel_elements: Shortcut to run register_quantum_dots, register_sensor_dots, and register_barrier_gates, i.e. a shortcut to register all the HW channel outputs.
-        add_point: Adds a point macro to a VirtualGateSet instance held internally.
+        add_point: Adds a named voltage point to a VirtualGateSet instance held internally.
         update_cross_compensation_submatrix: Input a list of virtual gates and a list of HW channels, as well as the associated correction submatrix. Internally it edits the VirtualGateSet matrix stored.
         update_full_cross_compensation: Update the full compensation matrix of the first VirtualGateSet layer.
         step_to_voltage: Steps the associated VoltageSequence to a dict of voltages.

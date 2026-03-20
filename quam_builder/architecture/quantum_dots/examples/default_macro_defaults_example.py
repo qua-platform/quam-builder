@@ -88,9 +88,9 @@ def add_default_state_points(machine: LossDiVincenzoQuam) -> None:
     """Define canonical voltage points consumed by state macros."""
     for qubit in machine.qubits.values():
         dot_id = qubit.quantum_dot.id
-        qubit.with_step_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
-        qubit.with_step_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=220)
-        qubit.with_step_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=180)
+        qubit.add_point(VoltagePointName.INITIALIZE, {dot_id: 0.10}, duration=200)
+        qubit.add_point(VoltagePointName.MEASURE, {dot_id: 0.15}, duration=220)
+        qubit.add_point(VoltagePointName.EMPTY, {dot_id: 0.00}, duration=180)
 
 
 def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:

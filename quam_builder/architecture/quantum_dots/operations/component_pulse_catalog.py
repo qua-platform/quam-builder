@@ -8,7 +8,7 @@ Default pulse parameters
 ------------------------
 Single-qubit XY drive pulse (on ``qubit.xy``):
     A single ``GaussianPulse`` named ``"gaussian"`` — length 1000 ns,
-    amplitude 0.2 (π rotation reference), sigma 167 ns.
+    amplitude 1.0 (π rotation reference), sigma 167 ns.
     This is the **single source of truth** for all XY rotations.
     The ``XYDriveMacro`` scales amplitude for different rotation angles
     and applies virtual-Z frame rotations for the rotation axis (X/Y),

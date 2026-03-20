@@ -32,7 +32,7 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
 
     Methods:
         add_quantum_dot_pair: Adds the QuantumDotPair associated with the Qubit instances.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
