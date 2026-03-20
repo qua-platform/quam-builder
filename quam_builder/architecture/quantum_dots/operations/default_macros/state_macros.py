@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
+from quam_builder.architecture.quantum_dots import TwoQubitMacroName
 
 from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
 from quam_builder.tools.qua_tools import VoltageLevelType
@@ -272,7 +273,7 @@ class MeasurePSBPairMacro(QuamMacro):
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
         return sensor_dot.call_macro(
-            VoltagePointName.MEASURE,
+            TwoQubitMacroName.MEASURE,
             quantum_dot_pair_id=owner.id,
         )
 

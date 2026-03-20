@@ -33,6 +33,11 @@ class VoltagePointName(StrEnum):
 class SingleQubitMacroName(StrEnum):
     """Canonical single-qubit macro names for built-in defaults."""
 
+    INITIALIZE = "initialize"
+    MEASURE = "measure"
+    EMPTY = "empty"
+    EXCHANGE = "exchange"
+
     XY_DRIVE = "xy_drive"
     X = "x"
     Y = "y"
@@ -55,6 +60,11 @@ class SingleQubitMacroName(StrEnum):
 
 class TwoQubitMacroName(StrEnum):
     """Canonical two-qubit macro names for built-in defaults."""
+
+    INITIALIZE = "initialize"
+    MEASURE = "measure"
+    EMPTY = "empty"
+    EXCHANGE = "exchange"
 
     CNOT = "cnot"
     CZ = "cz"

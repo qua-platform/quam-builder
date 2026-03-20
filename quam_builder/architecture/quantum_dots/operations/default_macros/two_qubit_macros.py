@@ -49,7 +49,7 @@ class Measure2QMacro(QubitPairMacro):
         qd_pair = getattr(owner, "quantum_dot_pair", None)
         if qd_pair is None:
             raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout.")
-        return qd_pair.call_macro(VoltagePointName.MEASURE, **kwargs)
+        return qd_pair.call_macro(TwoQubitMacroName.MEASURE, **kwargs)
 
 
 class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
