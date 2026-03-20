@@ -117,29 +117,6 @@ class InitializeStateMacro(QuamMacro):
 
 
 @quam_dataclass
-class MeasureStateMacro(QuamMacro):
-    """Move component to measure voltages."""
-
-    point: PointType = VoltagePointName.MEASURE.value
-    hold_duration: int | None = None
-
-    @property
-    def inferred_duration(self) -> float | None:
-        """Return inferred runtime duration in seconds, if available."""
-        owner = _owner_component(self)
-        hold = self.hold_duration
-        if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point)
-        return hold * 1e-9 if hold is not None else None
-
-    def apply(self, hold_duration: int | None = None, **kwargs):
-        """Step to the measure target with optional hold-duration override."""
-        owner = _owner_component(self)
-        hold = self.hold_duration if hold_duration is None else hold_duration
-        _step_to_target(owner, self.point, duration=hold)
-
-
-@quam_dataclass
 class EmptyStateMacro(QuamMacro):
     """Move component to empty voltages."""
 
@@ -233,13 +210,12 @@ class SensorDotMeasureMacro(QuamMacro):
 
         owner = _owner_component(self)
 
-        if quantum_dot_pair_id is None:
-            owner.readout_resonator.measure(*args, **kwargs)
-            return None
-
         I = declare(fixed)
         Q = declare(fixed)
         owner.readout_resonator.measure(self.pulse_name, qua_vars=(I, Q))
+
+        if quantum_dot_pair_id is None:
+            return (I, Q)
 
         threshold, projector = owner._readout_params(quantum_dot_pair_id)
         wI = projector.get("wI", 1.0)
