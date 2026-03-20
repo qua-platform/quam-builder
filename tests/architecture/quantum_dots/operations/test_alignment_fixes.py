@@ -272,8 +272,7 @@ class TestStateMacroPointDispatch:
 
         owner.step_to_voltages.assert_called_once_with(voltages, duration=96)
         owner.step_to_point.assert_not_called()
-        sensor_dot.call_macro.assert_called_once_with(
-            VoltagePointName.MEASURE.value,
+        sensor_dot.macros[VoltagePointName.MEASURE.value].apply.assert_called_once_with(
             quantum_dot_pair_id="dot1_dot2_pair",
         )
 

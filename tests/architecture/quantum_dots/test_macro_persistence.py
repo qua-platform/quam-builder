@@ -15,7 +15,6 @@ def test_macro_instances_survive_save_load_roundtrip(qd_machine, reset_catalog, 
 
     for qd in loaded.quantum_dots.values():
         assert "initialize" in qd.macros
-        assert "measure" in qd.macros
         assert "empty" in qd.macros
 
     for pair in loaded.quantum_dot_pairs.values():

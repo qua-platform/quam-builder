@@ -33,6 +33,7 @@ __all__ = [
     "z90",
     "z_neg90",
     "I",
+    "exchange",
     "cnot",
     "cz",
     "swap",
@@ -141,6 +142,11 @@ def cz(component: QubitPair, **kwargs):
 @operations_registry.register_operation
 def swap(component: QubitPair, **kwargs):
     """Dispatch to component.macros['swap']."""
+
+
+@operations_registry.register_operation
+def exchange(component: QubitPair, **kwargs):
+    """Dispatch to component.macros['exchange']."""
 
 
 @operations_registry.register_operation
