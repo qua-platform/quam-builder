@@ -22,7 +22,6 @@ from quam_builder.architecture.quantum_dots.operations.names import (
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
     InitializeStateMacro,
-    MeasureStateMacro,
 )
 
 __all__ = [
@@ -107,7 +106,7 @@ class Measure1QMacro(QubitMacro):
             )
 
         qd_pair = machine.quantum_dot_pairs[pair_name]
-        return qd_pair.call_macro(SingleQubitMacroName.MEASURE, **kwargs)
+        return qd_pair.macros[SingleQubitMacroName.MEASURE].apply(**kwargs)
 
 
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
@@ -298,8 +297,7 @@ class _AxisRotationMacro(QubitMacro):
         )
         if runtime_amplitude_scale is not None:
             call_kwargs["amplitude_scale"] = runtime_amplitude_scale
-        return self.qubit.call_macro(
-            SingleQubitMacroName.XY_DRIVE,
+        return self.qubit.macros[SingleQubitMacroName.XY_DRIVE].apply(
             **call_kwargs,
         )
 
@@ -364,8 +362,7 @@ class _FixedAxisAngleMacro(QubitMacro):
             call_kwargs["phase"] = phase
         if runtime_amplitude_scale is not None:
             call_kwargs["amplitude_scale"] = runtime_amplitude_scale
-        return self.qubit.call_macro(
-            self.axis_macro_name,
+        return self.qubit.macros[self.axis_macro_name].apply(
             angle=target_angle,
             **call_kwargs,
         )

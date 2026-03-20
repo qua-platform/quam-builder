@@ -15,7 +15,6 @@ __all__ = [
     "Y_NEG_90_ALIAS",
     "SINGLE_QUBIT_MACRO_ALIASES",
     "SINGLE_QUBIT_MACRO_ALIAS_MAP",
-    "STATE_MACRO_NAMES",
     "SINGLE_QUBIT_MACRO_NAMES",
     "TWO_QUBIT_MACRO_NAMES",
 ]
@@ -70,7 +69,6 @@ class TwoQubitMacroName(StrEnum):
     CZ = "cz"
     SWAP = "swap"
     ISWAP = "iswap"
-    EXCHANGE = "exchange"
 
 
 class DrivePulseName(StrEnum):
@@ -94,13 +92,6 @@ X_NEG_90_ALIAS = "-x90"
 Y_NEG_90_ALIAS = "-y90"
 # Canonical supported alias spellings for fixed-angle rotations.
 
-STATE_MACRO_NAMES = (
-    VoltagePointName.INITIALIZE.value,
-    VoltagePointName.MEASURE.value,
-    VoltagePointName.EMPTY.value,
-)
-# Default state-macro names used across supported component types.
-
 SINGLE_QUBIT_MACRO_ALIASES = (
     X_NEG_90_ALIAS,
     Y_NEG_90_ALIAS,
@@ -114,7 +105,10 @@ SINGLE_QUBIT_MACRO_ALIAS_MAP = {
 # Alias -> canonical-name mapping used for default compatibility keys.
 
 SINGLE_QUBIT_MACRO_NAMES = (
-    *STATE_MACRO_NAMES,
+    SingleQubitMacroName.INITIALIZE.value,
+    SingleQubitMacroName.MEASURE.value,
+    SingleQubitMacroName.EMPTY.value,
+    SingleQubitMacroName.EXCHANGE.value,
     SingleQubitMacroName.XY_DRIVE.value,
     SingleQubitMacroName.X.value,
     SingleQubitMacroName.Y.value,
@@ -135,7 +129,9 @@ SINGLE_QUBIT_MACRO_NAMES = (
 # Supported single-qubit macro names for default LD qubits.
 
 TWO_QUBIT_MACRO_NAMES = (
-    *STATE_MACRO_NAMES,
+    TwoQubitMacroName.INITIALIZE.value,
+    TwoQubitMacroName.MEASURE.value,
+    TwoQubitMacroName.EMPTY.value,
     TwoQubitMacroName.CNOT.value,
     TwoQubitMacroName.CZ.value,
     TwoQubitMacroName.SWAP.value,

@@ -49,7 +49,6 @@ def register_default_component_macro_factories() -> None:
         SensorDot,
     )
     from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
-        ExchangeStateMacro,
         MeasurePSBPairMacro,
         SensorDotMeasureMacro,
     )
@@ -61,7 +60,6 @@ def register_default_component_macro_factories() -> None:
     qdpair_macros = {
         **STATE_POINT_MACROS,
         VoltagePointName.MEASURE.value: MeasurePSBPairMacro,
-        VoltagePointName.EXCHANGE.value: ExchangeStateMacro,
     }
     register_component_macro_factories(QuantumDotPair, qdpair_macros)
     # SensorDot inherits from QuantumDot — replace=True prevents initialize/empty

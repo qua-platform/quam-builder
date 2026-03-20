@@ -447,7 +447,7 @@ class TestComplexFluentAPIWorkflows:
 
         # Verify all macros were created (includes utility + state + user macros)
         # 2 utility (align, wait) + 3 state (initialize, measure, empty) + 7 user = 12
-        assert len(qd.macros) == 12
+        assert len(qd.macros) == 11
 
         # Verify sequence structure
         assert isinstance(qd.macros["full_experiment"], SequenceMacro)

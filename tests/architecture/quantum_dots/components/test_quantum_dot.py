@@ -111,10 +111,11 @@ class TestQuantumDotCatalog:
         for qd in qd_machine.quantum_dots.values():
             assert "initialize" in qd.macros, f"{qd.id} missing 'initialize' macro"
 
-    def test_has_measure_macro(self, qd_machine, reset_catalog):
+    def test_no_generic_measure_macro_on_quantum_dot(self, qd_machine, reset_catalog):
+        """QuantumDot should not have a generic measure macro; measurement is component-specific."""
         wire_machine_macros(qd_machine)
         for qd in qd_machine.quantum_dots.values():
-            assert "measure" in qd.macros, f"{qd.id} missing 'measure' macro"
+            assert "measure" not in qd.macros, f"{qd.id} should not have generic 'measure' macro"
 
     def test_has_empty_macro(self, qd_machine, reset_catalog):
         wire_machine_macros(qd_machine)
