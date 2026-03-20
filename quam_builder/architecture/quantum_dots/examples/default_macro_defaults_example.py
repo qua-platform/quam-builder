@@ -3,7 +3,7 @@
 This script demonstrates:
 1. Building a small two-qubit quantum-dots machine.
 2. Wiring architecture defaults with ``wire_machine_macros(machine)`` only.
-3. Parameterizing instantiated default macro objects directly on components.
+3. Parameterizing instantiated default macro objects and reference pulses directly on components.
 4. Building a QUA program that calls those default macros.
 """
 
@@ -94,11 +94,11 @@ def add_default_state_points(machine: LossDiVincenzoQuam) -> None:
 
 
 def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
-    """Tune parameters on already-wired default macro instances."""
+    """Tune parameters on already-wired default macro instances and pulses."""
     for qubit in machine.qubits.values():
         qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
         qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
-        qubit.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale = 0.85
+        qubit.xy.operations[DrivePulseName.GAUSSIAN].amplitude = 0.0085
         # Identity duration may start as a reference; concretize before assigning numeric value.
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = None
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
@@ -120,8 +120,8 @@ def print_macro_parameters(machine: LossDiVincenzoQuam) -> None:
         q1.macros[VoltagePointName.MEASURE].hold_duration,
     )
     print(
-        "q1.xy_drive.default_amplitude_scale:",
-        q1.macros[SingleQubitMacroName.XY_DRIVE].default_amplitude_scale,
+        "q1.gaussian.amplitude:",
+        q1.xy.operations[DrivePulseName.GAUSSIAN].amplitude,
     )
     print("q1.I.duration:", q1.macros[SingleQubitMacroName.IDENTITY].duration)
 

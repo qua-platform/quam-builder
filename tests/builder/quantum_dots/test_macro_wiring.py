@@ -66,7 +66,7 @@ def _seed_reference_pulses(machine):
 class TunedX180Macro(X180Macro):
     """Simple marker macro used for instance-level override testing."""
 
-    default_amplitude_scale: float = 0.75
+    pass
 
 
 def test_instance_override_path_supports_quam_mappings():
@@ -81,7 +81,6 @@ def test_instance_override_path_supports_quam_mappings():
                     "macros": {
                         "x180": {
                             "factory": TunedX180Macro,
-                            "params": {"default_amplitude_scale": 0.75},
                         },
                     }
                 }
@@ -91,7 +90,6 @@ def test_instance_override_path_supports_quam_mappings():
     )
 
     assert isinstance(machine.qubits["q1"].macros["x180"], TunedX180Macro)
-    assert machine.qubits["q1"].macros["x180"].default_amplitude_scale == pytest.approx(0.75)
     assert isinstance(machine.qubits["q2"].macros["x180"], X180Macro)
 
 
@@ -133,7 +131,7 @@ def test_component_type_override_sets_xy_drive_runtime_params():
                     "macros": {
                         "xy_drive": {
                             "factory": XYDriveMacro,
-                            "params": {"default_amplitude_scale": 0.85},
+                            "params": {"max_amplitude_scale": 0.85},
                         }
                     }
                 }
@@ -144,7 +142,7 @@ def test_component_type_override_sets_xy_drive_runtime_params():
 
     for qubit in machine.qubits.values():
         assert isinstance(qubit.macros["xy_drive"], XYDriveMacro)
-        assert qubit.macros["xy_drive"].default_amplitude_scale == pytest.approx(0.85)
+        assert qubit.macros["xy_drive"].max_amplitude_scale == pytest.approx(0.85)
 
 
 def test_canonical_x_and_y_delegate_to_xy_drive():
@@ -237,87 +235,32 @@ def test_runtime_amplitude_scale_multiplies_angle_scale():
     assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.25)
 
 
-def test_xy_drive_default_amplitude_scale_flows_through_wrappers():
-    """The canonical xy_drive default amplitude scale should reach wrapper macros."""
+def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
+    """Updating the reference pulse amplitude should affect both x180 and x90."""
     machine = _build_machine()
     wire_machine_macros(machine, strict=True)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
-    q1.macros["xy_drive"].default_amplitude_scale = 0.8
+    q1.xy.operations["gaussian"].amplitude = 0.15
+
+    with (
+        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
+    ):
+        q1.x180()
+    x180_scale = mock_play.call_args.kwargs["amplitude_scale"]
+    if x180_scale is None:
+        x180_scale = 1.0
 
     with (
         patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x90()
+    x90_scale = mock_play.call_args.kwargs["amplitude_scale"]
 
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.4)
-
-
-def test_axis_default_scale_overrides_xy_drive_default():
-    """Axis defaults should shadow the canonical xy_drive default scale."""
-    machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
-    _seed_reference_pulses(machine)
-    q1 = machine.qubits["q1"]
-    q1.macros["xy_drive"].default_amplitude_scale = 0.8
-    q1.macros["y"].default_amplitude_scale = 0.6
-
-    with (
-        patch.object(q1, "virtual_z", return_value=None),
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
-        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
-    ):
-        q1.y90()
-
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.3)
-
-
-def test_fixed_angle_default_scale_overrides_xy_drive_default():
-    """Fixed-angle defaults should shadow less-specific canonical defaults."""
-    machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
-    _seed_reference_pulses(machine)
-    q1 = machine.qubits["q1"]
-    q1.macros["xy_drive"].default_amplitude_scale = 0.8
-    q1.macros["x90"].default_amplitude_scale = 1.2
-
-    with (
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
-        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
-    ):
-        q1.x90()
-
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.6)
-
-
-def test_fixed_angle_default_scale_overrides_lower_defaults_and_runtime_multiplies():
-    """Wrapper defaults should shadow lower defaults, while runtime scaling still multiplies."""
-    machine = _build_machine()
-    wire_machine_macros(
-        machine,
-        macro_overrides={
-            "instances": {
-                "qubits.q1": {
-                    "macros": {
-                        "x180": {"factory": TunedX180Macro},
-                    }
-                }
-            }
-        },
-        strict=True,
-    )
-    _seed_reference_pulses(machine)
-    q1 = machine.qubits["q1"]
-    q1.macros["xy_drive"].default_amplitude_scale = 0.8
-
-    with (
-        patch.object(q1, "play_xy_pulse", return_value=None) as mock_play,
-        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
-    ):
-        q1.x180(amplitude_scale=0.5)
-
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.375)
+    assert q1.xy.operations["gaussian"].amplitude * x180_scale == pytest.approx(0.15)
+    assert q1.xy.operations["gaussian"].amplitude * x90_scale == pytest.approx(0.075)
 
 
 def test_fixed_angle_inferred_duration_uses_xy_drive_angle_scaling():
