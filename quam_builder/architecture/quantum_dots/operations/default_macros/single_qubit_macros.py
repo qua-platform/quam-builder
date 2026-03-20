@@ -251,10 +251,10 @@ class XYDriveMacro(QubitMacro):
 
         self.qubit.voltage_sequence.step_to_voltages({}, duration=duration_ns)
 
-        self.qubit.play_xy_pulse(
-            resolved_pulse_name,
-            pulse_duration=duration_ns,
+        self.qubit.xy.play(
+            pulse_name=resolved_pulse_name,
             amplitude_scale=drive_scale,
+            duration=duration_ns // 4 if duration_ns is not None else None,
             **kwargs,
         )
 
