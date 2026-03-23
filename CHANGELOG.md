@@ -7,11 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 - Add support for cloud-based QMM instances in `machine.connect()`
   - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
-- Add spectator qubit support in `CZGate` class with phase shift handling.
-- Add `duration_control` parameter to `CZGate` for better pulse handling.
-- **ReadoutResonatorBase**: `kappa` attribute (float, default 1e6) for resonator linewidth configuration.
 - **TWPA**: `pumpline_attenuation` and `signalline_attenuation` (float, optional).
-- **BaseQuam and XYDriveBase**: `extras` (dict) for additional QUAM-level attributes.
+- **BaseQuam , XYDriveBase and ReadoutResonatorBase**: `extras` (dict) for additional QUAM-level attributes.
 ### Changed
 - **FluxTunableQuam.set_all_fluxes**: `target` is now optional; when `target=None`, settle and align are applied to all qubits.
 ### Fixed
