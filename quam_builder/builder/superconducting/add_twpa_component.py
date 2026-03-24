@@ -67,7 +67,6 @@ def add_twpa_pump_component(
         )
         twpa.pump_ = XYDriveMW(
             opx_output=f"{wiring_path}/opx_output",
-            sticky=StickyChannelAddon(duration=100, digital=False),
             digital_outputs=digital_outputs,
             RF_frequency=None,
         )
@@ -125,7 +124,6 @@ def add_twpa_isolation_component(
         )
         twpa.isolation_ = XYDriveMW(
             opx_output=f"{wiring_path}/opx_output",
-            sticky=StickyChannelAddon(duration=100, digital=False),
             digital_outputs=digital_outputs,
             RF_frequency=None,
         )
