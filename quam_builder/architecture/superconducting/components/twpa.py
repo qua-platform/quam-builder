@@ -39,26 +39,10 @@ class TWPA(QuamComponent):
         Calibrated pump frequency for maximum average SNR improvement.
     pump_amplitude : float
         Calibrated pump amplitude for maximum average SNR improvement. Default 1.0.
-    mltpx_pump_frequency : float, optional
-        Calibrated pump frequency for multiplexed readout in Hz.
-    mltpx_pump_amplitude : float
-        Calibrated pump amplitude for multiplexed readout. Default 1.0.
     isolation_frequency : float, optional
         Calibrated isolation tone frequency in Hz.
     isolation_amplitude : float
         Calibrated isolation tone amplitude. Default 1.0.
-    mltpx_isolation_frequency : float, optional
-        Calibrated isolation frequency for multiplexed readout.
-    mltpx_isolation_amplitude : float
-        Calibrated isolation amplitude for multiplexed readout. Default 1.0.
-    p_saturation : float, optional
-        Calibrated saturation power of the TWPA.
-    avg_std_gain : float, optional
-        Standard deviation of the average gain around the related readout resonators.
-    avg_std_snr_improvement : float, optional
-        Standard deviation of the average SNR improvement around those resonators.
-    dispersive_feature : float, optional
-        Dispersive feature of the TWPA from its design parameters.
     grid_location : str, optional
         Grid location for layout/plotting (e.g. "0,1").
     qubits : list, optional
@@ -80,20 +64,8 @@ class TWPA(QuamComponent):
     settling_time: int = 100
     pump_frequency: float = None
     pump_amplitude: float = 1
-    mltpx_pump_frequency: float = None
-    mltpx_pump_amplitude: float = 1
-
     isolation_frequency: float = None
     isolation_amplitude: float = 1
-    mltpx_isolation_frequency: float = None
-    mltpx_isolation_amplitude: float = 1
-
-    max_avg_gain: float = None
-    max_avg_snr_improvement: float = None
-    p_saturation: float = None
-    avg_std_gain: float = None
-    avg_std_snr_improvement: float = None
-    dispersive_feature: float = None
 
     grid_location: str = None
     qubits: list = None
