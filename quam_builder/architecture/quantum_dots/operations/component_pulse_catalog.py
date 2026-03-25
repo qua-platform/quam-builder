@@ -39,8 +39,9 @@ Usage::
 from __future__ import annotations
 
 from quam.components.channels import SingleChannel
-from quam.components.pulses import GaussianPulse, SquareReadoutPulse
+from quam.components.pulses import SquareReadoutPulse
 
+from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 from quam_builder.architecture.quantum_dots.operations.names import DrivePulseName
 from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
     register_component_pulse_factories,
@@ -54,8 +55,8 @@ __all__ = [
 
 # Default single-qubit XY pulse parameters
 _PULSE_LENGTH = 1000  # ns
-_PULSE_AMP = 1.0  # 180° amplitude
-_SIGMA = _PULSE_LENGTH / 6
+_PULSE_AMP = 1.0  # normalized (macro stores calibrated scaling)
+_SIGMA_RATIO = 1 / 6
 
 # Default readout pulse parameters
 _READOUT_LENGTH = 2000  # ns
@@ -96,11 +97,11 @@ def _make_xy_pulse_factories(drive_channel):
     axis_angle = None if is_single else 0.0
 
     return {
-        DrivePulseName.GAUSSIAN.value: GaussianPulse(
+        DrivePulseName.GAUSSIAN.value: ScalableGaussianPulse(
             id=DrivePulseName.GAUSSIAN.value,
             length=_PULSE_LENGTH,
             amplitude=_PULSE_AMP,
-            sigma=_SIGMA,
+            sigma_ratio=_SIGMA_RATIO,
             axis_angle=axis_angle,
         ),
     }

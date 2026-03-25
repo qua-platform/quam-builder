@@ -103,6 +103,9 @@ class InitializeStateMacro(QuamMacro):
             return None
         return (self.ramp_duration + hold) * 1e-9
 
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
+
     def apply(
         self,
         ramp_duration: int | None = None,
@@ -132,6 +135,9 @@ class EmptyStateMacro(QuamMacro):
             hold = _resolve_default_point_duration_ns(owner, self.point)
         return hold * 1e-9 if hold is not None else None
 
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
+
     def apply(self, hold_duration: int | None = None, **kwargs):
         """Step to the empty target with optional hold-duration override."""
         owner = _owner_component(self)
@@ -157,6 +163,9 @@ class ExchangeStateMacro(QuamMacro):
     return_point: PointType = VoltagePointName.INITIALIZE.value
     ramp_duration: int = 16
     wait_duration: int = 16
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(
         self,
@@ -191,6 +200,9 @@ class SensorDotMeasureMacro(QuamMacro):
     """
 
     pulse_name: str = "readout"
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, *args, quantum_dot_pair_id: Optional[str] = None, **kwargs):
         """Measure the readout resonator and optionally perform state assignment.
@@ -239,6 +251,9 @@ class MeasurePSBPairMacro(QuamMacro):
     point: PointType = VoltagePointName.MEASURE.value
     hold_duration: int | None = None
 
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
+
     def apply(self, hold_duration: int | None = None, **kwargs):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
@@ -283,6 +298,9 @@ class _QPUStateDispatchMacro(QuamMacro):
     """Dispatch a state macro to active machine components."""
 
     macro_name: str
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
         """Dispatch configured state macro to each selected machine target."""
