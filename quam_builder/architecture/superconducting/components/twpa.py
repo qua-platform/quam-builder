@@ -31,10 +31,6 @@ class TWPA(QuamComponent):
         Isolation channel, non-sticky element. Present only if the TWPA has isolation.
     settling_time : int
         Pump settling time in ns. Default 100.
-    max_avg_gain : float, optional
-        Maximum average gain around the readout resonators served by this TWPA.
-    max_avg_snr_improvement : float, optional
-        Maximum average SNR improvement around those readout resonators.
     pump_frequency : float, optional
         Calibrated pump frequency for maximum average SNR improvement.
     pump_amplitude : float
