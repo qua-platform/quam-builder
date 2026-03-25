@@ -115,6 +115,7 @@ def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPai
 
     return qubit_pair_line_wiring
 
+
 def twpa_wiring(channels: List[AnyInstrumentChannel]) -> dict:
     """Generates a dictionary containing QUAM-compatible JSON references for a list of channels from a twpa and the same line type.
 
@@ -131,6 +132,7 @@ def twpa_wiring(channels: List[AnyInstrumentChannel]) -> dict:
             twpa_line_wiring[key] = reference
 
     return twpa_line_wiring
+
 
 def get_channel_port(channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]) -> tuple:
     """Determines the key and JSON reference for a given channel.

@@ -126,8 +126,7 @@ class FluxTunableQuam(BaseQuam):
 
         return target_bias
 
- 
-    def initialize_qpu(self, isolation:bool = False, **kwargs):
+    def initialize_qpu(self, isolation: bool = False, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
 
