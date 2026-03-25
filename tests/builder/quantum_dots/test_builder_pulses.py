@@ -135,7 +135,7 @@ class TestAddDefaultLDVQubitPulsesIQ:
 
         gaussian = qubit.xy.operations["gaussian"]
         assert gaussian.length == 1000
-        assert gaussian.amplitude == 0.2
+        assert gaussian.amplitude == 1.0
         assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_iq_pulses):
@@ -172,7 +172,7 @@ class TestAddDefaultLDVQubitPulsesMW:
 
         gaussian = qubit.xy.operations["gaussian"]
         assert gaussian.length == 1000
-        assert gaussian.amplitude == 0.2
+        assert gaussian.amplitude == 1.0
         assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_mw_pulses):

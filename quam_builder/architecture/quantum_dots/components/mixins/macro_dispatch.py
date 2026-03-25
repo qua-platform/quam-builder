@@ -80,7 +80,13 @@ class MacroDispatchMixin(QuantumComponent):
             macro.parent = self
 
     def __getattr__(self, name):
-        """Expose macros as callable methods via attribute access."""
+        """Expose macros via attribute access.
+
+        Returns the macro object itself when callable (has ``__call__``),
+        enabling both ``component.x()`` and ``component.x.update()``.
+        Falls back to returning ``macro.apply`` for macros that are not
+        directly callable.
+        """
         if name in self.macros:
             macro = self.macros[name]
             if getattr(macro, "parent", None) is None:
@@ -90,5 +96,7 @@ class MacroDispatchMixin(QuantumComponent):
                     stacklevel=2,
                 )
                 macro.parent = self
+            if callable(macro):
+                return macro
             return macro.apply
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")

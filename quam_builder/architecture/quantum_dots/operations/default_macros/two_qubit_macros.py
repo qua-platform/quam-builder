@@ -43,6 +43,9 @@ class Measure2QMacro(QubitPairMacro):
     dot readout -> threshold -> QUA boolean).
     """
 
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
+
     def apply(self, **kwargs):
         """Delegate measurement to the underlying quantum_dot_pair."""
         owner = _owner_component(self)
@@ -68,6 +71,9 @@ class _Unsupported2QGateMacro(QubitPairMacro):
     """Default placeholder for two-qubit gates requiring calibration-specific logic."""
 
     gate_name: str
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
         """Raise explicit guidance to register a calibration-specific override."""

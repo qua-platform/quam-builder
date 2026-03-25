@@ -13,9 +13,11 @@ from . import quantum_dot_pair
 from . import xy_drive
 from . import mixins
 from . import qpu
+from . import pulses
 from . import readout_transport
 from . import reservoir
 
+from .pulses import *
 from .voltage_gate import *
 from .virtual_gate_set import *
 from .virtual_dc_set import *
@@ -34,6 +36,7 @@ from .mixins import *
 from .qpu import *
 
 __all__ = [
+    *pulses.__all__,
     *voltage_gate.__all__,
     *virtual_gate_set.__all__,
     *global_gate.__all__,
