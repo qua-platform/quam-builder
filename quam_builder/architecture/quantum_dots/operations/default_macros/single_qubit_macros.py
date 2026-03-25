@@ -316,16 +316,17 @@ class XYDriveMacro(QubitMacro):
         pulse_name: str | None = None,
         amplitude_scale: float | None = None,
         frequency_offset=None,
+        duration=None,
         restore_frame: bool = True,
         **kwargs,
     ):
         """Play a phase-rotated XY drive pulse with compositional scaling.
 
-        The pulse is always played at its native waveform length — the
-        macro never overrides QUA's ``play(duration=…)`` parameter.  This
-        prevents distortion of shaped waveforms (Gaussian, DRAG) whose
-        internal parameters (e.g. ``sigma``) are defined in absolute
-        samples.
+        The pulse is always played at its native waveform length unless
+        ``duration`` is provided (in **clock cycles**, 4 ns each).  When
+        a custom duration is given, both the voltage-sequence hold and
+        the QUA ``play(duration=…)`` use the same value so they stay in
+        sync.
 
         Runtime ``amplitude_scale`` multiplies the angle-derived scale
         from the reference pulse instead of replacing it.
@@ -359,16 +360,22 @@ class XYDriveMacro(QubitMacro):
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
 
-        hold_duration_ns = self._reference_pulse_length_ns(resolved_pulse_name)
+        if duration is not None:
+            hold_duration_ns = duration * 4
+        else:
+            hold_duration_ns = self._reference_pulse_length_ns(resolved_pulse_name)
         self.qubit.voltage_sequence.step_to_voltages(
             {},
             duration=hold_duration_ns,
         )
 
+        play_kwargs = dict(kwargs)
+        if duration is not None:
+            play_kwargs["duration"] = duration
         self.qubit.xy.play(
             pulse_name=resolved_pulse_name,
             amplitude_scale=drive_scale,
-            **kwargs,
+            **play_kwargs,
         )
 
         if restore_frame and not math.isclose(phase, 0.0):
