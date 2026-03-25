@@ -107,15 +107,21 @@ class TWPA(QuamComponent):
             return
 
         if self.pump_frequency is not None:
-            f_p = self.pump_frequency
-            self.pump.update_frequency(int(f_p - self.pump.LO_frequency))
-        self.pump.play("pump", amplitude_scale=self.pump_amplitude)
+            self.pump.update_frequency(int(self.pump_frequency - self.pump.LO_frequency))
+        if self.pump_amplitude is not None:
+            self.pump.play("pump", amplitude_scale=self.pump_amplitude)
+        else:
+            self.pump.play("pump")
 
         if isolation:
             if self.isolation_frequency is not None:
-                f_i = self.isolation_frequency
-                self.isolation.update_frequency(int(f_i - self.isolation.LO_frequency))
-            self.isolation.play("pump", amplitude_scale=self.isolation_amplitude)
+                self.isolation.update_frequency(
+                    int(self.isolation_frequency - self.isolation.LO_frequency)
+                )
+            if self.isolation_amplitude is not None:
+                self.isolation.play("pump", amplitude_scale=self.isolation_amplitude)
+            else:
+                self.isolation.play("pump")
 
         # Store object ID externally (won't be serialized)
         # guarantee initializing twpa pump only once per QUA program execution
