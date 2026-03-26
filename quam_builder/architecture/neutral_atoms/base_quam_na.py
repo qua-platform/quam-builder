@@ -34,6 +34,7 @@ class  BaseQuamNA(QuamRoot):
         if hasattr(self.channel, "offset_parameter") and self.channel.offset_parameter is not None:
             self.channel.offset_parameter(voltage)
         self.channel.current_voltage = voltage  # keep track internally
+
     
     def register_driver(self, driver: TweezerDriver):
         self._drivers = getattr(self, "_drivers", [])

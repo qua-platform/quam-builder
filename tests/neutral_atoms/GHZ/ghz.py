@@ -1,27 +1,64 @@
+"""
+QUAM for Neutral Atoms - Example: GHZ State Preparation
+
+This script implements a 4-qubit GHZ state preparation protocol using:
+- Static SLM-based trapping
+- Dynamic AOD tweezer transport
+- Rydberg-mediated CZ entangling gates
+
+Main stages:
+1. Atom loading into initial configuration
+2. Transport to drive region and global Hadamard
+3. Transport to entangling region
+4. Sequential CZ operations to build GHZ state
+5. Transport to readout and measurement
+
+The program is thencompiled into QUA together with a configuration file and can be simulated on the OPX
+"""
+
+
+
 import os
+from pathlib import Path
+import matplotlib
+matplotlib.use("TkAgg")
+
+from qm import generate_qua_script
+from qm import Program
 from qm import QuantumMachinesManager, SimulationConfig
+from qm.qua import *
+
 from quam_builder.architecture.neutral_atoms.base_quam_na import BaseQuamNA
 from quam_builder.architecture.neutral_atoms.atom import Atom
 from quam_builder.architecture.neutral_atoms.components.tweezer import Tweezer
 from quam_builder.architecture.neutral_atoms.components.slm import SLM
 from quam_builder.architecture.neutral_atoms.components.aod import AOD
 from quam_builder.architecture.neutral_atoms.components.sensor import Sensor
+from quam_builder.architecture.neutral_atoms.components.region import Region
 
-from quam_builder.architecture.neutral_atoms.components.region import create_region, Region
 from quam.components import pulses
-
 from quam.components import SingleChannel, DigitalOutputChannel
-from quam_builder.architecture.neutral_atoms.base_quam_na import BaseQuamNA
-from qm.qua import *
-from qm.qua import wait
-from qm import generate_qua_script
-from qm import Program
 
-from quam_builder.architecture.nv_center import qpu
-from pathlib import Path
 
 
 def serialize_qua_program(prog: Program, qpu: BaseQuamNA, path: str | None = None):
+    """
+    Optional: Serialize a QUA program into a QUA script, for debugging and verification.
+
+    Args:
+        prog (Program): The QUA program to serialize.
+        qpu (BaseQuamNA): The QPU object used to generate the hardware configuration.
+        path (str | None): Optional directory to save the file. If None, the file
+                           is saved in the current working directory.
+
+    Output:
+        A Python file (debug_ghz_program.py) containing the generated QUA script.
+
+    Notes:
+        - Useful for verifying pulse sequences and timing at the QUA level.
+        - Helps debugging mismatches between high-level QUAM logic and OPX execution.
+    """
+
     name="ghz_program"
     if path is None:
         file_name = f"debug_{name}.py"
@@ -31,40 +68,66 @@ def serialize_qua_program(prog: Program, qpu: BaseQuamNA, path: str | None = Non
     print(generate_qua_script(prog, qpu.generate_config()), file=sourceFile) 
     sourceFile.close()
 
+
+
 def load_atoms():
-    # For simplicity, we directly create atoms at the desired positions. 
-    # In a real scenario, this would involve loading atoms from a MOT and rearranging them into the initial configuration.
-    atoms = [Atom.create(x=0, y=0), Atom.create(x=1, y=0), Atom.create(x=2, y=0), Atom.create(x=3, y=0)]
-    for i, atom in enumerate(atoms):
+    """
+    Initialize a 4-atom linear array in the preparation region.
+    For simplicity, atoms are instantiated directly at fixed positions.
+
+    Returns:
+        list[Atom]: Four atoms positioned along the x-axis at y = 0,
+                    all assigned to the "prepare" region.
+    """
+
+    # Define a 1D chain of 4 atoms with unit spacing
+    atoms = [
+        Atom.create(x=0, y=0),
+        Atom.create(x=1, y=0),
+        Atom.create(x=2, y=0),
+        Atom.create(x=3, y=0)
+    ]
+
+    # Assign all atoms to the preparation region
+    for atom in atoms:
         atom.enter_region("prepare")
+
     return atoms
+
+
 
 def init_qpu():
     qpu = BaseQuamNA()
 
-    aod_channel_x = SingleChannel(opx_output=("con1",1, 1), id="ch1") 
-    aod_channel_y = SingleChannel(opx_output=("con1",1, 2), id="ch2")
+    aod_channel_x = SingleChannel(opx_output=("con1", 1, 1), id="ch1")
+    aod_channel_y = SingleChannel(opx_output=("con1", 1, 2), id="ch2")
 
-    SLM_channel = DigitalOutputChannel(opx_output=("con1",1, 3))
-    hamammatsu_channel = SingleChannel(opx_output=("con1",1, 4) ,id="ch4")
-    
-    drive_channel = SingleChannel(opx_output=("con1",1, 5), id="ch5")
-    readout_channel = SingleChannel(opx_output=("con1",1, 6), id="ch6")
-    prepare_channel = SingleChannel(opx_output=("con1",1, 7), id="ch7")
-    entangle_channel = SingleChannel(opx_output=("con1",1, 8), id="ch8")
-    
-    channels = [aod_channel_x, aod_channel_y, drive_channel, readout_channel, prepare_channel, entangle_channel]
-    digital_channels = [SLM_channel, hamammatsu_channel]
+    SLM_digital = DigitalOutputChannel(opx_output=("con1", 1, 1), delay=0, buffer=0)
+    SLM_channel = SingleChannel(
+        opx_output=("con1", 1, 3), id="SLM532",
+        digital_outputs={"do1": SLM_digital}
+    )
+    hamammatsu_channel = SingleChannel(opx_output=("con1", 1, 4), id="ch4")
 
-    # Create the square pulse
+    drive_channel = SingleChannel(opx_output=("con1", 1, 5), id="ch5")
+    readout_channel = SingleChannel(opx_output=("con1", 1, 6), id="ch6")
+
+    prepare_channel = SingleChannel(opx_output=("con1", 1, 7), id="ch7")
+    entangle_channel = SingleChannel(opx_output=("con1", 1, 8), id="ch8")
+
+
+    channels = [aod_channel_x, aod_channel_y, SLM_channel, drive_channel, readout_channel, prepare_channel, entangle_channel]
+
+    # Decalre the  pulse
     for channel in channels:
         channel.operations["h_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
+        channel.operations["move_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
+        channel.operations["imaging_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
         qpu.register_channel(channel)
 
-    # Create the move pulse
-    for channel in channels:
-        channel.operations["move_pulse"] = pulses.SquarePulse(amplitude=0.25, length=1000)
-        qpu.register_channel(channel)
+    # SLM pulses: on has digital marker high, off has no digital marker
+    SLM_channel.operations["slm_on"] = pulses.SquarePulse(amplitude=0.0, length=100, digital_marker="ON")
+    SLM_channel.operations["slm_off"] = pulses.SquarePulse(amplitude=0.0, length=100)
     
     # -- set QPU default parameters --
     qpu.tweezer_depth = 10
@@ -81,7 +144,8 @@ def init_qpu():
 
     # -- Driver -- #
     aod = AOD(id="AOD532", channels=(aod_channel_x, aod_channel_y), frequency_to_move=1 , f_min=-70.0 * 1e6, f_max=70.0 * 1e6, max_total_power=1.0)
-    slm = SLM(id="SLM532", channel=SLM_channel, frequency_to_move=1)
+    slm = SLM(id="SLM532", channel_name="SLM532", frequency_to_move=1)
+
     for driver in [aod, slm]:
         qpu.register_driver(driver)
 
@@ -109,7 +173,6 @@ def ghz_4(qpu):
         id="dynamic_tweezer",
         drive="AOD532",
         current_powers=[0.5 for _ in range(4)]
-
     )
 
     drive_region = qpu.get_region("drive")
@@ -219,7 +282,8 @@ def main():
     current_folder = Path(__file__).resolve().parent
     serialize_qua_program(prog, qpu, path=current_folder)
 
-    qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4") #Serialize 
+    qmm = QuantumMachinesManager(host="192.168.88.253") #Serialize 
+    
     qm = qmm.open_qm(config)
 
     qmm.clear_all_job_results()
@@ -227,6 +291,15 @@ def main():
     # Run simulation (longer duration for full circuit)
     simulation_config = SimulationConfig(duration=2000)
     job = qmm.simulate(config, prog, simulation_config)
+
+
+    # Plot simulation output
+    import matplotlib.pyplot as plt
+
+    samples = job.get_simulated_samples()
+    samples.con1.plot()
+    plt.show()
+
 
 if __name__ == "__main__":
     main()

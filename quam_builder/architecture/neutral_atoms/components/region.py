@@ -76,7 +76,7 @@ class Region(QuantumComponent):
     def imaging_pulse(self, amplitude: float = 0.5, length: int = 100):
         channels = [self.parent.parent.get_channel(channel_name) for channel_name in self.channels]
         for ch in channels:
-            ch.play("h_pulse")
+            ch.play("imaging_pulse")
 
 def create_region(name: str):
     """Create a new region if it does not exist."""
