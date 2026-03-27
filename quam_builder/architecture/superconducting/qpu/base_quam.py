@@ -68,7 +68,7 @@ class BaseQuam(QuamRoot):
     ports: Optional[Union[FEMPortsContainer, OPXPlusPortsContainer]] = None
 
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
-    
+
     extras: dict = field(default_factory=dict)
 
     @classmethod
@@ -77,9 +77,7 @@ class BaseQuam(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_octave_config(self) -> Optional[QmOctaveConfig]:
         """Return the Octave configuration."""
@@ -292,9 +290,7 @@ class BaseQuam(QuamRoot):
                 f"Failed to initialize {qmm_class.__name__} with provided settings: {e}"
             ) from e
         except Exception as e:
-            raise ConnectionError(
-                f"Failed to connect to Quantum Machines Manager: {e}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to Quantum Machines Manager: {e}") from e
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
         """Calibrate the Octave ports for all the active qubits.
@@ -308,9 +304,7 @@ class BaseQuam(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
     def active_qubits(self) -> List[AnyTransmon]:
