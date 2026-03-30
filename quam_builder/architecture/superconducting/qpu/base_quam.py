@@ -39,7 +39,7 @@ class BaseQuam(QuamRoot):
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
         # _data_handler (ClassVar[DataHandler]): The data handler. # Unused
         qmm (Optional[QuantumMachinesManager]): The Quantum Machines Manager.
-
+        extras (dict): Additional attributes for the QUAM.
     Methods:
         get_serialiser: Get the serialiser for the QuamRoot class.
         get_octave_config: Return the Octave configuration.
@@ -69,15 +69,15 @@ class BaseQuam(QuamRoot):
 
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
 
+    extras: dict = field(default_factory=dict)
+
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
         """Get the serialiser for the QuamRoot class, which is the JSONSerialiser.
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_octave_config(self) -> Optional[QmOctaveConfig]:
         """Return the Octave configuration."""
@@ -290,9 +290,7 @@ class BaseQuam(QuamRoot):
                 f"Failed to initialize {qmm_class.__name__} with provided settings: {e}"
             ) from e
         except Exception as e:
-            raise ConnectionError(
-                f"Failed to connect to Quantum Machines Manager: {e}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to Quantum Machines Manager: {e}") from e
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
         """Calibrate the Octave ports for all the active qubits.
@@ -306,9 +304,7 @@ class BaseQuam(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
     def active_qubits(self) -> List[AnyTransmon]:
