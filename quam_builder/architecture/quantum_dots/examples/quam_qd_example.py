@@ -27,8 +27,6 @@ Workflow:
 
 """
 
-import os
-
 from quam.components import (
     StickyChannelAddon,
     pulses,
@@ -49,7 +47,8 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate, QdacSpec
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+from quam_builder.architecture.quantum_dots.components.dac import QdacSpec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
@@ -126,7 +125,7 @@ resonator = ReadoutResonatorSingle(
 
 drain = DrainSingle(
     id="drain",
-    opx_output=("con1", 1),  # Dummy output
+    opx_output=("con1", lf_fem, 1),  # Dummy output
     readout=ReadoutTransportSingle(
         id="readout_transport",
         opx_input=LFFEMAnalogInputPort("con1", lf_fem, port_id=2),
@@ -164,19 +163,29 @@ machine.register_channel_elements(
     plunger_channels=[p1, p2, p3, p4],
     barrier_channels=[b1, b2, b3],
     sensor_resonator_mappings={s1: resonator},
-    sensor_transport_mappings={s1: drain},
+    sensor_drain_mappings={s1: drain},
 )
 
 ##################################################################
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = os.environ.get("QUAM_QDAC") == "1"
+qdac_connect = True
 if qdac_connect:
+    qdac_ip = "172.16.33.101"
+    machine.set_dac_config(
+        {
+            "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+            "driver_class": "QDac2",
+            "connection": {"visalib": "@py", "address": f"TCPIP::{qdac_ip}::5025::SOCKET"},
+            "channel_method": "channel",
+            "accessor": "dc_constant_V",
+        }
+    )
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):
         if isinstance(ch_obj, VoltageGate):
-            ch_obj.qdac_spec = QdacSpec(
+            ch_obj.dac_spec = QdacSpec(
                 opx_trigger_out=Channel(
                     id=f"{ch_name}_qdac_trigger",
                     digital_outputs={
@@ -189,9 +198,7 @@ if qdac_connect:
                 qdac_output_port=i + 1,
             )
 
-    qdac_ip = "172.16.33.101"
-    machine.network.update({"qdac_ip": qdac_ip})
-    machine.connect_to_external_source(external_qdac=True)
+    machine.connect_to_external_source()
     machine.create_virtual_dc_set("main_qpu")
 
 ########################################
@@ -319,7 +326,7 @@ machine.quantum_dot_pairs["dot3_dot4_pair"].add_point(
 #         machine.quantum_dots["virtual_dot_3"].step_to_voltages(0.5, duration = 1000)
 #         machine.quantum_dots["virtual_dot_4"].step_to_voltages(0.1, duration = 1000)
 
-#         # Can also use saved voltage points on qubit and QD objects inside a simultaneous block.
+#         # Can also use point macros saved in qubit and QD objects, inside a simultaneous block.
 #         # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once!
 #         with seq.simultaneous(duration = 1000):
 #             machine.quantum_dots["virtual_dot_1"].step_to_point("loading")

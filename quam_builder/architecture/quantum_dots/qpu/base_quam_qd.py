@@ -1,8 +1,11 @@
 from pathlib import Path
-from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callable
+from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callable, Sequence
 from dataclasses import field
 import numpy as np
 from collections import defaultdict
+import importlib
+import json
+
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
@@ -143,82 +146,47 @@ class BaseQuamQD(QuamRoot):
 
     def connect_to_external_source(
         self,
-        channel_source_mapping: Dict[Channel, Callable] = None,
         reset_voltages: bool = False,
-        external_qdac: bool = False,
+        qdac: bool = True,
+        dac_name: str = "DAC",
     ) -> None:
         """
-        Binds the channels to the correct external voltage source functions. If the external voltage souce is a QDAC, then set the bool external_qdac = True.
+        Binds the channels to the correct external voltage source functions.
 
         Args:
-            if external_qdac = True, then it will connect to the qdac IP saved in self.network, and it will use the qdac_ports stored in each VoltageGate.
+            reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
+            dac_name (str): The string name of the DAC. Defaults to 'DAC'
 
-            if external_qdac = False, then you must provide a channel mapping.
-                channel_source_mapping: Dict[Channel, Callable]: A dictionary mapping the channel objects to the correct external voltage source ports.
-            Example for an external source:
-                    >>>
-                    >>> channel_source_mapping = {}
-                    ...     channel_object_1: voltage_source.channel_1.current_voltage,
-                    ...     channel_object_2: voltage_source.channel_2.current_voltage
-                    ...     }
-                    >>>
+        The dac configuration must be saved in the same directory as the quam state.json file, as a dac_api.json. The format must be as follows:
+        {
+            "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+            "driver_class": "QDac2",
+            "connection": {"visalib": "@py", "address": "TCPIP::172.16.33.101::5025::SOCKET"},
+            "channel_method": "channel",
+            "accessor": "dc_constant_V"
+        }
         """
-        if external_qdac:
-            name = "QDAC"
-            from qcodes import Instrument
-            from qcodes_contrib_drivers.drivers.QDevil import QDAC2
+        if self._dac_config is not None:
+            module = importlib.import_module(self._dac_config["driver_module"])
+            dac_class = getattr(module, self._dac_config["driver_class"])
+            dac = dac_class(dac_name, **self._dac_config["connection"])
 
-            try:
-                self.qdac = Instrument.find_instrument(name)
-            except KeyError:
-                if "qdac_ip" in self.network:
-                    self.qdac = QDAC2.QDac2(
-                        name,
-                        visalib="@py",
-                        address=f'TCPIP::{self.network["qdac_ip"]}::5025::SOCKET',
-                    )
-                elif "qdac_usb_port" in self.network:
-                    self.qdac = QDAC2.QDac2(
-                        name, address=f'ASRL{self.network["qdac_usb_port"]}::INSTR'
-                    )
-                else:
-                    raise ValueError(
-                        "No QDAC network found in machine.network. Please add either 'qdac_ip' (str) or 'qdac_usb_port' (int)"
-                    )
+            channel_method = self._dac_config["channel_method"]
+            accessor = self._dac_config["accessor"]
 
-            for channel in self.physical_channels.values():
-                if hasattr(channel, "qdac_spec"):
-                    qdac_port = channel.qdac_spec.qdac_output_port
-                    channel.offset_parameter = self.qdac.channel(qdac_port).dc_constant_V
-                else:
-                    print(f"Channel {channel.id} has no Qdac channel associated. Skipping")
+            for ch in self.physical_channels.values():
+                channel_port = ch.dac_spec.output_port
+                dac_channel = getattr(dac, channel_method)(channel_port)
+                ch.offset_parameter = getattr(dac_channel, accessor)
+
             if reset_voltages:
-                if (
-                    hasattr(channel, "current_external_voltage")
-                    and channel.offset_parameter is not None
-                ):
-                    channel.offset_parameter(channel.current_external_voltage)
+                if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None:
+                    ch.offset_parameter(ch.current_external_voltage)
 
         else:
-            for channel, fn in channel_source_mapping.items():
-                # Ensure that the channel actually exists in the Quam.
-                chan = None
-                for ch in self.physical_channels.values():
-                    if ch is channel:
-                        chan = ch
-                        break
-
-                if chan is None:
-                    raise ValueError(f"Channel {channel.id} not found in Quam")
-
-                chan.offset_parameter = fn
-
-                if reset_voltages:
-                    if (
-                        hasattr(chan, "current_external_voltage")
-                        and chan.offset_parameter is not None
-                    ):
-                        chan.offset_parameter(chan.current_external_voltage)
+            raise ValueError(
+                "No dac_api.json found. Please provide dac_api.json in the same directory as your Quam State. The JSON must contain the fields: 'driver_module', 'driver_class', 'connection', 'channel_method', and 'accessor'."
+            )
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
@@ -751,6 +719,10 @@ class BaseQuamQD(QuamRoot):
         d.pop("voltage_sequences", None)
         return d
 
+    def set_dac_config(self, config: Dict) -> None:
+        """Set the DAC configuration. This will not be serialised as a Quam field"""
+        object.__setattr__(self, "_dac_config", config)
+
     @classmethod
     def load(
         cls,
@@ -772,6 +744,24 @@ class BaseQuamQD(QuamRoot):
                 track_integrated_voltage=True
             )
 
+        # load the dac_api from the same directory too
+        if not isinstance(filepath_or_dict, dict):
+            if filepath_or_dict is not None:
+                state_dir = Path(filepath_or_dict)
+                if state_dir.is_file():
+                    state_dir = state_dir.parent
+            else:
+                state_path = Path(instance.serialiser._get_state_path())
+                state_dir = state_path.parent if state_path.is_file() else state_path
+            dac_path = state_dir / "dac_api.jsonc"
+            if dac_path.exists():
+                with open(dac_path) as f:
+                    instance.set_dac_config(json.load(f))
+            else:
+                instance.set_dac_config(None)
+        else:
+            instance.set_dac_config(None)
+
         # We can also update the state_tracker here to hold the value held by QuantumDot.current_voltage.
 
         from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
@@ -779,3 +769,31 @@ class BaseQuamQD(QuamRoot):
         wire_machine_macros(instance)
 
         return instance
+
+    def save(
+        self,
+        path: Optional[Union[Path, str]] = None,
+        content_mapping: Optional[Dict[str, str]] = None,
+        include_defaults: bool = False,
+        ignore: Optional[Sequence[str]] = None,
+    ):
+        super().save(
+            path,
+            content_mapping,
+            include_defaults,
+            ignore,
+        )
+
+        # Save the DAC driver API as a separate JSON file
+        if getattr(self, "_dac_config", None) is not None:
+            if path is not None:
+                state_dir = Path(path)
+                if state_dir.is_file():
+                    state_dir = state_dir.parent
+            else:
+                state_path = Path(self.serialiser._get_state_path())
+                state_dir = state_path.parent if state_path.is_file() else state_path
+            dac_path = state_dir / "dac_api.jsonc"
+            with open(dac_path, "w") as f:
+                dac_config = self._dac_config
+                json.dump(dac_config, f, indent=2)
