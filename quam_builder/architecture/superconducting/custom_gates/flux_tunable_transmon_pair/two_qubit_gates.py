@@ -179,7 +179,7 @@ class CZGate(QubitPairMacro):
 
     @property
     def flux_pulse_qubit_label(self) -> str:
-        qubit = self.qubit_control if self.moving_qubit == "control" else self.qubit_target
+        qubit = self.qubit_control if self.qubit_pair.moving_qubit == "control" else self.qubit_target
         pulse = (
             qubit.get_pulse(self.flux_pulse_qubit) if isinstance(self.flux_pulse_qubit, str) else self.flux_pulse_qubit
         )
