@@ -7,9 +7,13 @@ QuAM quantum dots framework. A Rabi chevron experiment sweeps both drive frequen
 and pulse duration to find the optimal qubit drive parameters, revealing the qubit's
 resonance frequency and Rabi oscillation characteristics.
 
+Readout in this example uses RF reflectometry: a resonator tone at 1 MHz
+intermediate frequency is applied to the sensor resonator, and the reflected
+signal is demodulated in the OPX using integration weights matched to the tone.
+
 Workflow Overview:
 ------------------
-1. **Create Machine**: Set up physical channels (plungers, sensor, XY drive)
+1. **Create Machine**: Set up physical channels (plungers, sensor, drain, XY drive)
 2. **Register Components**: Use register_channel_elements() and register_qubit()
 3. **Define Macros**: Add drive() and measure() macros using the QuamMacro pattern
 4. **Create QUA Program**: Build the experiment with voltage point navigation
@@ -21,17 +25,23 @@ Key Concepts Demonstrated:
 - Virtual gate sets with cross-capacitance compensation
 - Qubit registration with XY drive and sensor dot association
 - Custom macros (DriveMacro, MeasureMacro) following the QuamMacro pattern
+- RF reflectometry readout with a 1 MHz resonator tone
 - Voltage point navigation using step_to_point()
 - Cloud simulator execution via qm_saas
 
 Requirements:
 - Qubit with voltage points: init, operate, readout
 - Drive macro for applying MW pulses with variable duration
-- Measure macro returning I, Q values
+- Measure macro returning demodulated transport current values
+- Readout resonator connected to an LF output and input for reflectometry
 - Voltage sequence with compensation pulse capability
 """
 
-from typing import List, Tuple
+from typing import List
+
+import matplotlib
+import matplotlib.pyplot as plt
+import qm_saas
 from qm.qua import (
     program,
     for_,
@@ -40,18 +50,20 @@ from qm.qua import (
     fixed,
     update_frequency,
     align,
+    assign,
     save,
     stream_processing,
 )
 from qm import SimulationConfig, QuantumMachinesManager
-import qm_saas
-import matplotlib
-
-matplotlib.use("TkAgg")  # Use TkAgg backend for PyCharm compatibility
-import matplotlib.pyplot as plt
 from quam.components import pulses
-from quam.components.ports import LFFEMAnalogOutputPort, MWFEMAnalogOutputPort, LFFEMAnalogInputPort
 from quam.components.channels import StickyChannelAddon
+from quam.components.ports import (
+    LFFEMAnalogInputPort,
+    LFFEMAnalogOutputPort,
+    MWFEMAnalogOutputPort,
+)
+from quam.core import quam_dataclass
+from quam.core.macro.quam_macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import (
@@ -77,14 +89,14 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     pattern from quam_qd_example.py and quam_ld_example.py:
 
     1. Create physical VoltageGate channels (plungers + sensor DC)
-    2. Create readout resonator for the sensor
+    2. Create readout resonator channel for the sensor (RF reflectometry)
     3. Create XY drive channel for qubit control
     4. Create virtual gate set with cross-capacitance compensation
     5. Register all channel elements using register_channel_elements()
     6. Register quantum dot pairs to link dots with sensors
 
     Returns:
-        Tuple of (machine, xy_drive, readout_resonator)
+        Tuple of (machine, xy_drive, transport_readout)
     """
     machine = LossDiVincenzoQuam()
 
@@ -122,7 +134,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # -------------------------------------------------------------------------
     # Sensor DC Channel
     # -------------------------------------------------------------------------
-    # Dedicated VoltageGate for the sensor dot
+    # Dedicated VoltageGate for the sensor dot (DC bias only)
     sensor_dc = VoltageGate(
         id="sensor_DC",
         opx_output=LFFEMAnalogOutputPort(
@@ -135,9 +147,8 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     )
 
     # -------------------------------------------------------------------------
-    # Readout Resonator
+    # Readout Resonator (RF reflectometry at 1 MHz IF)
     # -------------------------------------------------------------------------
-    # RF resonator connected to the sensor dot for charge sensing
     readout_resonator = ReadoutResonatorSingle(
         id="sensor_resonator",
         opx_output=LFFEMAnalogOutputPort(
@@ -151,11 +162,11 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             fem_id=lf_fem_slot,
             port_id=1,
         ),
-        intermediate_frequency=50e6,
+        intermediate_frequency=1e6,
         operations={
             "readout": pulses.SquareReadoutPulse(
-                length=1000,  # 1us readout pulse
-                amplitude=0.1,
+                length=10000,
+                amplitude=0.05,
                 integration_weights_angle=0.0,
             )
         },
@@ -211,7 +222,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # This creates QuantumDot and SensorDot objects from the channels
     machine.register_channel_elements(
         plunger_channels=[plunger_1, plunger_2],
-        sensor_resonator_mappings={sensor_dc: readout_resonator},
+        sensor_readout_mappings={sensor_dc: readout_resonator},
         barrier_channels=[],
     )
 
@@ -284,7 +295,7 @@ def register_qubit_with_points(
         # Readout point: Configure for PSB readout
         .with_step_point(
             name="readout",
-            voltages={"virtual_dot_1": -0.05},
+            voltages={"virtual_dot_1": -0.05, "virtual_sensor_1": 0.1},
             duration=2000,  # 2us readout window
         )
     )
@@ -307,22 +318,20 @@ def add_qubit_macros(qubit: LDQubit):
 
     Macros defined:
     - DriveMacro: Applies MW pulse with optional duration override (for Rabi sweep)
-    - MeasureMacro: Performs measurement and returns I, Q variables
+    - MeasureMacro: Performs measurement and returns R^2
 
     The sensor_dot is accessed through qubit.sensor_dots[0], following the pattern:
-        machine.qubits["Q1"].sensor_dots[0].readout_resonator.measure("readout")
+        machine.qubits["Q1"].sensor_dots[0].physical_channel.readout.measure("readout")
 
     Args:
         qubit: The qubit to enhance with macros
     """
-    from quam.core.macro.quam_macro import QuamMacro
-    from quam.core import quam_dataclass
 
     # -------------------------------------------------------------------------
     # Drive Macro
     # -------------------------------------------------------------------------
     @quam_dataclass
-    class DriveMacro(QuamMacro):
+    class DriveMacro(QuamMacro):  # pylint: disable=too-few-public-methods
         """
         Macro for applying a microwave drive pulse with variable duration.
 
@@ -369,9 +378,9 @@ def add_qubit_macros(qubit: LDQubit):
     # Measure Macro
     # -------------------------------------------------------------------------
     @quam_dataclass
-    class MeasureMacro(QuamMacro):
+    class MeasureMacro(QuamMacro):  # pylint: disable=too-few-public-methods
         """
-        Macro for performing measurement and returning I, Q quadrature values.
+        Macro for performing resonator readout and returning R^2.
 
         This macro accesses the sensor dot through the qubit's sensor_dots
         property, which is populated when the quantum dot pair is registered.
@@ -382,31 +391,32 @@ def add_qubit_macros(qubit: LDQubit):
 
         pulse_name: str = "readout"
 
-        def apply(self, **kwargs) -> Tuple:
+        def apply(self, **kwargs):
             """
-            Perform demodulated measurement and return I, Q values.
+            Perform demodulated resonator measurement and return R^2.
 
             Returns:
-                Tuple of (I, Q) QUA variables containing measurement results
+                R^2 QUA variable containing measurement result
             """
             pulse = kwargs.get("pulse_name", self.pulse_name)
 
-            # Declare QUA variables for I and Q quadratures
+            # Declare QUA variables for I/Q and R^2
             I = declare(fixed)
             Q = declare(fixed)
+            r2 = declare(fixed)
 
             # Navigate to qubit and get the associated sensor dot
             parent_qubit = self.parent.parent
             sensor_dot = parent_qubit.sensor_dots[0]
 
-            # Wait for transients, then perform measurement
-            sensor_dot.readout_resonator.wait(64)
-            sensor_dot.readout_resonator.measure(
-                pulse,
-                qua_vars=(I, Q),
-            )
+            resonator = sensor_dot.readout_resonator
 
-            return I, Q
+            # Wait for transients, then perform demodulated measurement
+            resonator.wait(64)
+            resonator.measure(pulse, qua_vars=(I, Q))
+            assign(r2, I * I + Q * Q)
+
+            return r2
 
     # Register the measure macro
     measure_macro = MeasureMacro(pulse_name="readout")
@@ -436,6 +446,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
     """
     # Experiment parameters
     Navg = 1  # Number of averages
+    t_wait = 64  # clock cycles
     t_ini = 50  # Initial duration (clock cycles, 1 cycle = 4ns)
     t_final = 350  # Final duration (clock cycles)
     dt = 100  # Duration step (clock cycles)
@@ -450,8 +461,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
         f = declare(int)  # Drive frequency (Hz)
 
         # Declare streams for data acquisition
-        I_stream = declare_stream()
-        Q_stream = declare_stream()
+        current_stream = declare_stream()
 
         for qubit in qubits:
             with for_(n, 0, n < Navg, n + 1):
@@ -468,7 +478,7 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 
                         # Step 2: Operate - move to sweet spot and apply drive
                         # Duration is extended to accommodate the drive pulse
-                        qubit.step_to_point("operate", duration=4 * (t + 40))
+                        qubit.step_to_point("operate", duration=4 * (t + t_wait))
 
                         # Apply the microwave drive pulse with variable duration
                         qubit.drive(duration=t)
@@ -478,9 +488,8 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 
                         # Step 3: Readout - move to PSB configuration and measure
                         qubit.step_to_point("readout")
-                        I, Q = qubit.measure()
-                        save(I, I_stream)
-                        save(Q, Q_stream)
+                        current = qubit.measure()
+                        save(current, current_stream)
 
                         align()
 
@@ -489,14 +498,10 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 
         # Stream processing: reshape data into 2D arrays
         with stream_processing():
-            I_stream.buffer(
+            current_stream.buffer(
                 (f_final - f_ini) // df,
                 (t_final - t_ini) // dt,
-            ).average().save("I")
-            Q_stream.buffer(
-                (f_final - f_ini) // df,
-                (t_final - t_ini) // dt,
-            ).average().save("Q")
+            ).average().save("current")
 
     return rabi_chevron
 
@@ -548,10 +553,12 @@ if __name__ == "__main__":
     machine, qubits, rabi_chevron_program = setup_rabi_chevron_experiment()
 
     # Display configuration summary
+    # pylint: disable=unsubscriptable-object,no-member
     print(f"Machine configured with {len(machine.qubits)} qubit(s)")
     print(f"Qubit Q1 has macros: {list(machine.qubits['Q1'].macros.keys())}")
     print(f"Virtual gate sets: {list(machine.virtual_gate_sets.keys())}")
     print(f"Quantum dots: {list(machine.quantum_dots.keys())}")
+    # pylint: enable=unsubscriptable-object,no-member
 
     # Generate the QUA config from the machine
     config = machine.generate_config()
@@ -559,8 +566,9 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Cloud Simulator Configuration (QM SaaS Dev Server)
     # -------------------------------------------------------------------------
-    EMAIL = "email"
-    PASSWORD = "password"
+    # EMAIL = "email"
+    # PASSWORD = "password"
+    from configs import EMAIL, PASSWORD
 
     print("\nConnecting to QM SaaS cloud simulator...")
     client = qm_saas.QmSaas(
@@ -593,13 +601,28 @@ if __name__ == "__main__":
         simulated_samples = job.get_simulated_samples()
         waveform_report = job.get_simulated_waveform_report()
 
+    # Run the simulation
+    # qmm = QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
+    # simulation_config = SimulationConfig(duration=4000)
+    # job = qmm.simulate(config, rabi_chevron_program, simulation_config)
+    # job.wait_until("Done", timeout=20)
+    #
+    # # Retrieve results
+    # simulated_samples = job.get_simulated_samples()
+    # waveform_report = job.get_simulated_waveform_report()
+
     # Plot the results
+    import matplotlib
+
+    matplotlib.use("TkAgg")
     waveform_report.create_plot(simulated_samples, plot=True)
 
     print("Retrieving simulated samples...")
     simulated_samples.con1.plot()
-    plt.title("Rabi Chevron Experiment - Simulated Waveforms")
+    plt.title("Rabi Chevron Transport Experiment - Simulated Waveforms")
     plt.tight_layout()
     plt.show()
 
     print("\nRabi Chevron simulation completed successfully!")
+
+    # qmm.close_all_qms()

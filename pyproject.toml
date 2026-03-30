@@ -1,6 +1,6 @@
 [project]
 name = "quam-builder"
-version = "0.2.3.3"
+version = "0.3.1"
 description = "A Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP)."
 readme = "README.md"
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
@@ -28,6 +28,12 @@ allow-direct-references = true
 dev = [
     "ipykernel>=7.0.0a1",
     "pre-commit",
+    "pylint>=3.0",
+    "astroid>=3.0",
+    "black",
+    "ruff",
+    "mypy",
+    "commitizen",
     "pytest>=8.3.5",
     "pytest-cov",
     "pytest-mock>=3.14.0",
@@ -41,20 +47,6 @@ prerelease = "allow"
 
 [tool.uv]
 prerelease = "allow"
-
-[project.optional-dependencies]
-dev = [
-    "pre-commit",
-    "black",
-    "pylint>=3.0",
-    "astroid>=3.0",
-    "ruff",
-    "mypy",
-    "pytest",
-    "pytest-cov",
-    "commitizen",
-]
-
 
 # -----------------------------
 # Ruff configuration

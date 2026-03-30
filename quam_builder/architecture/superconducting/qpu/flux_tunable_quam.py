@@ -55,17 +55,13 @@ class FluxTunableQuam(BaseQuam):
             if q.z is not None:
                 q.z.to_joint_idle()
             else:
-                warnings.warn(
-                    f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle"
-                )
+                warnings.warn(f"Didn't find z-element on qubit {q.name}, didn't set to joint-idle")
         for q in self.qubits:
             if self.qubits[q] not in self.active_qubits:
                 if self.qubits[q].z is not None:
                     self.qubits[q].z.to_min()
                 else:
-                    warnings.warn(
-                        f"Didn't find z-element on qubit {q}, didn't set to min"
-                    )
+                    warnings.warn(f"Didn't find z-element on qubit {q}, didn't set to min")
         self.apply_all_couplers_to_min()
 
     def apply_all_flux_to_min(self) -> None:
@@ -85,6 +81,7 @@ class FluxTunableQuam(BaseQuam):
     def set_all_fluxes(
         self,
         flux_point: str,
+        target: Union[FluxTunableTransmon, FluxTunableTransmonPair] | None = None,
         target: Union[FluxTunableTransmon, FluxTunableTransmonPair] | None = None,
     ):
         """Set the fluxes to the specified point for the target qubit or qubit pair.
@@ -108,6 +105,7 @@ class FluxTunableQuam(BaseQuam):
             if isinstance(target, FluxTunableTransmonPair):
                 target_bias = target.mutual_flux_bias
             elif isinstance(target, FluxTunableTransmon):
+            elif isinstance(target, FluxTunableTransmon):
                 target_bias = target.z.joint_offset
         else:
             self.apply_all_flux_to_min()
@@ -130,7 +128,6 @@ class FluxTunableQuam(BaseQuam):
             
         return target_bias
 
- 
     def initialize_qpu(self, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
@@ -140,14 +137,7 @@ class FluxTunableQuam(BaseQuam):
             target: The qubit under study.
         """
         for twpa in self.twpas.values():
-            twpa.initialize() 
+            twpa.initialize()
         flux_point = kwargs.get("flux_point", "joint")
         target = kwargs.get("target", None)
         self.set_all_fluxes(flux_point, target)
-
-    
-        
-
-        
-
-        
