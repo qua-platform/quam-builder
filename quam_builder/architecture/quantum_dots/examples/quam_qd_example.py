@@ -173,19 +173,24 @@ machine.register_channel_elements(
 qdac_connect = True
 if qdac_connect:
     qdac_ip = "172.16.33.101"
+    qdac_name = "main_QDAC"
     machine.set_dac_config(
         {
-            "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
-            "driver_class": "QDac2",
-            "connection": {"visalib": "@py", "address": f"TCPIP::{qdac_ip}::5025::SOCKET"},
-            "channel_method": "channel",
-            "accessor": "dc_constant_V",
+            qdac_name: {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": f"TCPIP::{qdac_ip}::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            }
         }
     )
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):
         if isinstance(ch_obj, VoltageGate):
             ch_obj.dac_spec = QdacSpec(
+                dac_name=qdac_name,
                 opx_trigger_out=Channel(
                     id=f"{ch_name}_qdac_trigger",
                     digital_outputs={

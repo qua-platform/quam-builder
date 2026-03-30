@@ -86,6 +86,7 @@ class BaseQuamQD(QuamRoot):
         default_factory=dict, metadata={"exclude": True}
     )
     reservoirs: Dict[str, ReservoirBase] = field(default_factory=dict)
+    dacs: Dict[str, Dict] = field(default_factory=dict, metadata={"exclude": True})
 
     quantum_dots: Dict[str, QuantumDot] = field(default_factory=dict)
     quantum_dot_pairs: Dict[str, QuantumDotPair] = field(default_factory=dict)
@@ -147,8 +148,6 @@ class BaseQuamQD(QuamRoot):
     def connect_to_external_source(
         self,
         reset_voltages: bool = False,
-        qdac: bool = True,
-        dac_name: str = "DAC",
     ) -> None:
         """
         Binds the channels to the correct external voltage source functions.
@@ -166,27 +165,39 @@ class BaseQuamQD(QuamRoot):
             "accessor": "dc_constant_V"
         }
         """
-        if self._dac_config is not None:
-            module = importlib.import_module(self._dac_config["driver_module"])
-            dac_class = getattr(module, self._dac_config["driver_class"])
-            dac = dac_class(dac_name, **self._dac_config["connection"])
-
-            channel_method = self._dac_config["channel_method"]
-            accessor = self._dac_config["accessor"]
-
-            for ch in self.physical_channels.values():
-                channel_port = ch.dac_spec.output_port
-                dac_channel = getattr(dac, channel_method)(channel_port)
-                ch.offset_parameter = getattr(dac_channel, accessor)
-
-            if reset_voltages:
-                if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None:
-                    ch.offset_parameter(ch.current_external_voltage)
-
-        else:
+        if self._dac_config is None:
             raise ValueError(
-                "No dac_api.json found. Please provide dac_api.json in the same directory as your Quam State. The JSON must contain the fields: 'driver_module', 'driver_class', 'connection', 'channel_method', and 'accessor'."
+                "No DAC configurations found. Please save a directory of DACs with the Quam state."
             )
+
+        dac_instances = self.dacs
+        for dac_name, config in self._dac_config.items():
+            module = importlib.import_module(config["driver_module"])
+            dac_class = getattr(module, config["driver_class"])
+            dac_instances[dac_name] = {
+                "driver": dac_class(dac_name, **config["connection"]),
+                "channel_method": config["channel_method"],
+                "accessor": config["accessor"],
+                "is_qdac": config.get("is_qdac", False),
+            }
+
+        for ch in self.physical_channels.values():
+            dac_name = getattr(ch.dac_spec, "dac_name", "main")
+            if dac_name not in dac_instances:
+                print(f"WARNING: {ch.id} references {dac_name}, but no config found. Skipping")
+                continue
+            dac_info = dac_instances[dac_name]
+            dac_channel = getattr(dac_info["driver"], dac_info["channel_method"])(
+                ch.dac_spec.output_port
+            )
+            ch.offset_parameter = getattr(dac_channel, dac_info["accessor"])
+
+            if (
+                reset_voltages
+                and hasattr(ch, "current_external_voltage")
+                and ch.offset_parameter is not None
+            ):
+                ch.offset_parameter(ch.current_external_voltage)
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
@@ -717,10 +728,17 @@ class BaseQuamQD(QuamRoot):
         # We treat the voltage_sequences as a runtime helper, and not as a Quam component. That way, it does not get serialised.
         # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level.
         d.pop("voltage_sequences", None)
+        d.pop("dacs", None)
         return d
 
     def set_dac_config(self, config: Dict) -> None:
-        """Set the DAC configuration. This will not be serialised as a Quam field"""
+        """Set the DAC configuration(s). This will not be serialised as a Quam field"""
+        if config is None:
+            object.__setattr__(self, "_dac_config", None)
+            return
+
+        if "driver_module" in config:
+            config = {"main": config}
         object.__setattr__(self, "_dac_config", config)
 
     @classmethod
@@ -753,10 +771,13 @@ class BaseQuamQD(QuamRoot):
             else:
                 state_path = Path(instance.serialiser._get_state_path())
                 state_dir = state_path.parent if state_path.is_file() else state_path
-            dac_path = state_dir / "dac_api.jsonc"
-            if dac_path.exists():
-                with open(dac_path) as f:
-                    instance.set_dac_config(json.load(f))
+            dac_dir = state_dir / "dac"
+            if dac_dir.is_dir():
+                dac_configs = {}
+                for f in sorted(dac_dir.glob("*.jsonc")):
+                    with open(f) as fh:
+                        dac_configs[f.stem] = json.load(fh)
+                instance.set_dac_config(dac_configs if dac_configs else None)
             else:
                 instance.set_dac_config(None)
         else:
@@ -793,7 +814,8 @@ class BaseQuamQD(QuamRoot):
             else:
                 state_path = Path(self.serialiser._get_state_path())
                 state_dir = state_path.parent if state_path.is_file() else state_path
-            dac_path = state_dir / "dac_api.jsonc"
-            with open(dac_path, "w") as f:
-                dac_config = self._dac_config
-                json.dump(dac_config, f, indent=2)
+            dac_dir = state_dir / "dac"
+            dac_dir.mkdir(exist_ok=True)
+            for name, config in self._dac_config.items():
+                with open(dac_dir / f"{name}.jsonc", "w") as f:
+                    json.dump(config, f, indent=2)

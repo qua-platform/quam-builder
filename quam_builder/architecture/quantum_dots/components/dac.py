@@ -11,6 +11,7 @@ class DacSpec(QuamComponent):
     """
 
     output_port: int = None
+    dac_name: str = "main"
 
     def __post_init__(self):
         super().__post_init__()
