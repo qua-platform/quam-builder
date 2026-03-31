@@ -154,7 +154,6 @@ class BaseQuamQD(QuamRoot):
 
         Args:
             reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
-            dac_name (str): The string name of the DAC. Defaults to 'DAC'
 
         The dac configuration must be saved in the same directory as the quam state.json file, as a dac_api.json. The format must be as follows:
         {
