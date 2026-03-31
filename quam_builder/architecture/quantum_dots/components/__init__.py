@@ -16,6 +16,7 @@ from . import qpu
 from . import pulses
 from . import readout_transport
 from . import reservoir
+from . import dac_spec
 
 from .pulses import *
 from .voltage_gate import *
@@ -35,6 +36,8 @@ from .reservoir import *
 from .mixins import *
 from .qpu import *
 
+from .dac_spec import *
+
 __all__ = [
     *pulses.__all__,
     *voltage_gate.__all__,
@@ -52,4 +55,5 @@ __all__ = [
     *qpu.__all__,
     *readout_transport.__all__,
     *reservoir.__all__,
+    *dac_spec.__all__,
 ]
