@@ -42,7 +42,7 @@ class DacSpec(QuamComponent):
             raise ValueError(
                 f"DAC name {self.dac_name} not found in machine. Have you run machine.connect_to_external_source() ?"
             )
-        return dac_obj
+        return dac_obj["driver"]
 
 
 @quam_dataclass
