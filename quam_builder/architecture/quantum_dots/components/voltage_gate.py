@@ -6,7 +6,7 @@ from quam.core import quam_dataclass, QuamComponent
 from .readout_resonator import ReadoutResonatorBase
 from .readout_transport import ReadoutTransportBase
 
-from .dac import DacSpec, QdacSpec
+from .dac_spec import DacSpec, QdacSpec
 
 __all__ = ["VoltageGate"]
 

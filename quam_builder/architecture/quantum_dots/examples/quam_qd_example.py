@@ -48,7 +48,7 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
-from quam_builder.architecture.quantum_dots.components.dac import QdacSpec
+from quam_builder.architecture.quantum_dots.components.dac_spec import QdacSpec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
