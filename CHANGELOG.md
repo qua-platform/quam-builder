@@ -5,9 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-
-## [0.3.0] - 2026-03-30
+## [0.3.0] - 2026-03-31
 ### Added
+- Added support for Python 3.13.
 - Add support for cloud-based QMM instances in `machine.connect()`
   - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 - TWPA: add `pumpline_attenuation` and `signalline_attenuation` (float, optional) attributes.
