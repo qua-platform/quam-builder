@@ -3,7 +3,8 @@ from typing import Optional, Union
 from quam.components import SingleChannel
 from quam.core import quam_dataclass
 
-from ..components import ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT
+from .readout_transport import ANY_READOUT_TRANSPORT
+from .readout_resonator import ANY_READOUT_RESONATOR
 
 from .dac_spec import DacSpec, QdacSpec
 
