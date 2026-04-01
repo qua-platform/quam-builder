@@ -344,6 +344,7 @@ def _make_voltage_gate_with_qdac(
         id=gate_id,
         opx_output=f"{wiring_path}/opx_output",
         sticky=_make_sticky_channel(),
+        digital_output=f"{wiring_path}/digital_output",
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
