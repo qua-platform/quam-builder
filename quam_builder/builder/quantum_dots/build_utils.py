@@ -344,7 +344,7 @@ def _make_voltage_gate_with_qdac(
         Configured VoltageGate instance with QDAC channel if provided.
     """
 
-    digital_outputs = get_digital_outputs(wiring_path, ports)
+    digital_outputs = get_digital_outputs(wiring_path, ports, "qdac_trig")
 
     gate = VoltageGate(
         id=gate_id,
