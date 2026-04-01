@@ -59,6 +59,3 @@ __all__ = [
     *reservoir.__all__,
     *dac_spec.__all__,
 ]
-
-ANY_READOUT_RESONATOR = Union[ReadoutResonatorBase, ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle]
-ANY_READOUT_TRANSPORT = Union[ReadoutTransportBase, ReadoutTransportSingle, ReadoutTransportSingleIO]

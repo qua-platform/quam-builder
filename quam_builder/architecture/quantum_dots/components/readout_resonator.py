@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel, InOutSingleChannel
@@ -17,6 +17,7 @@ __all__ = [
     "ReadoutResonatorIQ",
     "ReadoutResonatorMW",
     "ReadoutResonatorSingle",
+    "ANY_READOUT_RESONATOR",
 ]
 
 
@@ -168,3 +169,5 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         return set_output_power_mw_channel(
             self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
         )
+
+ANY_READOUT_RESONATOR = Union[ReadoutResonatorBase, ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle]
