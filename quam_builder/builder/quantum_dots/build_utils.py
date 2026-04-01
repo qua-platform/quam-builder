@@ -26,7 +26,9 @@ from quam_builder.architecture.quantum_dots.components.xy_drive import (
     XYDriveMW,
     XYDriveSingle,
 )
-from quam_builder.architecture.superconducting.qpu import AnyQuam
+from quam_builder.builder.qop_connectivity.get_digital_outputs import (
+    get_digital_outputs,
+)
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
     mw_out_channel_ports,
@@ -328,23 +330,27 @@ def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
 
 
 def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, qdac_channel: int | None = None
+    gate_id: str, wiring_path: str, ports: Dict[str, str], qdac_channel: int | None = None
 ) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:
         gate_id: Identifier for the gate.
         wiring_path: JSON path to wiring configuration.
+        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
         qdac_channel: Optional QDAC channel number for external voltage control.
 
     Returns:
         Configured VoltageGate instance with QDAC channel if provided.
     """
+
+    digital_outputs = get_digital_outputs(wiring_path, ports)
+
     gate = VoltageGate(
         id=gate_id,
         opx_output=f"{wiring_path}/opx_output",
         sticky=_make_sticky_channel(),
-        digital_output=f"{wiring_path}/digital_output",
+        digital_outputs=digital_outputs,
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
