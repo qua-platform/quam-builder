@@ -111,8 +111,6 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
 
                 # Extract QDAC channel if present
                 qdac_channel = _extract_qdac_channel(ports)
-                print(f"qdac channel {qdac_channel}")
-                print(f"ports {ports}")
                 gate = _make_voltage_gate_with_qdac(global_id, wiring_path, ports, qdac_channel)
                 self.assembly.global_gates.append(gate)
 
@@ -132,7 +130,7 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                     # Extract QDAC channel if present
                     qdac_channel = _extract_qdac_channel(ports)
                     sensor_channel = _make_voltage_gate_with_qdac(
-                        sensor_gate_id, wiring_path, qdac_channel
+                        sensor_gate_id, wiring_path, ports, qdac_channel
                     )
                 elif line_type == WiringLineType.RF_RESONATOR.value:
                     resonator = _make_resonator(sensor_gate_id, wiring_path, resonator_cls)
@@ -161,7 +159,7 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                     plunger_number = _extract_qubit_number(qubit_id)
                     plunger_id = f"plunger_{plunger_number}"
 
-                    plunger = _make_voltage_gate_with_qdac(plunger_id, wiring_path, qdac_channel)
+                    plunger = _make_voltage_gate_with_qdac(plunger_id, wiring_path, ports, qdac_channel)
                     self.assembly.plunger_channels.append(plunger)
                     self.assembly.plunger_id_to_channel[qubit_id] = plunger
 
@@ -181,7 +179,7 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                     barrier_id = f"barrier_{self.assembly.barrier_counter}"
                     self.assembly.barrier_counter += 1
 
-                    barrier = _make_voltage_gate_with_qdac(barrier_id, wiring_path, qdac_channel)
+                    barrier = _make_voltage_gate_with_qdac(barrier_id, wiring_path, ports, qdac_channel)
                     self.assembly.barrier_channels.append(barrier)
                     self.assembly.barrier_id_to_channel[barrier_id] = barrier
                     self.assembly.qubit_pair_id_to_barrier_id[pair_id] = barrier_id
