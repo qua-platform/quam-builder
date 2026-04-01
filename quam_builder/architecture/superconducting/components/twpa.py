@@ -39,6 +39,10 @@ class TWPA(QuamComponent):
         Calibrated isolation tone frequency in Hz.
     isolation_amplitude : float
         Calibrated isolation tone amplitude. Default 1.0.
+    pumpline_attenuation (float):
+        attenuation in dB of the pump line from the OPX to the input of the TWPA
+    signalline_attenuation (float):
+        attenuation in dB on the signal line from the OPX to the input of the TWPA
     grid_location : str, optional
         Grid location for layout/plotting (e.g. "0,1").
     qubits : list, optional
@@ -62,6 +66,9 @@ class TWPA(QuamComponent):
     pump_amplitude: float = 1
     isolation_frequency: float = None
     isolation_amplitude: float = 1
+
+    pumpline_attenuation: float = None
+    signalline_attenuation: float = None
 
     grid_location: str = None
     qubits: list = None
