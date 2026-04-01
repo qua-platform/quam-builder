@@ -1,10 +1,9 @@
-from typing import Optional, Dict, Union
+from typing import Optional, Union
 
-from quam.components import SingleChannel, Channel
-from quam.core import quam_dataclass, QuamComponent
+from quam.components import SingleChannel
+from quam.core import quam_dataclass
 
-from .readout_resonator import ReadoutResonatorBase
-from .readout_transport import ReadoutTransportBase
+from ..components import ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT
 
 from .dac_spec import DacSpec, QdacSpec
 
@@ -45,7 +44,7 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     dac_spec: DacSpec = None
-    readout: Union[ReadoutTransportBase, ReadoutResonatorBase] = None
+    readout: Union[ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT] = None
 
     def __post_init__(self):
         super().__post_init__()
