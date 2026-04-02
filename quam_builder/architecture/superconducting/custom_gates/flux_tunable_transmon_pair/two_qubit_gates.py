@@ -224,8 +224,8 @@ class CZGate(QubitPairMacro):
                 spectator_qubit.z.play(spectator_pulse_names[qubit_name])
 
         # Moving qubit flux
-        moving_qubit = self.qubit_pair.qubit_control if self.moving_qubit == "control" else self.qubit_pair.qubit_target
-        fixed_qubit = self.qubit_pair.qubit_target if self.moving_qubit == "control" else self.qubit_pair.qubit_control
+        moving_qubit = self.qubit_pair.qubit_control if self.qubit_pair.moving_qubit == "control" else self.qubit_pair.qubit_target
+        fixed_qubit = self.qubit_pair.qubit_target if self.qubit_pair.moving_qubit == "control" else self.qubit_pair.qubit_control
         moving_qubit.z.play(self.flux_pulse_qubit_label, amplitude_scale=amplitude_scale_qubit, duration=duration_qubit)
 
         # Coupler flux
