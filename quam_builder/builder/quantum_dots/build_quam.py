@@ -20,16 +20,14 @@ from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.builder.quantum_dots.build_qpu import (
-    QpuAssembly,
     _QpuBuilder,
     _set_default_grid_location,
 )
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, AnyQuamQD
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
-from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 
 def build_base_quam(
@@ -318,7 +316,7 @@ class _OrchestratedQuamBuilder:
 
     def __init__(
         self,
-        machine: AnyQuam,
+        machine: AnyQuamQD,
         calibration_db_path: Optional[Union[Path, str]],
         qubit_pair_sensor_map: Optional[dict],
     ) -> None:
@@ -343,7 +341,7 @@ class _OrchestratedQuamBuilder:
         add_qpu(self.machine, qubit_pair_sensor_map=self.qubit_pair_sensor_map)
 
 
-def add_ports(machine: AnyQuam) -> None:
+def add_ports(machine: AnyQuamQD) -> None:
     """Register all I/O ports referenced in wiring specifications.
 
     Scans the wiring configuration and creates port objects for all
@@ -362,7 +360,7 @@ def add_ports(machine: AnyQuam) -> None:
                         )
 
 
-def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> None:
+def add_qpu(machine: AnyQuamQD, qubit_pair_sensor_map: Optional[dict] = None) -> None:
     """Build and register QPU elements from wiring specifications.
 
     Creates and registers:
@@ -381,7 +379,7 @@ def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> N
 
 
 def _resolve_calibration_db_path(
-    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
+    machine: AnyQuamQD, calibration_db_path: Optional[Union[Path, str]]
 ) -> Path:
     """Resolve and normalize Octave calibration database path.
 
@@ -403,8 +401,8 @@ def _resolve_calibration_db_path(
 
 
 def add_octaves(
-    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuam:
+    machine: AnyQuamQD, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuamQD:
     """Scan wiring for Octaves and initialize frequency converters.
 
     Creates Octave component instances for each Octave found in the wiring
@@ -435,7 +433,7 @@ def add_octaves(
     return machine
 
 
-def add_external_mixers(machine: AnyQuam) -> AnyQuam:
+def add_external_mixers(machine: AnyQuamQD) -> AnyQuamQD:
     """Scan wiring for external mixers and create frequency converter components.
 
     Creates mixer components with local oscillators for each external mixer
