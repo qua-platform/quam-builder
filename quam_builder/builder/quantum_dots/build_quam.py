@@ -528,30 +528,28 @@ def _wire_voltage_gate_qdac(
                 f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
             )
         dig = voltage_gate.digital_outputs[digital_output_key]
-        digital_ch = Channel(
-            id=f"qdac_trig_{qdac_output_port}",
-            digital_outputs={},
-            operations={
-                "trigger": pulses.Pulse(
-                    length=trigger_pulse_length_ns, digital_marker="ON"
-                )
-            },
-        )
+        # digital_ch = Channel(
+        #     id=f"qdac_trig_{qdac_output_port}",
+        #     digital_outputs={},
+        #     operations={
+        #         "trigger": pulses.Pulse(
+        #             length=trigger_pulse_length_ns, digital_marker="ON"
+        #         )
+        #     },
+        # )
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
-            opx_trigger_out=digital_ch,
+            opx_trigger_out=dig.get_reference(),
             qdac_trigger_in=qdac_trigger_in,
         )
-        del voltage_gate.digital_outputs[digital_output_key]
-        dig.parent = None
-        digital_ch.digital_outputs["trigger"] = dig
+        # del voltage_gate.digital_outputs[digital_output_key]
+        # dig.parent = None
+        # digital_ch.digital_outputs["trigger"] = dig
     else:
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
-            opx_trigger_out=None,
-            qdac_trigger_in=qdac_trigger_in,
         )
 
 def add_dacs(

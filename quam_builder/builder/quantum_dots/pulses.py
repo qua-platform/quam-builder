@@ -166,6 +166,9 @@ def add_default_baseband_pulse(voltage_gate: VoltageGate):
             voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
                 amplitude=0.25, length=MIN_PULSE_DURATION_NS
             )
+        # Add trigger pulse for the external DAC
+        if len(voltage_gate.digital_outputs) > 0:
+            voltage_gate.operations["trigger"] = SquarePulse(amplitude=0.0, length=1000, digital_marker="ON")
 
 def update_output_mode_and_default_baseband_pulse(voltage_gate: VoltageGate, output_mode: Literal["amplified", "direct"]):
     """Update default square pulse of the voltage gate.
