@@ -9,13 +9,14 @@
 """
 
 import warnings
-from typing import Any, Union
+from typing import Any, Literal
 import numpy as np
-from quam.components.pulses import GaussianPulse, SquareReadoutPulse, DragPulse
+from quam.components.pulses import GaussianPulse, SquareReadoutPulse, SquarePulse
 from quam.components.channels import SingleChannel
 from qualang_tools.addons.calibration.calibrations import unit
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorBase
+from quam_builder.architecture.quantum_dots.components import ANY_READOUT_RESONATOR, VoltageGate
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
 
 u = unit(coerce_to_integer=True)
 
@@ -98,7 +99,7 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
         )
 
 
-def add_default_resonator_pulses(resonator: ReadoutResonatorBase) -> None:
+def add_default_resonator_pulses(resonator: ANY_READOUT_RESONATOR) -> None:
     """Add default square readout pulse to sensor resonator.
 
     .. deprecated::
@@ -115,7 +116,7 @@ def add_default_resonator_pulses(resonator: ReadoutResonatorBase) -> None:
     )
     readout_length = 2000  # ns
     readout_amp = 0.1
-    if isinstance(resonator, ReadoutResonatorBase):
+    if isinstance(resonator, ANY_READOUT_RESONATOR):
         resonator.operations["readout"] = SquareReadoutPulse(
             id="readout",
             length=readout_length,
@@ -139,3 +140,52 @@ def add_default_ldv_qubit_pair_pulses(qubit_pair: Any) -> None:
         stacklevel=2,
     )
     pass
+
+
+def add_default_baseband_pulse(voltage_gate: VoltageGate):
+    """Add default square pulse to the voltage gate.
+    Note that the amplitude of the default pulse is chosen based on the output mode:
+        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 1.25V
+        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.25V
+        - if OPX+, then the waveform amplitude is 0.25V.
+
+        Args:
+            voltage_gate: VoltageGate instance to configure.
+        """
+    if not isinstance(voltage_gate, str):
+        if hasattr(voltage_gate.opx_output, "output_mode"):
+            if voltage_gate.opx_output.output_mode == "amplified":
+                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                    amplitude=1.25, length=MIN_PULSE_DURATION_NS
+                )
+            else:
+                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                )
+        else:
+            voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                amplitude=0.25, length=MIN_PULSE_DURATION_NS
+            )
+
+def update_output_mode_and_default_baseband_pulse(voltage_gate: VoltageGate, output_mode: Literal["amplified", "direct"]):
+    """Update default square pulse of the voltage gate.
+    Note that the amplitude of the default pulse is chosen based on the output mode:
+        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 1.25V
+        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.25V
+        - if OPX+, then the waveform amplitude is 0.25V.
+
+        Args:
+            voltage_gate: VoltageGate instance to configure.
+            output_mode: The OPX1000 LF-FEM output mode. Can be "amplified" or "direct".
+        """
+    if not isinstance(voltage_gate, str):
+        if hasattr(voltage_gate.opx_output, "output_mode"):
+            voltage_gate.opx_output.output_mode = output_mode
+            if voltage_gate.opx_output.output_mode == "amplified":
+                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                    amplitude=1.25, length=MIN_PULSE_DURATION_NS
+                )
+            else:
+                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
+                )
