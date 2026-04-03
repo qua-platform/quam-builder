@@ -21,6 +21,7 @@ from quam_builder.builder.superconducting.add_transmon_pair_component import (
 from quam_builder.builder.superconducting.add_transmon_resonator_component import (
     add_transmon_resonator_component,
 )
+from quam_builder.builder.superconducting.macros import add_default_transmon_macros, add_default_transmon_pair_macros
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
@@ -42,7 +43,7 @@ def build_quam(
     add_ports(machine)
     add_transmons(machine)
     add_pulses(machine)
-
+    add_macros(machine)
     machine.save()
 
     return machine
@@ -155,6 +156,16 @@ def add_pulses(machine: AnyQuam):
         for qubit_pair in machine.qubit_pairs.values():
             add_default_transmon_pair_pulses(qubit_pair)
 
+def add_macros(machine: AnyQuam):
+    """Adds default macros to the transmon qubits and qubit pairs in the machine.
+    """
+    if hasattr(machine, "qubits"):
+        for transmon in machine.qubits.values():
+            add_default_transmon_macros(transmon)
+
+    if hasattr(machine, "qubit_pairs"):
+        for qubit_pair in machine.qubit_pairs.values():
+            add_default_transmon_pair_macros(qubit_pair)
 
 def add_octaves(
     machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
