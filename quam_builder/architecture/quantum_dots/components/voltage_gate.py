@@ -11,36 +11,6 @@ from .dac_spec import DacSpec, QdacSpec
 __all__ = ["VoltageGate"]
 
 
-class _OffsetParameterTrackingProxy:
-    """Wraps a callable offset (e.g. QCoDeS Parameter) to sync ``current_external_voltage`` on each call."""
-
-    __slots__ = ("_gate", "_inner")
-
-    def __init__(self, gate: "VoltageGate", inner: Callable[..., Any]) -> None:
-        self._gate = gate
-        self._inner = inner
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        result = self._inner(*args, **kwargs)
-        gate = self._gate
-
-        if args and not kwargs and len(args) == 1:
-            v = args[0]
-            if isinstance(v, (int, float)):
-                gate.current_external_voltage = float(v)
-        elif not args and not kwargs:
-            if isinstance(result, (int, float)):
-                gate.current_external_voltage = float(result)
-
-        return result
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._inner, name)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self._inner!r})"
-
-
 @quam_dataclass
 class VoltageGate(SingleChannel):
     """
@@ -51,9 +21,7 @@ class VoltageGate(SingleChannel):
         settling_time: The settling time of the voltage gate in ns. The value will be cast to an integer multiple of 4ns
             automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
-            Can be e.g. a QDAC channel. Callable values are wrapped so that
-            ``gate.offset_parameter(v)`` and ``gate.offset_parameter()`` update
-            ``current_external_voltage`` when a numeric value is written or read.
+            Can be e.g. a QDAC channel.
 
     Example:
         >>>
@@ -99,16 +67,9 @@ class VoltageGate(SingleChannel):
 
     @offset_parameter.setter
     def offset_parameter(self, value):
-        if value is None:
-            self._offset_parameter = None
-        elif isinstance(value, _OffsetParameterTrackingProxy):
-            self._offset_parameter = _OffsetParameterTrackingProxy(self, value._inner)
+        self._offset_parameter = value
+        if callable(self._offset_parameter):
             self.current_external_voltage = self._offset_parameter()
-        elif callable(value):
-            self._offset_parameter = _OffsetParameterTrackingProxy(self, value)
-            self.current_external_voltage = self._offset_parameter()
-        else:
-            self._offset_parameter = value
 
     def settle(self):
         """Wait for the voltage bias to settle"""
