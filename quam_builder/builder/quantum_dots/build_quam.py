@@ -542,7 +542,7 @@ def _wire_voltage_gate_qdac(
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
-            opx_trigger_out=dig.get_reference(),
+            opx_trigger_out=dig.opx_output.get_reference(),
             qdac_trigger_in=qdac_trigger_in,
         )
         # del voltage_gate.digital_outputs[digital_output_key]
@@ -572,7 +572,8 @@ def add_dacs(
     Channel entries are resolved via ``virtual_gate_sets[gate_set_id].channels[key]``
     so ``#/`` references are followed while the gate set is already under this root.
     """
-    for _, vgs in machine.virtual_gate_sets.values():
+    for vgs_key in machine.virtual_gate_sets.keys():
+        vgs = machine.virtual_gate_sets[vgs_key]
         for channel_name in list(vgs.channels.keys()):
             gate = vgs.channels[channel_name]
             if not isinstance(gate, VoltageGate):
@@ -583,7 +584,7 @@ def add_dacs(
             ch_nb = entry.get("ch")
             if ch_nb is None:
                 continue
-            machine.wire_voltage_gate_qdac(
+            _wire_voltage_gate_qdac(
                 gate,
                 qdac_output_port=ch_nb,
                 dac_name=dac_name,
