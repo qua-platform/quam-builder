@@ -1,19 +1,26 @@
 from pathlib import Path
-from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callable, Sequence
+from typing import (
+    List,
+    Dict,
+    Union,
+    ClassVar,
+    Optional,
+    Literal,
+    Sequence,
+)
 from dataclasses import field
 import numpy as np
-from collections import defaultdict
 import importlib
 import json
 
-from qm import QuantumMachinesManager, QuantumMachine
+from qm import QuantumMachinesManager
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
 from qm.qua import declare, fixed, declare_stream
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
-from quam.components import Channel
+from quam.components import Channel, pulses
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.core import quam_dataclass, QuamRoot, QuamBase
 
@@ -33,6 +40,7 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
+from quam_builder.architecture.quantum_dots.components.dac_spec import QdacSpec
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit
 
@@ -307,8 +315,8 @@ class BaseQuamQD(QuamRoot):
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
             )
-            sensor_dot.physical_channel.readout = res
             self.sensor_dots[virtual_name] = sensor_dot
+            sensor_dot.physical_channel.readout = res
 
         if sensor_drain_mappings is not None:
             for ch, drain in sensor_drain_mappings.items():
@@ -467,23 +475,29 @@ class BaseQuamQD(QuamRoot):
             # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
             channel_mapping[physical_name] = ch.get_reference()
 
+        # Register an empty gate set first, then fill ``channels`` while ``parent`` is set.
+        # Otherwise QUAM may resolve ``#/`` references during construction while this
+        # VirtualGateSet is still detached from the QuamRoot, triggering get_root() warnings.
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(
             id=gate_set_id,
-            channels=channel_mapping,
+            channels={},
             allow_rectangular_matrices=allow_rectangular_matrices,
             adjust_for_attenuation=adjust_for_attenuation,
         )
+        vgs = self.virtual_gate_sets[gate_set_id]
+        for physical_name, ref in channel_mapping.items():
+            vgs.channels[physical_name] = ref
 
         if compensation_matrix is None:
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
-        self.virtual_gate_sets[gate_set_id].add_to_layer(
+        vgs.add_to_layer(
             layer_id="compensation_layer",
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,
         )
-        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(
+        self.voltage_sequences[gate_set_id] = vgs.new_sequence(
             track_integrated_voltage=True
         )
 
