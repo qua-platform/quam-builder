@@ -81,8 +81,7 @@ class FluxTunableQuam(BaseQuam):
     def set_all_fluxes(
         self,
         flux_point: str,
-        target: Union[FluxTunableTransmon, FluxTunableTransmonPair] | None = None,
-        target: Union[FluxTunableTransmon, FluxTunableTransmonPair] | None = None,
+        target: Union[FluxTunableTransmon, FluxTunableTransmonPair] | None = None
     ):
         """Set the fluxes to the specified point for the target qubit or qubit pair.
 
@@ -104,7 +103,6 @@ class FluxTunableQuam(BaseQuam):
             self.apply_all_flux_to_joint_idle()
             if isinstance(target, FluxTunableTransmonPair):
                 target_bias = target.mutual_flux_bias
-            elif isinstance(target, FluxTunableTransmon):
             elif isinstance(target, FluxTunableTransmon):
                 target_bias = target.z.joint_offset
         else:
