@@ -2,6 +2,7 @@ from typing import Union, Any
 from dataclasses import field
 
 import numpy as np
+from qm.qua import align
 
 from quam.components.macro import QubitPairMacro
 from quam.components.pulses import Pulse
@@ -214,9 +215,12 @@ class CZGate(QubitPairMacro):
                 spectator_qubits_list.append(spectator_qubit)
                 spectator_pulse_names[qubit_name] = get_pulse_name(pulse)
 
-        # Align all qubits (including spectator qubits) before playing to ensure simultaneous start
-        align_list = [self.qubit_pair.qubit_target] + spectator_qubits_list
-        self.qubit_pair.qubit_control.align(align_list)
+        # Align all qubits (including coupler and spectator qubits) before playing to ensure simultaneous start
+        all_qubits = [self.qubit_pair.qubit_control, self.qubit_pair.qubit_target] + spectator_qubits_list
+        channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
+        if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
+            channel_names.add(self.qubit_pair.coupler.name)
+        align(*channel_names)
 
         # Spectator qubit flux pulses
         for qubit_name, spectator_qubit in zip(self.spectator_qubits.keys(), spectator_qubits_list):
@@ -255,4 +259,7 @@ class CZGate(QubitPairMacro):
                 self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
 
         # Final alignment
-        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
+        final_channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
+        if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
+            final_channel_names.add(self.qubit_pair.coupler.name)
+        align(*final_channel_names)
