@@ -1,5 +1,7 @@
 """Quantum dots components module."""
 
+from typing import Union
+
 from . import voltage_gate
 from . import virtual_gate_set
 from . import virtual_dc_set

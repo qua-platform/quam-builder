@@ -70,13 +70,6 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
 
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
-    def __post_init__(self):
-        super().__post_init__()
-        if isinstance(self.quantum_dot, str):
-            return
-        if self.id is None:
-            self.id = self.quantum_dot.id
-
     @property
     def physical_channel(self) -> Channel:
         return self.quantum_dot.physical_channel

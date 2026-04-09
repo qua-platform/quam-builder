@@ -14,28 +14,26 @@ from wiring specifications. It orchestrates:
 
 import warnings
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Mapping, Any
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.builder.quantum_dots.build_qpu import (
-    QpuAssembly,
     _QpuBuilder,
     _set_default_grid_location,
 )
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, AnyQuamQD
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
-from quam_builder.architecture.superconducting.qpu import AnyQuam
-
+from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacSpec
 
 def build_base_quam(
     machine: BaseQuamQD,
     calibration_db_path: Optional[Union[Path, str]] = None,
-    qdac_ip: Optional[str] = None,
+    dac_mapping: Optional[dict] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
     component_overrides: Optional[dict] = None,
@@ -61,8 +59,7 @@ def build_base_quam(
         machine: BaseQuamQD instance with wiring defined.
         calibration_db_path: Path to Octave calibration database. If None, uses
             the machine's state directory.
-        qdac_ip: IP address for QDAC connection. If provided with connect_qdac=True,
-            connects to QDAC for external voltage control.
+        dac_mapping: mapping between the voltage gate and the corresponding dac channel {"voltage_gate_name": {"ch": dac_channel_number, "trigger": bool}}
         connect_qdac: If True, connects to QDAC using qdac_ip or machine.network['qdac_ip'].
         macro_profile_path: Optional TOML file with macro override definitions.
         component_overrides: Typed overrides keyed by component class. See
@@ -95,6 +92,9 @@ def build_base_quam(
     _BaseQpuBuilder(machine).build()
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
+    # Map the connectivity between the DAC channels of the voltage gates
+    add_dacs(machine, dac_mapping)
+
     wire_machine_macros(
         machine,
         macro_profile_path=macro_profile_path,
@@ -104,9 +104,7 @@ def build_base_quam(
 
     # Optional QDAC connection
     if connect_qdac:
-        if qdac_ip:
-            machine.network["qdac_ip"] = qdac_ip
-        machine.connect_to_external_source(external_qdac=True)
+        machine.connect_to_external_source()
 
     if save:
         machine.save()
@@ -231,7 +229,7 @@ def build_quam(
     machine: Union[BaseQuamQD, LossDiVincenzoQuam],
     calibration_db_path: Optional[Union[Path, str]] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
-    qdac_ip: Optional[str] = None,
+    dac_mapping: Optional[dict] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
     component_overrides: Optional[dict] = None,
@@ -250,7 +248,7 @@ def build_quam(
         machine: BaseQuamQD or LossDiVincenzoQuam with wiring defined.
         calibration_db_path: Path to Octave calibration database.
         qubit_pair_sensor_map: Sensor mapping for qubit pairs.
-        qdac_ip: IP address for QDAC connection.
+        dac_mapping: mapping between the voltage gate and the corresponding dac channel {"voltage_gate_name": {"ch": dac_channel_number, "trigger": bool}}
         connect_qdac: If True, connects to QDAC for external voltage control.
         macro_profile_path: Optional TOML file with macro override definitions.
         component_overrides: Typed overrides keyed by component class. See
@@ -283,7 +281,7 @@ def build_quam(
         machine = build_base_quam(
             machine,
             calibration_db_path=calibration_db_path,
-            qdac_ip=qdac_ip,
+            dac_mapping=dac_mapping,
             connect_qdac=connect_qdac,
             macro_profile_path=macro_profile_path,
             component_overrides=component_overrides,
@@ -318,7 +316,7 @@ class _OrchestratedQuamBuilder:
 
     def __init__(
         self,
-        machine: AnyQuam,
+        machine: AnyQuamQD,
         calibration_db_path: Optional[Union[Path, str]],
         qubit_pair_sensor_map: Optional[dict],
     ) -> None:
@@ -343,7 +341,7 @@ class _OrchestratedQuamBuilder:
         add_qpu(self.machine, qubit_pair_sensor_map=self.qubit_pair_sensor_map)
 
 
-def add_ports(machine: AnyQuam) -> None:
+def add_ports(machine: AnyQuamQD) -> None:
     """Register all I/O ports referenced in wiring specifications.
 
     Scans the wiring configuration and creates port objects for all
@@ -362,7 +360,7 @@ def add_ports(machine: AnyQuam) -> None:
                         )
 
 
-def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> None:
+def add_qpu(machine: AnyQuamQD, qubit_pair_sensor_map: Optional[dict] = None) -> None:
     """Build and register QPU elements from wiring specifications.
 
     Creates and registers:
@@ -381,7 +379,7 @@ def add_qpu(machine: AnyQuam, qubit_pair_sensor_map: Optional[dict] = None) -> N
 
 
 def _resolve_calibration_db_path(
-    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
+    machine: AnyQuamQD, calibration_db_path: Optional[Union[Path, str]]
 ) -> Path:
     """Resolve and normalize Octave calibration database path.
 
@@ -403,8 +401,8 @@ def _resolve_calibration_db_path(
 
 
 def add_octaves(
-    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuam:
+    machine: AnyQuamQD, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuamQD:
     """Scan wiring for Octaves and initialize frequency converters.
 
     Creates Octave component instances for each Octave found in the wiring
@@ -435,7 +433,7 @@ def add_octaves(
     return machine
 
 
-def add_external_mixers(machine: AnyQuam) -> AnyQuam:
+def add_external_mixers(machine: AnyQuamQD) -> AnyQuamQD:
     """Scan wiring for external mixers and create frequency converter components.
 
     Creates mixer components with local oscillators for each external mixer
@@ -493,3 +491,105 @@ def add_pulses(machine: LossDiVincenzoQuam) -> None:
     from quam_builder.architecture.quantum_dots.macro_engine.wiring import _ensure_default_pulses
 
     _ensure_default_pulses(machine)
+
+
+def _wire_voltage_gate_qdac(
+    voltage_gate: VoltageGate,
+    *,
+    qdac_output_port: int,
+    dac_name: str = "qdac",
+    with_trigger_channel: bool = False,
+    digital_output_key: str = "qdac_trig_0",
+    qdac_trigger_in: Optional[int] = None,
+    trigger_pulse_length_ns: int = 100,
+) -> None:
+    """Attach QDAC metadata and optionally move a digital trigger under a wrapper ``Channel``.
+
+    Setting ``digital_outputs[...].parent = None`` before the line is registered under
+    the Quam tree causes QUAM to resolve references on an orphan
+    ``DigitalOutputChannel`` and emit ``get_root()`` warnings. This method registers
+    ``QdacSpec`` (and the optional OPX trigger ``Channel``) **first**, then moves the
+    existing digital line in a minimal second step.
+
+    Args:
+        voltage_gate: Physical gate (e.g. from ``virtual_gate_sets[id].channels``).
+        qdac_output_port: QDAC channel index.
+        dac_name: Key under ``machine.dacs`` for the driver.
+        with_trigger_channel: If True, move ``digital_output_key`` into a wrapper
+            ``Channel`` referenced by ``QdacSpec.opx_trigger_out``.
+        digital_output_key: Name of the digital output on the gate (default wiring
+            uses ``qdac_trig_0``).
+        qdac_trigger_in: Optional QDAC external trigger port.
+        trigger_pulse_length_ns: Length of the default ``trigger`` pulse on the
+            wrapper channel when ``with_trigger_channel`` is True.
+    """
+    if with_trigger_channel:
+        if digital_output_key not in voltage_gate.digital_outputs:
+            raise KeyError(
+                f"{digital_output_key!r} missing from digital_outputs of "
+                f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
+            )
+        dig = voltage_gate.digital_outputs[digital_output_key]
+        # digital_ch = Channel(
+        #     id=f"qdac_trig_{qdac_output_port}",
+        #     digital_outputs={},
+        #     operations={
+        #         "trigger": pulses.Pulse(
+        #             length=trigger_pulse_length_ns, digital_marker="ON"
+        #         )
+        #     },
+        # )
+        voltage_gate.dac_spec = QdacSpec(
+            dac_name=dac_name,
+            qdac_output_port=qdac_output_port,
+            opx_trigger_out=dig.opx_output.get_reference(),
+            qdac_trigger_in=qdac_trigger_in,
+        )
+        # del voltage_gate.digital_outputs[digital_output_key]
+        # dig.parent = None
+        # digital_ch.digital_outputs["trigger"] = dig
+    else:
+        voltage_gate.dac_spec = QdacSpec(
+            dac_name=dac_name,
+            qdac_output_port=qdac_output_port,
+        )
+
+def add_dacs(
+    machine: BaseQuamQD,
+    dac_mapping: Mapping[str, Mapping[str, Any]],
+    *,
+    digital_output_key: str = "qdac_trig_0",
+    dac_name: str = "qdac",
+    qdac_trigger_in: Optional[int] = None,
+    trigger_pulse_length_ns: int = 100,
+) -> None:
+    """Apply :meth:`wire_voltage_gate_qdac` to every ``VoltageGate`` listed in ``qdac_mapping``.
+
+    Keys of ``qdac_mapping`` must match :attr:`VoltageGate.name` (same as the prior
+    ``quam_config`` loop). Values are dicts with at least ``"ch"`` (QDAC port index,
+    or ``None`` to skip) and optional ``"trigger"`` (bool, default ``False``).
+
+    Channel entries are resolved via ``virtual_gate_sets[gate_set_id].channels[key]``
+    so ``#/`` references are followed while the gate set is already under this root.
+    """
+    for vgs_key in machine.virtual_gate_sets.keys():
+        vgs = machine.virtual_gate_sets[vgs_key]
+        for channel_name in list(vgs.channels.keys()):
+            gate = vgs.channels[channel_name]
+            if not isinstance(gate, VoltageGate):
+                continue
+            if gate.name not in dac_mapping:
+                continue
+            entry = dac_mapping[gate.name]
+            ch_nb = entry.get("ch")
+            if ch_nb is None:
+                continue
+            _wire_voltage_gate_qdac(
+                gate,
+                qdac_output_port=ch_nb,
+                dac_name=dac_name,
+                with_trigger_channel=bool(entry.get("trigger", False)),
+                digital_output_key=digital_output_key,
+                qdac_trigger_in=qdac_trigger_in,
+                trigger_pulse_length_ns=trigger_pulse_length_ns,
+            )
