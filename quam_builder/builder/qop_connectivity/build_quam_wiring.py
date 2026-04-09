@@ -60,6 +60,10 @@ def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
                     machine.ports = FEMPortsContainer()
                 elif channel.instrument_id in ["opx+"]:
                     machine.ports = OPXPlusPortsContainer()
+                elif channel.instrument_id == "qdac2" and machine.ports is None:
+                    # No LF/OPX channels on this element: still attach a ports container so QUAM
+                    # machine state is valid (QDAC DC lines use integer wiring keys, not #/ports/...).
+                    machine.ports = OPXPlusPortsContainer()
 
 
 def add_name_and_ip(machine: AnyQuam, host_ip: str, cluster_name: str, port: Union[int, None]):

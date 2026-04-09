@@ -354,6 +354,9 @@ def _make_voltage_gate_with_qdac(
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
+    qdac_trigger_in = ports.get("qdac_trigger_in")
+    if qdac_trigger_in is not None:
+        gate.qdac_trigger_in = qdac_trigger_in
     return gate
 
 

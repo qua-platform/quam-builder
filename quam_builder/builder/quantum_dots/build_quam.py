@@ -350,14 +350,15 @@ def add_ports(machine: AnyQuamQD) -> None:
     Args:
         machine: QuAM instance with wiring defined.
     """
+    if machine.ports is None:
+        return
     for wiring_by_element in machine.wiring.values():
         for wiring_by_line_type in wiring_by_element.values():
             for ports in wiring_by_line_type.values():
                 for port in ports:
-                    if "ports" in ports.get_unreferenced_value(port):
-                        machine.ports.reference_to_port(
-                            ports.get_unreferenced_value(port), create=True
-                        )
+                    raw = ports.get_unreferenced_value(port)
+                    if isinstance(raw, str) and "ports" in raw:
+                        machine.ports.reference_to_port(raw, create=True)
 
 
 def add_qpu(machine: AnyQuamQD, qubit_pair_sensor_map: Optional[dict] = None) -> None:
