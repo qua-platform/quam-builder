@@ -1,10 +1,11 @@
 """QDAC-II wiring helpers (quam-builder only; no QUAM fork).
 
-QUAM resolves ``#/ports/...`` strings via :meth:`FEMPortsContainer.reference_to_port` /
-:class:`OPXPlusPortsContainer`, which only understand OPX1000 / OPX+ layouts. QDAC outputs are
-external to that graph, so we use a **parallel** reference root ``#/qdac/...`` plus explicit
-``unit_index`` and ``port`` fields. That keeps ``wiring.json`` readable for multi-unit setups
-without registering fake entries under ``machine.ports``.
+QUAM resolves any string starting with ``#/`` as a JSON pointer into the Quam root (see
+:func:`quam.utils.string_reference.is_reference`). QDAC outputs are not components on the root,
+so there is no live ``#/qdac/...`` target to resolve. We therefore store **logical** ids in
+``ref`` **without** a ``#/`` prefix (e.g. ``qdac/analog_outputs/qdac1/3``) so traversal of
+``machine.wiring`` does not emit missing-reference warnings. Use ``unit_index`` and ``port``
+for programmatic use; ``ref`` is for humans and external tooling.
 """
 
 from __future__ import annotations
@@ -34,13 +35,13 @@ QDAC_TRIGGER_KEY = "qdac_trigger"
 
 
 def qdac_analog_output_ref(unit_index: int, port: int) -> str:
-    """Stable JSON-pointer-style id for a QDAC DC output (not under ``#/ports``)."""
-    return f"#/qdac/analog_outputs/qdac{int(unit_index)}/{int(port)}"
+    """Stable logical path for a QDAC DC output (not a QUAM ``#/`` reference)."""
+    return f"qdac/analog_outputs/qdac{int(unit_index)}/{int(port)}"
 
 
 def qdac_digital_input_ref(unit_index: int, port: int) -> str:
-    """Stable id for a QDAC external trigger input (not under ``#/ports``)."""
-    return f"#/qdac/digital_inputs/qdac{int(unit_index)}/{int(port)}"
+    """Stable logical path for a QDAC external trigger input (not a QUAM ``#/`` reference)."""
+    return f"qdac/digital_inputs/qdac{int(unit_index)}/{int(port)}"
 
 
 def qdac_output_wiring_entry(channel: InstrumentChannelQdac2Output) -> Dict[str, Any]:

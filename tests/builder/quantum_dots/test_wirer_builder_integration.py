@@ -156,7 +156,7 @@ class TestWirerBuilderIntegration:
         assert "opx_output" in gate_wiring
         qo = gate_wiring["qdac_output"]
         assert qo["unit_index"] == 1 and qo["port"] == 1
-        assert qo["ref"] == "#/qdac/analog_outputs/qdac1/1"
+        assert qo["ref"] == "qdac/analog_outputs/qdac1/1"
 
     def test_qdac_spec_from_wiring(self, temp_dir):
         """Stage 1 attaches QdacSpec from ``machine.wiring``."""
