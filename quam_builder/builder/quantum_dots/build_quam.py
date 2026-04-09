@@ -686,4 +686,4 @@ def add_dacs(
                 with_trigger_channel=bool(entry.get("trigger", False)),
                 digital_output_key=digital_output_key,
                 qdac_trigger_in=entry_qti,
-remove trigger pulse length            )
+            )
