@@ -891,10 +891,12 @@ class BaseQuamQD(QuamRoot):
         except:
             raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
 
-    def connect(self, timeout: Optional[float] = None) -> QuantumMachinesManager:
+    def connect(self, skip_dacs: bool=False, reset_voltages: bool = False, timeout: Optional[float] = None) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
         Args:
+            skip_dacs (bool): Whether to connect to the registered DACs.
+            reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
             timeout: Timeout in seconds for gRPC API calls including program compilation.
                 Defaults to the QM SDK default (120 s). Increase for programs with many
                 QUA variables that take longer to compile.
@@ -912,6 +914,10 @@ class BaseQuamQD(QuamRoot):
         if timeout is not None:
             settings["timeout"] = timeout
         self.qmm = QuantumMachinesManager(**settings)
+
+        ## TODO: need to also call self.create_virtual_dc_set("main_qpu") every time?
+        if self.dac_config and ~skip_dacs:
+            self.connect_to_external_source(reset_voltages)
         return self.qmm
 
     def get_octave_config(self) -> QmOctaveConfig:
