@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
+from qualang_tools.wirer import (
+    Instruments,
+    Connectivity,
+    allocate_wiring,
+    lf_fem_spec,
+    qdac2_spec,
+)
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import (
@@ -122,6 +128,33 @@ class TestWirerBuilderIntegration:
         # Verify QPU elements were created
         assert len(machine.sensor_dots) > 0
         assert len(machine.quantum_dots) > 0
+
+    def test_build_quam_wiring_lf_fem_and_qdac2_dual_voltage_gate(self, temp_dir):
+        """Wiring dict includes LF analog ref and QDAC2 channel index from wirer allocation."""
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            [1],
+            triggered=False,
+            name="vg",
+            constraints=lf_fem_spec(con=1, out_slot=1) & qdac2_spec(index=1),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+
+        gate_wiring = machine.wiring["globals"]["vg1"][WiringLineType.GLOBAL_GATE.value]
+        assert "opx_output" in gate_wiring
+        assert gate_wiring["qdac_channel"] == 1
 
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
