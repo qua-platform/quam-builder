@@ -194,6 +194,8 @@ class BaseQuamQD(QuamRoot):
         for dac_name, config in self.dac_config.items():
             module = importlib.import_module(config["driver_module"])
             dac_class = getattr(module, config["driver_class"])
+            if dac_name in dac_instances:
+                dac_instances[dac_name]["driver"].close()
             dac_instances[dac_name] = {
                 "driver": dac_class(dac_name, **config["connection"]),
                 "channel_method": config["channel_method"],
