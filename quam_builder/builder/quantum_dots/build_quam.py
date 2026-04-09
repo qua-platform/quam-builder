@@ -617,7 +617,7 @@ def _wire_voltage_gate_qdac(
         with_trigger_channel: If True, move ``digital_output_key`` into a wrapper
             ``Channel`` referenced by ``QdacSpec.opx_trigger_out``.
         digital_output_key: Name of the digital output on the gate (default wiring
-            uses ``qdac_trig_0``).
+            uses ``qdac_trig``).
         qdac_trigger_in: Optional QDAC external trigger port.
         trigger_pulse_length_ns: Length of the default ``trigger`` pulse on the
             wrapper channel when ``with_trigger_channel`` is True.
@@ -645,7 +645,7 @@ def _wire_voltage_gate_qdac(
 def add_dacs(
     machine: BaseQuamQD,
     *,
-    digital_output_key: str = "qdac_trig_0",
+    digital_output_key: str = "qdac_trig",
     dac_name: str = "qdac",
     qdac_trigger_in: Optional[int] = None,
     trigger_pulse_length_ns: int = 100,
