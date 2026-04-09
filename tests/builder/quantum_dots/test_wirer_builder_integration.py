@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods
 
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -157,6 +158,48 @@ class TestWirerBuilderIntegration:
         qo = gate_wiring["qdac_output"]
         assert qo["unit_index"] == 1 and qo["port"] == 1
         assert qo["ref"] == "qdac/analog_outputs/qdac1/1"
+
+    def test_dac_config_round_trip_in_wiring_json(self, temp_dir):
+        """DAC driver map is stored under ``dac_config`` in ``wiring.json``."""
+        dac_cfg = {
+            "qdac1": {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": "TCPIP::127.0.0.1::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            },
+            "qdac2": {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": "TCPIP::127.0.0.2::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            },
+        }
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        connectivity = Connectivity()
+        connectivity.add_quantum_dots(quantum_dots=[1], add_drive_lines=False)
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+            dac_config=dac_cfg,
+        )
+
+        wiring_files = list(Path(temp_dir).rglob("wiring.json"))
+        assert wiring_files, "expected wiring.json under save path"
+        on_disk = json.loads(wiring_files[0].read_text(encoding="utf-8"))
+        assert on_disk.get("dac_config") == dac_cfg
+        assert on_disk.get("network", {}).get("host") == "127.0.0.1"
 
     def test_qdac_spec_from_wiring(self, temp_dir):
         """Stage 1 attaches QdacSpec from ``machine.wiring``."""
