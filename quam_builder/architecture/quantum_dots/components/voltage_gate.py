@@ -1,6 +1,6 @@
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
-from quam.components import SingleChannel
+from quam.components import Channel, SingleChannel
 from quam.core import quam_dataclass
 
 from .readout_transport import ANY_READOUT_TRANSPORT
@@ -22,6 +22,8 @@ class VoltageGate(SingleChannel):
             automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
             Can be e.g. a QDAC channel.
+        opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). QUA config then omits
+            ``singleInput``; use :attr:`dac_spec` / external drivers for DC.
 
     Example:
         >>>
@@ -40,6 +42,7 @@ class VoltageGate(SingleChannel):
         >>> gate.offset_parameter() # Returns 0.1V
     """
 
+    opx_output: Any = None
     attenuation: float = 0.0
     settling_time: float = None
     # current_external_voltage, an attribute to help with serialising the experimental state
@@ -75,3 +78,19 @@ class VoltageGate(SingleChannel):
         """Wait for the voltage bias to settle"""
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
+
+    def apply_to_config(self, config: Dict[str, dict]) -> None:
+        """Skip OPX ``singleInput`` when this gate has no OPX analog port (external / QDAC-only DC)."""
+        if self.opx_output is None:
+            Channel.apply_to_config(self, config)
+            return
+        super().apply_to_config(config)
+
+    def set_dc_offset(self, offset):  # noqa: ANN001 — match SingleChannel API
+        """Raise for QDAC-only gates; OPX has no DC line to offset."""
+        if self.opx_output is None:
+            raise RuntimeError(
+                "VoltageGate has no OPX analog output (QDAC-only wiring); "
+                "cannot use set_dc_offset on the OPX. Control DC via dac_spec / external DAC."
+            )
+        super().set_dc_offset(offset)

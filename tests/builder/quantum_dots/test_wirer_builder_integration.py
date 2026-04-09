@@ -236,6 +236,64 @@ class TestWirerBuilderIntegration:
         assert gate.dac_spec.qdac_output_port == 1
         assert gate.dac_spec.dac_name == "qdac1"
 
+    def test_make_voltage_gate_qdac_only_skips_opx_output_ref(self):
+        """QDAC-only wiring must not set a dangling ``#/wiring/.../opx_output`` reference."""
+        from quam_builder.builder.quantum_dots.build_utils import _make_voltage_gate_with_qdac
+
+        ports = {
+            "qdac_output": {"unit_index": 1, "port": 10, "ref": "qdac/analog_outputs/qdac1/10"},
+        }
+        gate = _make_voltage_gate_with_qdac(
+            "source", "#/wiring/globals/source/g", ports, qdac_channel=10
+        )
+        assert gate.opx_output is None
+        assert gate.qdac_channel == 10
+
+    def test_make_voltage_gate_lf_plus_qdac_keeps_opx_output_ref(self):
+        from quam_builder.builder.quantum_dots.build_utils import _make_voltage_gate_with_qdac
+
+        ports = {
+            "opx_output": "#/ports/analog_outputs/con1/1/1/1",
+            "qdac_output": {"unit_index": 1, "port": 3, "ref": "qdac/analog_outputs/qdac1/3"},
+        }
+        gate = _make_voltage_gate_with_qdac(
+            "vg1", "#/wiring/globals/vg1/g", ports, qdac_channel=3
+        )
+        assert gate.opx_output == "#/wiring/globals/vg1/g/opx_output"
+
+    def test_global_voltage_gate_qdac_only_stage1(self, temp_dir):
+        """Global gate with only QDAC2 channels: Stage 1 builds a gate without OPX analog ref."""
+        instruments = Instruments()
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            "source",
+            name="",
+            triggered=False,
+            constraints=qdac2_spec(index=1, out_port=10),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+        build_base_quam(
+            machine,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        vgs = machine.virtual_gate_sets["main_qpu"]
+        gate = vgs.channels["source"]
+        assert gate.opx_output is None
+        assert gate.qdac_channel == 10
+
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
         qubit_pair_sensor_map = {"q1_q2": ["sensor_1"], "q2_q3": ["sensor_2"]}

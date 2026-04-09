@@ -317,6 +317,27 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     return control, target
 
 
+_OPX_ANALOG_WIRING_KEYS = frozenset({"opx_output", "opx_output_I", "opx_output_Q"})
+
+
+def _wiring_has_opx_analog_output(ports: Any) -> bool:
+    """True if the line wiring includes an OPX/LF analog port reference (not QDAC-only)."""
+    if not ports or not hasattr(ports, "keys"):
+        return False
+    for key in ports.keys():
+        if key not in _OPX_ANALOG_WIRING_KEYS:
+            continue
+        if hasattr(ports, "get_unreferenced_value"):
+            raw = ports.get_unreferenced_value(key)
+        elif hasattr(ports, "get"):
+            raw = ports.get(key)
+        else:
+            raw = ports[key]
+        if raw is not None and raw != "":
+            return True
+    return False
+
+
 def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
     """Extract QDAC DC output port index from wiring (legacy int or structured block).
 
@@ -329,25 +350,29 @@ def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
 
 
 def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, ports: Dict[str, str], qdac_channel: int | None = None
+    gate_id: str, wiring_path: str, ports: Mapping[str, Any], qdac_channel: int | None = None
 ) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:
         gate_id: Identifier for the gate.
         wiring_path: JSON path to wiring configuration.
-        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
+        ports: Port mapping for this line (OPX refs, ``qdac_output``, digitals, etc.).
         qdac_channel: Optional QDAC channel number for external voltage control.
 
     Returns:
         Configured VoltageGate instance with QDAC channel if provided.
+
+    When wiring is **QDAC-only** (no OPX/LF analog port keys), :attr:`VoltageGate.opx_output`
+    is set to ``None`` so QUAM does not resolve a missing ``#/wiring/.../opx_output`` path.
     """
 
     digital_outputs = get_digital_outputs(wiring_path, ports, "qdac_trig")
+    opx_out = f"{wiring_path}/opx_output" if _wiring_has_opx_analog_output(ports) else None
 
     gate = VoltageGate(
         id=gate_id,
-        opx_output=f"{wiring_path}/opx_output",
+        opx_output=opx_out,
         sticky=_make_sticky_channel(),
         digital_outputs=digital_outputs,
     )
