@@ -365,15 +365,17 @@ def _make_voltage_gate_with_qdac(
 
     When wiring is **QDAC-only** (no OPX/LF analog port keys), :attr:`VoltageGate.opx_output`
     is set to ``None`` so QUAM does not resolve a missing ``#/wiring/.../opx_output`` path.
+    Sticky is omitted so :meth:`~quam.core.quam_classes.QuamRoot.generate_config` does not touch OPX.
     """
 
     digital_outputs = get_digital_outputs(wiring_path, ports, "qdac_trig")
     opx_out = f"{wiring_path}/opx_output" if _wiring_has_opx_analog_output(ports) else None
+    sticky = _make_sticky_channel() if opx_out is not None else None
 
     gate = VoltageGate(
         id=gate_id,
         opx_output=opx_out,
-        sticky=_make_sticky_channel(),
+        sticky=sticky,
         digital_outputs=digital_outputs,
     )
     if qdac_channel is not None:

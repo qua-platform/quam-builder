@@ -248,6 +248,7 @@ class TestWirerBuilderIntegration:
         )
         assert gate.opx_output is None
         assert gate.qdac_channel == 10
+        assert gate.sticky is None
 
     def test_make_voltage_gate_lf_plus_qdac_keeps_opx_output_ref(self):
         from quam_builder.builder.quantum_dots.build_utils import _make_voltage_gate_with_qdac
@@ -293,6 +294,9 @@ class TestWirerBuilderIntegration:
         gate = vgs.channels["source"]
         assert gate.opx_output is None
         assert gate.qdac_channel == 10
+        assert gate.sticky is None
+        qua_cfg = machine.generate_config()
+        assert "source" not in qua_cfg.get("elements", {})
 
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
