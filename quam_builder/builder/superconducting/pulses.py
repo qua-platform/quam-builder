@@ -8,6 +8,7 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 import numpy as np
 from typing import Union
 
@@ -261,9 +262,7 @@ def add_Square_pulses(
         transmon.set_gate_shape("Square")
 
 
-def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
-):
+def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]):
     """Adds default pulses to a transmon qubit:
         * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
         * transmon.z.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
@@ -280,9 +279,7 @@ def add_default_transmon_pulses(
 
     if hasattr(transmon, "z"):
         if transmon.z is not None:
-            transmon.z.operations["const"] = pulses.SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon.z.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
 
     if hasattr(transmon, "resonator"):
         if transmon.resonator is not None:
@@ -292,7 +289,7 @@ def add_default_transmon_pulses(
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
@@ -316,4 +313,38 @@ def add_default_transmon_pair_pulses(
         if transmon_pair.zz_drive is not None:
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
+            )
+
+
+def add_default_twpa_pulses(twpa: TWPA):
+    """Adds default pulses to a TWPA:
+        * twpa.pump.operations["pump"] = pulses.SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+        * twpa.pump_.operations["pump"] = pulses.SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+        * twpa.isolation.operations["pump"] = pulses.SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+        * twpa.isolation_.operations["pump"] = pulses.SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+
+    Args:
+        twpa (TWPA): The TWPA component to which the pulses will be added.
+    """
+    if hasattr(twpa, "pump"):
+        if twpa.pump is not None:
+            twpa.pump.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.5, length=16, axis_angle=0
+            )
+    if hasattr(twpa, "pump_"):
+        if twpa.pump_ is not None:
+            twpa.pump_.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.5, length=2000, axis_angle=0
+            )
+
+    if hasattr(twpa, "isolation"):
+        if twpa.isolation is not None:
+            twpa.isolation.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.5, length=16, axis_angle=0
+            )
+
+    if hasattr(twpa, "isolation_"):
+        if twpa.isolation_ is not None:
+            twpa.isolation_.operations["pump"] = pulses.SquarePulse(
+                amplitude=0.5, length=2000, axis_angle=0
             )
