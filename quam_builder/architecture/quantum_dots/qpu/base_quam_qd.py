@@ -417,7 +417,7 @@ class BaseQuamQD(QuamRoot):
         qdac_output_port: int,
         dac_name: str = "qdac",
         with_trigger_channel: bool = False,
-        digital_output_key: str = "qdac_trig_0",
+        digital_output_key: str = "qdac_trig",
         qdac_trigger_in: Optional[int] = None,
     ) -> None:
         """Attach QDAC metadata and optionally move a digital trigger under a wrapper ``Channel``.
@@ -435,7 +435,7 @@ class BaseQuamQD(QuamRoot):
             with_trigger_channel: If True, move ``digital_output_key`` into a wrapper
                 ``Channel`` referenced by ``QdacSpec.opx_trigger_out``.
             digital_output_key: Name of the digital output on the gate (default wiring
-                uses ``qdac_trig_0``).
+                uses ``qdac_trig``).
             qdac_trigger_in: Optional QDAC external trigger port.
         """
         if with_trigger_channel:
@@ -462,7 +462,7 @@ class BaseQuamQD(QuamRoot):
         gate_set_id: str,
         qdac_mapping: Mapping[str, Mapping[str, Any]],
         *,
-        digital_output_key: str = "qdac_trig_0",
+        digital_output_key: str = "qdac_trig",
         dac_name: str = "qdac",
         qdac_trigger_in: Optional[int] = None,
     ) -> None:
