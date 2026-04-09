@@ -359,14 +359,13 @@ class BaseQuamQD(QuamRoot):
 
     def wire_voltage_gate_qdac(
         self,
-        voltage_gate: VoltageGate,
+        voltage_gate: Union[VoltageGate, Channel],
         *,
         qdac_output_port: int,
         dac_name: str = "qdac",
         with_trigger_channel: bool = False,
         digital_output_key: str = "qdac_trig_0",
         qdac_trigger_in: Optional[int] = None,
-        trigger_pulse_length_ns: int = 100,
     ) -> None:
         """Attach QDAC metadata and optionally move a digital trigger under a wrapper ``Channel``.
 
@@ -385,8 +384,6 @@ class BaseQuamQD(QuamRoot):
             digital_output_key: Name of the digital output on the gate (default wiring
                 uses ``qdac_trig_0``).
             qdac_trigger_in: Optional QDAC external trigger port.
-            trigger_pulse_length_ns: Length of the default ``trigger`` pulse on the
-                wrapper channel when ``with_trigger_channel`` is True.
         """
         if with_trigger_channel:
             if digital_output_key not in voltage_gate.digital_outputs:
@@ -395,30 +392,16 @@ class BaseQuamQD(QuamRoot):
                     f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
                 )
             dig = voltage_gate.digital_outputs[digital_output_key]
-            digital_ch = Channel(
-                id=f"qdac_trig_{qdac_output_port}",
-                digital_outputs={},
-                operations={
-                    "trigger": pulses.Pulse(
-                        length=trigger_pulse_length_ns, digital_marker="ON"
-                    )
-                },
-            )
             voltage_gate.dac_spec = QdacSpec(
                 dac_name=dac_name,
                 qdac_output_port=qdac_output_port,
-                opx_trigger_out=digital_ch,
+                opx_trigger_out=dig.get_reference(),
                 qdac_trigger_in=qdac_trigger_in,
             )
-            del voltage_gate.digital_outputs[digital_output_key]
-            dig.parent = None
-            digital_ch.digital_outputs["trigger"] = dig
         else:
             voltage_gate.dac_spec = QdacSpec(
                 dac_name=dac_name,
                 qdac_output_port=qdac_output_port,
-                opx_trigger_out=None,
-                qdac_trigger_in=qdac_trigger_in,
             )
 
     def apply_qdac_channel_mapping(
@@ -429,7 +412,6 @@ class BaseQuamQD(QuamRoot):
         digital_output_key: str = "qdac_trig_0",
         dac_name: str = "qdac",
         qdac_trigger_in: Optional[int] = None,
-        trigger_pulse_length_ns: int = 100,
     ) -> None:
         """Apply :meth:`wire_voltage_gate_qdac` to every ``VoltageGate`` listed in ``qdac_mapping``.
 
@@ -458,7 +440,6 @@ class BaseQuamQD(QuamRoot):
                 with_trigger_channel=bool(entry.get("trigger", False)),
                 digital_output_key=digital_output_key,
                 qdac_trigger_in=qdac_trigger_in,
-                trigger_pulse_length_ns=trigger_pulse_length_ns,
             )
 
     def register_quantum_dot_pair(
