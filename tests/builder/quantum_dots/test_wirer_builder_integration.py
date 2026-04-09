@@ -158,6 +158,41 @@ class TestWirerBuilderIntegration:
         assert qo["unit_index"] == 1 and qo["port"] == 1
         assert qo["ref"] == "#/qdac/analog_outputs/qdac1/1"
 
+    def test_qdac_spec_from_wiring(self, temp_dir):
+        """Stage 1 attaches QdacSpec from ``machine.wiring``."""
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            [1],
+            triggered=False,
+            name="vg",
+            constraints=lf_fem_spec(con=1, out_slot=1) & qdac2_spec(index=1),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+        build_base_quam(
+            machine,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        vgs = machine.virtual_gate_sets["main_qpu"]
+        gate = vgs.channels["vg1"]
+        assert gate.dac_spec is not None
+        assert gate.dac_spec.qdac_output_port == 1
+        assert gate.dac_spec.dac_name == "qdac1"
+
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
         qubit_pair_sensor_map = {"q1_q2": ["sensor_1"], "q2_q3": ["sensor_2"]}
