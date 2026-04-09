@@ -6,10 +6,11 @@ from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 
 from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.quantum_dots.qpu import AnyQuamQD
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
 
-AnyQuam = Union[AnyQuamSC, AnyQuamNV]
+AnyQuam = Union[AnyQuamSC, AnyQuamNV, AnyQuamQD]
 
 
 def build_quam_wiring(
