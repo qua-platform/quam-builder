@@ -17,6 +17,15 @@ from pathlib import Path
 from typing import Optional, Union, Mapping, Any
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam_builder.builder.quantum_dots.build_utils import (
+    _extract_qubit_number,
+    _normalize_element_type,
+)
+from quam_builder.builder.qop_connectivity.qdac_wiring import (
+    extract_qdac_output_port,
+    extract_qdac_trigger_port,
+    extract_qdac_unit_index,
+)
 from quam.components import FrequencyConverter, LocalOscillator, Octave
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.builder.quantum_dots.build_qpu import (
@@ -30,10 +39,104 @@ from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenz
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacSpec
 
+
+def _to_plain_mapping(obj: Any, max_depth: int = 6) -> Any:
+    """Recursively unwrap QUAM wiring containers into plain dict/list structures."""
+    if max_depth <= 0:
+        return obj
+    if obj is None or isinstance(obj, (str, bytes, int, float, bool)):
+        return obj
+    if isinstance(obj, Mapping):
+        return {k: _to_plain_mapping(v, max_depth - 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_to_plain_mapping(x, max_depth - 1) for x in obj)
+    if hasattr(obj, "get_unreferenced_value") and hasattr(obj, "keys"):
+        return {
+            k: _to_plain_mapping(obj.get_unreferenced_value(k), max_depth - 1)
+            for k in obj.keys()
+        }
+    return obj
+
+
+def _dac_entry_from_wiring_plain(plain: Mapping[str, Any]) -> Optional[dict[str, Any]]:
+    """Build one :func:`add_dacs` entry from flattened port mapping, or ``None`` if no QDAC DC port."""
+    ch = extract_qdac_output_port(plain)
+    if ch is None:
+        return None
+    trigger = any("digital_output" in str(k) for k in plain)
+    qti = extract_qdac_trigger_port(plain)
+    u = extract_qdac_unit_index(plain)
+    dac_name = "qdac" if u is None else f"qdac{u}"
+    return {
+        "ch": ch,
+        "trigger": trigger,
+        "qdac_trigger_in": qti,
+        "dac_name": dac_name,
+    }
+
+
+def _dac_mapping_from_wiring(machine: BaseQuamQD) -> dict[str, dict[str, Any]]:
+    """Mirror :class:`_BaseQpuBuilder` gate ids and barrier ordering from ``machine.wiring``."""
+    wiring = machine.wiring or {}
+    normalized: dict[str, Any] = {}
+    for element_type_raw, elements in wiring.items():
+        et = _normalize_element_type(element_type_raw)
+        if et:
+            normalized[et] = elements
+
+    result: dict[str, dict[str, Any]] = {}
+
+    for global_id, wiring_by_line_type in normalized.get("globals", {}).items():
+        for _line_type, ports in wiring_by_line_type.items():
+            plain = _to_plain_mapping(ports)
+            if not isinstance(plain, dict):
+                continue
+            entry = _dac_entry_from_wiring_plain(plain)
+            if entry:
+                result[global_id] = entry
+
+    for sensor_id, wiring_by_line_type in normalized.get("readout", {}).items():
+        sensor_gate_id = f"sensor_{_extract_qubit_number(sensor_id)}"
+        for line_type, ports in wiring_by_line_type.items():
+            if line_type != WiringLineType.SENSOR_GATE.value:
+                continue
+            plain = _to_plain_mapping(ports)
+            if not isinstance(plain, dict):
+                continue
+            entry = _dac_entry_from_wiring_plain(plain)
+            if entry:
+                result[sensor_gate_id] = entry
+
+    for qubit_id, wiring_by_line_type in normalized.get("qubits", {}).items():
+        for line_type, ports in wiring_by_line_type.items():
+            if line_type != WiringLineType.PLUNGER_GATE.value:
+                continue
+            plain = _to_plain_mapping(ports)
+            if not isinstance(plain, dict):
+                continue
+            entry = _dac_entry_from_wiring_plain(plain)
+            if entry:
+                result[f"plunger_{_extract_qubit_number(qubit_id)}"] = entry
+
+    barrier_counter = 0
+    for _pair_id, wiring_by_line_type in normalized.get("qubit_pairs", {}).items():
+        for line_type, ports in wiring_by_line_type.items():
+            if line_type != WiringLineType.BARRIER_GATE.value:
+                continue
+            plain = _to_plain_mapping(ports)
+            if not isinstance(plain, dict):
+                continue
+            entry = _dac_entry_from_wiring_plain(plain)
+            if entry:
+                result[f"barrier_{barrier_counter}"] = entry
+            barrier_counter += 1
+
+    return result
+
+
 def build_base_quam(
     machine: BaseQuamQD,
     calibration_db_path: Optional[Union[Path, str]] = None,
-    dac_mapping: Optional[dict] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
     component_overrides: Optional[dict] = None,
@@ -59,7 +162,6 @@ def build_base_quam(
         machine: BaseQuamQD instance with wiring defined.
         calibration_db_path: Path to Octave calibration database. If None, uses
             the machine's state directory.
-        dac_mapping: mapping between the voltage gate and the corresponding dac channel {"voltage_gate_name": {"ch": dac_channel_number, "trigger": bool}}
         connect_qdac: If True, connects to QDAC using qdac_ip or machine.network['qdac_ip'].
         macro_profile_path: Optional TOML file with macro override definitions.
         component_overrides: Typed overrides keyed by component class. See
@@ -92,8 +194,8 @@ def build_base_quam(
     _BaseQpuBuilder(machine).build()
     if getattr(machine, "qpu", None) is None:
         machine.qpu = QPU()
-    # Map the connectivity between the DAC channels of the voltage gates
-    add_dacs(machine, dac_mapping)
+    # Map QDAC output ports from machine.wiring onto VoltageGate.dac_spec
+    add_dacs(machine)
 
     wire_machine_macros(
         machine,
@@ -229,7 +331,6 @@ def build_quam(
     machine: Union[BaseQuamQD, LossDiVincenzoQuam],
     calibration_db_path: Optional[Union[Path, str]] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
-    dac_mapping: Optional[dict] = None,
     connect_qdac: bool = False,
     macro_profile_path: Optional[Union[Path, str]] = None,
     component_overrides: Optional[dict] = None,
@@ -248,7 +349,6 @@ def build_quam(
         machine: BaseQuamQD or LossDiVincenzoQuam with wiring defined.
         calibration_db_path: Path to Octave calibration database.
         qubit_pair_sensor_map: Sensor mapping for qubit pairs.
-        dac_mapping: mapping between the voltage gate and the corresponding dac channel {"voltage_gate_name": {"ch": dac_channel_number, "trigger": bool}}
         connect_qdac: If True, connects to QDAC for external voltage control.
         macro_profile_path: Optional TOML file with macro override definitions.
         component_overrides: Typed overrides keyed by component class. See
@@ -281,7 +381,6 @@ def build_quam(
         machine = build_base_quam(
             machine,
             calibration_db_path=calibration_db_path,
-            dac_mapping=dac_mapping,
             connect_qdac=connect_qdac,
             macro_profile_path=macro_profile_path,
             component_overrides=component_overrides,
@@ -500,9 +599,8 @@ def _wire_voltage_gate_qdac(
     qdac_output_port: int,
     dac_name: str = "qdac",
     with_trigger_channel: bool = False,
-    digital_output_key: str = "qdac_trig_0",
+    digital_output_key: str = "qdac_trig",
     qdac_trigger_in: Optional[int] = None,
-    trigger_pulse_length_ns: int = 100,
 ) -> None:
     """Attach QDAC metadata and optionally move a digital trigger under a wrapper ``Channel``.
 
@@ -531,66 +629,62 @@ def _wire_voltage_gate_qdac(
                 f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
             )
         dig = voltage_gate.digital_outputs[digital_output_key]
-        # digital_ch = Channel(
-        #     id=f"qdac_trig_{qdac_output_port}",
-        #     digital_outputs={},
-        #     operations={
-        #         "trigger": pulses.Pulse(
-        #             length=trigger_pulse_length_ns, digital_marker="ON"
-        #         )
-        #     },
-        # )
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
             opx_trigger_out=dig.opx_output.get_reference(),
             qdac_trigger_in=qdac_trigger_in,
         )
-        # del voltage_gate.digital_outputs[digital_output_key]
-        # dig.parent = None
-        # digital_ch.digital_outputs["trigger"] = dig
     else:
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
         )
 
+
 def add_dacs(
     machine: BaseQuamQD,
-    dac_mapping: Mapping[str, Mapping[str, Any]],
     *,
     digital_output_key: str = "qdac_trig_0",
     dac_name: str = "qdac",
     qdac_trigger_in: Optional[int] = None,
     trigger_pulse_length_ns: int = 100,
 ) -> None:
-    """Apply :meth:`wire_voltage_gate_qdac` to every ``VoltageGate`` listed in ``qdac_mapping``.
+    """Attach ``QdacSpec`` to gates using QDAC ports from ``machine.wiring``.
 
-    Keys of ``qdac_mapping`` must match :attr:`VoltageGate.name` (same as the prior
-    ``quam_config`` loop). Values are dicts with at least ``"ch"`` (QDAC port index,
-    or ``None`` to skip) and optional ``"trigger"`` (bool, default ``False``).
-
-    Channel entries are resolved via ``virtual_gate_sets[gate_set_id].channels[key]``
-    so ``#/`` references are followed while the gate set is already under this root.
+    Uses :func:`_dac_mapping_from_wiring`. No-op when wiring defines no QDAC DC outputs.
     """
+    by_gate = _dac_mapping_from_wiring(machine)
+    if not by_gate:
+        return
     for vgs_key in machine.virtual_gate_sets.keys():
         vgs = machine.virtual_gate_sets[vgs_key]
         for channel_name in list(vgs.channels.keys()):
             gate = vgs.channels[channel_name]
             if not isinstance(gate, VoltageGate):
                 continue
-            if gate.name not in dac_mapping:
+            entry = None
+            for cand in (
+                channel_name,
+                getattr(gate, "id", None),
+                getattr(gate, "name", None),
+            ):
+                if cand and cand in by_gate:
+                    entry = by_gate[cand]
+                    break
+            if entry is None:
                 continue
-            entry = dac_mapping[gate.name]
             ch_nb = entry.get("ch")
             if ch_nb is None:
                 continue
+            entry_dac = entry.get("dac_name", dac_name)
+            entry_qti = entry.get("qdac_trigger_in", qdac_trigger_in)
             _wire_voltage_gate_qdac(
                 gate,
                 qdac_output_port=ch_nb,
-                dac_name=dac_name,
+                dac_name=entry_dac,
                 with_trigger_channel=bool(entry.get("trigger", False)),
                 digital_output_key=digital_output_key,
-                qdac_trigger_in=qdac_trigger_in,
+                qdac_trigger_in=entry_qti,
                 trigger_pulse_length_ns=trigger_pulse_length_ns,
             )
