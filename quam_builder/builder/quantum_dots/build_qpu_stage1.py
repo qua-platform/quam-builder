@@ -105,33 +105,32 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
 
     def _collect_global_gates(self, wiring_by_element: Mapping[str, Any]):
         """Collect global gate channels with QDAC support."""
-        for global_id, line_types in wiring_by_element.items():
-            for line_type, line_wiring in line_types.items():
+        for global_id, wiring_by_line_type in wiring_by_element.items():
+            for line_type, ports in wiring_by_line_type.items():
                 wiring_path = f"#/wiring/globals/{global_id}/{line_type}"
 
                 # Extract QDAC channel if present
-                qdac_channel = _extract_qdac_channel(line_wiring)
-
-                gate = _make_voltage_gate_with_qdac(global_id, wiring_path, qdac_channel)
+                qdac_channel = _extract_qdac_channel(ports)
+                gate = _make_voltage_gate_with_qdac(global_id, wiring_path, ports, qdac_channel)
                 self.assembly.global_gates.append(gate)
 
     def _collect_sensor_dots(self, wiring_by_element: Mapping[str, Any], resonator_cls: Any):
         """Collect sensor gates and resonators with QDAC support."""
-        for sensor_id, line_types in wiring_by_element.items():
+        for sensor_id, wiring_by_line_type in wiring_by_element.items():
             sensor_channel = None
             resonator = None
             sensor_number = _extract_qubit_number(sensor_id)
             sensor_gate_id = f"sensor_{sensor_number}"
 
-            for line_type, line_wiring in line_types.items():
+            for line_type, ports in wiring_by_line_type.items():
                 _validate_line_type("readout", line_type)
                 wiring_path = f"#/wiring/readout/{sensor_id}/{line_type}"
 
                 if line_type == WiringLineType.SENSOR_GATE.value:
                     # Extract QDAC channel if present
-                    qdac_channel = _extract_qdac_channel(line_wiring)
+                    qdac_channel = _extract_qdac_channel(ports)
                     sensor_channel = _make_voltage_gate_with_qdac(
-                        sensor_gate_id, wiring_path, qdac_channel
+                        sensor_gate_id, wiring_path, ports, qdac_channel
                     )
                 elif line_type == WiringLineType.RF_RESONATOR.value:
                     resonator = _make_resonator(sensor_gate_id, wiring_path, resonator_cls)
@@ -148,19 +147,19 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
 
         Note: XY drives are NOT collected in Stage 1.
         """
-        for qubit_id, line_types in wiring_by_element.items():
-            for line_type, line_wiring in line_types.items():
+        for qubit_id, wiring_by_line_type in wiring_by_element.items():
+            for line_type, ports in wiring_by_line_type.items():
                 _validate_line_type("qubits", line_type)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
 
                 if line_type == WiringLineType.PLUNGER_GATE.value:
                     # Extract QDAC channel if present
-                    qdac_channel = _extract_qdac_channel(line_wiring)
+                    qdac_channel = _extract_qdac_channel(ports)
 
                     plunger_number = _extract_qubit_number(qubit_id)
                     plunger_id = f"plunger_{plunger_number}"
 
-                    plunger = _make_voltage_gate_with_qdac(plunger_id, wiring_path, qdac_channel)
+                    plunger = _make_voltage_gate_with_qdac(plunger_id, wiring_path, ports, qdac_channel)
                     self.assembly.plunger_channels.append(plunger)
                     self.assembly.plunger_id_to_channel[qubit_id] = plunger
 
@@ -168,19 +167,19 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
 
     def _collect_qubit_pairs(self, wiring_by_element: Mapping[str, Any]):
         """Collect barrier gates with QDAC support."""
-        for pair_id, line_types in wiring_by_element.items():
-            for line_type, line_wiring in line_types.items():
+        for pair_id, wiring_by_line_type in wiring_by_element.items():
+            for line_type, ports in wiring_by_line_type.items():
                 _validate_line_type("qubit_pairs", line_type)
                 wiring_path = f"#/wiring/qubit_pairs/{pair_id}/{line_type}"
 
                 if line_type == WiringLineType.BARRIER_GATE.value:
                     # Extract QDAC channel if present
-                    qdac_channel = _extract_qdac_channel(line_wiring)
+                    qdac_channel = _extract_qdac_channel(ports)
 
                     barrier_id = f"barrier_{self.assembly.barrier_counter}"
                     self.assembly.barrier_counter += 1
 
-                    barrier = _make_voltage_gate_with_qdac(barrier_id, wiring_path, qdac_channel)
+                    barrier = _make_voltage_gate_with_qdac(barrier_id, wiring_path, ports, qdac_channel)
                     self.assembly.barrier_channels.append(barrier)
                     self.assembly.barrier_id_to_channel[barrier_id] = barrier
                     self.assembly.qubit_pair_id_to_barrier_id[pair_id] = barrier_id

@@ -1,19 +1,28 @@
 from pathlib import Path
-from typing import List, Dict, Union, ClassVar, Optional, Literal, Tuple, Callable, Sequence
+from typing import (
+    List,
+    Dict,
+    Union,
+    ClassVar,
+    Optional,
+    Literal,
+    Sequence,
+    Mapping,
+    Any,
+)
 from dataclasses import field
 import numpy as np
-from collections import defaultdict
 import importlib
 import json
 
-from qm import QuantumMachinesManager, QuantumMachine
+from qm import QuantumMachinesManager
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
 from qm.qua import declare, fixed, declare_stream
 
 from quam.serialisation import JSONSerialiser
 from quam.components import Octave, FrequencyConverter
-from quam.components import Channel
+from quam.components import Channel, pulses
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.core import quam_dataclass, QuamRoot, QuamBase
 
@@ -33,6 +42,7 @@ from quam_builder.architecture.quantum_dots.components import (
 )
 
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
+from quam_builder.architecture.quantum_dots.components.dac_spec import QdacSpec
 from quam_builder.tools.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit
 
@@ -307,8 +317,8 @@ class BaseQuamQD(QuamRoot):
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
             )
-            sensor_dot.physical_channel.readout = res
             self.sensor_dots[virtual_name] = sensor_dot
+            sensor_dot.physical_channel.readout = res
 
         if sensor_drain_mappings is not None:
             for ch, drain in sensor_drain_mappings.items():
@@ -333,6 +343,110 @@ class BaseQuamQD(QuamRoot):
                 physical_channel=ch.get_reference(),
             )
             self.barrier_gates[virtual_name] = barrier_gate
+
+    def wire_voltage_gate_qdac(
+        self,
+        voltage_gate: VoltageGate,
+        *,
+        qdac_output_port: int,
+        dac_name: str = "qdac",
+        with_trigger_channel: bool = False,
+        digital_output_key: str = "qdac_trig_0",
+        qdac_trigger_in: Optional[int] = None,
+        trigger_pulse_length_ns: int = 100,
+    ) -> None:
+        """Attach QDAC metadata and optionally move a digital trigger under a wrapper ``Channel``.
+
+        Setting ``digital_outputs[...].parent = None`` before the line is registered under
+        the Quam tree causes QUAM to resolve references on an orphan
+        ``DigitalOutputChannel`` and emit ``get_root()`` warnings. This method registers
+        ``QdacSpec`` (and the optional OPX trigger ``Channel``) **first**, then moves the
+        existing digital line in a minimal second step.
+
+        Args:
+            voltage_gate: Physical gate (e.g. from ``virtual_gate_sets[id].channels``).
+            qdac_output_port: QDAC channel index.
+            dac_name: Key under ``machine.dacs`` for the driver.
+            with_trigger_channel: If True, move ``digital_output_key`` into a wrapper
+                ``Channel`` referenced by ``QdacSpec.opx_trigger_out``.
+            digital_output_key: Name of the digital output on the gate (default wiring
+                uses ``qdac_trig_0``).
+            qdac_trigger_in: Optional QDAC external trigger port.
+            trigger_pulse_length_ns: Length of the default ``trigger`` pulse on the
+                wrapper channel when ``with_trigger_channel`` is True.
+        """
+        if with_trigger_channel:
+            if digital_output_key not in voltage_gate.digital_outputs:
+                raise KeyError(
+                    f"{digital_output_key!r} missing from digital_outputs of "
+                    f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
+                )
+            dig = voltage_gate.digital_outputs[digital_output_key]
+            digital_ch = Channel(
+                id=f"qdac_trig_{qdac_output_port}",
+                digital_outputs={},
+                operations={
+                    "trigger": pulses.Pulse(
+                        length=trigger_pulse_length_ns, digital_marker="ON"
+                    )
+                },
+            )
+            voltage_gate.dac_spec = QdacSpec(
+                dac_name=dac_name,
+                qdac_output_port=qdac_output_port,
+                opx_trigger_out=digital_ch,
+                qdac_trigger_in=qdac_trigger_in,
+            )
+            del voltage_gate.digital_outputs[digital_output_key]
+            dig.parent = None
+            digital_ch.digital_outputs["trigger"] = dig
+        else:
+            voltage_gate.dac_spec = QdacSpec(
+                dac_name=dac_name,
+                qdac_output_port=qdac_output_port,
+                opx_trigger_out=None,
+                qdac_trigger_in=qdac_trigger_in,
+            )
+
+    def apply_qdac_channel_mapping(
+        self,
+        gate_set_id: str,
+        qdac_mapping: Mapping[str, Mapping[str, Any]],
+        *,
+        digital_output_key: str = "qdac_trig_0",
+        dac_name: str = "qdac",
+        qdac_trigger_in: Optional[int] = None,
+        trigger_pulse_length_ns: int = 100,
+    ) -> None:
+        """Apply :meth:`wire_voltage_gate_qdac` to every ``VoltageGate`` listed in ``qdac_mapping``.
+
+        Keys of ``qdac_mapping`` must match :attr:`VoltageGate.name` (same as the prior
+        ``quam_config`` loop). Values are dicts with at least ``"ch"`` (QDAC port index,
+        or ``None`` to skip) and optional ``"trigger"`` (bool, default ``False``).
+
+        Channel entries are resolved via ``virtual_gate_sets[gate_set_id].channels[key]``
+        so ``#/`` references are followed while the gate set is already under this root.
+        """
+        vgs = self.virtual_gate_sets[gate_set_id]
+        for channel_name in list(vgs.channels.keys()):
+            gate = vgs.channels[channel_name]
+            if not isinstance(gate, VoltageGate):
+                continue
+            if gate.name not in qdac_mapping:
+                continue
+            entry = qdac_mapping[gate.name]
+            ch_nb = entry.get("ch")
+            if ch_nb is None:
+                continue
+            self.wire_voltage_gate_qdac(
+                gate,
+                qdac_output_port=ch_nb,
+                dac_name=dac_name,
+                with_trigger_channel=bool(entry.get("trigger", False)),
+                digital_output_key=digital_output_key,
+                qdac_trigger_in=qdac_trigger_in,
+                trigger_pulse_length_ns=trigger_pulse_length_ns,
+            )
 
     def register_quantum_dot_pair(
         self,
@@ -467,23 +581,29 @@ class BaseQuamQD(QuamRoot):
             # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
             channel_mapping[physical_name] = ch.get_reference()
 
+        # Register an empty gate set first, then fill ``channels`` while ``parent`` is set.
+        # Otherwise QUAM may resolve ``#/`` references during construction while this
+        # VirtualGateSet is still detached from the QuamRoot, triggering get_root() warnings.
         self.virtual_gate_sets[gate_set_id] = VirtualGateSet(
             id=gate_set_id,
-            channels=channel_mapping,
+            channels={},
             allow_rectangular_matrices=allow_rectangular_matrices,
             adjust_for_attenuation=adjust_for_attenuation,
         )
+        vgs = self.virtual_gate_sets[gate_set_id]
+        for physical_name, ref in channel_mapping.items():
+            vgs.channels[physical_name] = ref
 
         if compensation_matrix is None:
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
-        self.virtual_gate_sets[gate_set_id].add_to_layer(
+        vgs.add_to_layer(
             layer_id="compensation_layer",
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,
         )
-        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(
+        self.voltage_sequences[gate_set_id] = vgs.new_sequence(
             track_integrated_voltage=True
         )
 
