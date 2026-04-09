@@ -1,7 +1,8 @@
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Generator, Optional, Sequence, Union
 
-from quam.components import Channel, SingleChannel
+from quam.components import SingleChannel
 from quam.core import quam_dataclass
+from quam.core.quam_classes import QuamBase
 
 from .readout_transport import ANY_READOUT_TRANSPORT
 from .readout_resonator import ANY_READOUT_RESONATOR
@@ -22,8 +23,9 @@ class VoltageGate(SingleChannel):
             automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
             Can be e.g. a QDAC channel.
-        opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). QUA config then omits
-            ``singleInput``; use :attr:`dac_spec` / external drivers for DC.
+        opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). It is omitted from
+            :meth:`~quam.core.quam_classes.QuamRoot.generate_config` (no ``elements`` entry, no sticky);
+            use :attr:`dac_spec` / external drivers for DC.
 
     Example:
         >>>
@@ -79,10 +81,17 @@ class VoltageGate(SingleChannel):
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
 
-    def apply_to_config(self, config: Dict[str, dict]) -> None:
-        """Skip OPX ``singleInput`` when this gate has no OPX analog port (external / QDAC-only DC)."""
+    def iterate_components(
+        self, skip_elems: Optional[Sequence[QuamBase]] = None
+    ) -> Generator[QuamBase, None, None]:
+        """QDAC-only gates are excluded from QUA config generation (no OPX element conflicts)."""
         if self.opx_output is None:
-            Channel.apply_to_config(self, config)
+            return
+        yield from super().iterate_components(skip_elems=skip_elems)
+
+    def apply_to_config(self, config: Dict[str, dict]) -> None:
+        """Only OPX-backed gates contribute to ``elements``; QDAC-only gates skip via :meth:`iterate_components`."""
+        if self.opx_output is None:
             return
         super().apply_to_config(config)
 
