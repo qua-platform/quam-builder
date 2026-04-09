@@ -318,15 +318,14 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
 
 
 def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
-    """Extract QDAC channel number from wiring configuration.
+    """Extract QDAC DC output port index from wiring (legacy int or structured block).
 
-    Args:
-        wiring_dict: Wiring dictionary that may contain 'qdac_channel' key.
-
-    Returns:
-        QDAC channel number if present, None otherwise.
+    Prefer the structured ``qdac_output`` dict from :mod:`quam_builder.builder.qop_connectivity.qdac_wiring`;
+    fall back to legacy ``qdac_channel`` integer.
     """
-    return wiring_dict.get("qdac_channel")
+    from quam_builder.builder.qop_connectivity.qdac_wiring import extract_qdac_output_port
+
+    return extract_qdac_output_port(wiring_dict)
 
 
 def _make_voltage_gate_with_qdac(
@@ -354,9 +353,21 @@ def _make_voltage_gate_with_qdac(
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
-    qdac_trigger_in = ports.get("qdac_trigger_in")
+    from quam_builder.builder.qop_connectivity.qdac_wiring import (
+        extract_qdac_trigger_port,
+        extract_qdac_trigger_unit_index,
+        extract_qdac_unit_index,
+    )
+
+    qdac_unit = extract_qdac_unit_index(ports)
+    if qdac_unit is not None:
+        gate.qdac_unit_index = qdac_unit
+    qdac_trigger_in = extract_qdac_trigger_port(ports)
     if qdac_trigger_in is not None:
         gate.qdac_trigger_in = qdac_trigger_in
+    qdac_trig_unit = extract_qdac_trigger_unit_index(ports)
+    if qdac_trig_unit is not None:
+        gate.qdac_trigger_unit_index = qdac_trig_unit
     return gate
 
 

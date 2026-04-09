@@ -154,7 +154,9 @@ class TestWirerBuilderIntegration:
 
         gate_wiring = machine.wiring["globals"]["vg1"][WiringLineType.GLOBAL_GATE.value]
         assert "opx_output" in gate_wiring
-        assert gate_wiring["qdac_channel"] == 1
+        qo = gate_wiring["qdac_output"]
+        assert qo["unit_index"] == 1 and qo["port"] == 1
+        assert qo["ref"] == "#/qdac/analog_outputs/qdac1/1"
 
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
