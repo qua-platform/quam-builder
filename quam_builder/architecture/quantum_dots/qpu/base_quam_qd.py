@@ -787,9 +787,12 @@ class BaseQuamQD(QuamRoot):
         except:
             raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
 
-    def connect(self) -> QuantumMachinesManager:
+    def connect(self, reset_voltages: bool = False, skip_dacs: bool=False) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
+        Args:
+            reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
+            skip_dacs (bool): Whether to connect to the da==registered DACs.
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
         """
@@ -800,7 +803,12 @@ class BaseQuamQD(QuamRoot):
         )
         if "port" in self.network:
             settings["port"] = self.network["port"]
+
         self.qmm = QuantumMachinesManager(**settings)
+
+        ## TODO: need to also call self.create_virtual_dc_set("main_qpu") every time?
+        if self.dac_config and ~skip_dacs:
+            self.connect_to_external_source(reset_voltages)
         return self.qmm
 
     def get_octave_config(self) -> QmOctaveConfig:
