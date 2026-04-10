@@ -47,17 +47,17 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
     def __post_init__(self):
         super().__post_init__()
-        if isinstance(self.quantum_dots[0], str):
-            return
-        if len(self.quantum_dots) != 2:
-            raise ValueError(
-                f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots"
-            )
-        if self.id is None:
-            self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
-
-        if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
-            raise ValueError("Quantum Dots not part of same VoltageSequence")
+        # if isinstance(self.quantum_dots[0], str):
+        #     return
+        # if len(self.quantum_dots) != 2:
+        #     raise ValueError(
+        #         f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots"
+        #     )
+        # if self.id is None:
+        #     self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
+        #
+        # if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
+        #     raise ValueError("Quantum Dots not part of same VoltageSequence")
 
         self.detuning_axis_name = f"{self.id}_epsilon"
 
