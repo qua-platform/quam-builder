@@ -1,8 +1,8 @@
-"""Default pulse catalog for quantum-dot component types.
+"""Default pulse builders for quantum-dot channels.
 
-Parallel to :mod:`~quam_builder.architecture.quantum_dots.operations.component_macro_catalog`,
-this module provides idempotent registration of default pulse factories for
-core quantum-dot component types (``LDQubit``, ``SensorDot``).
+Unlike macro defaults, pulse defaults are currently materialized directly in
+``macro_engine.wiring._ensure_default_pulses()``. This module only provides the
+channel-aware helper builders used by that runtime pass.
 
 Default pulse parameters
 ------------------------
@@ -23,15 +23,10 @@ Readout pulse (on ``sensor_dot.readout_resonator``):
 Usage::
 
     from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
-        register_default_component_pulse_factories,
         _make_xy_pulse_factories,
         _make_readout_pulse,
     )
 
-    # Register all built-in defaults (idempotent):
-    register_default_component_pulse_factories()
-
-    # Or build pulse dicts directly for a specific drive channel:
     pulses = _make_xy_pulse_factories(qubit.xy)
     readout = _make_readout_pulse()
 """
@@ -43,15 +38,8 @@ from quam.components.pulses import SquareReadoutPulse
 
 from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 from quam_builder.architecture.quantum_dots.operations.names import DrivePulseName
-from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
-    register_component_pulse_factories,
-)
 
-_REGISTERED = False
-
-__all__ = [
-    "register_default_component_pulse_factories",
-]
+__all__: list[str] = []
 
 # Default single-qubit XY pulse parameters
 _PULSE_LENGTH = 1000  # ns
@@ -119,45 +107,3 @@ def _make_readout_pulse():
         length=_READOUT_LENGTH,
         amplitude=_READOUT_AMP,
     )
-
-
-def register_default_component_pulse_factories() -> None:
-    """Register built-in pulse factories for core quantum-dot component types.
-
-    This function is idempotent — calling it multiple times has no effect after
-    the first registration.  It is called automatically by
-    :func:`~quam_builder.architecture.quantum_dots.macro_engine.wiring._ensure_default_pulses`
-    during ``wire_machine_macros()``.
-
-    Registration is intentionally centralized here (rather than in component
-    ``__post_init__``) to keep default behavior decoupled from component class
-    definitions.  Actual pulse instances are created at wiring time by
-    ``_ensure_default_pulses``, which inspects each drive channel's type to
-    select the correct ``axis_angle``.
-
-    Registered component types:
-        - ``LDQubit``: placeholder (actual XY pulses created at wiring time
-          based on drive channel type).
-        - ``SensorDot``: placeholder (readout pulse created at wiring time).
-    """
-    global _REGISTERED
-    if _REGISTERED:
-        return
-
-    from quam_builder.architecture.quantum_dots.qubit import LDQubit
-    from quam_builder.architecture.quantum_dots.components.sensor_dot import SensorDot
-
-    # LDQubit: XY drive pulses (actual instances created at wiring time
-    # since drive type must be inspected)
-    register_component_pulse_factories(LDQubit, {})
-
-    # SensorDot: readout pulse
-    register_component_pulse_factories(SensorDot, {})
-
-    _REGISTERED = True
-
-
-def _reset_registration() -> None:
-    """Reset global registration state. FOR TESTING ONLY."""
-    global _REGISTERED
-    _REGISTERED = False
