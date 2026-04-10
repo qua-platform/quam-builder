@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 import tomllib
 
+from qm.qua._dsl import amplitude
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.operations.macro_registry import (
@@ -28,11 +29,13 @@ from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog i
     register_default_component_pulse_factories,
     _make_xy_pulse_factories,
     _make_readout_pulse,
+    _make_baseband_pulse,
 )
 from quam_builder.architecture.quantum_dots.macro_engine.overrides import (
     ComponentOverrides,
     _convert_typed_overrides,
 )
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
 
 __all__ = [
     "wire_machine_macros",
@@ -278,6 +281,23 @@ def _ensure_default_pulses(machine: Any) -> None:
             if "readout" not in operations:
                 operations["readout"] = _make_readout_pulse()
 
+    physical_channels = getattr(machine, "physical_channels", None)
+    if isinstance(physical_channels, Mapping):
+        for physical_channel in physical_channels.values():
+            if physical_channel.opx_output is not None:
+                operations = getattr(physical_channel, "operations", None)
+                if operations is None:
+                    continue
+                if DEFAULT_PULSE_NAME not in operations:
+                    output_mode = getattr(physical_channel.opx_output, "output_mode", None)
+                    if output_mode is None:
+                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(0.25)
+                    elif output_mode == "direct":
+                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(0.25)
+                    elif output_mode == "amplified":
+                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(1.25)
+                    else:
+                        raise ValueError("Unknown output mode '{}'".format(output_mode))
 
 def _apply_pulse_overrides(
     machine: Any,
