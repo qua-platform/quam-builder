@@ -9,6 +9,7 @@ from .sensor_dot import SensorDot
 from .barrier_gate import BarrierGate
 from .mixins import VoltageMacroMixin
 from .voltage_gate import VoltageGate
+from .virtual_gate_set import VirtualGateSet
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -66,6 +67,10 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         return self.barrier_gate.physical_channel
 
     @property
+    def gate_set(self) -> VirtualGateSet:
+        return self.quantum_dots[0].machine._get_virtual_gate_set(self.quantum_dots[0].physical_channel)
+
+    @property
     def voltage_sequence(self) -> VoltageSequence:
         return self.quantum_dots[0].voltage_sequence
 
@@ -91,7 +96,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         # Ensure that the detuning axis name held in object is consistent
         self.detuning_axis_name = detuning_axis_name
 
-        virtual_gate_set = self.voltage_sequence.gate_set
+        virtual_gate_set = self.gate_set
 
         # Should be the correct virtual axes in the first layer of the VirtualGateSet
         target_gates = [qd.id for qd in self.quantum_dots]
