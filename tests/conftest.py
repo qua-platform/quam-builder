@@ -7,9 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from quam_builder.architecture.quantum_dots.operations import component_macro_catalog
-from quam_builder.architecture.quantum_dots.operations import component_pulse_catalog
 from quam_builder.architecture.quantum_dots.operations import macro_registry
-from quam_builder.architecture.quantum_dots.operations import pulse_registry
 
 # Make test utilities (test_utils.py) importable from any sub-directory
 sys.path.insert(0, str(Path(__file__).parent))
@@ -31,7 +29,7 @@ def bypass_quam_config_version_check():
 
 @pytest.fixture
 def reset_catalog():
-    """Reset catalog and registry before each test that uses it.
+    """Reset macro catalog and registry before each test that uses it.
 
     Use this fixture in any test that directly verifies registration behavior
     (e.g., tests that call wire_machine_macros() and then assert macro presence).
@@ -41,7 +39,5 @@ def reset_catalog():
     rely on registration completing during component construction.
     """
     component_macro_catalog._reset_registration()
-    component_pulse_catalog._reset_registration()
     macro_registry._reset_registry()
-    pulse_registry._reset_registry()
     yield

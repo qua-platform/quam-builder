@@ -1,10 +1,10 @@
 """Macro and pulse wiring with user override utilities for quantum-dot machines.
 
 This module is the runtime entry point for:
-1. Materializing component defaults from the component-type registry.
+1. Materializing macro defaults from the component-type registry.
 2. Applying user overrides from a TOML profile and/or Python mapping.
 3. Supporting partial overrides while retaining all untouched defaults.
-4. Wiring default pulses onto qubit XY drives and sensor dot resonators.
+4. Materializing default pulses onto qubit XY drives and sensor dot resonators.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from quam_builder.architecture.quantum_dots.operations.component_macro_catalog i
     register_default_component_macro_factories,
 )
 from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
-    register_default_component_pulse_factories,
     _make_xy_pulse_factories,
     _make_readout_pulse,
 )
@@ -250,8 +249,6 @@ def _ensure_default_pulses(machine: Any) -> None:
         machine: Target machine object with ``qubits`` and/or ``sensor_dots``
             collections.
     """
-    register_default_component_pulse_factories()
-
     qubits = getattr(machine, "qubits", None)
     if isinstance(qubits, Mapping):
         for qubit in qubits.values():

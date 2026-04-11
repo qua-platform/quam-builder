@@ -6,14 +6,13 @@ This module provides:
 - Default macros for state preparation, single-qubit gates, and two-qubit gates
 - Canonical name constants for voltage points and supported macros
 - A component-type macro registry for decoupled macro-default wiring
-- A component-type pulse registry for decoupled pulse-default wiring
+- Channel-aware builders for the default pulse materialization pass
 """
 
 # Operations registry and operations
 from .component_macro_catalog import *
 from .component_pulse_catalog import *
 from .macro_registry import *
-from .pulse_registry import *
 from .names import *
 from .default_macros import *
 from .default_operations import *
@@ -22,7 +21,6 @@ __all__ = [
     *component_macro_catalog.__all__,
     *component_pulse_catalog.__all__,
     *macro_registry.__all__,
-    *pulse_registry.__all__,
     *names.__all__,
     *default_macros.__all__,
     *default_operations.__all__,
