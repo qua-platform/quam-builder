@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
 ### Added
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
+### Fixed
+- Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
 
 ## [0.3.0] - 2026-03-31
 ### Added
