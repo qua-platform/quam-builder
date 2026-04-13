@@ -357,7 +357,7 @@ class BaseQuam(QuamRoot):
         Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
         return I, I_st, Q, Q_st, n, n_st
 
-    def initialize_qpu(self, isolation: bool = True, **kwargs):
+    def initialize_qpu(self, isolation: bool = False, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points.
 
         Args:
