@@ -23,11 +23,9 @@ def _make_stage1_connectivity():
     connectivity.add_sensor_dots(
         sensor_dots=EXAMPLE_SENSOR_DOTS,
         shared_resonator_line=False,
-        use_mw_fem=False,
     )
     connectivity.add_quantum_dots(
         quantum_dots=EXAMPLE_QUANTUM_DOTS,
-        add_drive_lines=False,
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=EXAMPLE_QUANTUM_DOT_PAIRS)
     return connectivity
@@ -40,14 +38,13 @@ def _make_stage2_connectivity():
     connectivity.add_sensor_dots(
         sensor_dots=EXAMPLE_SENSOR_DOTS,
         shared_resonator_line=False,
-        use_mw_fem=False,
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=EXAMPLE_QUANTUM_DOT_PAIRS)
-    connectivity.add_quantum_dots(
+    connectivity.add_quantum_dots(quantum_dots=EXAMPLE_QUANTUM_DOTS)
+    connectivity.add_quantum_dot_drive_lines(
         quantum_dots=EXAMPLE_QUANTUM_DOTS,
-        add_drive_lines=True,
+        shared_line=True,
         use_mw_fem=True,
-        shared_drive_line=True,
     )
     return connectivity
 

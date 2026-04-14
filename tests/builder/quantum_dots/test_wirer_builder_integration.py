@@ -37,12 +37,8 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=sensor_dots,
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
-        connectivity.add_quantum_dots(
-            quantum_dots=quantum_dots,
-            add_drive_lines=False,
-        )
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
         return connectivity
 
@@ -53,14 +49,12 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=sensor_dots,
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=quantum_dots,
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         return connectivity
 
@@ -87,13 +81,11 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=[1],
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
@@ -254,7 +246,6 @@ class TestWirerBuilderIntegration:
         connectivity_drive_lines = Connectivity()
         connectivity_drive_lines.add_quantum_dot_drive_lines(
             quantum_dots=self.EXAMPLE_QUANTUM_DOTS,
-            use_mw_fem=True,
             shared_line=True,
         )
         allocate_wiring(connectivity_drive_lines, instruments_stage1)
@@ -284,13 +275,11 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=[1, 2],
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3, 4])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2, 3, 4],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3), (3, 4)])
 
@@ -318,10 +307,7 @@ class TestWirerBuilderIntegration:
     def test_virtual_gate_set_creation(self, instruments, temp_dir):
         """Test that virtual gate set is correctly created."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
-            quantum_dots=[1, 2, 3],
-            add_drive_lines=False,
-        )
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
 
         allocate_wiring(connectivity, instruments)
 
@@ -347,11 +333,10 @@ class TestWirerBuilderIntegration:
     def test_qubit_registration_with_xy_drives(self, instruments, temp_dir):
         """Test that qubits are registered with their XY drives in Stage 2."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
 
         allocate_wiring(connectivity, instruments)
@@ -379,7 +364,6 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=[1, 2],
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
 
         allocate_wiring(connectivity, instruments)
@@ -403,11 +387,10 @@ class TestWirerBuilderIntegration:
     def test_pulses_are_added(self, instruments, temp_dir):
         """Test that default pulses are added to qubits in Stage 2."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
 
         allocate_wiring(connectivity, instruments)
@@ -433,10 +416,7 @@ class TestWirerBuilderIntegration:
     def test_network_configuration_is_set(self, instruments, temp_dir):
         """Test that network configuration is properly set."""
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
-            quantum_dots=[1],
-            add_drive_lines=False,
-        )
+        connectivity.add_quantum_dots(quantum_dots=[1])
 
         allocate_wiring(connectivity, instruments)
 
@@ -461,13 +441,11 @@ class TestWirerBuilderIntegration:
         connectivity.add_sensor_dots(
             sensor_dots=[1],
             shared_resonator_line=False,
-            use_mw_fem=False,
         )
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
@@ -502,13 +480,11 @@ class TestWirerOnly:
         connectivity.add_sensor_dots(
             sensor_dots=[1, 2],
             shared_resonator_line=True,
-            use_mw_fem=False,
         )
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2, 3],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3)])
 
@@ -543,11 +519,10 @@ class TestWirerOnly:
         instruments.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
 
         # Allocate wiring

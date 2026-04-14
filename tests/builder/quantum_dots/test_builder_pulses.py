@@ -32,10 +32,9 @@ def machine_with_iq_pulses():
     instruments.add_lf_fem(controller=1, slots=[2, 3])
 
     connectivity = Connectivity()
-    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
+    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
     connectivity.add_quantum_dots(
-        quantum_dots=[1, 2],
-        add_drive_lines=False,  # No drive lines allocated — injected manually below
+        quantum_dots=[1, 2],  # No drive lines allocated — injected manually below
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
     allocate_wiring(connectivity, instruments)
@@ -82,13 +81,9 @@ def machine_with_mw_pulses():
     instruments.add_lf_fem(controller=1, slots=[2, 3])
 
     connectivity = Connectivity()
-    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
-    connectivity.add_quantum_dots(
-        quantum_dots=[1, 2],
-        add_drive_lines=True,
-        use_mw_fem=True,
-        shared_drive_line=True,
-    )
+    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
+    connectivity.add_quantum_dots(quantum_dots=[1, 2])
+    connectivity.add_quantum_dot_drive_lines(quantum_dots=[1, 2], shared_line=True, use_mw_fem=True)
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
     allocate_wiring(connectivity, instruments)
 
