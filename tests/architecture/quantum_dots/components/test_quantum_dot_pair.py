@@ -103,17 +103,17 @@ class TestQuantumDotPairVoltagePoints:
 class TestQuantumDotPairCatalog:
     """Verify QuantumDotPair receives state macros after wire_machine_macros()."""
 
-    def test_has_initialize_macro(self, qd_machine, reset_catalog):
+    def test_has_initialize_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "initialize" in pair.macros, f"{pair.id} missing 'initialize' macro"
 
-    def test_has_measure_macro(self, qd_machine, reset_catalog):
+    def test_has_measure_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "measure" in pair.macros, f"{pair.id} missing 'measure' macro"
 
-    def test_has_empty_macro(self, qd_machine, reset_catalog):
+    def test_has_empty_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "empty" in pair.macros, f"{pair.id} missing 'empty' macro"

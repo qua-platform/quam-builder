@@ -324,8 +324,14 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
                 logger.error(f"Failed to register qubit pair {pair_id}: {e}")
                 continue
 
-    def _wire_sensor_dots_to_pairs(self):
-        """Populate quantum_dot_pair.sensor_dots from qubit_pair_sensor_map."""
+    def _wire_sensor_dots_to_pairs(self) -> None:
+        """Populate quantum_dot_pair.sensor_dots from qubit_pair_sensor_map.
+
+        Also initialises placeholder readout discrimination parameters
+        (threshold=0, identity projector) on each sensor dot for each
+        pair it is wired to, so the PSB measurement chain is compilable
+        before calibration.
+        """
         for pair_id, sensor_names in self.qubit_pair_sensor_map.items():
             qp = self.machine.qubit_pairs.get(pair_id)
             if qp is None:
@@ -337,6 +343,13 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
                         ref = f"#/sensor_dots/{sid}"
                         if ref not in qdp.sensor_dots:
                             qdp.sensor_dots.append(ref)
+                        sd = self.machine.sensor_dots[sid]
+                        if qdp.id not in sd.readout_thresholds:
+                            sd._add_readout_params(
+                                qdp.id,
+                                threshold=0.0,
+                                projector={"wI": 1.0, "wQ": 0.0, "offset": 0.0},
+                            )
 
     def _set_preferred_readout_quantum_dots(self):
         """Set preferred_readout_quantum_dot using cross-pair topology.

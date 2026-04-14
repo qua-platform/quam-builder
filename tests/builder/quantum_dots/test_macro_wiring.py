@@ -7,10 +7,11 @@ from unittest.mock import patch
 from qm import qua
 from quam.components import pulses
 
-from quam_builder.architecture.quantum_dots.macro_engine import (
-    wire_machine_macros,
-    macro,
-    overrides,
+from functools import partial
+
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
+    TypeOverrideCatalog,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
@@ -80,7 +81,6 @@ class TunedX180Macro(X180Macro):
 def test_instance_override_path_supports_quam_mappings():
     """Instance overrides should work for collections stored as Quam mappings.
 
-    Uses the typed API: instance_overrides with macro() helper.
     Only q1 gets the override; q2 keeps the default X180Macro.
     """
     machine = _build_machine()
@@ -88,13 +88,10 @@ def test_instance_override_path_supports_quam_mappings():
     wire_machine_macros(
         machine,
         instance_overrides={
-            "qubits.q1": overrides(
-                macros={
-                    SingleQubitMacroName.X_180: macro(TunedX180Macro),
-                }
-            ),
+            "qubits.q1": {
+                SingleQubitMacroName.X_180: TunedX180Macro,
+            },
         },
-        strict=True,
     )
 
     assert isinstance(machine.qubits["q1"].macros["x180"], TunedX180Macro)
@@ -104,24 +101,24 @@ def test_instance_override_path_supports_quam_mappings():
 def test_component_type_override_applies_to_all_instances():
     """Component-type overrides should apply to each matching instance.
 
-    Uses the typed API: component_overrides keyed by the LDQubit class.
-    The macro() helper validates the factory and passes params through.
+    Uses TypeOverrideCatalog keyed by the LDQubit class.
     """
     machine = _build_machine()
 
     wire_machine_macros(
         machine,
-        component_overrides={
-            LDQubit: overrides(
-                macros={
-                    SingleQubitMacroName.INITIALIZE: macro(
-                        InitializeStateMacro,
-                        ramp_duration=48,
-                    ),
+        catalogs=[
+            TypeOverrideCatalog(
+                {
+                    LDQubit: {
+                        SingleQubitMacroName.INITIALIZE: partial(
+                            InitializeStateMacro,
+                            ramp_duration=48,
+                        ),
+                    },
                 }
             ),
-        },
-        strict=True,
+        ],
     )
 
     for qubit in machine.qubits.values():
@@ -132,24 +129,26 @@ def test_component_type_override_applies_to_all_instances():
 def test_component_type_override_sets_xy_drive_runtime_params():
     """Override params should populate canonical xy_drive attributes after init.
 
-    Uses the typed API with component_overrides to set reference_angle
-    on all LDQubits at once.
+    Uses TypeOverrideCatalog to set reference_angle on all LDQubits.
     """
     machine = _build_machine()
 
+    def _make_xy_drive():
+        m = XYDriveMacro()
+        m.reference_angle = 1.5
+        return m
+
     wire_machine_macros(
         machine,
-        component_overrides={
-            LDQubit: overrides(
-                macros={
-                    SingleQubitMacroName.XY_DRIVE: macro(
-                        XYDriveMacro,
-                        reference_angle=1.5,
-                    ),
+        catalogs=[
+            TypeOverrideCatalog(
+                {
+                    LDQubit: {
+                        SingleQubitMacroName.XY_DRIVE: _make_xy_drive,
+                    },
                 }
             ),
-        },
-        strict=True,
+        ],
     )
 
     for qubit in machine.qubits.values():
@@ -205,7 +204,7 @@ def test_fixed_angle_macros_delegate_to_canonical_axes():
 def test_x180_macro_produces_valid_qua_program():
     """X180Macro.apply() inside qua.program() produces a valid non-None QUA program."""
     machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
+    wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
@@ -218,7 +217,7 @@ def test_x180_macro_produces_valid_qua_program():
 def test_x180_macro_triggers_play():
     """X180Macro.apply() triggers xy.play via delegation chain."""
     machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
+    wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
@@ -233,7 +232,7 @@ def test_x180_macro_triggers_play():
 def test_runtime_amplitude_scale_multiplies_angle_scale():
     """Runtime amplitude scaling should multiply the angle-derived pulse scaling."""
     machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
+    wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
@@ -249,7 +248,7 @@ def test_runtime_amplitude_scale_multiplies_angle_scale():
 def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
     """Updating the reference pulse amplitude should affect both x180 and x90."""
     machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
+    wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
     q1.xy.operations["gaussian"].amplitude = 0.15
@@ -277,7 +276,7 @@ def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
 def test_fixed_angle_inferred_duration_uses_reference_pulse_length():
     """Inferred duration should always equal the reference pulse length (no stretching)."""
     machine = _build_machine()
-    wire_machine_macros(machine, strict=True)
+    wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 

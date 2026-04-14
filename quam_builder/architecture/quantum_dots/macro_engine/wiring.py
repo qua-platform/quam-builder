@@ -1,256 +1,206 @@
-"""Macro and pulse wiring with user override utilities for quantum-dot machines.
+"""Macro and pulse wiring for quantum-dot machines.
 
-This module is the runtime entry point for:
-1. Materializing macro defaults from the component-type registry.
-2. Applying user overrides from a TOML profile and/or Python mapping.
-3. Supporting partial overrides while retaining all untouched defaults.
-4. Materializing default pulses onto qubit XY drives and sensor dot resonators.
+This module is the runtime entry point for materializing macro defaults
+from the catalog-based registry and applying user overrides.
+
+Public API
+----------
+- ``wire_machine_macros`` -- top-level function that wires macros **and** pulses.
+- ``MacroWirer``   -- materializes macros from a ``MacroRegistry``.
+- ``PulseWirer``   -- materializes default pulses onto channels.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-import importlib
-import inspect
-from pathlib import Path
-from typing import Any
-import tomllib
+from collections.abc import Mapping, Sequence
+from typing import Any, Iterable
 
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.operations.macro_registry import (
-    get_default_macro_factories,
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
+    DISABLED,
+    DefaultMacroCatalog,
+    MacroCatalog,
+    MacroFactoryMap,
+    MacroRegistry,
+    UtilityMacroCatalog,
 )
-from quam_builder.architecture.quantum_dots.operations.component_macro_catalog import (
-    register_default_component_macro_factories,
-)
-from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
-    _make_xy_pulse_factories,
-    _make_readout_pulse,
-)
-from quam_builder.architecture.quantum_dots.macro_engine.overrides import (
-    ComponentOverrides,
-    _convert_typed_overrides,
+from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
+    make_readout_pulse,
+    make_xy_pulse_factories,
 )
 
 __all__ = [
     "wire_machine_macros",
-    "load_macro_profile",
+    "MacroWirer",
+    "PulseWirer",
 ]
 
 
-def load_macro_profile(profile_path: str | Path | None) -> dict[str, Any]:
-    """Load an optional TOML macro profile.
+# ---------------------------------------------------------------------------
+# MacroWirer
+# ---------------------------------------------------------------------------
+
+
+class MacroWirer:
+    """Materializes macros onto machine components from a :class:`MacroRegistry`.
 
     Args:
-        profile_path: Path to a TOML file, or ``None`` to skip profile loading.
-
-    Returns:
-        Decoded profile data as a mapping.
-
-    Raises:
-        FileNotFoundError: If the path is provided and does not exist.
-        ValueError: If the parsed file is not a dictionary-like structure.
+        registry: The registry to resolve macro factories from.
     """
-    if profile_path is None:
-        return {}
-    path = Path(profile_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Macro profile not found: {path}")
-    with path.open("rb") as f:
-        data = tomllib.load(f)
-    if not isinstance(data, dict):
-        raise ValueError("Macro profile must decode to a dictionary.")
-    return data
 
+    def __init__(self, registry: MacroRegistry) -> None:
+        self._registry = registry
 
-def _deep_merge(base: dict[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
-    """Recursively merge ``override`` onto ``base`` and return a new mapping."""
-    merged = dict(base)
-    for key, value in override.items():
-        if isinstance(value, Mapping) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged[key], value)  # type: ignore[arg-type]
-        else:
-            merged[key] = value
-    return merged
+    def wire(
+        self,
+        machine: object,
+        *,
+        instance_overrides: dict[str, MacroFactoryMap] | None = None,
+    ) -> None:
+        """Materialize defaults and apply overrides for all components.
 
+        Args:
+            machine: Target machine whose components should be wired.
+            instance_overrides: Per-component-path overrides applied after
+                catalog-based defaults.  Keys are paths like ``"qubits.q1"``.
+                Use ``DISABLED`` as a factory value to remove a macro.
 
-def _iter_macro_components(machine: Any):
-    """Iterate components on a machine that expose a ``macros`` mapping.
+        Raises:
+            KeyError: If an instance override path does not match any
+                component, or if ``DISABLED`` targets a non-existent macro.
+        """
+        components = dict(self._iter_components(machine))
 
-    Yields:
-        Tuples of ``(<component_path>, <component_instance>)`` where
-        ``component_path`` is suitable for ``instances.<path>`` overrides.
-    """
-    collection_names = (
-        "quantum_dots",
-        "sensor_dots",
-        "barrier_gates",
-        "global_gates",
-        "quantum_dot_pairs",
-        "qubits",
-        "qubit_pairs",
-    )
-    for collection_name in collection_names:
-        collection = getattr(machine, collection_name, None)
-        if isinstance(collection, Mapping):
-            for name, component in collection.items():
-                if hasattr(component, "macros"):
-                    yield f"{collection_name}.{name}", component
+        for component in components.values():
+            self._materialize_from_registry(component)
 
-    qpu = getattr(machine, "qpu", None)
-    if qpu is not None and hasattr(qpu, "macros"):
-        yield "qpu", qpu
+        if instance_overrides:
+            self._apply_instance_overrides(components, instance_overrides)
 
+    # -- internal -----------------------------------------------------------
 
-def _resolve_macro_factory(factory_spec: Any):
-    """Resolve macro factory spec to a concrete ``QuamMacro`` subclass.
+    def _materialize_from_registry(self, component: object) -> None:
+        """Materialize macros from the registry onto *component*.
 
-    Args:
-        factory_spec: Either a class object or a ``module.path:Symbol`` string.
+        For each name in the resolved factory map:
+        - If the component has no macro for that name, create one.
+        - If the component already has one **and** the registry's factory
+          differs from the installed macro's type (i.e. a higher-priority
+          catalog overrode it), replace it.
+        """
+        factories = self._registry.resolve_factories(component)
+        macros = getattr(component, "macros", None)
+        if macros is None:
+            return
+        for name, factory in factories.items():
+            if name not in macros:
+                self._set_macro(component, name, factory())
+            elif self._factory_overrides_existing(factory, macros[name]):
+                self._set_macro(component, name, factory())
 
-    Returns:
-        A ``QuamMacro`` subclass.
-    """
-    if isinstance(factory_spec, str):
-        if ":" not in factory_spec:
-            raise ValueError(
-                f"Macro factory '{factory_spec}' must use 'module.path:SymbolName' format."
-            )
-        module_name, symbol_name = factory_spec.split(":", 1)
-        module = importlib.import_module(module_name)
-        factory = getattr(module, symbol_name)
-    else:
-        factory = factory_spec
+    @staticmethod
+    def _factory_overrides_existing(factory: Any, existing_macro: QuamMacro) -> bool:
+        """Return True if *factory* would produce a different macro type or config.
 
-    if not isinstance(factory, type) or not issubclass(factory, QuamMacro):
-        raise TypeError(
-            f"Resolved macro factory '{factory}' must be a QuamMacro subclass, "
-            f"got '{type(factory).__name__}'."
-        )
-    return factory
+        For bare classes, checks isinstance.  For partials or other
+        callables (which carry custom parameters), always replace.
+        """
+        if isinstance(factory, type):
+            return not isinstance(existing_macro, factory)
+        # Non-type callable (e.g. functools.partial with custom params) --
+        # always treat as an override since we can't compare config.
+        return True
 
+    def _apply_instance_overrides(
+        self,
+        components: dict[str, object],
+        overrides: dict[str, MacroFactoryMap],
+    ) -> None:
+        for path, factory_map in overrides.items():
+            if path not in components:
+                raise KeyError(f"Unknown component path '{path}'. " f"Known: {sorted(components)}")
+            component = components[path]
+            for name, factory_or_sentinel in factory_map.items():
+                if factory_or_sentinel is DISABLED:
+                    self._remove_macro(component, name)
+                else:
+                    macro = factory_or_sentinel()
+                    self._set_macro(component, name, macro)
 
-def _set_component_macro(component: Any, name: str, macro: QuamMacro) -> None:
-    """Set or replace a macro on a component while keeping parent links valid."""
-    set_macro = getattr(component, "set_macro", None)
-    if callable(set_macro):
-        set_macro(name, macro)
-        return
+    @staticmethod
+    def _set_macro(component: object, name: str, macro: QuamMacro) -> None:
+        set_macro = getattr(component, "set_macro", None)
+        if callable(set_macro):
+            set_macro(name, macro)
+            return
+        if not hasattr(component, "macros") or component.macros is None:
+            component.macros = {}  # type: ignore[attr-defined]
+        component.macros[name] = macro  # type: ignore[attr-defined]
+        if getattr(macro, "parent", None) is None:
+            macro.parent = component
 
-    if not hasattr(component, "macros") or component.macros is None:
-        component.macros = {}
-    component.macros[name] = macro
-    if getattr(macro, "parent", None) is None:
-        macro.parent = component
-
-
-def _remove_component_macro(component: Any, name: str, strict: bool) -> None:
-    """Remove a macro from a component and invalidate dispatch cache if needed."""
-    macros = getattr(component, "macros", None)
-    if not isinstance(macros, Mapping):
-        if strict:
+    @staticmethod
+    def _remove_macro(component: object, name: str) -> None:
+        macros = getattr(component, "macros", None)
+        if not isinstance(macros, Mapping):
             raise KeyError(f"Component '{component}' has no macros container.")
-        return
-    if name not in macros:
-        if strict:
-            raise KeyError(f"Macro '{name}' not found on component '{component.id}'.")
-        return
-    del macros[name]
-
-
-def _normalize_macro_override(entry: Any) -> tuple[type[QuamMacro] | None, dict[str, Any], bool]:
-    """Normalize one macro override entry into factory/params/enabled tuple."""
-    if isinstance(entry, str) or (isinstance(entry, type) and issubclass(entry, QuamMacro)):
-        return _resolve_macro_factory(entry), {}, True
-
-    if not isinstance(entry, Mapping):
-        raise TypeError(
-            "Macro override entry must be a mapping, a QuamMacro class, or import path string."
-        )
-
-    enabled = bool(entry.get("enabled", True))
-    if not enabled:
-        return None, {}, False
-
-    factory_spec = entry.get("factory")
-    if factory_spec is None:
-        raise ValueError("Enabled macro override must provide 'factory'.")
-    params = entry.get("params", {})
-    if not isinstance(params, Mapping):
-        raise TypeError("Macro override 'params' must be a mapping.")
-    return _resolve_macro_factory(factory_spec), dict(params), True
-
-
-def _apply_macros_to_component(
-    component: Any,
-    macros_config: Mapping[str, Any],
-    *,
-    strict: bool,
-    context: str,
-) -> None:
-    """Apply normalized macro override entries to one component."""
-    known_macros = set(get_default_macro_factories(component).keys())
-    known_macros.update(getattr(component, "macros", {}).keys())
-
-    for macro_name, entry in macros_config.items():
-        if strict and macro_name not in known_macros:
+        if name not in macros:
             raise KeyError(
-                f"[{context}] Unknown macro '{macro_name}' for component "
-                f"{type(component).__name__}({getattr(component, 'id', '?')}). "
-                f"Known macros: {sorted(known_macros)}"
+                f"Macro '{name}' not found on " f"'{getattr(component, 'id', component)}'."
             )
+        del macros[name]
 
-        factory, params, enabled = _normalize_macro_override(entry)
-        if not enabled:
-            _remove_component_macro(component, macro_name, strict=strict)
-            continue
+    @staticmethod
+    def _iter_components(machine: object) -> Iterable[tuple[str, Any]]:
+        """Yield ``(path, component)`` for all macro-capable components."""
+        collection_names = (
+            "quantum_dots",
+            "sensor_dots",
+            "barrier_gates",
+            "global_gates",
+            "quantum_dot_pairs",
+            "qubits",
+            "qubit_pairs",
+        )
+        for collection_name in collection_names:
+            collection = getattr(machine, collection_name, None)
+            if isinstance(collection, Mapping):
+                for name, component in collection.items():
+                    if hasattr(component, "macros"):
+                        yield f"{collection_name}.{name}", component
 
-        init_param_names = set(inspect.signature(factory).parameters)
-        init_params = {key: value for key, value in params.items() if key in init_param_names}
-        runtime_params = {
-            key: value for key, value in params.items() if key not in init_param_names
-        }
-
-        macro = factory(**init_params)  # type: ignore[misc]
-        for key, value in runtime_params.items():
-            if strict and not hasattr(macro, key):
-                raise TypeError(
-                    f"[{context}] Macro '{macro_name}' on component "
-                    f"{type(component).__name__}({getattr(component, 'id', '?')}) "
-                    f"does not expose attribute '{key}'."
-                )
-            setattr(macro, key, value)
-        _set_component_macro(component, macro_name, macro)
+        qpu = getattr(machine, "qpu", None)
+        if qpu is not None and hasattr(qpu, "macros"):
+            yield "qpu", qpu
 
 
-def _ensure_default_pulses(machine: Any) -> None:
-    """Materialize default pulses onto qubit XY drives and sensor dot resonators.
+# ---------------------------------------------------------------------------
+# PulseWirer
+# ---------------------------------------------------------------------------
 
-    Called automatically at the end of :func:`wire_machine_macros`, after macro
-    wiring is complete.  Pulse wiring is additive: only pulse names not already
-    present in a channel's ``operations`` dict are added.  User-supplied or
-    override-supplied pulses always take precedence.
 
-    Qubit XY drives:
-        For each qubit in ``machine.qubits`` that has an ``xy`` drive with an
-        ``operations`` dict, adds a single ``GaussianPulse`` reference pulse
-        named ``"gaussian"``.  The ``XYDriveMacro`` scales amplitude for
-        rotation angle and applies virtual-Z for rotation axis, so only one
-        calibrated pulse is needed.  The pulse is drive-type aware: IQ/MW
-        channels get ``axis_angle=0.0``; ``SingleChannel`` uses ``axis_angle=None``.
+class PulseWirer:
+    """Materializes default pulses onto machine channels.
 
-    Sensor dot readout resonators:
-        For each sensor dot in ``machine.sensor_dots`` that has a
-        ``readout_resonator`` with an ``operations`` dict, adds a default
-        ``SquareReadoutPulse`` named ``"readout"``.
-
-    Args:
-        machine: Target machine object with ``qubits`` and/or ``sensor_dots``
-            collections.
+    Pulse wiring is additive: only pulse names not already present in a
+    channel's ``operations`` dict are added.
     """
-    qubits = getattr(machine, "qubits", None)
-    if isinstance(qubits, Mapping):
+
+    def wire(self, machine: object) -> None:
+        """Add default pulses where missing.
+
+        Args:
+            machine: Target machine whose channels receive default pulses.
+        """
+        self._wire_xy_pulses(machine)
+        self._wire_readout_pulses(machine)
+
+    @staticmethod
+    def _wire_xy_pulses(machine: object) -> None:
+        qubits = getattr(machine, "qubits", None)
+        if not isinstance(qubits, Mapping):
+            return
         for qubit in qubits.values():
             xy = getattr(qubit, "xy", None)
             if xy is None:
@@ -258,13 +208,15 @@ def _ensure_default_pulses(machine: Any) -> None:
             operations = getattr(xy, "operations", None)
             if operations is None:
                 continue
-            default_pulses = _make_xy_pulse_factories(xy)
-            for pulse_name, pulse in default_pulses.items():
-                if pulse_name not in operations:
-                    operations[pulse_name] = pulse
+            for name, pulse in make_xy_pulse_factories(xy).items():
+                if name not in operations:
+                    operations[name] = pulse
 
-    sensor_dots = getattr(machine, "sensor_dots", None)
-    if isinstance(sensor_dots, Mapping):
+    @staticmethod
+    def _wire_readout_pulses(machine: object) -> None:
+        sensor_dots = getattr(machine, "sensor_dots", None)
+        if not isinstance(sensor_dots, Mapping):
+            return
         for sensor_dot in sensor_dots.values():
             resonator = getattr(sensor_dot, "readout_resonator", None)
             if resonator is None:
@@ -273,266 +225,74 @@ def _ensure_default_pulses(machine: Any) -> None:
             if operations is None:
                 continue
             if "readout" not in operations:
-                operations["readout"] = _make_readout_pulse()
+                operations["readout"] = make_readout_pulse()
 
 
-def _apply_pulse_overrides(
-    machine: Any,
-    merged_overrides: Mapping[str, Any],
-) -> None:
-    """Apply pulse overrides from a TOML profile or runtime mapping.
-
-    Called automatically at the end of :func:`wire_machine_macros`, after
-    ``_ensure_default_pulses`` has materialized defaults.
-
-    Override schema (inside both ``component_types`` and ``instances`` scopes)::
-
-        [component_types.LDQubit.pulses]
-        x180 = {type = "GaussianPulse", length = 500, amplitude = 0.3, sigma = 83}
-
-        [instances."qubits.q1".pulses]
-        x180 = {type = "GaussianPulse", length = 800, amplitude = 0.15, sigma = 133}
-
-    Supported pulse types: ``GaussianPulse``, ``SquarePulse``,
-    ``SquareReadoutPulse``, ``DragPulse`` (if available in the quam version).
-
-    To remove a pulse, set ``enabled = false``::
-
-        [instances."qubits.q1".pulses]
-        "-y90" = {enabled = false}
-
-    Precedence (last wins):
-        1. Default pulses from ``_ensure_default_pulses``
-        2. Type-level overrides (``component_types.<TypeName>.pulses``)
-        3. Instance-level overrides (``instances.<path>.pulses``)
-
-    Args:
-        machine: Target machine whose component pulses should be overridden.
-        merged_overrides: Combined TOML profile + runtime override mapping,
-            as produced by ``_deep_merge(profile_data, macro_overrides)``.
-    """
-    from quam.components import pulses as quam_pulses
-
-    _PULSE_TYPE_MAP = {
-        "GaussianPulse": quam_pulses.GaussianPulse,
-        "SquarePulse": quam_pulses.SquarePulse,
-        "SquareReadoutPulse": quam_pulses.SquareReadoutPulse,
-    }
-    if hasattr(quam_pulses, "DragPulse"):
-        _PULSE_TYPE_MAP["DragPulse"] = quam_pulses.DragPulse
-
-    def _apply_pulse_config_to_operations(operations: dict, pulses_config: Mapping, context: str):
-        for pulse_name, entry in pulses_config.items():
-            if not isinstance(entry, Mapping):
-                continue
-            enabled = entry.get("enabled", True)
-            if not enabled:
-                operations.pop(pulse_name, None)
-                continue
-            pulse_type_name = entry.get("type")
-            if pulse_type_name is None:
-                continue
-            pulse_cls = _PULSE_TYPE_MAP.get(pulse_type_name)
-            if pulse_cls is None:
-                raise ValueError(
-                    f"[{context}] Unknown pulse type '{pulse_type_name}'. "
-                    f"Known types: {sorted(_PULSE_TYPE_MAP)}"
-                )
-            params = {k: v for k, v in entry.items() if k not in ("type", "enabled")}
-            operations[pulse_name] = pulse_cls(**params)
-
-    def _get_pulse_target_operations(component: Any) -> dict | None:
-        """Find operations dict on a component's drive or resonator."""
-        xy = getattr(component, "xy", None)
-        if xy is not None:
-            return getattr(xy, "operations", None)
-        rr = getattr(component, "readout_resonator", None)
-        if rr is not None:
-            return getattr(rr, "operations", None)
-        return getattr(component, "operations", None)
-
-    components_by_path = dict(_iter_macro_components(machine))
-
-    type_overrides = merged_overrides.get("component_types", {})
-    if isinstance(type_overrides, Mapping):
-        for _, component in components_by_path.items():
-            for type_key in (
-                type(component).__name__,
-                f"{type(component).__module__}.{type(component).__qualname__}",
-            ):
-                type_config = type_overrides.get(type_key)
-                if type_config is None:
-                    continue
-                pulses_config = type_config.get("pulses", {})
-                if not isinstance(pulses_config, Mapping) or not pulses_config:
-                    continue
-                operations = _get_pulse_target_operations(component)
-                if operations is not None:
-                    _apply_pulse_config_to_operations(
-                        operations, pulses_config, f"component_types.{type_key}"
-                    )
-
-    instance_overrides = merged_overrides.get("instances", {})
-    if isinstance(instance_overrides, Mapping):
-        for component_path, component_config in instance_overrides.items():
-            if component_path not in components_by_path:
-                continue
-            pulses_config = component_config.get("pulses", {})
-            if not isinstance(pulses_config, Mapping) or not pulses_config:
-                continue
-            component = components_by_path[component_path]
-            operations = _get_pulse_target_operations(component)
-            if operations is not None:
-                _apply_pulse_config_to_operations(
-                    operations, pulses_config, f"instances.{component_path}"
-                )
+# ---------------------------------------------------------------------------
+# Top-level entry point
+# ---------------------------------------------------------------------------
 
 
 def wire_machine_macros(
-    machine: Any,
+    machine: object,
     *,
-    macro_profile_path: str | Path | None = None,
-    component_overrides: Mapping[type | str, ComponentOverrides | Mapping] | None = None,
-    instance_overrides: Mapping[str, ComponentOverrides | Mapping] | None = None,
-    strict: bool = True,
+    catalogs: Sequence[MacroCatalog] | None = None,
+    instance_overrides: dict[str, MacroFactoryMap] | None = None,
 ) -> None:
-    """Wire defaults and user-configured macro/pulse overrides onto machine components.
+    """Wire macros and pulses onto a machine.
 
-    Two override sources are merged in this order (last wins):
-
-    1. TOML profile from *macro_profile_path*.
-    2. Typed *component_overrides* / *instance_overrides* kwargs.
-
-    The typed kwargs accept class objects as component-type keys (e.g.
-    ``LDQubit``) and validate macro factories at construction time via
-    :func:`macro` / :func:`disabled` helpers from
-    :mod:`~quam_builder.architecture.quantum_dots.macro_engine.overrides`.
+    This is the main user-facing entry point.  It builds a
+    :class:`MacroRegistry` from the built-in catalogs plus any
+    user-supplied catalogs, materializes defaults, applies overrides,
+    and wires default pulses.
 
     Args:
         machine: Target machine whose components should be wired.
-        macro_profile_path: Optional TOML file path.
-        component_overrides: Overrides keyed by component class or class name.
-            Values are :class:`ComponentOverrides` (from :func:`overrides`)
-            or raw dicts.  Example::
+        catalogs: Additional catalogs (e.g. lab packages).  Applied in
+            priority order after built-in defaults.
+        instance_overrides: Per-component-path overrides applied last.
+            Keys are paths like ``"qubits.q1"``.  Values are
+            macro-name -> factory dicts (use enum keys from
+            :mod:`~quam_builder.architecture.quantum_dots.operations.names`).
+            Use the ``DISABLED`` sentinel to remove a macro.
 
-                from quam_builder.architecture.quantum_dots.macro_engine import (
-                    macro, overrides,
-                )
+    Raises:
+        KeyError: If an instance override path does not match any
+            component, or if ``DISABLED`` targets a non-existent macro.
 
-                component_overrides={
-                    LDQubit: overrides(macros={
-                        SingleQubitMacroName.INITIALIZE: macro(InitMacro, ramp_duration=64),
-                    }),
-                }
+    Example -- defaults only::
 
-        instance_overrides: Overrides keyed by component path string
-            (e.g. ``"qubits.q2"``).  Values are :class:`ComponentOverrides`
-            or raw dicts.  Example::
+        wire_machine_macros(machine)
 
-                instance_overrides={
-                    "qubits.q2": overrides(macros={
-                        SingleQubitMacroName.INITIALIZE: macro(InitMacro, ramp_duration=96),
-                    }),
-                }
+    Example -- external catalog::
 
-        strict: If True, unknown paths/macros raise explicit errors.
+        from my_lab.catalog import LabMacroCatalog
 
-    Example:
-        Wire defaults only (most common)::
+        wire_machine_macros(machine, catalogs=[LabMacroCatalog()])
 
-            wire_machine_macros(machine)
+    Example -- instance override::
 
-        Override initialize on all LDQubits::
+        from quam_builder.architecture.quantum_dots.operations.names import (
+            SingleQubitMacroName,
+        )
 
-            from quam_builder.architecture.quantum_dots.macro_engine import (
-                wire_machine_macros, macro, overrides,
-            )
-            from quam_builder.architecture.quantum_dots.qubit import LDQubit
-            from quam_builder.architecture.quantum_dots.operations.names import (
-                SingleQubitMacroName,
-            )
-
-            wire_machine_macros(
-                machine,
-                component_overrides={
-                    LDQubit: overrides(macros={
-                        SingleQubitMacroName.INITIALIZE: macro(
-                            InitializeStateMacro, ramp_duration=64,
-                        ),
-                    }),
-                },
-            )
-
-        Override one qubit, keep all other defaults::
-
-            wire_machine_macros(
-                machine,
-                instance_overrides={
-                    "qubits.q1": overrides(macros={
-                        SingleQubitMacroName.X_180: macro(TunedX180Macro),
-                    }),
-                },
-            )
+        wire_machine_macros(
+            machine,
+            instance_overrides={
+                "qubits.q1": {SingleQubitMacroName.X_180: TunedX180Macro},
+            },
+        )
     """
+    registry = MacroRegistry()
+    registry.register_catalog(UtilityMacroCatalog())
+    registry.register_catalog(DefaultMacroCatalog())
 
-    register_default_component_macro_factories()
-    profile_data = load_macro_profile(macro_profile_path)
+    if catalogs:
+        for catalog in catalogs:
+            registry.register_catalog(catalog)
 
-    typed_dict = _convert_typed_overrides(component_overrides, instance_overrides)
-    merged_overrides = _deep_merge(profile_data, typed_dict)
-
-    components_by_path = dict(_iter_macro_components(machine))
-
-    # Ensure defaults are materialized before applying overrides.
-    for component in components_by_path.values():
-        ensure_defaults = getattr(component, "ensure_default_macros", None)
-        if callable(ensure_defaults):
-            ensure_defaults()
-
-    type_overrides = merged_overrides.get("component_types", {})
-    if type_overrides:
-        if not isinstance(type_overrides, Mapping):
-            raise TypeError("'component_types' overrides must be a mapping.")
-        for _, component in components_by_path.items():
-            for type_key in (
-                type(component).__name__,
-                f"{type(component).__module__}.{type(component).__qualname__}",
-            ):
-                type_config = type_overrides.get(type_key)
-                if type_config is None:
-                    continue
-                macros_config = type_config.get("macros", {})
-                if not isinstance(macros_config, Mapping):
-                    raise TypeError(f"component_types.{type_key}.macros must be a mapping.")
-                _apply_macros_to_component(
-                    component,
-                    macros_config,
-                    strict=strict,
-                    context=f"component_types.{type_key}",
-                )
-
-    instance_overrides = merged_overrides.get("instances", {})
-    if instance_overrides:
-        if not isinstance(instance_overrides, Mapping):
-            raise TypeError("'instances' overrides must be a mapping.")
-        for component_path, component_config in instance_overrides.items():
-            if component_path not in components_by_path:
-                if strict:
-                    raise KeyError(
-                        f"Unknown component path '{component_path}' in macro overrides. "
-                        f"Known paths: {sorted(components_by_path)}"
-                    )
-                continue
-            macros_config = component_config.get("macros", {})
-            if not isinstance(macros_config, Mapping):
-                raise TypeError(f"instances.{component_path}.macros must be a mapping.")
-            _apply_macros_to_component(
-                components_by_path[component_path],
-                macros_config,
-                strict=strict,
-                context=f"instances.{component_path}",
-            )
-
-    # Wire default pulses and apply pulse overrides.
-    _ensure_default_pulses(machine)
-    _apply_pulse_overrides(machine, merged_overrides)
+    MacroWirer(registry).wire(
+        machine,
+        instance_overrides=instance_overrides,
+    )
+    PulseWirer().wire(machine)

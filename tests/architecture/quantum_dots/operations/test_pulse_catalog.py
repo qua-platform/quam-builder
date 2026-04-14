@@ -6,9 +6,9 @@ from quam.components.pulses import SquareReadoutPulse
 
 from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 
-from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
-    _make_xy_pulse_factories,
-    _make_readout_pulse,
+from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
+    make_xy_pulse_factories,
+    make_readout_pulse,
 )
 
 
@@ -25,7 +25,7 @@ class TestMakeXYPulseFactories:
             RF_frequency=100_000_000,
             opx_output=LFFEMAnalogOutputPort("con1", 3, port_id=1),
         )
-        pulses = _make_xy_pulse_factories(xy)
+        pulses = make_xy_pulse_factories(xy)
 
         assert set(pulses.keys()) == {"gaussian"}
         pulse = pulses["gaussian"]
@@ -39,7 +39,7 @@ class TestMakeXYPulseFactories:
 
         xy = MagicMock(spec=XYDriveIQ)
         # Not a SingleChannel
-        pulses = _make_xy_pulse_factories(xy)
+        pulses = make_xy_pulse_factories(xy)
 
         assert pulses["gaussian"].axis_angle == 0.0
 
@@ -49,7 +49,7 @@ class TestMakeXYPulseFactories:
         from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ
 
         xy = MagicMock(spec=XYDriveIQ)
-        pulses = _make_xy_pulse_factories(xy)
+        pulses = make_xy_pulse_factories(xy)
 
         gaussian = pulses["gaussian"]
         assert isinstance(gaussian, ScalableGaussianPulse)
@@ -63,10 +63,10 @@ class TestMakeReadoutPulse:
     """Test readout pulse factory."""
 
     def test_readout_pulse_type(self):
-        pulse = _make_readout_pulse()
+        pulse = make_readout_pulse()
         assert isinstance(pulse, SquareReadoutPulse)
 
     def test_readout_pulse_parameters(self):
-        pulse = _make_readout_pulse()
+        pulse = make_readout_pulse()
         assert pulse.length == 2000
         assert pulse.amplitude == 1.0

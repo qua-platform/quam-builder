@@ -4,7 +4,7 @@
     This module is superseded by the macro-engine pulse wiring system.
     Use ``wire_machine_macros()`` from
     ``quam_builder.architecture.quantum_dots.macro_engine`` instead.
-    Pulse defaults are now registered via ``component_pulse_catalog`` and
+    Pulse defaults are now registered via ``pulse_catalog`` and
     applied automatically during ``wire_machine_macros()``.
 """
 

@@ -1,12 +1,10 @@
 """Tests for macro persistence across save/load round-trips."""
 
-import pytest
-
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 
-def test_macro_instances_survive_save_load_roundtrip(qd_machine, reset_catalog, tmp_path):
+def test_macro_instances_survive_save_load_roundtrip(qd_machine, tmp_path):
     """QuantumDot, QuantumDotPair, SensorDot macros persist across save/load."""
     wire_machine_macros(qd_machine)
     qd_machine.save(tmp_path)

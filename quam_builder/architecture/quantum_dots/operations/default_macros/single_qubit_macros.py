@@ -34,6 +34,7 @@ import math
 import numpy as np
 from qm.qua import wait
 from quam.components.macro import QubitMacro
+from quam.core import quam_dataclass
 
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
@@ -95,12 +96,14 @@ def _compose_amplitude_scale(
     return scale
 
 
+@quam_dataclass
 class Initialize1QMacro(InitializeStateMacro, QubitMacro):
     """Initialize qubit by ramping to the `initialize` voltage point."""
 
     point: str = VoltagePointName.INITIALIZE.value
 
 
+@quam_dataclass
 class Measure1QMacro(QubitMacro):
     """PSB measure macro for a single qubit.
 
@@ -135,12 +138,14 @@ class Measure1QMacro(QubitMacro):
         return qd_pair.macros[SingleQubitMacroName.MEASURE].apply(**kwargs)
 
 
+@quam_dataclass
 class Empty1QMacro(EmptyStateMacro, QubitMacro):
     """Move qubit to the `empty` voltage point."""
 
     point: str = VoltagePointName.EMPTY.value
 
 
+@quam_dataclass
 class XYDriveMacro(QubitMacro):
     """Canonical XY-drive macro with angle-to-amplitude conversion.
 
@@ -388,6 +393,7 @@ class XYDriveMacro(QubitMacro):
             )
 
 
+@quam_dataclass
 class _AxisRotationMacro(QubitMacro):
     """Canonical axis-rotation macro delegating to `xy_drive`."""
 
@@ -440,6 +446,7 @@ class _AxisRotationMacro(QubitMacro):
         )
 
 
+@quam_dataclass
 class XMacro(_AxisRotationMacro):
     """Canonical X-axis rotation macro."""
 
@@ -447,6 +454,7 @@ class XMacro(_AxisRotationMacro):
     phase: float = 0.0
 
 
+@quam_dataclass
 class YMacro(_AxisRotationMacro):
     """Canonical Y-axis rotation macro."""
 
@@ -454,6 +462,7 @@ class YMacro(_AxisRotationMacro):
     phase: float = float(np.pi / 2)
 
 
+@quam_dataclass
 class ZMacro(QubitMacro):
     """Canonical virtual-Z rotation macro."""
 
@@ -473,6 +482,7 @@ class ZMacro(QubitMacro):
         self.qubit.virtual_z(target_angle)
 
 
+@quam_dataclass
 class _FixedAxisAngleMacro(QubitMacro):
     """Fixed-angle wrapper that delegates to canonical `x`, `y`, or `z` macro."""
 
@@ -527,6 +537,7 @@ class _FixedAxisAngleMacro(QubitMacro):
         )
 
 
+@quam_dataclass
 class X180Macro(_FixedAxisAngleMacro):
     """Apply 180-degree rotation around X axis via canonical `x` macro."""
 
@@ -534,6 +545,7 @@ class X180Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi)
 
 
+@quam_dataclass
 class X90Macro(_FixedAxisAngleMacro):
     """Apply 90-degree rotation around X axis via canonical `x` macro."""
 
@@ -541,6 +553,7 @@ class X90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi / 2)
 
 
+@quam_dataclass
 class XNeg90Macro(_FixedAxisAngleMacro):
     """Apply -90-degree rotation around X axis via canonical `x` macro."""
 
@@ -548,6 +561,7 @@ class XNeg90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(-np.pi / 2)
 
 
+@quam_dataclass
 class Y180Macro(_FixedAxisAngleMacro):
     """Apply 180-degree rotation around Y axis via canonical `y` macro."""
 
@@ -555,6 +569,7 @@ class Y180Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi)
 
 
+@quam_dataclass
 class Y90Macro(_FixedAxisAngleMacro):
     """Apply 90-degree rotation around Y axis via canonical `y` macro."""
 
@@ -562,6 +577,7 @@ class Y90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi / 2)
 
 
+@quam_dataclass
 class YNeg90Macro(_FixedAxisAngleMacro):
     """Apply -90-degree rotation around Y axis via canonical `y` macro."""
 
@@ -569,6 +585,7 @@ class YNeg90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(-np.pi / 2)
 
 
+@quam_dataclass
 class Z180Macro(_FixedAxisAngleMacro):
     """Apply virtual 180-degree Z rotation via canonical `z` macro."""
 
@@ -576,6 +593,7 @@ class Z180Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi)
 
 
+@quam_dataclass
 class Z90Macro(_FixedAxisAngleMacro):
     """Apply virtual 90-degree Z rotation via canonical `z` macro."""
 
@@ -583,6 +601,7 @@ class Z90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(np.pi / 2)
 
 
+@quam_dataclass
 class ZNeg90Macro(_FixedAxisAngleMacro):
     """Apply virtual -90-degree Z rotation via canonical `z` macro."""
 
@@ -590,6 +609,7 @@ class ZNeg90Macro(_FixedAxisAngleMacro):
     default_angle: float = float(-np.pi / 2)
 
 
+@quam_dataclass
 class IdentityMacro(QubitMacro):
     """Identity operation implemented as wait."""
 

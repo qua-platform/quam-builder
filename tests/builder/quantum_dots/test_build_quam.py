@@ -169,11 +169,10 @@ class TestAddPulses:
         instruments.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
         allocate_wiring(connectivity, instruments)
@@ -209,7 +208,7 @@ class TestAddPulses:
         machine = LossDiVincenzoQuam()
         machine.qubits = {}
         machine.qubit_pairs = {}
-        wire_machine_macros(machine, strict=False)
+        wire_machine_macros(machine)
 
 
 class TestBuildQuam:

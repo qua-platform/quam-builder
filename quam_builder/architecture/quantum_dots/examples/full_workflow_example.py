@@ -1,35 +1,29 @@
 """Full workflow example: wiring, macros, pulses, and overrides.
 
-This script demonstrates the complete end-to-end workflow for building
-a Loss-DiVincenzo qubit machine with default macros and pulses, and
-shows how to:
+This script demonstrates the complete end-to-end workflow for a
+Loss-DiVincenzo qubit machine with default macros and pulses:
 
-1. Wire a Loss-DiVincenzo qubit machine (combined single-stage workflow).
+1. Build the machine via the combined wiring workflow.
 2. Wire default macros via ``wire_machine_macros()``.
 3. Update operation parameters and the reference pulse itself.
 4. Update the drive pulse type (e.g. swap Gaussian for DRAG).
 5. Replace a particular macro (instance-level and type-level overrides).
 """
 
-# pylint: disable=no-member
 # pylint: disable=too-many-ancestors
 
 from __future__ import annotations
 
-from typing import Dict
-
-import numpy as np
 from qm import qua
-from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
-from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import pulses
 from quam.components.macro import QubitPairMacro
 
-from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.macro_engine import (
-    wire_machine_macros,
-    macro,
-    overrides,
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
+    TypeOverrideCatalog,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
@@ -41,81 +35,11 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
     X180Macro,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.qubit.ld_qubit_pair import LDQubitPair
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
-from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_quam
-
+from quam_builder.architecture.quantum_dots.qubit_pair.ld_qubit_pair import LDQubitPair
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 
 ########################################################################################################################
-# %%                                           Static parameters
-########################################################################################################################
-
-host_ip = "172.16.33.115"
-cluster_name = "CS_3"
-
-global_gates = [1, 2]
-sensor_dots = [1, 2]
-quantum_dots = [1, 2, 3]
-quantum_dot_pairs = [(1, 2), (2, 3)]
-
-qubit_pair_sensor_map = {
-    "q1_q2": ["sensor_1"],
-    "q2_q3": ["sensor_2"],
-}
-
-
-########################################################################################################################
-# %%                          STEP 1: Wire a Loss-DiVincenzo qubit machine
-########################################################################################################################
-
-
-def build_wired_machine() -> LossDiVincenzoQuam:
-    """Build a machine using the combined single-stage workflow.
-
-    This creates connectivity with all components (dots, sensors, drive lines)
-    in one go, allocates wiring, and builds the full Loss-DiVincenzo QUAM.
-    """
-    print("=" * 80)
-    print("STEP 1: Build wired Loss-DiVincenzo machine")
-    print("=" * 80)
-
-    instruments = Instruments()
-    instruments.add_mw_fem(controller=1, slots=[1])
-    instruments.add_lf_fem(controller=1, slots=[2, 3])
-
-    connectivity = Connectivity()
-    connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
-    connectivity.add_sensor_dots(
-        sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
-    )
-    connectivity.add_quantum_dots(
-        quantum_dots=quantum_dots,
-        add_drive_lines=True,
-        use_mw_fem=True,
-        shared_drive_line=True,
-    )
-    connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
-
-    allocate_wiring(connectivity, instruments)
-
-    machine = BaseQuamQD()
-    machine = build_quam_wiring(connectivity, host_ip, cluster_name, machine)
-    machine = build_quam(
-        machine,
-        qubit_pair_sensor_map=qubit_pair_sensor_map,
-        connect_qdac=False,
-        save=False,
-    )
-
-    print(f"  Qubits: {list(machine.qubits.keys())}")
-    print(f"  Qubit pairs: {list(machine.qubit_pairs.keys())}")
-    print(f"  Sensor dots: {list(machine.sensor_dots.keys())}")
-    return machine
-
-
-########################################################################################################################
-# %%                          STEP 2: Wire default macros
+# %%                          STEP 1: Wire default macros
 ########################################################################################################################
 
 
@@ -129,8 +53,8 @@ def wire_defaults(machine: LossDiVincenzoQuam) -> None:
     - Default ``gaussian`` reference pulse on each qubit's XY drive
     - Default ``readout`` pulse on sensor dot resonators
     """
-    print("\n" + "=" * 80)
-    print("STEP 2: Wire default macros and pulses")
+    print("=" * 80)
+    print("STEP 1: Wire default macros and pulses")
     print("=" * 80)
 
     wire_machine_macros(machine)
@@ -144,7 +68,7 @@ def wire_defaults(machine: LossDiVincenzoQuam) -> None:
 
 
 ########################################################################################################################
-# %%                          STEP 3: Update operation parameters
+# %%                          STEP 2: Update operation parameters
 ########################################################################################################################
 
 
@@ -155,20 +79,13 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
     Their parameters can be tuned directly without re-wiring.
     """
     print("\n" + "=" * 80)
-    print("STEP 3: Update operation parameters")
+    print("STEP 2: Update operation parameters")
     print("=" * 80)
 
     for qubit in machine.qubits.values():
-        # Tune initialize ramp duration
         qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
-
-        # Tune measure hold duration
         qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
-
-        # Update the source-of-truth gaussian amplitude directly.
         qubit.xy.operations[DrivePulseName.GAUSSIAN].amplitude = 0.17
-
-        # Set identity wait duration
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
     q1 = machine.qubits["q1"]
@@ -179,7 +96,7 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
 
 
 ########################################################################################################################
-# %%                     STEP 4: Update the drive pulse type (Gaussian -> DRAG)
+# %%                     STEP 3: Update the drive pulse type (Gaussian -> DRAG)
 ########################################################################################################################
 
 
@@ -196,24 +113,23 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
     All gate macros (x90, x180, y90, etc.) automatically pick up the change.
     """
     print("\n" + "=" * 80)
-    print("STEP 4: Update drive pulse type (Gaussian -> DRAG)")
+    print("STEP 3: Update drive pulse type (Gaussian -> DRAG)")
     print("=" * 80)
 
     for qubit in machine.qubits.values():
         if qubit.xy is None:
             continue
 
-        # 1. Register a DRAG pulse alongside the existing Gaussian
         qubit.xy.operations[DrivePulseName.DRAG] = pulses.DragPulse(
             length=500,
             amplitude=0.25,
+            axis_angle=0.0,
             sigma=83,
             alpha=0.5,
             anharmonicity=-200e6,
             detuning=0,
         )
 
-        # 2. Point the macro at the new pulse
         qubit.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name = DrivePulseName.DRAG
 
     q1 = machine.qubits["q1"]
@@ -221,12 +137,12 @@ def update_drive_pulse_type(machine: LossDiVincenzoQuam) -> None:
     print(
         f"  q1.xy_drive.reference_pulse_name = {q1.macros[SingleQubitMacroName.XY_DRIVE].reference_pulse_name}"
     )
-    print(f"  Both gaussian and drag are registered; macro now uses drag.")
-    print(f"  All gates (x90, y180, etc.) derive from the drag pulse automatically.")
+    print("  Both gaussian and drag are registered; macro now uses drag.")
+    print("  All gates (x90, y180, etc.) derive from the drag pulse automatically.")
 
 
 ########################################################################################################################
-# %%                     STEP 5: Replace a particular macro
+# %%                     STEP 4: Replace a particular macro
 ########################################################################################################################
 
 
@@ -261,28 +177,25 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
     Override precedence: instance > type > default
     """
     print("\n" + "=" * 80)
-    print("STEP 5: Replace macros (instance + type overrides)")
+    print("STEP 4: Replace macros (instance + type overrides)")
     print("=" * 80)
 
     wire_machine_macros(
         machine,
-        # Type-level: replace CZ on ALL qubit pairs
-        component_overrides={
-            LDQubitPair: overrides(
-                macros={
-                    TwoQubitMacroName.CZ: macro(DemoCZMacro),
+        catalogs=[
+            TypeOverrideCatalog(
+                {
+                    LDQubitPair: {
+                        TwoQubitMacroName.CZ: DemoCZMacro,
+                    },
                 }
             ),
-        },
-        # Instance-level: replace X180 on q1 only
+        ],
         instance_overrides={
-            "qubits.q1": overrides(
-                macros={
-                    SingleQubitMacroName.X_180: macro(TunedX180Macro),
-                }
-            ),
+            "qubits.q1": {
+                SingleQubitMacroName.X_180: TunedX180Macro,
+            },
         },
-        strict=True,
     )
 
     q1 = machine.qubits["q1"]
@@ -302,7 +215,7 @@ def replace_macros(machine: LossDiVincenzoQuam) -> None:
 
 
 def main() -> None:
-    machine = build_wired_machine()
+    machine = build_tutorial_machine()
     wire_defaults(machine)
     update_operation_parameters(machine)
     update_drive_pulse_type(machine)

@@ -2,7 +2,7 @@
 
 Provides the ``MacroDispatchMixin`` base class that gives any quantum-dot
 component automatic macro storage, default materialization from the
-:mod:`~quam_builder.architecture.quantum_dots.operations.macro_registry`,
+:mod:`~quam_builder.architecture.quantum_dots.operations.macro_catalog`,
 and attribute-based macro invocation.
 
 Macro execution goes directly through ``macro.apply(**kwargs)`` without
@@ -12,7 +12,7 @@ any additional tracking or wrapping.
 from __future__ import annotations
 
 import warnings
-from typing import Dict
+from typing import Any, Dict
 
 from dataclasses import field
 
@@ -20,11 +20,10 @@ from quam.components import QuantumComponent
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.operations.component_macro_catalog import (
-    register_default_component_macro_factories,
-)
-from quam_builder.architecture.quantum_dots.operations.macro_registry import (
-    get_default_macro_factories,
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
+    DefaultMacroCatalog,
+    MacroRegistry,
+    UtilityMacroCatalog,
 )
 
 __all__ = ["MacroDispatchMixin"]
@@ -49,8 +48,9 @@ class MacroDispatchMixin(QuantumComponent):
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize macro storage, defaults, and parent links."""
+        super().__post_init__()
         self._ensure_macros_dict()
         self.ensure_default_macros()
         self._ensure_macro_parents()
@@ -62,10 +62,12 @@ class MacroDispatchMixin(QuantumComponent):
 
     def ensure_default_macros(self) -> None:
         """Materialize default macro instances for this component type."""
-        register_default_component_macro_factories()
-        for macro_name, macro_class in get_default_macro_factories(self).items():
+        registry = MacroRegistry()
+        registry.register_catalog(UtilityMacroCatalog())
+        registry.register_catalog(DefaultMacroCatalog())
+        for macro_name, factory in registry.resolve_factories(self).items():
             if macro_name not in self.macros:
-                self.macros[macro_name] = macro_class()
+                self.macros[macro_name] = factory()
 
     def _ensure_macro_parents(self) -> None:
         """Ensure all macros have their parent set to this component."""
@@ -79,7 +81,7 @@ class MacroDispatchMixin(QuantumComponent):
         if getattr(macro, "parent", None) is None:
             macro.parent = self
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Expose macros via attribute access.
 
         Returns the macro object itself when callable (has ``__call__``),
