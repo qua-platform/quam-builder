@@ -97,6 +97,16 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     def voltage_sequence(self):
         return self.quantum_dot.voltage_sequence
 
+    @property
+    def drive_IF(self) -> float:
+        """Current intermediate frequency of the XY drive (derived, read-only)."""
+        return self.xy.intermediate_frequency
+
+    @property
+    def drive_LO(self) -> float:
+        """Current LO frequency of the XY drive."""
+        return self.xy.LO_frequency
+
     def _get_component_id_for_voltages(self) -> str:
         """Target the quantum_dot for voltage operations."""
         return self.quantum_dot.id
@@ -167,30 +177,6 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     def add_xy_pulse(self, pulse_name: str, pulse) -> None:
         self.xy.add_pulse(name=pulse_name, pulse=pulse)
 
-    def set_xy_frequency(self, frequency: float, recenter_LO: bool = True):
-        """
-        Configure the LO+IF of xy. Use this function to update the drive frequency to the calibrated Larmor frequency
-        """
-        if self.xy is None:
-            raise ValueError(f"No XY configured on Qubit {self.id}")
-
-        LO_frequency = self.xy.LO_frequency
-        intermediate_frequency = frequency - LO_frequency
-
-        if abs(intermediate_frequency) > 400e6:
-            if recenter_LO:
-                print(
-                    f"Intermediate Frequency exceeds ±400MHz ({intermediate_frequency/1e6 : .2f}MHz). Setting LO to {frequency/1e9: .4f}GHz"
-                )
-                self.xy.LO_frequency = frequency
-                self.xy.intermediate_frequency = 0
-            else:
-                raise ValueError(
-                    f"Intermediate Frequency ({intermediate_frequency/1e6 : .2f}MHz) exceeds ±400MHz"
-                )
-        else:
-            self.xy.intermediate_frequency = intermediate_frequency
-
     def virtual_z(self, phase: float) -> None:
         """Apply a virtual Z rotation"""
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
@@ -209,4 +195,18 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         if name == "preferred_readout_quantum_dot" and value is not None:
             if hasattr(self, "quantum_dot") and not isinstance(self.quantum_dot, str):
                 self._validate_readout_quantum_dot(value)
+        if name == "larmor_frequency" and value is not None:
+            if hasattr(self, "xy") and self.xy is not None:
+                try:
+                    lo = self.xy.LO_frequency
+                    if isinstance(lo, (int, float)) and isinstance(value, (int, float)):
+                        if_freq = value - lo
+                        if abs(if_freq) > 400e6:
+                            raise ValueError(
+                                f"Intermediate frequency {if_freq / 1e6:.2f} MHz "
+                                f"exceeds \u00b1400 MHz. Adjust LO_frequency or "
+                                f"larmor_frequency."
+                            )
+                except AttributeError:
+                    pass
         super().__setattr__(name, value)
