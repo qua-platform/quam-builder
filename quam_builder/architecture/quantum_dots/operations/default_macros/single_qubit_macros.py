@@ -278,10 +278,10 @@ class XYDriveMacro(QubitMacro):
                 (quantised to 4 ns).  For ``ScalableGaussianPulse`` the
                 sigma auto-scales via ``sigma_ratio``; for plain
                 ``GaussianPulse`` sigma is rescaled proportionally.
-            frequency: Set ``qubit.xy.intermediate_frequency`` to this
-                absolute value.  Mutually exclusive with *frequency_offset*.
-            frequency_offset: Add this offset to the current
-                ``qubit.xy.intermediate_frequency``.
+            frequency: Set ``qubit.larmor_frequency`` to this absolute
+                value (Hz).  Mutually exclusive with *frequency_offset*.
+            frequency_offset: Add this offset (Hz) to the current
+                ``qubit.larmor_frequency``.
         """
         if amplitude is not None and amplitude_scale is not None:
             raise ValueError("Provide either amplitude or amplitude_scale, not both.")
@@ -299,20 +299,18 @@ class XYDriveMacro(QubitMacro):
             old_length = int(pulse.length)
 
             if hasattr(pulse, "sigma_ratio"):
-                # ScalableGaussianPulse: sigma auto-follows via ratio
                 pulse.length = new_length
                 pulse.sigma = pulse.length * pulse.sigma_ratio
             else:
-                # Legacy GaussianPulse: proportionally rescale sigma
                 sigma = getattr(pulse, "sigma", None)
                 pulse.length = new_length
                 if sigma is not None and old_length > 0 and hasattr(pulse, "sigma"):
                     pulse.sigma = sigma * new_length / old_length
 
         if frequency is not None:
-            self.qubit.xy.intermediate_frequency = float(frequency)
+            self.qubit.larmor_frequency = float(frequency)
         elif frequency_offset is not None:
-            self.qubit.xy.intermediate_frequency += float(frequency_offset)
+            self.qubit.larmor_frequency = float(self.qubit.larmor_frequency + frequency_offset)
 
     def apply(
         self,
