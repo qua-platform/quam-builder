@@ -140,6 +140,8 @@ class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
 
 @quam_dataclass
 class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
+    IF_LIMIT: ClassVar[float] = 500e6  # MW FEM NCO supports ±500 MHz
+
     RF_frequency: float = "#../larmor_frequency"
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
 

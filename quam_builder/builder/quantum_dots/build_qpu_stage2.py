@@ -220,6 +220,34 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             ),
         )
 
+    def _set_initial_larmor_frequency(self, qubit_name: str, qubit_id: str) -> None:
+        """Compute and set larmor_frequency = LO + desired_IF on a newly registered qubit.
+
+        This seeds the reference chain so that ``xy.intermediate_frequency``
+        (which defaults to ``#./inferred_intermediate_frequency``) resolves
+        correctly via ``RF_frequency − LO_frequency``.
+        """
+        xy_info = self.xy_drive_wiring.get(qubit_id, {})
+        desired_if = xy_info.get("intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY)
+        qubit = self.machine.qubits[qubit_name]
+        try:
+            lo = qubit.xy.LO_frequency
+            if isinstance(lo, (int, float)):
+                qubit.larmor_frequency = float(lo + desired_if)
+            else:
+                logger.warning(
+                    "Could not determine LO frequency for %s. "
+                    "Set qubit.larmor_frequency manually.",
+                    qubit_name,
+                )
+        except (AttributeError, TypeError) as exc:
+            logger.warning(
+                "Could not set initial larmor_frequency for %s: %s. "
+                "Set qubit.larmor_frequency manually.",
+                qubit_name,
+                exc,
+            )
+
     def _register_qubits(self):
         """Register qubits with the machine using implicit mapping."""
         # Get qubit IDs from wiring or XY drive wiring
@@ -258,6 +286,9 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
                 xy=xy,
                 readout_quantum_dot=None,  # TODO: Add readout dot support
             )
+
+            if xy is not None:
+                self._set_initial_larmor_frequency(qubit_name, qubit_id)
 
             logger.info(
                 f"Registered qubit {qubit_name} → quantum_dot {quantum_dot_id} "

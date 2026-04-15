@@ -161,8 +161,12 @@ class TestXYDriveValidation:
         drive = self._make_mw_drive(int(5e9), int(100e6))
         drive.validate_intermediate_frequency()
 
-    def test_if_exceeds_400mhz_raises(self):
+    def test_mw_if_at_500mhz_passes(self):
         drive = self._make_mw_drive(int(5e9), int(500e6))
+        drive.validate_intermediate_frequency()  # MW FEM limit is 500 MHz
+
+    def test_if_exceeds_limit_raises(self):
+        drive = self._make_mw_drive(int(5e9), int(600e6))
         with pytest.raises(ValueError, match="exceeds"):
             drive.validate_intermediate_frequency()
 
@@ -171,7 +175,7 @@ class TestXYDriveValidation:
         drive.validate_intermediate_frequency()
 
     def test_negative_if_exceeds_limit_raises(self):
-        drive = self._make_mw_drive(int(5e9), int(-500e6))
+        drive = self._make_mw_drive(int(5e9), int(-600e6))
         with pytest.raises(ValueError, match="exceeds"):
             drive.validate_intermediate_frequency()
 

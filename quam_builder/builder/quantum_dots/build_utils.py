@@ -429,7 +429,6 @@ def _create_xy_drive_from_wiring(
     if drive_type == "IQ":
         return XYDriveIQ(
             id=drive_id,
-            intermediate_frequency=intermediate_frequency,
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
             frequency_converter_up=f"{wiring_path}/frequency_converter_up",
@@ -437,7 +436,6 @@ def _create_xy_drive_from_wiring(
     if drive_type == "MW":
         return XYDriveMW(
             id=drive_id,
-            intermediate_frequency=intermediate_frequency,
             opx_output=f"{wiring_path}/opx_output",
         )
     if drive_type == "Single":

@@ -201,11 +201,12 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
                     lo = self.xy.LO_frequency
                     if isinstance(lo, (int, float)) and isinstance(value, (int, float)):
                         if_freq = value - lo
-                        if abs(if_freq) > 400e6:
+                        limit = self.xy.IF_LIMIT
+                        if abs(if_freq) > limit:
                             raise ValueError(
                                 f"Intermediate frequency {if_freq / 1e6:.2f} MHz "
-                                f"exceeds \u00b1400 MHz. Adjust LO_frequency or "
-                                f"larmor_frequency."
+                                f"exceeds \u00b1{limit / 1e6:.0f} MHz. Adjust "
+                                f"LO_frequency or larmor_frequency."
                             )
                 except AttributeError:
                     pass
