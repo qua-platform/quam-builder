@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import ClassVar, Dict, Optional
 
 
 from quam.core import quam_dataclass
@@ -19,6 +19,19 @@ class XYDriveBase:
     """
     QUAM component for a XY drive line.
     """
+
+    IF_LIMIT: ClassVar[float] = 400e6
+
+    def validate_intermediate_frequency(self) -> None:
+        """Raise ValueError if |IF| exceeds the OPX +-400 MHz band."""
+        if_freq = self.intermediate_frequency  # pylint: disable=no-member
+        if abs(if_freq) > self.IF_LIMIT:
+            name = getattr(self, "name", self.__class__.__name__)
+            raise ValueError(
+                f"Intermediate frequency {if_freq / 1e6:.2f} MHz exceeds "
+                f"\u00b1{self.IF_LIMIT / 1e6:.0f} MHz on '{name}'. "
+                f"Adjust LO_frequency or larmor_frequency."
+            )
 
     @staticmethod
     def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
@@ -61,7 +74,7 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
         self.operations[name] = pulse
 
 
-class XYDriveIQ(IQChannel, XYDriveBase):
+class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     """
     QUAM component for a XY drive line through an IQ channel.
     """
@@ -124,7 +137,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
 
 
 @quam_dataclass
-class XYDriveMW(MWChannel, XYDriveBase):
+class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
 
     @property

@@ -5,6 +5,7 @@ generation, custom-pulse addition, and .play() inside a QUA program.
 All objects are real — no mocks or stubs.
 """
 
+import pytest
 from qm import qua
 from quam.components import pulses
 from quam.components.ports import (
@@ -137,3 +138,37 @@ class TestXYDriveMWCreation:
         with qua.program() as prog:
             drive.play("drive")
         assert prog is not None
+
+
+class TestXYDriveValidation:
+    def _make_mw_drive(self, upconverter_freq: int, if_freq: int) -> XYDriveMW:
+        return XYDriveMW(
+            id="xy_mw",
+            opx_output=MWFEMAnalogOutputPort(
+                controller_id="con1",
+                fem_id=1,
+                port_id=1,
+                band=2,
+                upconverter_frequency=upconverter_freq,
+                full_scale_power_dbm=10,
+            ),
+            intermediate_frequency=if_freq,
+        )
+
+    def test_valid_if_passes(self):
+        drive = self._make_mw_drive(int(5e9), int(100e6))
+        drive.validate_intermediate_frequency()
+
+    def test_if_exceeds_400mhz_raises(self):
+        drive = self._make_mw_drive(int(5e9), int(500e6))
+        with pytest.raises(ValueError, match="exceeds"):
+            drive.validate_intermediate_frequency()
+
+    def test_negative_if_within_limit_passes(self):
+        drive = self._make_mw_drive(int(5e9), int(-200e6))
+        drive.validate_intermediate_frequency()
+
+    def test_negative_if_exceeds_limit_raises(self):
+        drive = self._make_mw_drive(int(5e9), int(-500e6))
+        with pytest.raises(ValueError, match="exceeds"):
+            drive.validate_intermediate_frequency()
