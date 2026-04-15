@@ -7,16 +7,18 @@ All objects are real — no mocks or stubs.
 
 import pytest
 from qm import qua
-from quam.components import pulses
+from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
     MWFEMAnalogOutputPort,
 )
 
 from quam_builder.architecture.quantum_dots.components import (
-    XYDriveSingle,
+    VoltageGate,
     XYDriveMW,
+    XYDriveSingle,
 )
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 
 
 # ---------------------------------------------------------------------------
@@ -172,3 +174,70 @@ class TestXYDriveValidation:
         drive = self._make_mw_drive(int(5e9), int(-500e6))
         with pytest.raises(ValueError, match="exceeds"):
             drive.validate_intermediate_frequency()
+
+
+class TestXYDriveRFReference:
+    def _make_machine_with_qubit(self):
+        """Build minimal machine with one qubit, no XY drive yet."""
+        machine = LossDiVincenzoQuam()
+        gate = VoltageGate(
+            id="plunger_1",
+            opx_output=LFFEMAnalogOutputPort("con1", 2, port_id=1),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+        )
+        machine.create_virtual_gate_set(
+            virtual_channel_mapping={"vdot1": gate},
+            gate_set_id="main",
+        )
+        machine.register_channel_elements(
+            plunger_channels=[gate],
+            barrier_channels=[],
+            sensor_resonator_mappings={},
+        )
+        machine.register_qubit(quantum_dot_id="vdot1", qubit_name="Q1")
+        return machine
+
+    def test_mw_rf_frequency_references_larmor(self):
+        """XYDriveMW.RF_frequency should resolve to qubit.larmor_frequency."""
+        machine = self._make_machine_with_qubit()
+        qubit = machine.qubits["Q1"]
+        qubit.larmor_frequency = 5.1e9
+
+        xy = XYDriveMW(
+            id="xy_mw",
+            opx_output=MWFEMAnalogOutputPort(
+                controller_id="con1",
+                fem_id=1,
+                port_id=1,
+                band=2,
+                upconverter_frequency=int(5e9),
+                full_scale_power_dbm=10,
+            ),
+        )
+        qubit.xy = xy
+
+        assert xy.RF_frequency == 5.1e9
+        assert xy.intermediate_frequency == pytest.approx(0.1e9)
+
+    def test_mw_rf_tracks_larmor_change(self):
+        """Changing larmor_frequency should be reflected in xy.RF_frequency."""
+        machine = self._make_machine_with_qubit()
+        qubit = machine.qubits["Q1"]
+        qubit.larmor_frequency = 5.1e9
+
+        xy = XYDriveMW(
+            id="xy_mw",
+            opx_output=MWFEMAnalogOutputPort(
+                controller_id="con1",
+                fem_id=1,
+                port_id=1,
+                band=2,
+                upconverter_frequency=int(5e9),
+                full_scale_power_dbm=10,
+            ),
+        )
+        qubit.xy = xy
+
+        qubit.larmor_frequency = 5.2e9
+        assert xy.RF_frequency == 5.2e9
+        assert xy.intermediate_frequency == pytest.approx(0.2e9)

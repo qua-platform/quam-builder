@@ -74,11 +74,13 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
         self.operations[name] = pulse
 
 
+@quam_dataclass
 class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     """
     QUAM component for a XY drive line through an IQ channel.
     """
 
+    RF_frequency: float = "#../larmor_frequency"
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     @property
@@ -138,6 +140,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
 
 @quam_dataclass
 class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
+    RF_frequency: float = "#../larmor_frequency"
     intermediate_frequency: float = "#./inferred_intermediate_frequency"
 
     @property
