@@ -196,6 +196,26 @@ Existing saved machines where `xy.RF_frequency` is a concrete number will load
 and run fine. On next save, the value stays concrete. To opt into reference-based
 wiring, users rebuild the machine or set `xy.RF_frequency = "#../larmor_frequency"`.
 
+## Examples & Tutorials to Update
+
+After implementing the core changes, update all examples and tutorials that
+reference the old frequency API:
+
+- `quam_builder/architecture/quantum_dots/examples/tutorial_machine.py`
+- `quam_builder/architecture/quantum_dots/examples/rabi_chevron.py`
+- `quam_builder/architecture/quantum_dots/examples/rabi_chevron_transport.py`
+- `quam_builder/architecture/quantum_dots/examples/full_workflow_example.py`
+- `tutorials/calibration_workflow.ipynb`
+
+Changes to look for in each:
+
+- Replace `qubit.set_xy_frequency(...)` with `qubit.larmor_frequency = ...`
+- Replace `set_xy_frequency(..., recenter_LO=True)` with explicit
+  `qubit.xy.LO_frequency = ...` followed by `qubit.larmor_frequency = ...`
+- Replace `macro.update(frequency=..., recenter_LO=True)` with explicit LO set
+  then `macro.update(frequency=...)`
+- Update any inline comments or docstrings that describe the old frequency model
+
 ## Out of Scope (Pre-existing Issues)
 
 - `LDQubit.calibrate_octave` references `self.drive` which is not defined on
