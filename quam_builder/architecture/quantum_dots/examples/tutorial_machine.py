@@ -42,10 +42,7 @@ def build_tutorial_machine() -> LossDiVincenzoQuam:
     connectivity = Connectivity()
     connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
     connectivity.add_quantum_dots(quantum_dots=[1, 2])
-    connectivity.add_quantum_dot_drive_lines(
-        quantum_dots=[1, 2],
-        shared_line=True,
-    )
+    connectivity.add_quantum_dot_drive_lines(quantum_dots=[1, 2], shared_line=True, use_mw_fem=True)
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
 
     instruments = Instruments()

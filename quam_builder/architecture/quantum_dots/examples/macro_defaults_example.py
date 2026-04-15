@@ -28,7 +28,7 @@ def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
     """Tune parameters on already-wired default macro instances and pulses."""
     for qubit in machine.qubits.values():
         qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
-        qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
+        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 240
         qubit.xy.operations[DrivePulseName.GAUSSIAN].amplitude = 0.0085
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = None
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
@@ -46,8 +46,8 @@ def print_macro_parameters(machine: LossDiVincenzoQuam) -> None:
         q1.macros[VoltagePointName.INITIALIZE].ramp_duration,
     )
     print(
-        "q1.measure.hold_duration:",
-        q1.macros[VoltagePointName.MEASURE].hold_duration,
+        "q1.measure.buffer_duration:",
+        q1.macros[VoltagePointName.MEASURE].buffer_duration,
     )
     print(
         "q1.gaussian.amplitude:",

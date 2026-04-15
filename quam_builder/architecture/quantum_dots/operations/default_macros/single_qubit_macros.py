@@ -112,6 +112,30 @@ class Measure1QMacro(QubitMacro):
     pair's measure macro which performs the full PSB readout chain.
     """
 
+    def _resolve_pair(self):
+        """Return the QuantumDotPair used for readout, or None."""
+        qubit = self.qubit
+        preferred_dot_id = getattr(qubit, "preferred_readout_quantum_dot", None)
+        if preferred_dot_id is None:
+            return None
+        try:
+            own_dot = qubit.quantum_dot
+            pair_name = qubit.machine.find_quantum_dot_pair(own_dot.id, preferred_dot_id)
+            if pair_name is None:
+                return None
+            return qubit.machine.quantum_dot_pairs[pair_name]
+        except (AttributeError, KeyError, ValueError):
+            return None
+
+    @property
+    def inferred_duration(self) -> float | None:
+        """Delegate duration inference to the pair's measure macro."""
+        pair = self._resolve_pair()
+        if pair is None:
+            return None
+        pair_macro = pair.macros.get(SingleQubitMacroName.MEASURE)
+        return pair_macro.inferred_duration if pair_macro else None
+
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
@@ -131,7 +155,7 @@ class Measure1QMacro(QubitMacro):
         pair_name = machine.find_quantum_dot_pair(own_dot.id, preferred_dot_id)
         if pair_name is None:
             raise ValueError(
-                f"No QuantumDotPair found for dots '{own_dot.id}' and " f"'{preferred_dot_id}'."
+                f"No QuantumDotPair found for dots '{own_dot.id}' and '{preferred_dot_id}'."
             )
 
         qd_pair = machine.quantum_dot_pairs[pair_name]

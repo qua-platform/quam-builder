@@ -84,13 +84,13 @@ def update_operation_parameters(machine: LossDiVincenzoQuam) -> None:
 
     for qubit in machine.qubits.values():
         qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
-        qubit.macros[VoltagePointName.MEASURE].hold_duration = 240
+        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 240
         qubit.xy.operations[DrivePulseName.GAUSSIAN].amplitude = 0.17
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
     q1 = machine.qubits["q1"]
     print(f"  q1.initialize.ramp_duration = {q1.macros[VoltagePointName.INITIALIZE].ramp_duration}")
-    print(f"  q1.measure.hold_duration = {q1.macros[VoltagePointName.MEASURE].hold_duration}")
+    print(f"  q1.measure.buffer_duration = {q1.macros[VoltagePointName.MEASURE].buffer_duration}")
     print("  q1.gaussian.amplitude = " f"{q1.xy.operations[DrivePulseName.GAUSSIAN].amplitude}")
     print(f"  q1.I.duration = {q1.macros[SingleQubitMacroName.IDENTITY].duration}")
 

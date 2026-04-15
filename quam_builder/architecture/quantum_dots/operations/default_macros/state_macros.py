@@ -197,74 +197,153 @@ class SensorDotMeasureMacro(QuamMacro):
     returning a QUA boolean suitable for ``Cast.to_int()``.
 
     Without a pair ID, falls back to a raw resonator measurement.
+
+    When ``gate_channel_names`` and ``voltage_sequence`` are provided
+    (typically by ``MeasurePSBPairMacro``), the macro aligns the voltage
+    gates with the resonator before measuring and tracks the elapsed
+    readout time on the voltage sequencer so integrated-voltage
+    bookkeeping stays correct.
     """
 
     pulse_name: str = "readout"
 
+    @property
+    def readout_pulse_length_ns(self) -> int | None:
+        """Length of the readout pulse in nanoseconds, or ``None``."""
+        owner = _owner_component(self)
+        resonator = owner.readout_resonator
+        if resonator is None:
+            return None
+        pulse = resonator.operations.get(self.pulse_name)
+        if pulse is None:
+            return None
+        length = getattr(pulse, "length", None)
+        return length if isinstance(length, (int, float)) else None
+
+    @property
+    def inferred_duration(self) -> float | None:
+        """Duration dictated by the readout pulse length (seconds)."""
+        length = self.readout_pulse_length_ns
+        return length * 1e-9 if length is not None else None
+
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, *args, quantum_dot_pair_id: Optional[str] = None, **kwargs):
+    def apply(
+        self,
+        *args,
+        quantum_dot_pair_id: Optional[str] = None,
+        voltage_sequence=None,
+        gate_channel_names: list[str] | None = None,
+        **kwargs,
+    ):
         """Measure the readout resonator and optionally perform state assignment.
 
         Args:
             quantum_dot_pair_id: If provided, apply the projector and threshold
                 stored on this sensor dot for the given pair, returning a QUA
                 boolean (projected_value > threshold).
+            voltage_sequence: Voltage sequencer for integrated-voltage tracking.
+            gate_channel_names: QUA element names of voltage gate channels to
+                align with the readout resonator before measuring.
             *args, **kwargs: Forwarded to ``readout_resonator.measure()`` when
                 no pair ID is given.
 
         Returns:
             QUA boolean expression when ``quantum_dot_pair_id`` is set,
-            otherwise ``None`` (raw measurement stored in qua_vars).
+            otherwise ``(I, Q)`` tuple (raw measurement).
         """
-        from qm.qua import declare, fixed, assign
+        from qm.qua import align as qua_align  # noqa: I001
+        from qm.qua import assign, declare, fixed
 
         owner = _owner_component(self)
+        resonator = owner.readout_resonator
+
+        if gate_channel_names:
+            qua_align(*gate_channel_names, resonator.name)
 
         I = declare(fixed)
         Q = declare(fixed)
-        owner.readout_resonator.measure(self.pulse_name, qua_vars=(I, Q))
+        resonator.measure(self.pulse_name, qua_vars=(I, Q))
+
+        if voltage_sequence is not None:
+            pulse_length = resonator.operations[self.pulse_name].length
+            voltage_sequence.track_sticky_duration(pulse_length)
 
         if quantum_dot_pair_id is None:
             return (I, Q)
 
+        # rotation is done at operation level
         threshold, projector = owner._readout_params(quantum_dot_pair_id)
-        wI = projector.get("wI", 1.0)
-        wQ = projector.get("wQ", 0.0)
-        offset = projector.get("offset", 0.0)
+        # wI = projector.get("wI", 1.0)
+        # wQ = projector.get("wQ", 0.0)
+        # offset = projector.get("offset", 0.0)
 
-        x = declare(fixed)
-        assign(x, I * wI + Q * wQ + offset)
-        return x > threshold
+        # x = declare(fixed)
+        # assign(x, I * wI + Q * wQ + offset)
+        return I > threshold
 
 
 @quam_dataclass
 class MeasurePSBPairMacro(QuamMacro):
     """PSB measure macro for QuantumDotPair.
 
-    Steps to the measure target, then dispatches readout to the
-    first coupled sensor dot with the pair ID for threshold lookup.
+    The timing sequence is:
+
+    1. **Buffer** -- step to the measure voltage point for
+       ``buffer_duration`` ns (settling time before readout).
+    2. **Align** -- synchronize voltage gate channels with the readout
+       resonator (handled inside the sensor macro).
+    3. **Readout + track** -- the sensor macro plays the readout pulse
+       and calls ``track_sticky_duration`` on the voltage sequencer so
+       integrated-voltage bookkeeping stays correct.
+
     Returns a QUA boolean for state discrimination.
     """
 
     point: PointType = VoltagePointName.MEASURE.value
-    hold_duration: int | None = None
+    buffer_duration: int | None = None
+
+    @property
+    def inferred_duration(self) -> float | None:
+        """Total duration = buffer + sensor readout (seconds)."""
+        owner = _owner_component(self)
+        buffer_ns = self.buffer_duration or 0
+        if not getattr(owner, "sensor_dots", None):
+            return None
+        sensor_dot = owner.sensor_dots[0]
+        sensor_macro = sensor_dot.macros.get(TwoQubitMacroName.MEASURE)
+        if sensor_macro is None:
+            return None
+        sensor_dur = sensor_macro.inferred_duration
+        if sensor_dur is None:
+            return None
+        return (buffer_ns * 1e-9) + sensor_dur
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, hold_duration: int | None = None, **kwargs):
+    def apply(self, buffer_duration: int | None = None, **kwargs):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
-        hold = self.hold_duration if hold_duration is None else hold_duration
-        _step_to_target(owner, self.point, duration=hold)
+        buf = self.buffer_duration if buffer_duration is None else buffer_duration
+        _step_to_target(owner, self.point, duration=buf)
 
         if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
+
+        gate_names = []
+        vs = getattr(owner, "voltage_sequence", None)
+        if vs is not None:
+            gate_set = getattr(vs, "gate_set", None)
+            if gate_set is not None:
+                gate_names = [ch.name for ch in gate_set.channels.values()]
+
         return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
             quantum_dot_pair_id=owner.id,
+            voltage_sequence=vs,
+            gate_channel_names=gate_names or None,
         )
 
 

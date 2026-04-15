@@ -258,11 +258,12 @@ class TestStateMacroPointDispatch:
 
     def test_measure_psb_pair_macro_steps_to_voltage_dict(self):
         voltages = {"virtual_dot_1": -0.1}
-        macro = MeasurePSBPairMacro(point=voltages, hold_duration=96)
+        macro = MeasurePSBPairMacro(point=voltages, buffer_duration=96)
         sensor_dot = MagicMock()
         owner = MagicMock()
         owner.id = "dot1_dot2_pair"
         owner.sensor_dots = [sensor_dot]
+        owner.voltage_sequence = None
 
         with patch(
             "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
@@ -274,6 +275,8 @@ class TestStateMacroPointDispatch:
         owner.step_to_point.assert_not_called()
         sensor_dot.macros[VoltagePointName.MEASURE.value].apply.assert_called_once_with(
             quantum_dot_pair_id="dot1_dot2_pair",
+            voltage_sequence=None,
+            gate_channel_names=None,
         )
 
 

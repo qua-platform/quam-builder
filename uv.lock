@@ -3981,9 +3981,10 @@ dependencies = [
 
 [[package]]
 name = "qualang-tools"
-version = "0.21.1"
-source = { git = "https://github.com/qua-platform/py-qua-tools.git?rev=main#db8e38e4d04d66b781a0f0a3a4267844aa059904" }
+version = "0.22.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "attrs" },
     { name = "grpclib" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -3995,6 +3996,10 @@ dependencies = [
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "scipy", version = "1.16.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/07/63/c86dc18120f968c1219ec56ba4e1620508aac5122963780c35b90eb96ecb/qualang_tools-0.22.0.tar.gz", hash = "sha256:585afbf56437c471ab420e001c5f12293dcd9e6f934c8096bd323023ea6887c2", size = 4438241, upload-time = "2026-04-01T13:30:51.944Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/19/e3ff5da7fa4ddc94044b4acb6f50ae3a0446a0cae2918e2e9dadefd03fc4/qualang_tools-0.22.0-py3-none-any.whl", hash = "sha256:b7fabf9e974cf1e408cd12f1cb0bc06262342b156af87a18d640719a4b780e46", size = 4492444, upload-time = "2026-04-01T13:30:50.403Z" },
 ]
 
 [[package]]
@@ -4124,7 +4129,7 @@ requires-dist = [
     { name = "qcodes-contrib-drivers", specifier = ">=0.22.0" },
     { name = "qm-qua", specifier = ">=1.2.2" },
     { name = "qm-saas", specifier = ">=1.1.7" },
-    { name = "qualang-tools", git = "https://github.com/qua-platform/py-qua-tools.git?rev=main" },
+    { name = "qualang-tools", specifier = ">=0.22.0" },
     { name = "quam", specifier = ">=0.4.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "xarray", specifier = ">=2024.7.0" },
