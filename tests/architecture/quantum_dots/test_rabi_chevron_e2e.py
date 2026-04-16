@@ -14,9 +14,8 @@ Covers every pattern exercised by the example:
 All objects are real — no mocks or stubs.
 """
 
-from typing import Tuple
-
 import pytest
+
 from qm import qua
 from quam.components import pulses
 from quam.components.channels import StickyChannelAddon
@@ -26,15 +25,12 @@ from quam.components.ports import (
 )
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
-
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
     XYDriveSingle,
 )
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
 
 # -----------------------------------------------------------------------
 # Helpers — mirror rabi_chevron.py sections 1-3
@@ -49,7 +45,7 @@ def _make_gate(port: int, gate_id: str) -> VoltageGate:
     )
 
 
-def create_rabi_machine() -> Tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutResonatorSingle]:
+def create_rabi_machine() -> tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutResonatorSingle]:
     """Set up a minimal machine that mirrors the rabi_chevron example."""
     machine = LossDiVincenzoQuam()
 
@@ -126,7 +122,7 @@ class DriveMacro(QuamMacro):
         try:
             parent_qubit = self.parent.parent
             pulse = parent_qubit.xy.operations[self.pulse_name]
-            return pulse.length * 1e-9
+            return pulse.length * 4e-9
         except Exception:
             return None
 
@@ -153,7 +149,7 @@ class MeasureMacro(QuamMacro):
                 "virtual_sensor_1"
             ].readout_resonator
             pulse = resonator.operations[self.pulse_name]
-            return (64 * 4 + pulse.length) * 1e-9
+            return (64 + pulse.length) * 4e-9
         except Exception:
             return None
 

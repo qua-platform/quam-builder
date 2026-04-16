@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from numbers import Integral, Real
+from typing import Any
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -10,7 +11,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
-from quam_builder.tools.qua_tools import VoltageLevelType
+from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, VoltageLevelType
 
 __all__ = [
     "InitializeStateMacro",
@@ -26,6 +27,15 @@ __all__ = [
 ]
 
 PointType = str | dict[str, VoltageLevelType]
+
+
+def _pulse_length_samples_to_ns(length: Any) -> int | None:
+    """Convert a pulse native length in samples/clock cycles to nanoseconds."""
+    if isinstance(length, Integral):
+        return int(length) * CLOCK_CYCLE_NS
+    if isinstance(length, Real) and float(length).is_integer():
+        return int(length) * CLOCK_CYCLE_NS
+    return None
 
 
 def _owner_component(macro: QuamMacro) -> Any:
@@ -48,7 +58,7 @@ def _owner_component(macro: QuamMacro) -> Any:
     return owner
 
 
-def _resolve_default_point_duration_ns(owner: Any, point: PointType) -> Optional[int]:
+def _resolve_default_point_duration_ns(owner: Any, point: PointType) -> int | None:
     """Best-effort lookup of a point's default hold duration in nanoseconds."""
     if not isinstance(point, str):
         return None
@@ -217,8 +227,7 @@ class SensorDotMeasureMacro(QuamMacro):
         pulse = resonator.operations.get(self.pulse_name)
         if pulse is None:
             return None
-        length = getattr(pulse, "length", None)
-        return length if isinstance(length, (int, float)) else None
+        return _pulse_length_samples_to_ns(getattr(pulse, "length", None))
 
     @property
     def inferred_duration(self) -> float | None:
@@ -232,7 +241,7 @@ class SensorDotMeasureMacro(QuamMacro):
     def apply(
         self,
         *args,
-        quantum_dot_pair_id: Optional[str] = None,
+        quantum_dot_pair_id: str | None = None,
         voltage_sequence=None,
         gate_channel_names: list[str] | None = None,
         **kwargs,
@@ -251,10 +260,10 @@ class SensorDotMeasureMacro(QuamMacro):
 
         Returns:
             QUA boolean expression when ``quantum_dot_pair_id`` is set,
-            otherwise ``(I, Q)`` tuple (raw measurement).
+            otherwise ``(i_qua, q_qua)`` tuple (raw measurement).
         """
         from qm.qua import align as qua_align  # noqa: I001
-        from qm.qua import assign, declare, fixed
+        from qm.qua import declare, fixed
 
         owner = _owner_component(self)
         resonator = owner.readout_resonator
@@ -262,16 +271,17 @@ class SensorDotMeasureMacro(QuamMacro):
         if gate_channel_names:
             qua_align(*gate_channel_names, resonator.name)
 
-        I = declare(fixed)
-        Q = declare(fixed)
-        resonator.measure(self.pulse_name, qua_vars=(I, Q))
+        i_qua = declare(fixed)
+        q_qua = declare(fixed)
+        resonator.measure(self.pulse_name, qua_vars=(i_qua, q_qua))
 
         if voltage_sequence is not None:
-            pulse_length = resonator.operations[self.pulse_name].length
-            voltage_sequence.track_sticky_duration(pulse_length)
+            pulse_length_ns = self.readout_pulse_length_ns
+            if pulse_length_ns is not None:
+                voltage_sequence.track_sticky_duration(pulse_length_ns)
 
         if quantum_dot_pair_id is None:
-            return (I, Q)
+            return (i_qua, q_qua)
 
         # rotation is done at operation level
         threshold, projector = owner._readout_params(quantum_dot_pair_id)
@@ -281,7 +291,7 @@ class SensorDotMeasureMacro(QuamMacro):
 
         # x = declare(fixed)
         # assign(x, I * wI + Q * wQ + offset)
-        return I > threshold
+        return i_qua > threshold
 
 
 @quam_dataclass

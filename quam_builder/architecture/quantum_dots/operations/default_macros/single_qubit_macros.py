@@ -39,6 +39,7 @@ from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
     InitializeStateMacro,
+    _pulse_length_samples_to_ns,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     X_NEG_90_ALIAS,
@@ -47,6 +48,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     SingleQubitMacroName,
     VoltagePointName,
 )
+from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS
 
 __all__ = [
     "SINGLE_QUBIT_MACROS",
@@ -238,12 +240,12 @@ class XYDriveMacro(QubitMacro):
     def _reference_pulse_length_ns(self, pulse_name: str) -> int | None:
         """Reference pulse native length in nanoseconds.
 
-        Used for voltage-sequence hold timing so the hold matches the
-        pulse's actual waveform length.
+        Pulse objects store ``length`` in native samples / OPX clock
+        cycles, so convert to nanoseconds before handing the value to
+        voltage-sequence APIs.
         """
         pulse = self.qubit.xy.operations[pulse_name]
-        length = getattr(pulse, "length", None)
-        return length if isinstance(length, int) else None
+        return _pulse_length_samples_to_ns(getattr(pulse, "length", None))
 
     def _angle_to_amplitude_scale(self, angle: float) -> float:
         """Convert rotation angle to amplitude scale relative to reference.
@@ -299,8 +301,9 @@ class XYDriveMacro(QubitMacro):
             amplitude_scale: Multiply current ``reference_amplitude`` by
                 this factor.  Mutually exclusive with *amplitude*.
             duration: Set the reference pulse length in **nanoseconds**
-                (quantised to 4 ns).  For ``ScalableGaussianPulse`` the
-                sigma auto-scales via ``sigma_ratio``; for plain
+                (quantised to 4 ns and stored on the pulse in native
+                samples / clock cycles). For ``ScalableGaussianPulse``
+                the sigma auto-scales via ``sigma_ratio``; for plain
                 ``GaussianPulse`` sigma is rescaled proportionally.
             frequency: Set ``qubit.larmor_frequency`` to this absolute
                 value (Hz).  Mutually exclusive with *frequency_offset*.
@@ -319,7 +322,7 @@ class XYDriveMacro(QubitMacro):
 
         if duration is not None:
             pulse = self.reference_pulse
-            new_length = _quantize_ns(duration)
+            new_length = _quantize_ns(duration) // CLOCK_CYCLE_NS
             old_length = int(pulse.length)
 
             if hasattr(pulse, "sigma_ratio"):
@@ -388,7 +391,7 @@ class XYDriveMacro(QubitMacro):
             self.qubit.virtual_z(phase)
 
         if duration is not None:
-            hold_duration_ns = duration * 4
+            hold_duration_ns = duration * CLOCK_CYCLE_NS
         else:
             hold_duration_ns = self._reference_pulse_length_ns(resolved_pulse_name)
         self.qubit.voltage_sequence.step_to_voltages(

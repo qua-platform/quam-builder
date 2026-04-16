@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from quam.components.pulses import GaussianPulse
 from quam.core import quam_dataclass
 
@@ -19,7 +20,7 @@ class ScalableGaussianPulse(GaussianPulse):
 
     Args:
         amplitude (float): Peak amplitude of the pulse in volts.
-        length (int): Duration of the pulse in ns (samples).
+        length (int): Native pulse length in samples / 4 ns clock cycles.
         sigma_ratio (float): Ratio ``sigma / length``.  Default ``1/6``
             matches the conventional ``sigma = length / 6``.
         axis_angle (float, optional): IQ axis angle in radians.

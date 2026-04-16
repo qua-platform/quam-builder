@@ -1,7 +1,7 @@
 """Tests for readout duration inference chain and apply() wiring.
 
 Covers:
-- SensorDotMeasureMacro.inferred_duration reads from pulse length
+- SensorDotMeasureMacro.inferred_duration converts pulse samples to ns
 - SensorDotMeasureMacro.apply() calls qua.align + track_sticky_duration
 - MeasurePSBPairMacro.inferred_duration = buffer + sensor duration
 - MeasurePSBPairMacro.buffer_duration rename (from hold_duration)
@@ -14,17 +14,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
-    SensorDotMeasureMacro,
-    MeasurePSBPairMacro,
-)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     Measure1QMacro,
+)
+from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+    MeasurePSBPairMacro,
+    SensorDotMeasureMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     VoltagePointName,
 )
-
 
 _OWNER_PATCH = (
     "quam_builder.architecture.quantum_dots.operations.default_macros"
@@ -53,7 +52,7 @@ class TestSensorDotMeasureInferredDuration:
         owner = _mock_sensor_owner(pulse_length=2000)
 
         with patch(_OWNER_PATCH, return_value=owner):
-            assert macro.inferred_duration == pytest.approx(2000 * 1e-9)
+            assert macro.inferred_duration == pytest.approx(2000 * 4e-9)
 
     def test_returns_none_when_no_resonator(self):
         macro = SensorDotMeasureMacro(pulse_name="readout")
@@ -85,7 +84,7 @@ class TestSensorDotMeasureInferredDuration:
         owner = _mock_sensor_owner(pulse_length=1600)
 
         with patch(_OWNER_PATCH, return_value=owner):
-            assert macro.readout_pulse_length_ns == 1600
+            assert macro.readout_pulse_length_ns == 6400
 
 
 # --------------------------------------------------------------------------- #
@@ -129,7 +128,7 @@ class TestSensorDotMeasureApply:
                 gate_channel_names=["gate_P1"],
             )
 
-        vs.track_sticky_duration.assert_called_once_with(2000)
+        vs.track_sticky_duration.assert_called_once_with(8000)
 
     def test_no_align_without_gate_names(self):
         macro = SensorDotMeasureMacro(pulse_name="readout")

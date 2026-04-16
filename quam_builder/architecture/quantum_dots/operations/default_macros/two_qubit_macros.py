@@ -12,6 +12,7 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     ExchangeStateMacro,
     InitializeStateMacro,
     _owner_component,
+    _pulse_length_samples_to_ns,
     _resolve_default_point_duration_ns,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
@@ -149,12 +150,12 @@ class CROTMacro(QubitPairMacro):
 
     def _pulse_length_ns(self, pulse_name: str) -> int:
         pulse = self.drive_qubit.xy.operations[pulse_name]
-        length = getattr(pulse, "length", None)
-        if not isinstance(length, int):
+        length_ns = _pulse_length_samples_to_ns(getattr(pulse, "length", None))
+        if length_ns is None:
             raise ValueError(
                 f"Pulse '{pulse_name}' on qubit '{self.drive_qubit.id}' does not expose an integer length."
             )
-        return length
+        return length_ns
 
     @property
     def inferred_duration(self) -> float | None:
@@ -286,6 +287,7 @@ TWO_QUBIT_MACROS = {
     VoltagePointName.EMPTY.value: Empty2QMacro,
     TwoQubitMacroName.CNOT.value: CNOTMacro,
     TwoQubitMacroName.CZ.value: CZMacro,
+    TwoQubitMacroName.CROT.value: CROTMacro,
     TwoQubitMacroName.SWAP.value: SwapMacro,
     TwoQubitMacroName.ISWAP.value: ISwapMacro,
     TwoQubitMacroName.EXCHANGE.value: Exchange2QMacro,

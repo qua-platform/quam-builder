@@ -16,7 +16,7 @@ from quam_builder.architecture.quantum_dots.operations.names import VoltagePoint
 
 @pytest.fixture
 def pair_with_crot(qd_machine):
-    """LD qubit pair with a target-qubit MW drive and an attached CROT macro."""
+    """LD qubit pair with a target-qubit MW drive and default-wired CROT macro."""
     target_qubit = qd_machine.qubits["Q2"]
     target_qubit.larmor_frequency = 5.1e9
     target_qubit.xy = XYDriveMW(
@@ -49,7 +49,6 @@ def pair_with_crot(qd_machine):
     )
 
     wire_machine_macros(qd_machine)
-    pair.set_macro("crot", CROTMacro())
     return pair
 
 
@@ -61,6 +60,7 @@ def test_crot_sequences_pair_point_tracking_esr_and_return(pair_with_crot):
 
     with (
         patch.object(pair, "step_to_point") as mock_step_to_point,
+        patch.object(pair, "align") as mock_align,
         patch.object(pair.voltage_sequence, "step_to_voltages") as mock_track_pulse,
         patch.object(target_qubit.xy, "update_frequency") as mock_update_frequency,
         patch.object(target_qubit.xy, "play") as mock_play,
@@ -77,6 +77,7 @@ def test_crot_sequences_pair_point_tracking_esr_and_return(pair_with_crot):
         call("operate", duration=80),
         call(VoltagePointName.INITIALIZE.value, duration=0),
     ]
+    mock_align.assert_called_once_with()
     mock_track_pulse.assert_called_once_with({}, duration=400)
     assert mock_update_frequency.call_args_list == [call(120_000_000), call(100_000_000)]
     mock_play.assert_called_once_with(
@@ -94,6 +95,7 @@ def test_crot_defaults_to_exchange_voltage_point(pair_with_crot):
 
     with (
         patch.object(pair, "step_to_point") as mock_step_to_point,
+        patch.object(pair, "align") as mock_align,
         patch.object(pair.voltage_sequence, "step_to_voltages") as mock_track_pulse,
         patch.object(target_qubit.xy, "play") as mock_play,
     ):
@@ -106,7 +108,8 @@ def test_crot_defaults_to_exchange_voltage_point(pair_with_crot):
         call(VoltagePointName.EXCHANGE.value, duration=40),
         call(VoltagePointName.INITIALIZE.value, duration=0),
     ]
-    mock_track_pulse.assert_called_once_with({}, duration=1000)
+    mock_align.assert_called_once_with()
+    mock_track_pulse.assert_called_once_with({}, duration=4000)
     mock_play.assert_called_once_with(
         pulse_name="gaussian",
         amplitude_scale=0.25,
@@ -121,6 +124,7 @@ def test_crot_uses_native_pulse_length_when_duration_omitted(pair_with_crot):
 
     with (
         patch.object(pair, "step_to_point") as mock_step_to_point,
+        patch.object(pair, "align") as mock_align,
         patch.object(pair.voltage_sequence, "step_to_voltages") as mock_track_pulse,
         patch.object(target_qubit.xy, "update_frequency") as mock_update_frequency,
         patch.object(target_qubit.xy, "play") as mock_play,
@@ -135,7 +139,8 @@ def test_crot_uses_native_pulse_length_when_duration_omitted(pair_with_crot):
         call("operate", duration=40),
         call(VoltagePointName.INITIALIZE.value, duration=0),
     ]
-    mock_track_pulse.assert_called_once_with({}, duration=1000)
+    mock_align.assert_called_once_with()
+    mock_track_pulse.assert_called_once_with({}, duration=4000)
     mock_update_frequency.assert_not_called()
     mock_play.assert_called_once_with(
         pulse_name="gaussian",
@@ -152,6 +157,16 @@ def test_crot_inferred_duration_uses_pair_point_hold_and_esr_duration(pair_with_
     pair_with_crot.set_macro("crot_duration", crot)
 
     assert crot.inferred_duration == pytest.approx((240 + 400) * 1e-9)
+
+
+def test_crot_inferred_duration_converts_native_pulse_length_samples(pair_with_crot):
+    """Without an override, inferred duration should convert pulse samples to ns."""
+    crot = CROTMacro(
+        voltage_point="operate",
+    )
+    pair_with_crot.set_macro("crot_native_duration", crot)
+
+    assert crot.inferred_duration == pytest.approx((240 + 4000) * 1e-9)
 
 
 def test_crot_builds_a_valid_qua_program(pair_with_crot):
@@ -208,7 +223,5 @@ def test_crot_requires_target_qubit_drive(qd_machine):
     )
 
     wire_machine_macros(qd_machine)
-    pair.set_macro("crot", CROTMacro())
-
     with pytest.raises(ValueError, match="Target qubit"):
         pair.macros["crot"].apply(voltage_point="operate")

@@ -1,18 +1,15 @@
 """Tests for runtime macro wiring and override behavior."""
 
+from functools import partial
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from unittest.mock import patch
+
 from qm import qua
+from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import pulses
-
-from functools import partial
-
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
-from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
-    TypeOverrideCatalog,
-)
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
     XYDriveMacro,
@@ -20,13 +17,21 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
 )
+from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_macros import (
+    CROTMacro,
+)
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
+    TypeOverrideCatalog,
+)
 from quam_builder.architecture.quantum_dots.operations.names import (
     SingleQubitMacroName,
+    TwoQubitMacroName,
 )
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
+from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS
 
 
 def _plunger_ports(qubit_id: str) -> dict:
@@ -156,6 +161,16 @@ def test_component_type_override_sets_xy_drive_runtime_params():
         assert qubit.macros["xy_drive"].reference_angle == pytest.approx(1.5)
 
 
+def test_default_two_qubit_crot_macro_is_wired():
+    """LDQubitPair should receive the default CROT macro via wire_machine_macros."""
+    machine = _build_machine()
+
+    wire_machine_macros(machine)
+
+    pair = machine.qubit_pairs["q1_q2"]
+    assert isinstance(pair.macros[TwoQubitMacroName.CROT], CROTMacro)
+
+
 def test_canonical_x_and_y_delegate_to_xy_drive():
     """Canonical axis macros should delegate into `xy_drive` with proper phase."""
     machine = _build_machine()
@@ -280,10 +295,41 @@ def test_fixed_angle_inferred_duration_uses_reference_pulse_length():
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
-    ref_duration = q1.xy.operations["gaussian"].length * 1e-9
+    ref_duration = q1.xy.operations["gaussian"].length * CLOCK_CYCLE_NS * 1e-9
     assert q1.macros["x"].inferred_duration == pytest.approx(ref_duration)
     assert q1.macros["x90"].inferred_duration == pytest.approx(ref_duration)
     assert q1.macros["y90"].inferred_duration == pytest.approx(ref_duration)
+
+
+def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration():
+    """Voltage tracking should convert pulse native samples to nanoseconds."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    _seed_reference_pulses(machine)
+    q1 = machine.qubits["q1"]
+    pulse = q1.xy.operations["gaussian"]
+
+    with (
+        patch.object(q1.xy, "play", return_value=None),
+        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None) as mock_step,
+    ):
+        q1.x90()
+
+    mock_step.assert_called_once_with({}, duration=pulse.length * CLOCK_CYCLE_NS)
+
+
+def test_xy_drive_update_duration_persists_pulse_length_in_native_samples():
+    """Persisted macro duration is specified in ns but stored on the pulse in samples."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    xy_macro = q1.macros["xy_drive"]
+    pulse = q1.xy.operations["gaussian"]
+
+    xy_macro.update(duration=400)
+
+    assert pulse.length == 100
+    assert pulse.sigma == pytest.approx(pulse.length * pulse.sigma_ratio)
 
 
 def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():

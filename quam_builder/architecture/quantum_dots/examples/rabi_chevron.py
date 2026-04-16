@@ -33,35 +33,39 @@ Requirements:
 
 import json
 from pathlib import Path
-from typing import List, Tuple
+
+import matplotlib
+import qm_saas
+
+from qm import QuantumMachinesManager, SimulationConfig
 from qm.qua import (
-    program,
-    for_,
+    align,
     declare,
     declare_stream,
     fixed,
-    update_frequency,
-    align,
+    for_,
+    program,
     save,
     stream_processing,
+    update_frequency,
 )
-from qm import SimulationConfig, QuantumMachinesManager
-import qm_saas
-import matplotlib
 
 matplotlib.use("TkAgg")  # Use TkAgg backend for PyCharm compatibility
 import matplotlib.pyplot as plt
-from quam.components import pulses
-from quam.components.ports import LFFEMAnalogOutputPort, MWFEMAnalogOutputPort, LFFEMAnalogInputPort
-from quam.components.channels import StickyChannelAddon
 
-from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
+from quam.components import pulses
+from quam.components.channels import StickyChannelAddon
+from quam.components.ports import (
+    LFFEMAnalogInputPort,
+    LFFEMAnalogOutputPort,
+    MWFEMAnalogOutputPort,
+)
 from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
 )
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
 
 # =============================================================================
 # SECTION 1: Create Machine and Physical Channels
@@ -307,8 +311,8 @@ def add_qubit_macros(qubit: LDQubit):
     Args:
         qubit: The qubit to enhance with macros
     """
-    from quam.core.macro.quam_macro import QuamMacro
     from quam.core import quam_dataclass
+    from quam.core.macro.quam_macro import QuamMacro
 
     # -------------------------------------------------------------------------
     # Drive Macro
@@ -336,7 +340,7 @@ def add_qubit_macros(qubit: LDQubit):
             try:
                 parent_qubit = self.parent.parent
                 pulse = parent_qubit.xy.operations[self.pulse_name]
-                return pulse.length * 1e-9
+                return pulse.length * 4e-9
             except Exception:
                 return None
 
@@ -402,11 +406,11 @@ def add_qubit_macros(qubit: LDQubit):
                 else:
                     sensor_dot = next(iter(machine.sensor_dots.values()))
                 readout_pulse = sensor_dot.readout_resonator.operations[self.pulse_name]
-                return (64 * 4 + readout_pulse.length) * 1e-9
+                return (64 + readout_pulse.length) * 4e-9
             except Exception:
                 return None
 
-        def apply(self, **kwargs) -> Tuple:
+        def apply(self, **kwargs) -> tuple:
             """
             Perform demodulated measurement and return I, Q values.
 
@@ -416,8 +420,8 @@ def add_qubit_macros(qubit: LDQubit):
             pulse = kwargs.get("pulse_name", self.pulse_name)
 
             # Declare QUA variables for I and Q quadratures
-            I = declare(fixed)
-            Q = declare(fixed)
+            i_qua = declare(fixed)
+            q_qua = declare(fixed)
 
             # Navigate to qubit and get the associated sensor dot
             parent_qubit = self.parent.parent
@@ -438,10 +442,10 @@ def add_qubit_macros(qubit: LDQubit):
             sensor_dot.readout_resonator.wait(64)
             sensor_dot.readout_resonator.measure(
                 pulse,
-                qua_vars=(I, Q),
+                qua_vars=(i_qua, q_qua),
             )
 
-            return I, Q
+            return i_qua, q_qua
 
     # Register the measure macro
     measure_macro = MeasureMacro(pulse_name="readout")
@@ -453,7 +457,7 @@ def add_qubit_macros(qubit: LDQubit):
 # =============================================================================
 
 
-def create_rabi_chevron_program(qubits: List[LDQubit]):
+def create_rabi_chevron_program(qubits: list[LDQubit]):
     """
     Create the Rabi chevron QUA program that sweeps frequency and duration.
 
@@ -513,9 +517,9 @@ def create_rabi_chevron_program(qubits: List[LDQubit]):
 
                         # Step 3: Readout - move to PSB configuration and measure
                         qubit.step_to_point("readout")
-                        I, Q = qubit.measure()
-                        save(I, I_stream)
-                        save(Q, Q_stream)
+                        i_qua, q_qua = qubit.measure()
+                        save(i_qua, I_stream)
+                        save(q_qua, Q_stream)
 
                         align()
 

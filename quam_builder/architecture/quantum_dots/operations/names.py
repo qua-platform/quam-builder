@@ -67,6 +67,7 @@ class TwoQubitMacroName(StrEnum):
 
     CNOT = "cnot"
     CZ = "cz"
+    CROT = "crot"
     SWAP = "swap"
     ISWAP = "iswap"
 
@@ -134,6 +135,7 @@ TWO_QUBIT_MACRO_NAMES = (
     TwoQubitMacroName.EMPTY.value,
     TwoQubitMacroName.CNOT.value,
     TwoQubitMacroName.CZ.value,
+    TwoQubitMacroName.CROT.value,
     TwoQubitMacroName.SWAP.value,
     TwoQubitMacroName.ISWAP.value,
     TwoQubitMacroName.EXCHANGE.value,
