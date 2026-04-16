@@ -775,7 +775,7 @@ class BaseQuamQD(QuamRoot):
 
         Args:
             reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
-            skip_dacs (bool): Whether to connect to the da==registered DACs.
+            skip_dacs (bool): Whether to connect to the registered DACs.
         Returns:
             QuantumMachinesManager: The opened Quantum Machine Manager.
         """
@@ -790,7 +790,7 @@ class BaseQuamQD(QuamRoot):
         self.qmm = QuantumMachinesManager(**settings)
 
         ## TODO: need to also call self.create_virtual_dc_set("main_qpu") every time?
-        if self.dac_config and ~skip_dacs:
+        if self.dac_config and not skip_dacs:
             self.connect_to_external_source(reset_voltages)
         return self.qmm
 
