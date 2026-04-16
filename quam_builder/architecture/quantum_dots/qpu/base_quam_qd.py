@@ -880,6 +880,7 @@ class BaseQuamQD(QuamRoot):
         Args:
             skip_dacs (bool): Whether to connect to the registered DACs.
             reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
+            skip_dacs (bool): Whether to connect to the registered DACs.
             timeout: Timeout in seconds for gRPC API calls including program compilation.
                 Defaults to the QM SDK default (120 s). Increase for programs with many
                 QUA variables that take longer to compile.
@@ -899,7 +900,7 @@ class BaseQuamQD(QuamRoot):
         self.qmm = QuantumMachinesManager(**settings)
 
         ## TODO: need to also call self.create_virtual_dc_set("main_qpu") every time?
-        if self.dac_config and ~skip_dacs:
+        if self.dac_config and not skip_dacs:
             self.connect_to_external_source(reset_voltages)
         return self.qmm
 
