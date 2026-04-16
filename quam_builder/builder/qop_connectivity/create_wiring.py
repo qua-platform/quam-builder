@@ -3,7 +3,11 @@ from functools import reduce
 from qualang_tools.wirer import Connectivity
 from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
+from qualang_tools.wirer.instruments.instrument_channel import (
+    AnyInstrumentChannel,
+    InstrumentChannelQdac2DigitalInput,
+    InstrumentChannelQdac2Output,
+)
 from quam_builder.builder.qop_connectivity.create_analog_ports import (
     create_octave_port,
     create_mw_fem_port,
@@ -14,6 +18,12 @@ from quam_builder.builder.qop_connectivity.create_digital_ports import (
     create_digital_output_port,
 )
 from quam_builder.builder.qop_connectivity.paths import *
+from quam_builder.builder.qop_connectivity.qdac_wiring import (
+    QDAC_OUTPUT_KEY,
+    QDAC_TRIGGER_KEY,
+    qdac_output_wiring_entry,
+    qdac_trigger_wiring_entry,
+)
 
 
 def create_wiring(connectivity: Connectivity) -> dict:
@@ -101,6 +111,10 @@ def qubit_wiring(
         if channel.instrument_id == "external-mixer":
             key, reference = create_external_mixer_reference(channel, element_id, line_type)
             qubit_line_wiring[key] = reference
+        elif isinstance(channel, InstrumentChannelQdac2Output):
+            qubit_line_wiring[QDAC_OUTPUT_KEY] = qdac_output_wiring_entry(channel)
+        elif isinstance(channel, InstrumentChannelQdac2DigitalInput):
+            qubit_line_wiring[QDAC_TRIGGER_KEY] = qdac_trigger_wiring_entry(channel)
         elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
             qubit_line_wiring[key] = reference
@@ -123,7 +137,11 @@ def qubit_pair_wiring(channels: List[AnyInstrumentChannel], element_id: QubitPai
         "target_qubit": f"{QUBITS_BASE_JSON_PATH}/q{element_id.target_index}",
     }
     for channel in channels:
-        if not (channel.signal_type == "digital" and channel.io_type == "input"):
+        if isinstance(channel, InstrumentChannelQdac2Output):
+            qubit_pair_line_wiring[QDAC_OUTPUT_KEY] = qdac_output_wiring_entry(channel)
+        elif isinstance(channel, InstrumentChannelQdac2DigitalInput):
+            qubit_pair_line_wiring[QDAC_TRIGGER_KEY] = qdac_trigger_wiring_entry(channel)
+        elif not (channel.signal_type == "digital" and channel.io_type == "input"):
             key, reference = get_channel_port(channel, channels)
             qubit_pair_line_wiring[key] = reference
 

@@ -21,6 +21,7 @@ from qm.qua.type_hints import (
 )
 
 from quam.components.channels import SingleChannel
+from quam.components.pulses import SquarePulse
 
 from quam_builder.architecture.quantum_dots.components.gate_set import (
     GateSet,
@@ -122,6 +123,7 @@ class VoltageSequence:
 
         """
         self.gate_set: GateSet = gate_set
+        self._update_baseband_pulse_amplitude()
         self.state_trackers: Dict[str, SequenceStateTracker] = {
             ch_name: SequenceStateTracker(
                 ch_name,
@@ -139,6 +141,23 @@ class VoltageSequence:
 
         self._batched_voltages = None
         self._prog_id = None
+
+    def _update_baseband_pulse_amplitude(self):
+        for ch in self.gate_set.channels.values():
+            if ch.opx_output is not None:
+                if DEFAULT_PULSE_NAME not in ch.operations:
+                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                        id=DEFAULT_PULSE_NAME,
+                        length=MIN_PULSE_DURATION_NS,
+                        amplitude=0.25,
+                    )
+                output_mode = getattr(ch.opx_output, "output_mode", None)
+                if output_mode is None:
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
+                elif output_mode == "direct":
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
+                elif output_mode == "amplified":
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 1.25
 
     def _initialise_attenuation_qua_vars(self) -> None:
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
