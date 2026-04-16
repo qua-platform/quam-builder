@@ -14,6 +14,7 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     _owner_component,
     _pulse_length_samples_to_ns,
     _resolve_default_point_duration_ns,
+    _step_to_target,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
@@ -223,7 +224,7 @@ class CROTMacro(QubitPairMacro):
         if runtime_esr_frequency is not None:
             target_frequency = _runtime_frequency_hz(drive_qubit, runtime_esr_frequency)
 
-        self.qubit_pair.step_to_point(target_point, duration=point_hold_time)
+        _step_to_target(self.qubit_pair, target_point, duration=point_hold_time)
 
         self.qubit_pair.align()
         if target_frequency is not None:
