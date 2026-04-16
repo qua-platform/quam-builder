@@ -10,6 +10,7 @@ Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
 ### Fixed
 - Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
+- Fixed support for Python 3.13 (`">=3.9,<3.14"`).
 
 ## [0.3.0] - 2026-03-31
 ### Added
