@@ -3,7 +3,7 @@ from quam_builder.architecture.neutral_atoms.components.tweezer import Tweezer
 from quam_builder.architecture.neutral_atoms.components.region import Region , create_region
 
 # -------------------
-# Demo script for neutral atom QPU architecture
+# Demo script for the neutral atom QPU architecture
 # -------------------
 
 # --- Regions ---

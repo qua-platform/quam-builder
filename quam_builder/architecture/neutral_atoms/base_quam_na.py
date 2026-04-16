@@ -14,9 +14,18 @@ from quam_builder.architecture.neutral_atoms.components import TweezerDriver, Se
 
 @quam_dataclass
 class  BaseQuamNA(QuamRoot):
+    """
+    Base abstraction of a neutral atom QPU.
+
+    Responsibilities:
+    - Holds hardware components (channels, drivers, sensors, regions)
+    - Provides factory methods (e.g., create_tweezer)
+    - Contains QUA macros (measure, align)
+    
+    """
     _channels: list = field(default_factory=list)
     tweezer_depth: float = 5.0  # in mK
-    scale: float = 1.0  # scaling factor between qum and real space
+    scale: float = 1.0  # scaling factor between quam and real space
     rydberg_distance: float = 0.3  # in scaled units
     channel_voltages: Dict[str, float] = field(default_factory=dict)
     _drivers: list[TweezerDriver] = field(default_factory=list)

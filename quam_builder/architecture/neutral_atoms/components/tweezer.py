@@ -7,7 +7,8 @@ from quam_builder.architecture.neutral_atoms.components.tweezer_driver import Tw
 @quam_dataclass
 class Tweezer(QuantumComponent):
     """
-    Represents a tweezer trapping neutral atoms.
+    Represents a "logical" tweezer trapping neutral atoms.
+    A Tweezer can consist of many physical spots (e.g., for 2D arrays), but we treat it as a single logical entity for control purposes.
     """
 
     spots: List[Tuple[float, float]]   # (x, y) positions

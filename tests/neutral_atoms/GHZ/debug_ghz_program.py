@@ -1,6 +1,6 @@
 
-# Single QUA script generated at 2026-03-26 09:52:39.220091
-# QUA library version: 1.2.5
+# Single QUA script generated at 2026-04-15 17:57:29.615979
+# QUA library version: 1.2.4
 
 
 from qm import CompilerOptionArguments
@@ -255,14 +255,14 @@ config = {
         },
         "ch1.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch1.move_pulse.wf",
             },
         },
         "ch1.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch1.imaging_pulse.wf",
             },
@@ -276,14 +276,14 @@ config = {
         },
         "ch2.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch2.move_pulse.wf",
             },
         },
         "ch2.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch2.imaging_pulse.wf",
             },
@@ -297,14 +297,14 @@ config = {
         },
         "SLM532.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "SLM532.move_pulse.wf",
             },
         },
         "SLM532.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "SLM532.imaging_pulse.wf",
             },
@@ -333,14 +333,14 @@ config = {
         },
         "ch5.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch5.move_pulse.wf",
             },
         },
         "ch5.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch5.imaging_pulse.wf",
             },
@@ -354,14 +354,14 @@ config = {
         },
         "ch6.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch6.move_pulse.wf",
             },
         },
         "ch6.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch6.imaging_pulse.wf",
             },
@@ -375,14 +375,14 @@ config = {
         },
         "ch7.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch7.move_pulse.wf",
             },
         },
         "ch7.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch7.imaging_pulse.wf",
             },
@@ -396,14 +396,14 @@ config = {
         },
         "ch8.move_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 200,
             "waveforms": {
                 "single": "ch8.move_pulse.wf",
             },
         },
         "ch8.imaging_pulse.pulse": {
             "operation": "control",
-            "length": 1000,
+            "length": 700,
             "waveforms": {
                 "single": "ch8.imaging_pulse.wf",
             },
@@ -424,11 +424,11 @@ config = {
         },
         "ch1.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch1.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "ch2.h_pulse.wf": {
             "type": "constant",
@@ -436,11 +436,11 @@ config = {
         },
         "ch2.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch2.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "SLM532.h_pulse.wf": {
             "type": "constant",
@@ -448,11 +448,11 @@ config = {
         },
         "SLM532.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "SLM532.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "SLM532.slm_on.wf": {
             "type": "constant",
@@ -468,11 +468,11 @@ config = {
         },
         "ch5.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch5.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "ch6.h_pulse.wf": {
             "type": "constant",
@@ -480,11 +480,11 @@ config = {
         },
         "ch6.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch6.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "ch7.h_pulse.wf": {
             "type": "constant",
@@ -492,11 +492,11 @@ config = {
         },
         "ch7.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch7.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
         "ch8.h_pulse.wf": {
             "type": "constant",
@@ -504,11 +504,11 @@ config = {
         },
         "ch8.move_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.3,
         },
         "ch8.imaging_pulse.wf": {
             "type": "constant",
-            "sample": 0.25,
+            "sample": 0.4,
         },
     },
     "digital_waveforms": {

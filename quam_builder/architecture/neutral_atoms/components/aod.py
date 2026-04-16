@@ -10,6 +10,7 @@ from qm.qua import play, ramp
 
 @quam_dataclass
 class AOD(TweezerDriver):
+    
     channels: Tuple[SingleChannel, Optional[SingleChannel]]  # (X channel, Y channel)
     frequency_to_move: float  # Frequency shift to move the tweezer position
     offset_frequency: float = 0.0  # Offset frequency for calibration
