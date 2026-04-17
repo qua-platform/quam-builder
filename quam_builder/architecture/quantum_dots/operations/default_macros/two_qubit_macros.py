@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from qm import qua
 from quam.components.macro import QubitPairMacro
 from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
@@ -226,9 +227,13 @@ class CROTMacro(QubitPairMacro):
 
         _step_to_target(self.qubit_pair, target_point, duration=point_hold_time)
 
-        self.qubit_pair.align()
+        qua.align()
+
+        # self.qubit_pair.align()
         if target_frequency is not None:
             drive_qubit.xy.update_frequency(target_frequency)
+
+        qua.align()
 
         self.qubit_pair.voltage_sequence.step_to_voltages({}, duration=pulse_duration_ns)
         drive_qubit.xy.play(
@@ -238,6 +243,8 @@ class CROTMacro(QubitPairMacro):
 
         if target_frequency is not None:
             drive_qubit.xy.update_frequency(original_frequency)
+
+        qua.align()
 
         self.qubit_pair.step_to_point(self.return_point, duration=16)
 
