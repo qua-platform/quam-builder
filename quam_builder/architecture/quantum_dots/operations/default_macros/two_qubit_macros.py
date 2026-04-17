@@ -239,7 +239,7 @@ class CROTMacro(QubitPairMacro):
         if target_frequency is not None:
             drive_qubit.xy.update_frequency(original_frequency)
 
-        self.qubit_pair.step_to_point(self.return_point, duration=0)
+        self.qubit_pair.step_to_point(self.return_point, duration=16)
 
 
 class _Unsupported2QGateMacro(QubitPairMacro):
