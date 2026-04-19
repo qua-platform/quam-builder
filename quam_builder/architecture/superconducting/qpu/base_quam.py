@@ -70,6 +70,7 @@ class BaseQuam(QuamRoot):
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
 
     extras: dict = field(default_factory=dict)
+    iqcc_device: Optional[str] = None
 
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
@@ -261,6 +262,13 @@ class BaseQuam(QuamRoot):
             AttributeError: If the specified QMM class doesn't exist.
             ConnectionError: If connection to the QMM fails.
         """
+        if self.iqcc_device is not None:
+            from quam_builder.iqcc_adapter import IQCCManagerProxy
+
+            logger.info(f"Using IQCC Cloud with device '{self.iqcc_device}'")
+            self.qmm = IQCCManagerProxy(device_name=self.iqcc_device)
+            return self.qmm
+
         # Validate network configuration exists
         if not self.network:
             raise ValueError(

@@ -14,6 +14,9 @@ dependencies = [
     "qm-saas>=1.1.7",
 ]
 
+[project.optional-dependencies]
+iqcc = ["iqcc-cloud-client"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
