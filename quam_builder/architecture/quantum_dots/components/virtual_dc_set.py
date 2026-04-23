@@ -83,7 +83,8 @@ class VirtualDCSet(QuantumComponent):
         # all_voltages = self.all_current_voltages
         # for name in self.valid_channel_names:
         #     self._current_levels[name] = all_voltages[name]
-        pass
+        if self._current_physical_voltages and self.layers:
+            self._populate_virtual_gate_voltages(self._current_physical_voltages)
 
     @property
     def name(self):
@@ -500,3 +501,39 @@ class VirtualDCSet(QuantumComponent):
             )
         point = self.macros[name]
         self.set_voltages(point.voltages)
+
+    def update_matrix(
+        self, 
+        layer_idx: int, 
+        matrix: List[List[float]],
+        requery: bool = False,
+    ) -> None: 
+        """
+        Updates the relevant matrix and keeps the cached voltage values in sync. 
+        """
+
+        if layer_idx < 0 or layer_idx >= len(self.layers): 
+            raise IndexError(f"layer_idx {layer_idx} out of range for {len(self.layers)} layers.")
+
+        layer = self.layers[layer_idx]
+
+        matrix_numpy = np.array(matrix, dtype = float)
+        matrix_dimensions = (len(layer.source_gates), len(layer.target_gates))
+
+        if matrix_numpy.shape != matrix_dimensions: 
+            raise ValueError(f"Matrix dimensions mismatch. Expected {matrix_dimensions}, received {matrix_numpy.shape}")
+        
+        is_square = matrix_numpy.shape[0] == matrix_numpy.shape[1]
+        if is_square:
+            det = np.linalg.det(matrix_numpy)
+            if abs(det) < 1e-10:
+                raise ValueError(
+                    f"Matrix is not invertible (determinant ≈ 0): {det}"
+                )
+        layer.matrix = matrix
+        layer.use_pseudoinverse = not is_square
+
+        if not requery: 
+            self._populate_virtual_gate_voltages(self._current_physical_voltages)
+        else: 
+            self._populate_virtual_gate_voltages(self.current_physical_voltages)
