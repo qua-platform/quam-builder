@@ -433,7 +433,7 @@ A `VirtualizationLayer` defines a single step in the virtual-to-physical gate vo
 The core mathematical relationship for each virtualization layer is:
 
 ```
-V_target = M * V_source
+V_source = M * V_target
 ```
 
 Where:
@@ -453,21 +453,21 @@ target_gates = ["P1", "P2"]
 The relationship becomes:
 
 ```
-[P1]   [1.0  0.5] [v_Gate1]
-[P2] = [0.5  1.0] [v_Gate2]
+[v_Gate1]   [1.0  0.5] [P1]
+[v_Gate2] = [0.5  1.0] [P2]
 ```
 
 Expanded:
 
-- `P1 = 1.0 * v_Gate1 + 0.5 * v_Gate2`
-- `P2 = 0.5 * v_Gate1 + 1.0 * v_Gate2`
+- `v_Gate1 = 1.0 * P1 + 0.5 * P2`
+- `v_Gate2 = 0.5 * P1 + 1.0 * P2`
 
 ### 7.2 Inverse Transformation (Voltage Resolution)
 
 During voltage resolution, the system applies the inverse transformation:
 
 ```
-V_source = M⁻¹ * V_target
+V_target = M⁻¹ * V_source
 ```
 
 The code implements this using `numpy.linalg.inv()` to calculate the inverse matrix. For each layer's resolution:
