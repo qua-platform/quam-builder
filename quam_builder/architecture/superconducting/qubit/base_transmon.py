@@ -28,6 +28,7 @@ from qm.qua import (
     update_frequency,
     Math,
     Cast,
+    Random
 )
 
 
@@ -93,6 +94,9 @@ class BaseTransmon(Qubit):
     chi: float = None
     grid_location: str = None
     gate_fidelity: Dict[str, Any] = field(default_factory=dict)
+    
+    twirl_measurment: bool = False
+    
     extras: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -223,8 +227,23 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         if threshold is None:
             threshold = self.resonator.operations[pulse_name].threshold
+        
+        do_flip = declare(int)
+        if self.twirl_measurment:
+            assign(do_flip, Random().rand_int(2))
+            with if_(do_flip == 1, unsafe=True):
+                self.xy.play("x180")
+            self.align()
+
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
-        assign(state, Cast.to_int(I > threshold))
+
+        if self.twirl_measurment:
+            assign(state, Cast.to_int(I > threshold))
+            with if_(do_flip == 1, unsafe=True):
+                assign(state, 1- state)
+        else:
+            assign(state, Cast.to_int(I > threshold))
+
         wait(self.resonator.depletion_time // 4, self.resonator.name)
 
     def reset(
@@ -430,3 +449,4 @@ class BaseTransmon(Qubit):
         """
         channel_names = [channel.name for channel in self.channels.values()]
         wait(duration, *channel_names)
+
