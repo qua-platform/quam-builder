@@ -722,12 +722,18 @@ class VoltageSequence:
                 else 0.5
             )
 
+            # Determine channel-specific max_voltage to use, based on attenuation (but without mutating the loop max_voltage)
+            channel_max_voltage = max_voltage
             if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
                 attenuation_scale = 10 ** (channel_obj.attenuation / 20)
-                if max_voltage * attenuation_scale > opx_voltage_limit:
-                    raise ValueError(
-                        f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                if channel_max_voltage * attenuation_scale > opx_voltage_limit:
+                    new_max_voltage = opx_voltage_limit / attenuation_scale
+                    print(
+                        f"Channel '{ch_name}': attenuation-corrected max_voltage ({channel_max_voltage * attenuation_scale:.2f}) exceeds OPX output limit of {opx_voltage_limit}. "
+                        f"Using reduced max_voltage of {new_max_voltage:.4f} instead of supplied {channel_max_voltage:.4f}."
                     )
+                    channel_max_voltage = new_max_voltage
+
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
@@ -735,7 +741,7 @@ class VoltageSequence:
 
             if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(current_v):
                 py_comp_amp, py_comp_dur = self._calculate_python_compensation_params(
-                    tracker, max_voltage
+                    tracker, channel_max_voltage
                 )
                 if py_comp_dur == 0:  # No pulse needed
                     tracker.current_level = py_comp_amp  # Should be 0.0
@@ -750,7 +756,7 @@ class VoltageSequence:
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
             else:
                 q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
-                    tracker, max_voltage, channel_obj.name
+                    tracker, channel_max_voltage, channel_obj.name
                 )
                 delta_v_q = q_comp_amp - current_v
                 with if_(q_comp_dur_4ns > 0):
