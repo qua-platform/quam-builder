@@ -1,10 +1,13 @@
 from typing import Dict
 
 from dataclasses import dataclass , field
+from unicodedata import name
+from matplotlib.pylab import var
 from quam.core import QuamRoot, quam_dataclass
 from quam.components import QuantumComponent
 from qm import qua , program
-from qm.qua import align
+from qm.qua import align, declare_struct, declare_external_stream, QuaStreamDirection, receive_from_external_stream
+from qm.qua._expressions import StructT
 
 
 from quam.components import SingleChannel
@@ -32,6 +35,11 @@ class  BaseQuamNA(QuamRoot):
     _regions: list = field(default_factory=list)
     _sensors: list = field(default_factory=list)
     _tweezers: list = field(default_factory=list)
+    _structs: Dict[str, StructT] = field(default_factory=dict)
+    _streams: Dict[str, StructT] = field(default_factory=dict)
+    _registered_structs: Dict[str, StructT] = field(default_factory=dict)
+
+
 
     def set_voltage(self, voltage: float):
         """
@@ -65,6 +73,30 @@ class  BaseQuamNA(QuamRoot):
         self._channels = getattr(self, "_channels", [])
         self._channels.append(channel)
 
+    def register_structs(self):
+        #loop over all children and ask them to register their structs
+        for component in self.iterate_components():
+            if not hasattr(component, "_get_structs"):
+                continue
+
+            for name, struct_class in component._get_structs().items():
+                self._registered_structs[name] = struct_class
+        
+    def declare_structs(self):
+        from qm.qua import declare_struct
+
+        for name, struct_class in self._registered_structs.items():
+            self._structs[name] = declare_struct(struct_class)
+            self._streams[name] = declare_external_stream(self.get_registered_struct(name), len(self._streams)+1, QuaStreamDirection.INCOMING)
+    
+    @QuantumComponent.register_macro
+    def receive_from_external_stream(self, name: str):
+        if name not in self._streams:
+            raise ValueError(f"Stream '{name}' not declared")
+        stream = self.get_stream(name)
+        struct_instance = self.get_struct(name)
+        receive_from_external_stream(stream, struct_instance)
+        return struct_instance
     def create_tweezer(
         self,
         spots: list[tuple[float, float]],
@@ -107,6 +139,22 @@ class  BaseQuamNA(QuamRoot):
             if channel.name == name:
                 return channel
         raise ValueError(f"Channel '{name}' not found")
+    
+    def get_registered_struct(self, name: str):
+        if name in self._registered_structs:
+            return self._registered_structs[name]
+        raise ValueError(f"Struct '{name}' is not registered")
+    
+    def get_struct(self, name: str):
+        if name in self._structs:
+            return self._structs[name]
+        raise ValueError(f"Struct '{name}' not declared")
+    
+    def get_stream(self, name: str):
+        if name in self._streams:
+            return self._streams[name]
+        raise ValueError(f"Stream '{name}' not declared")
+
     
     @QuantumComponent.register_macro
     def measure(

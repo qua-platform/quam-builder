@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 from quam.core import quam_dataclass
+from quam_builder.architecture.neutral_atoms.components.tweezer import Tweezer
 from quam_builder.architecture.neutral_atoms.components.tweezer_driver import TweezerDriver
 from quam.components import SingleChannel, DigitalOutputChannel
 from quam.components import QuantumComponent
@@ -7,6 +8,8 @@ from quam.components.pulses import SquarePulse
 
 
 from qm.qua import play, ramp
+from qm.qua import QuaArray, declare, assign, if_, update_frequency, declare_struct, receive_from_external_stream, qua_struct, declare_struct , declare
+from qm.qua.type_hints import QuaVariable
 
 @quam_dataclass
 class AOD(TweezerDriver):
@@ -18,6 +21,17 @@ class AOD(TweezerDriver):
     f_max: float = 150.0 * 1e6
     max_total_power: float = 1.0  # Maximum total RF power allowed
 
+    def _get_structs(self):
+        @qua_struct
+        class AOD_Move:
+            offsets: QuaArray[int, 16]
+            src_center: QuaArray[int, 1]
+            dst_center: QuaArray[int, 1]
+            duration: QuaArray[int , 1]
+            image: QuaArray[bool, 1]
+
+        return {"AOD_Move": AOD_Move}
+    
     @property
     def name(self) -> str:
         return self.id
@@ -28,6 +42,7 @@ class AOD(TweezerDriver):
         self.channel.current_voltage = 1.0
         if hasattr(self.channel, "offset_parameter"):
             self.channel.offset_parameter(1.0)
+
 
     @QuantumComponent.register_macro
     def disable(self):
@@ -92,22 +107,42 @@ class AOD(TweezerDriver):
     @QuantumComponent.register_macro
     def move(
         self,
-        target_positions: list[tuple[float, float]] | None = None,
         target: tuple[float, float] | None = None,
-        amplitudes: list[float] | None = None
-    ):
-        """Move tweezers to a list of target positions (or single target)."""
-        if target is not None:
-            target_positions = [target]
-        if target_positions is None:
-            raise ValueError("Must provide either target or target_positions")
-        
-        # Validate
-        self.validate_move(target_positions, amplitudes)
-    
+        length: int = 1,
+        tweezer: Optional[Tweezer] = None,
+    ):            
         # Convert to frequencies
-        target_frequencies = [self.position_to_frequency(x, y) for x, y in target_positions]
+        dst_center = self.position_to_frequency(target[0], target[1])
+        src_center = self.position_to_frequency(tweezer.center[0], tweezer.center[1])
+        offsets = [self.position_to_frequency(x, y) for x, y in tweezer.spots - src_center]
+        duration = length
 
-        for ch in self.channels:
-            if ch is not None:
-                ch.play("move_pulse")
+
+        self._runtime_move(offsets=offsets, src_center=src_center, dst_center=dst_center, duration=duration)
+               
+    @QuantumComponent.register_macro
+    def _runtime_move(
+        self,
+        offsets: QuaArray[int, 16] | None = None,
+        src_center: QuaArray[int, 1] | None = None,
+        duration: QuaArray[int, 1] | None = None,
+        dst_center: QuaArray[int, 1] | None = None,
+    ):
+        
+        chirprate = declare(int)
+        assign(chirprate, (dst_center[0] - src_center[0]) / duration[0])
+        for i in range(16):
+            with if_(~offsets[i]==0):
+                update_frequency("AOD_{i}", src_center[0])
+                play("move", "AOD_{i}", duration=duration[0], chirp=(chirprate, 'MHz/sec'))
+
+    @QuantumComponent.register_macro
+    def get_move(self):
+        """
+        Get move the tweezer to a new target position.
+        Args:
+            amplitude: Amplitude of the square pulse
+            length: Pulse length in samples
+        """
+        next_move = self.parent.parent.receive_from_external_stream("AOD_Move")
+        self._runtime_move(next_move.dst_center, next_move.image, next_move.duration, next_move.offsets)

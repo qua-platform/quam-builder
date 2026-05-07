@@ -36,6 +36,7 @@ from quam_builder.architecture.neutral_atoms.components.sensor import Sensor
 from quam_builder.architecture.neutral_atoms.components.region import Region
 
 from quam.components import pulses
+
 from quam.components import SingleChannel, DigitalOutputChannel
 
 

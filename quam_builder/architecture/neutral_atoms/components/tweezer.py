@@ -3,6 +3,8 @@ from quam.core import quam_dataclass
 from quam.components import QuantumComponent
 from quam.components.pulses import SquarePulse
 from quam_builder.architecture.neutral_atoms.components.tweezer_driver import TweezerDriver
+from qm.qua import QuaArray, receive_from_external_stream, qua_struct, declare_struct , declare
+
 
 @quam_dataclass
 class Tweezer(QuantumComponent):
@@ -48,22 +50,32 @@ class Tweezer(QuantumComponent):
         for x, y in self.spots:
             if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
                 raise TypeError("Tweezer spots must be numeric (x, y) tuples")
+        
 
     @QuantumComponent.register_macro
-    def move(self, target: Tuple[float, float] , amplitude: float = 5, length: int = 1):
+    def move(self, target: Tuple[float, float] , length: int = 1):
         """
         Move the tweezer to a new target position.
         Args:
-            amplitude: Amplitude of the square pulse
             length: Pulse length in samples
         """
         # Play it on the OPX channel associated with this region
         # Assume you have a mapping from region -> channel(s)
         # TODO: pass spots, calc current center
-        self.get_drive().move(target_positions=[target])
+        self.get_drive().move(target=target, length=length, tweezer=self)
         
         # update internal state
         self.spots = [target]
+
+    @QuantumComponent.register_macro
+    def get_move(self):
+        """
+        Get move the tweezer to a new target position.
+        Args:
+            amplitude: Amplitude of the square pulse
+            length: Pulse length in samples
+        """
+        self.get_drive().get_move()
 
 
     @QuantumComponent.register_macro
