@@ -133,6 +133,20 @@ class VoltageSequence:
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
         self._track_integrated_voltage: bool = track_integrated_voltage
         self._keep_levels: bool = keep_levels
+        self._channel_max_voltage: Dict[str, float] = {}
+
+        for ch_name, channel_obj in self.gate_set.channels.items():
+            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
+                opx_voltage_limit = (
+                    2.5
+                    if hasattr(channel_obj.opx_output, "output_mode")
+                    and channel_obj.opx_output.output_mode == "amplified"
+                    else 0.5
+                )
+                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
+                self._channel_max_voltage[ch_name] = opx_voltage_limit / attenuation_scale
+            else:
+                self._channel_max_voltage[ch_name] = opx_voltage_limit
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
@@ -715,24 +729,13 @@ class VoltageSequence:
         for ch_name, channel_obj in self.gate_set.channels.items():
             DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
             DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
-            opx_voltage_limit = (
-                2.5
-                if hasattr(channel_obj.opx_output, "output_mode")
-                and channel_obj.opx_output.output_mode == "amplified"
-                else 0.5
-            )
-
-            # Determine channel-specific max_voltage to use, based on attenuation (but without mutating the loop max_voltage)
-            channel_max_voltage = max_voltage
-            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
-                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
-                if channel_max_voltage * attenuation_scale > opx_voltage_limit:
-                    new_max_voltage = opx_voltage_limit / attenuation_scale
-                    print(
-                        f"Channel '{ch_name}': attenuation-corrected max_voltage ({channel_max_voltage * attenuation_scale:.2f}) exceeds OPX output limit of {opx_voltage_limit}. "
-                        f"Using reduced max_voltage of {new_max_voltage:.4f} instead of supplied {channel_max_voltage:.4f}."
-                    )
-                    channel_max_voltage = new_max_voltage
+            channel_limit = self._channel_max_voltage[ch_name]
+            channel_max_voltage = min(max_voltage, channel_limit)
+            if max_voltage > channel_limit:
+                print(
+                    f"Channel '{ch_name}': supplied max_voltage ({max_voltage:.4f}) exceeds channel max_voltage "
+                    f"({channel_limit:.4f}). Using reduced max_voltage of {channel_max_voltage:.4f}."
+                )
 
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
