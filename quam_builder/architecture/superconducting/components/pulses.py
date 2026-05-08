@@ -278,9 +278,7 @@ class CosineBipolarPulse(Pulse):
         F = int(self.flat_length)
 
         if F > L:
-            raise ValueError(
-                f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}."
-            )
+            raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
             raise ValueError(
                 f"CosineBipolarPulse.flat_length={F} must be even to split equally "
@@ -299,13 +297,15 @@ class CosineBipolarPulse(Pulse):
 
         A = float(self.amplitude)
 
-        p = np.concatenate([
-            A * halfcos(rise_len),
-            A * np.ones(F // 2),
-            A * cos_switch(switch_len),
-            -A * np.ones(F // 2),
-            -A * halfcos(fall_len)[::-1],
-        ])
+        p = np.concatenate(
+            [
+                A * halfcos(rise_len),
+                A * np.ones(F // 2),
+                A * cos_switch(switch_len),
+                -A * np.ones(F // 2),
+                -A * halfcos(fall_len)[::-1],
+            ]
+        )
 
         if self.axis_angle is not None:
             p = p * np.exp(1j * self.axis_angle)

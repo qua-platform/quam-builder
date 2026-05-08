@@ -305,9 +305,7 @@ def add_default_transmon_pair_pulses(
     """
     if hasattr(transmon_pair, "coupler"):
         if transmon_pair.coupler is not None:
-            transmon_pair.coupler.operations["const"] = SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
     if hasattr(transmon_pair, "cross_resonance"):
         if transmon_pair.cross_resonance is not None:
             transmon_pair.cross_resonance.operations["square"] = SquarePulse(
@@ -315,9 +313,7 @@ def add_default_transmon_pair_pulses(
             )
     if hasattr(transmon_pair, "zz_drive"):
         if transmon_pair.zz_drive is not None:
-            transmon_pair.zz_drive.operations["square"] = SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
 
 
 def add_default_twpa_pulses(twpa: TWPA):
@@ -332,20 +328,14 @@ def add_default_twpa_pulses(twpa: TWPA):
     """
     if hasattr(twpa, "pump"):
         if twpa.pump is not None:
-            twpa.pump.operations["pump"] = SquarePulse(
-                amplitude=0.5, length=16, axis_angle=0
-            )
+            twpa.pump.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
     if hasattr(twpa, "pump_"):
         if twpa.pump_ is not None:
-            twpa.pump_.operations["pump"] = SquarePulse(
-                amplitude=0.5, length=2000, axis_angle=0
-            )
+            twpa.pump_.operations["pump"] = SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
 
     if hasattr(twpa, "isolation"):
         if twpa.isolation is not None:
-            twpa.isolation.operations["pump"] = SquarePulse(
-                amplitude=0.5, length=16, axis_angle=0
-            )
+            twpa.isolation.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
 
     if hasattr(twpa, "isolation_"):
         if twpa.isolation_ is not None:
