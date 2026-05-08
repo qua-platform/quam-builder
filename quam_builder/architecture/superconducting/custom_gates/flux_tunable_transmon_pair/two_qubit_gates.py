@@ -87,13 +87,13 @@ class CZGate(QubitPairMacro):
         "q1": {
             "id": "cz_spectator_pulse_qD1",
             "length": 48,
-            "__class__": "quam.components.pulses.SquarePulse",
+            "__class__": "quam_builder.common.pulses.SquarePulse",
             "amplitude": 0.04
         },
         "q2": {
             "id": "cz_spectator_pulse_qD2",
             "length": 44,
-            "__class__": "quam.components.pulses.FlatTopGaussianPulse",
+            "__class__": "quam_builder.common.pulses.FlatTopGaussianPulse",
             "amplitude": 0.05
         }
     }
