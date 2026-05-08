@@ -4,7 +4,7 @@ from numpy import sqrt, ceil
 from quam.components import Octave, LocalOscillator, FrequencyConverter
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.architecture.superconducting.components.twpa import TWPA
-from quam_builder.builder.superconducting.pulses import (
+from quam_builder.builder.superconducting.add_default_pulses import (
     add_default_transmon_pulses,
     add_default_transmon_pair_pulses,
     add_default_twpa_pulses,
