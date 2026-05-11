@@ -58,8 +58,7 @@ with program() as prog:
                 play("camera_trigger", "camera_trigger_channel")    
              with case_(Commands.STOP.value):
                 assign(stop, True)
-    get final timestamp for latency measurement
-
+    
 opx_ip = "172.16.33.114"
 cluster_name = "CS_4"
 fem_index = 5

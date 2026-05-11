@@ -15,7 +15,6 @@ class Move:
     duration: QuaArray[int, 1]
     image: QuaArray[bool, 1]
     
-
 with program() as prog:
     inc_struct = declare_struct(Move)
     # out_struct = declare_struct(Move)
@@ -23,7 +22,6 @@ with program() as prog:
     inc_stream = declare_external_stream(Move, stream_id, QuaStreamDirection.INCOMING)
     # out_stream = declare_external_stream(Move, stream_id, QuaStreamDirection.OUTGOING)
 
-   
     with infinite_loop_():
         receive_from_external_stream(inc_stream, inc_struct)
         update_frequency("AOD_X", inc_struct.src_center)

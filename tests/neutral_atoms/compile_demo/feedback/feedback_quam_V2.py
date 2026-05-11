@@ -147,7 +147,6 @@ def feedback(qpu):
 
         qpu.declare_structs()  # Declare all registered structs from init_qpu
         
-        
         # init coold atom positions and imaging settings
         stop = declare(bool)
         assign(stop, False)
@@ -155,7 +154,7 @@ def feedback(qpu):
             qpu.run_next_command()  # receive next command and route to correct region/driver
             dynamic_tweezer.get_move()
     
-    returnprog
+    return prog
         
 
 

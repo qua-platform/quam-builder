@@ -148,7 +148,6 @@ def feedback(qpu):
         qpu.declare_structs()  # Declare all registered structs from init_qpu
         
         with infinite_loop_():
-            print(qpu._structs)
             dynamic_tweezer.get_move()
     
     return prog
