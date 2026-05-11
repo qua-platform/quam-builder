@@ -1,4 +1,4 @@
-from typing import Union, Any
+from typing import Any, Literal, Union
 from dataclasses import field
 
 import numpy as np
@@ -177,6 +177,8 @@ class CZGate(QubitPairMacro):
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
     duration_control: ScalarInt = None
+
+    moving_qubit: Literal["control", "target"] = "control"
 
     @property
     def flux_pulse_qubit_label(self) -> str:
