@@ -5,10 +5,12 @@
 import pytest
 
 from qm import SimulationConfig, QuantumMachinesManager, generate_qua_script
+
 pytest.importorskip("qm_saas")
 from qm_saas import QOPVersion, QmSaas
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 
 def simulate_program(qmm, machine, prog, simulation_duration=10000):
@@ -18,6 +20,8 @@ def simulate_program(qmm, machine, prog, simulation_duration=10000):
     config = machine.generate_config()
     print(generate_qua_script(prog, config))
     job = qmm.simulate(config, prog, simulation_config)
+    while job.status != "completed":
+        time.sleep(1)
     # Get the simulated samples
     samples = job.get_simulated_samples()
 
