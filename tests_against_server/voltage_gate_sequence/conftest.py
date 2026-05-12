@@ -10,6 +10,7 @@ from quam_builder.architecture.quantum_dots.components import (
     VirtualizationLayer,
     VoltageGate,
 )
+from quam_builder.builder.quantum_dots.pulses import add_default_baseband_pulse
 from qm import QuantumMachinesManager
 import numpy as np
 
@@ -39,15 +40,38 @@ def machine():
             id="test_gate_set",
             channels={
                 "ch1": VoltageGate(
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 6, upsampling_mode="pulse"),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
+                ),
+                "ch2": VoltageGate(
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 3, upsampling_mode="pulse"),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=10,
+                ),
+            },
+            adjust_for_attenuation=True,
+        ),
+    )
+    return machine
+
+
+@pytest.fixture
+def machine_amplified():
+    machine = QuamGateSet(
+        gate_set=GateSet(
+            id="test_gate_set_amplified",
+            channels={
+                "ch1": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 6, upsampling_mode="pulse"
+                        "con1", 5, 6, upsampling_mode="pulse", output_mode="amplified"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                     attenuation=10,
                 ),
                 "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 3, upsampling_mode="pulse"
+                        "con1", 5, 3, upsampling_mode="pulse", output_mode="amplified"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
                     attenuation=10,
@@ -56,6 +80,8 @@ def machine():
             adjust_for_attenuation=True,
         ),
     )
+    for channel in machine.gate_set.channels.values():
+        add_default_baseband_pulse(channel)
     return machine
 
 
