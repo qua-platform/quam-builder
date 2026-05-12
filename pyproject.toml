@@ -41,6 +41,11 @@ dev = [
 ast = [
     "qua-qsim@git+https://github.com/qua-platform/qua-qsim.git@bare-ast-visitor",
 ]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.26.0",
+    "mkdocs-gen-files>=0.5.0",
+]
 
 [tool.uv.pip]
 prerelease = "allow"

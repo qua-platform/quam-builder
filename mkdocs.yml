@@ -1,0 +1,116 @@
+site_name: QUAM Builder
+site_description: A Python tool for programmatically constructing QUAM configurations for the Quantum Orchestration Platform (QOP).
+site_author: Quantum Machines
+repo_url: https://github.com/qua-platform/quam-builder
+repo_name: qua-platform/quam-builder
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 80
+            merge_init_into_class: true
+            docstring_section_style: table
+            filters:
+              - "!^_"
+            members_order: source
+            inherited_members: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Guides:
+      - guides/index.md
+      - Superconducting: guides/superconducting.md
+      - Quantum Dots: guides/quantum_dots.md
+      - Voltage Sequence: guides/voltage_sequence.md
+      - Pylint QUA Plugin: guides/pylint_plugin.md
+  - API Reference:
+      - api/index.md
+      - Architecture: api/architecture.md
+      - Builder: api/builder.md
+      - Tools: api/tools.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/qua-platform/quam-builder
+    - icon: fontawesome/solid/globe
+      link: https://www.quantum-machines.co
+  generator: false
+
+copyright: Copyright &copy; 2026 Q.M Technologies Ltd.
