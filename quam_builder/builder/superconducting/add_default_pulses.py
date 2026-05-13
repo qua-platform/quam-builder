@@ -1,4 +1,4 @@
-from quam_builder.common.pulses import SquarePulse, SquareReadoutPulse
+from quam.components.pulses import SquarePulse, SquareReadoutPulse
 from quam_builder.architecture.superconducting.components.pulses import (
     DragGaussianPulse,
     DragCosinePulse,
