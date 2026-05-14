@@ -31,6 +31,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components import StickyChannelAddon, pulses
 from quam.components.ports import (
     LFFEMAnalogOutputPort,
@@ -38,7 +40,7 @@ from quam.components.ports import (
     MWFEMAnalogOutputPort,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDrive, QPU
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW, QPU
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
@@ -48,53 +50,80 @@ import numpy as np
 # Instantiate Quam
 machine = LossDiVincenzoQuam()
 machine.qpu = QPU()
-lf_fem_dots = 6
-lf_fem_resonators = 5
-mw_fem = 1
-plunger_gates = 6
+
+try:
+    from configs import (  # isort:skip
+        LF_FEM_DOTS,
+        LF_FEM_RESONATORS,
+        MW_FEM,
+        PLUNGER_GATES,
+        SENSOR_GATES,
+        RESONATORS,
+    )
+except ModuleNotFoundError:
+    LF_FEM_DOTS = 6
+    LF_FEM_RESONATORS = 5
+    MW_FEM = 1
+    PLUNGER_GATES = 6
+    SENSOR_GATES = 2
+    RESONATORS = 2
+
+lf_fem_dots = LF_FEM_DOTS
+lf_fem_resonators = LF_FEM_RESONATORS
+mw_fem = MW_FEM
+plunger_gates = PLUNGER_GATES
 barrier_gates = plunger_gates - 1
-sensor_gates = 2
-resonators = 2
+sensor_gates = SENSOR_GATES
+resonators = RESONATORS
 
 ###########################################
 ###### Instantiate Physical Channels ######
 ###########################################
-next_port_id = 0
+lf_fem_slots = [lf_fem_dots]
+if lf_fem_resonators not in lf_fem_slots:
+    lf_fem_slots.append(lf_fem_resonators)
 
-ps = [
-    VoltageGate(
-        id=f"plunger_{i}",
-        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_dots, port_id=i + next_port_id),
-        sticky=StickyChannelAddon(duration=16, digital=False),
+
+def _alloc_lf_port(index: int) -> tuple[int, int]:
+    slot = lf_fem_slots[index // 8]
+    port = index % 8 + 1
+    return slot, port
+
+
+ps = []
+for i in range(plunger_gates):
+    slot, port = _alloc_lf_port(i)
+    ps.append(
+        VoltageGate(
+            id=f"plunger_{i}",
+            opx_output=LFFEMAnalogOutputPort("con1", slot, port_id=port),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+        )
     )
-    for i in range(plunger_gates)
-]
 
-next_port_id += plunger_gates
-
-bs = [
-    VoltageGate(
-        id=f"barrier_{i}",
-        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_dots, port_id=i + next_port_id),
-        sticky=StickyChannelAddon(duration=16, digital=False),
+bs = []
+offset = plunger_gates
+for i in range(barrier_gates):
+    slot, port = _alloc_lf_port(offset + i)
+    bs.append(
+        VoltageGate(
+            id=f"barrier_{i}",
+            opx_output=LFFEMAnalogOutputPort("con1", slot, port_id=port),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+        )
     )
-    for i in range(barrier_gates)
-]
 
-next_port_id += barrier_gates
-
-ss = [
-    VoltageGate(
-        id=f"sensor_{i}",
-        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_dots, port_id=i + next_port_id),
-        sticky=StickyChannelAddon(duration=16, digital=False),
+ss = []
+offset += barrier_gates
+for i in range(sensor_gates):
+    slot, port = _alloc_lf_port(offset + i)
+    ss.append(
+        VoltageGate(
+            id=f"sensor_{i}",
+            opx_output=LFFEMAnalogOutputPort("con1", slot, port_id=port),
+            sticky=StickyChannelAddon(duration=16, digital=False),
+        )
     )
-    for i in range(sensor_gates)
-]
-
-next_port_id += sensor_gates
-
-next_port_id = 0
 
 rs = [
     ReadoutResonatorSingle(
@@ -102,13 +131,12 @@ rs = [
         frequency_bare=0,
         intermediate_frequency=500e6,
         operations={"readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)},
-        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_resonators, port_id=i * 2 + next_port_id),
-        opx_input=LFFEMAnalogInputPort("con1", lf_fem_resonators, port_id=i * 2 + 1 + next_port_id),
+        opx_output=LFFEMAnalogOutputPort("con1", lf_fem_resonators, port_id=i + 1),
+        opx_input=LFFEMAnalogInputPort("con1", lf_fem_resonators, port_id=i + 1),
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
     for i in range(resonators)
 ]
-next_port_id += resonators * 2
 
 
 #####################################
@@ -165,7 +193,7 @@ for i in range(barrier_gates):
 # Register one qubit per dot
 mw_start_port = 1
 for i in range(plunger_gates):
-    xy_drive = XYDrive(
+    xy_drive = XYDriveMW(
         id=f"Q{i}_xy",
         opx_output=MWFEMAnalogOutputPort(
             "con1",
@@ -215,6 +243,9 @@ for i in range(plunger_gates - 1):
 
 config = machine.generate_config()
 machine.network = {"host": "172.16.33.115", "cluster_name": "CS_3"}
-machine.connect()
-config_path = "config"
-machine.save(config_path)
+if os.environ.get("QUAM_CONNECT") == "1":
+    machine.connect()
+    config_path = "config"
+    machine.save(config_path)
+else:
+    print("Skipping machine.connect/save. Set QUAM_CONNECT=1 to enable.")

@@ -19,6 +19,8 @@ Workflow:
 
 """
 
+import os
+
 from quam.components.ports import MWFEMAnalogOutputPort
 from quam.components import pulses
 
@@ -27,7 +29,11 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from qm.qua import *
 
 
-machine = LossDiVincenzoQuam.load()
+# state_path = os.environ.get("QUAM_STATE_PATH")
+# if not state_path:
+#     print("QUAM_STATE_PATH not set; skipping LD example. Set it to run.")
+#     raise SystemExit(0)
+machine = LossDiVincenzoQuam.load("/Users/kalidu_laptop/_nodes/CS_installations/quam_state")
 
 lf_fem = 6
 mw_fem = 1
@@ -35,7 +41,7 @@ mw_fem = 1
 xy_q1 = XYDriveMW(
     id="Q1_xy",
     opx_output=MWFEMAnalogOutputPort(
-        "con1", mw_fem, port_id=5, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
+        "con1", mw_fem, port_id=1, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
     ),
     intermediate_frequency=10e6,
     operations={"x90": pulses.GaussianPulse(length=200, amplitude=0.01, sigma=50)},
@@ -43,7 +49,7 @@ xy_q1 = XYDriveMW(
 xy_q2 = XYDriveMW(
     id="Q2_xy",
     opx_output=MWFEMAnalogOutputPort(
-        "con1", mw_fem, port_id=6, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
+        "con1", mw_fem, port_id=2, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
     ),
     intermediate_frequency=12e6,
     operations={"x90": pulses.GaussianPulse(length=200, amplitude=0.01, sigma=50)},
@@ -51,7 +57,7 @@ xy_q2 = XYDriveMW(
 xy_q3 = XYDriveMW(
     id="Q3_xy",
     opx_output=MWFEMAnalogOutputPort(
-        "con1", mw_fem, port_id=7, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
+        "con1", mw_fem, port_id=3, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
     ),
     intermediate_frequency=13e6,
     operations={"x90": pulses.GaussianPulse(length=200, amplitude=0.01, sigma=50)},
@@ -59,7 +65,7 @@ xy_q3 = XYDriveMW(
 xy_q4 = XYDriveMW(
     id="Q4_xy",
     opx_output=MWFEMAnalogOutputPort(
-        "con1", mw_fem, port_id=8, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
+        "con1", mw_fem, port_id=4, upconverter_frequency=5e9, band=2, full_scale_power_dbm=10
     ),
     intermediate_frequency=14e6,
     operations={"x90": pulses.GaussianPulse(length=200, amplitude=0.01, sigma=50)},
@@ -72,6 +78,11 @@ xy_q4 = XYDriveMW(
 
 
 # Register qubits. For ST qubits, quantum_dots should be a tuple
+required_dots = {f"virtual_dot_{i}" for i in range(1, 5)}
+missing = required_dots - set(machine.quantum_dots.keys())
+if missing:
+    print(f"Missing required quantum dots in state: {sorted(missing)}. Skipping.")
+    raise SystemExit(0)
 machine.register_qubit(
     qubit_name="Q1",
     quantum_dot_id="virtual_dot_1",
@@ -103,7 +114,7 @@ machine.register_qubit(
 # Fill out the grid location and arbitrary larmor frequencies of the qubit
 for i in range(1, 5):
     machine.qubits[f"Q{i}"].grid_location = f"0,{i}"
-    machine.qubits[f"Q{i}"].larmor_frequency = 5e6 + 1e6 * i
+    object.__setattr__(machine.qubits[f"Q{i}"], "larmor_frequency", 5e6 + 1e6 * i)
 
 ##################################
 ###### Register Qubit Pairs ######
@@ -162,6 +173,42 @@ machine.qubit_pairs["Q3_Q4"].add_point(
     replace_existing_point=True,
 )
 
+qdp1 = machine.quantum_dot_pairs["dot1_dot2_pair"]
+qdp2 = machine.quantum_dot_pairs["dot3_dot4_pair"]
+qdp1.add_point("empty", voltages = {
+    "virtual_dot_1": 0.06, 
+    "virtual_dot_2": -0.04,
+    "virtual_barrier_1": 0.08
+}, duration = 1000)
+qdp1.add_point("measure", voltages = {
+    "virtual_dot_1": -0.03, 
+    "virtual_dot_2": 0.09,
+    "virtual_barrier_1": 0.07
+}, duration = 1000)
+qdp1.add_point("initialize", voltages = {
+    "virtual_dot_1": 0.02, 
+    "virtual_dot_2": -0.10,
+    "virtual_barrier_1": 0.09
+}, duration = 1000)
+qdp1.sensor_dots[0]._add_readout_params(name, threshold = 0.01)
+
+qdp2.add_point("empty", voltages = {
+    "virtual_dot_3": 0.08, 
+    "virtual_dot_4": -0.03,
+    "virtual_barrier_3": 0.15
+}, duration = 1000)
+qdp2.add_point("measure", voltages = {
+    "virtual_dot_3": -0.09, 
+    "virtual_dot_4": 0.03,
+    "virtual_barrier_3": 0.09
+}, duration = 1000)
+qdp2.add_point("initialize", voltages = {
+    "virtual_dot_3": 0.05, 
+    "virtual_dot_4": -0.06,
+    "virtual_barrier_3": 0.1
+}, duration = 1000)
+qdp2.sensor_dots[0]._add_readout_params(name, threshold = 0.01)
+
 
 # # Example QUA programme:
 # with program() as prog:
@@ -188,7 +235,7 @@ machine.qubit_pairs["Q3_Q4"].add_point(
 #         machine.qubits["Q3"].step_to_voltages(0.5, duration = 1000)
 #         machine.qubits["Q4"].step_to_voltages(0.1, duration = 1000)
 
-#         # Can also use point macros saved in qubit and QD objects, inside a simultaneous block.
+#         # Can also use saved voltage points on qubit and QD objects inside a simultaneous block.
 #         # Remember that no point should have repeated dict entries, as this would indicate a gate should be at two voltages at once!
 #         with seq.simultaneous(duration = 1000):
 #             machine.qubits["Q1"].step_to_point("initialisation")

@@ -1,20 +1,27 @@
-"""
-# pylint: disable=unused-argument
+"""Two-qubit default macros for quantum-dot qubit pairs."""
 
-Two-qubit gate macros for quantum dot qubit pairs.
-
-These macros implement two-qubit gates like CNOT, CZ, SWAP, and iSWAP.
-"""
+# Framework macro base classes introduce deep inheritance chains by design.
+# pylint: disable=too-many-ancestors
 
 from quam.components.macro import QubitPairMacro
 
+from quam_builder.architecture.quantum_dots.operations.names import (
+    TwoQubitMacroName,
+    VoltagePointName,
+)
+from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
+    EmptyStateMacro,
+    ExchangeStateMacro,
+    InitializeStateMacro,
+    _owner_component,
+)
 
 __all__ = [
     "TWO_QUBIT_MACROS",
     "Initialize2QMacro",
     "Measure2QMacro",
-    "Operate2QMacro",
-    "Idle2QMacro",
+    "Empty2QMacro",
+    "Exchange2QMacro",
     "CNOTMacro",
     "CZMacro",
     "SwapMacro",
@@ -22,139 +29,92 @@ __all__ = [
 ]
 
 
-# ============================================================================
-# State Macros
-# ============================================================================
+class Initialize2QMacro(InitializeStateMacro, QubitPairMacro):
+    """Initialize qubit pair by ramping to the `initialize` voltage point."""
 
-
-class Initialize2QMacro(QubitPairMacro):
-    """Initialize component to its ground state."""
-
-    ramp_duration: float = 1.0
-    hold_duration: float = 1.0
-
-    def apply(self, ramp_duration=None, hold_duration=None, **kwargs):
-        """
-        Apply initialization sequence.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        ramp_duration = self.ramp_duration if ramp_duration is None else ramp_duration
-        hold_duration = self.hold_duration if hold_duration is None else hold_duration
-
-        self.qubit.ramp_to_point("initialize", ramp_duration, hold_duration)
+    point: str = VoltagePointName.INITIALIZE.value
 
 
 class Measure2QMacro(QubitPairMacro):
-    """Perform measurement on component."""
+    """PSB measure macro for LDQubitPair.
+
+    Delegates to the underlying QuantumDotPair's measure macro,
+    which performs the full PSB readout chain (voltage step -> sensor
+    dot readout -> threshold -> QUA boolean).
+    """
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
-        """
-        Apply measurement sequence.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
-
-
-class Operate2QMacro(QubitPairMacro):
-    """Move component to operation voltage point."""
-
-    def apply(self, **kwargs):
-        """
-        Apply operation point transition.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
+        """Delegate measurement to the underlying quantum_dot_pair."""
+        owner = _owner_component(self)
+        qd_pair = getattr(owner, "quantum_dot_pair", None)
+        if qd_pair is None:
+            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout.")
+        return qd_pair.macros[TwoQubitMacroName.MEASURE].apply(**kwargs)
 
 
-class Idle2QMacro(QubitPairMacro):
-    """Move component to idle voltage point."""
+class Empty2QMacro(EmptyStateMacro, QubitPairMacro):
+    """Move qubit pair to the `empty` voltage point."""
 
-    def apply(self, **kwargs):
-        """
-        Apply idle point transition.
-
-        Args:
-            **kwargs: Optional parameter overrides (e.g., hold_duration)
-        """
-        pass
+    point: str = VoltagePointName.EMPTY.value
 
 
-# ============================================================================
-# Two-Qubit Gate Macros
-# ============================================================================
+class Exchange2QMacro(ExchangeStateMacro, QubitPairMacro):
+    """Exchange macro for LDQubitPair — ramp to exchange, wait, ramp back."""
+
+    point: str = VoltagePointName.EXCHANGE.value
 
 
-class CNOTMacro(QubitPairMacro):
-    """Apply controlled-NOT gate on qubit pair."""
+class _Unsupported2QGateMacro(QubitPairMacro):
+    """Default placeholder for two-qubit gates requiring calibration-specific logic."""
+
+    gate_name: str
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
-        """
-        Apply CNOT gate.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
+        """Raise explicit guidance to register a calibration-specific override."""
+        raise NotImplementedError(
+            f"Default macro for '{self.gate_name}' is not yet implemented for "
+            f"component '{self.qubit_pair.id}'. Register a calibrated macro override."
+        )
 
 
-class CZMacro(QubitPairMacro):
-    """Apply controlled-Z gate on qubit pair."""
+class CNOTMacro(_Unsupported2QGateMacro):
+    """Default placeholder for CNOT (override required)."""
 
-    def apply(self, **kwargs):
-        """
-        Apply CZ gate.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
+    gate_name: str = TwoQubitMacroName.CNOT.value
 
 
-class SwapMacro(QubitPairMacro):
-    """Apply SWAP gate on qubit pair."""
+class CZMacro(_Unsupported2QGateMacro):
+    """Default placeholder for CZ (override required)."""
 
-    def apply(self, **kwargs):
-        """
-        Apply SWAP gate.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
+    gate_name: str = TwoQubitMacroName.CZ.value
 
 
-class ISwapMacro(QubitPairMacro):
-    """Apply iSWAP gate on qubit pair."""
+class SwapMacro(_Unsupported2QGateMacro):
+    """Default placeholder for SWAP (override required)."""
 
-    def apply(self, **kwargs):
-        """
-        Apply iSWAP gate.
-
-        Args:
-            **kwargs: Optional parameter overrides
-        """
-        pass
+    gate_name: str = TwoQubitMacroName.SWAP.value
 
 
-# ============================================================================
-# Two Qubit Macros Dictionary
-# ============================================================================
+class ISwapMacro(_Unsupported2QGateMacro):
+    """Default placeholder for iSWAP (override required)."""
+
+    gate_name: str = TwoQubitMacroName.ISWAP.value
+
 
 TWO_QUBIT_MACROS = {
-    # State macros
-    "initialize": Initialize2QMacro,
-    "measure": Measure2QMacro,
-    "operate": Operate2QMacro,
-    "idle": Idle2QMacro,
-    # Two qubit macros
-    "cnot": CNOTMacro,
-    "cz": CZMacro,
-    "swap": SwapMacro,
-    "iswap": ISwapMacro,
+    VoltagePointName.INITIALIZE.value: Initialize2QMacro,
+    VoltagePointName.MEASURE.value: Measure2QMacro,
+    VoltagePointName.EMPTY.value: Empty2QMacro,
+    TwoQubitMacroName.CNOT.value: CNOTMacro,
+    TwoQubitMacroName.CZ.value: CZMacro,
+    TwoQubitMacroName.SWAP.value: SwapMacro,
+    TwoQubitMacroName.ISWAP.value: ISwapMacro,
+    TwoQubitMacroName.EXCHANGE.value: Exchange2QMacro,
 }
+# Default two-qubit macro factories for ``LDQubitPair`` components.

@@ -1,5 +1,7 @@
 """Quantum dots components module."""
 
+from typing import Union
+
 from . import voltage_gate
 from . import virtual_gate_set
 from . import virtual_dc_set
@@ -13,9 +15,12 @@ from . import quantum_dot_pair
 from . import xy_drive
 from . import mixins
 from . import qpu
+from . import pulses
 from . import readout_transport
 from . import reservoir
+from . import dac_spec
 
+from .pulses import *
 from .voltage_gate import *
 from .virtual_gate_set import *
 from .virtual_dc_set import *
@@ -33,7 +38,10 @@ from .reservoir import *
 from .mixins import *
 from .qpu import *
 
+from .dac_spec import *
+
 __all__ = [
+    *pulses.__all__,
     *voltage_gate.__all__,
     *virtual_gate_set.__all__,
     *global_gate.__all__,
@@ -49,4 +57,5 @@ __all__ = [
     *qpu.__all__,
     *readout_transport.__all__,
     *reservoir.__all__,
+    *dac_spec.__all__,
 ]

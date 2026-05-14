@@ -54,8 +54,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
                             Format: {
                                 "q1": {
-                                    "type": "IQ" | "MW",  # Drive type
-                                    "wiring_path": "#/wiring/qubits/q1/xy",  # JSON path to ports
+                                    "type": "IQ" | "MW" | "Single",
+                                    "wiring_path": "#/wiring/qubits/q1/xy",
                                     "intermediate_frequency": 500e6  # Optional IF (Hz)
                                 },
                                 ...
@@ -116,6 +116,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         # Register qubits and qubit pairs
         self._register_qubits()
         self._register_qubit_pairs()
+        self._wire_sensor_dots_to_pairs()
+        self._set_preferred_readout_quantum_dots()
 
         # Type cast: machine is guaranteed to be LossDiVincenzoQuam at this point
         return cast(LossDiVincenzoQuam, self.machine)
@@ -124,13 +126,13 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         """Extract XY drive wiring from machine.wiring if available.
 
         Scans machine.wiring for qubit drive lines and automatically determines
-        the drive type (IQ or MW) based on the port configuration.
+        the drive type (IQ, MW, or Single) based on the port configuration.
 
         Returns:
             Dict mapping qubit_id to XY drive configuration:
             {
                 "q1": {
-                    "type": "IQ" or "MW",
+                    "type": "IQ" | "MW" | "Single",
                     "wiring_path": "#/wiring/qubits/q1/xy",
                     "intermediate_frequency": 500e6
                 },
@@ -151,15 +153,16 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         for qubit_id, line_types in qubits_wiring.items():
             drive_wiring = line_types.get(WiringLineType.DRIVE.value)
             if drive_wiring:
-                # Determine drive type (IQ or MW) by inspecting port configuration
-                # IQ drives have opx_output_I/Q + frequency_converter_up
-                # MW drives have single opx_output port
+                # Determine drive type by inspecting port configuration:
+                #   IQ     – opx_output_I/Q + frequency_converter_up
+                #   MW     – single opx_output pointing at mw_outputs
+                #   Single – single opx_output pointing at analog_outputs
                 drive_type = _validate_drive_ports(qubit_id, drive_wiring)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{WiringLineType.DRIVE.value}"
 
                 # Build XY drive configuration
                 xy_wiring[qubit_id] = {
-                    "type": drive_type,  # "IQ" or "MW"
+                    "type": drive_type,  # "IQ", "MW", or "Single"
                     "wiring_path": wiring_path,  # JSON reference to ports
                     "intermediate_frequency": drive_wiring.get(
                         "intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY
@@ -320,3 +323,29 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             except Exception as e:
                 logger.error(f"Failed to register qubit pair {pair_id}: {e}")
                 continue
+
+    def _wire_sensor_dots_to_pairs(self):
+        """Populate quantum_dot_pair.sensor_dots from qubit_pair_sensor_map."""
+        for pair_id, sensor_names in self.qubit_pair_sensor_map.items():
+            qp = self.machine.qubit_pairs.get(pair_id)
+            if qp is None:
+                continue
+            qdp = qp.quantum_dot_pair
+            for sname in sensor_names:
+                for sid in self.machine.sensor_dots:
+                    if sid == sname or sid.endswith(f"_{sname.split('_')[-1]}"):
+                        ref = f"#/sensor_dots/{sid}"
+                        if ref not in qdp.sensor_dots:
+                            qdp.sensor_dots.append(ref)
+
+    def _set_preferred_readout_quantum_dots(self):
+        """Set preferred_readout_quantum_dot using cross-pair topology.
+
+        For each qubit pair (control, target), the readout dot for the
+        control qubit is the target's quantum dot and vice-versa.
+        """
+        for qp in self.machine.qubit_pairs.values():
+            qc = qp.qubit_control
+            qt = qp.qubit_target
+            qc.preferred_readout_quantum_dot = qt.quantum_dot.id
+            qt.preferred_readout_quantum_dot = qc.quantum_dot.id

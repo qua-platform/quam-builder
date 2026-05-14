@@ -19,7 +19,6 @@ import pytest
 # Get paths
 REPO_ROOT = Path(__file__).parent.parent.parent
 SAMPLE_FILE = Path(__file__).parent / "sample_qua_file.py"
-PYLINTRC = REPO_ROOT / ".pylintrc"
 
 
 def run_pylint(file_path: Path, use_plugin: bool = True) -> tuple[int, str, str]:
@@ -35,24 +34,30 @@ def run_pylint(file_path: Path, use_plugin: bool = True) -> tuple[int, str, str]
     """
     env = {"PYTHONPATH": str(REPO_ROOT)}
 
+    # Both modes use the same base args; the project .pylintrc is NOT used
+    # because its ignore-patterns would skip files under tests/.
+    base_args = [
+        "--disable=W,I,invalid-name,import-error,no-name-in-module,too-many-locals",
+        "--enable=E,R,F,C",
+        "--reports=no",
+    ]
+
     if use_plugin:
-        # Run with the plugin via .pylintrc
         cmd = [
             sys.executable,
             "-m",
             "pylint",
-            f"--rcfile={PYLINTRC}",
+            f"--init-hook=import sys; sys.path.insert(0, r'{REPO_ROOT}')",
+            "--load-plugins=pylint_qua_plugin",
+            *base_args,
             str(file_path),
         ]
     else:
-        # Run without the plugin (skip init-hook and load-plugins)
         cmd = [
             sys.executable,
             "-m",
             "pylint",
-            "--disable=W,I,invalid-name,import-error,no-name-in-module,too-many-locals",
-            "--enable=E,R,F,C",
-            "--reports=no",
+            *base_args,
             str(file_path),
         ]
 
@@ -153,6 +158,22 @@ class TestQUAHelperFunctionSuppression:
 
 class TestRegularPythonNotSuppressed:
     """Test that warnings are NOT suppressed for regular Python code."""
+
+    def test_c1805_not_suppressed_in_regular_python(self):
+        """
+        C1805 should still appear for regular Python code outside QUA contexts.
+        """
+        return_code, stdout, stderr = run_pylint(SAMPLE_FILE, use_plugin=True)
+
+        lines_with_c1805 = get_lines_with_message(stdout, "C1805")
+
+        # regular_python_function is around lines 36-48
+        # mixed_function is around lines 145-159
+        # These SHOULD have C1805 warnings
+
+        # At minimum, there should be SOME C1805 warnings for regular Python code
+        # The exact lines may vary, but we should see warnings outside QUA contexts
+        assert len(lines_with_c1805) > 0, "C1805 should still appear for regular Python code"
 
     def test_c0121_not_suppressed_in_regular_python(self):
         """

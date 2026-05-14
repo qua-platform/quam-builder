@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel, InOutSingleChannel
@@ -17,6 +17,7 @@ __all__ = [
     "ReadoutResonatorIQ",
     "ReadoutResonatorMW",
     "ReadoutResonatorSingle",
+    "ANY_READOUT_RESONATOR",
 ]
 
 
@@ -50,10 +51,6 @@ class ReadoutResonatorBase:
 class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#/inferred_intermediate_frequency"
 
-    def __post_init__(self):
-        if hasattr(self.opx_output, "upsampling_mode"):
-            self.opx_output.upsampling_mode = "mw"
-
     def set_output_power(
         self,
         power_in_dbm: float,
@@ -69,10 +66,6 @@ class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
 @quam_dataclass
 class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
-
-    def __post_init__(self):
-        if hasattr(self.opx_output, "upsampling_mode"):
-            self.opx_output.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):
@@ -168,3 +161,5 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         return set_output_power_mw_channel(
             self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
         )
+
+ANY_READOUT_RESONATOR = Union[ReadoutResonatorBase, ReadoutResonatorIQ, ReadoutResonatorMW, ReadoutResonatorSingle]

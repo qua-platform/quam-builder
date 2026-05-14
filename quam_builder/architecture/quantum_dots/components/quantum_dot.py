@@ -1,3 +1,7 @@
+"""Quantum-dot component."""
+
+# pylint: disable=too-many-ancestors,not-callable
+
 from typing import Dict, Union, Optional, Sequence, TYPE_CHECKING
 
 from quam.core import quam_dataclass, QuamComponent
@@ -38,7 +42,7 @@ class QuantumDot(VoltageMacroMixin):
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
         get_offset: Returns the current value of the external voltage source.
         set_offset: Sets the external voltage source to the new value.
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can NOT accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can NOT accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
@@ -86,6 +90,25 @@ class QuantumDot(VoltageMacroMixin):
             self.physical_channel.offset_parameter(value)
             return
         raise ValueError("External offset source not connected")
+
+    def __matmul__(self, other: "QuantumDot") -> "QuantumDotPair":
+        """Return the QuantumDotPair for ``self @ other``.
+
+        Looks up the pair by dot IDs on the machine. Raises ``ValueError``
+        if the two dots are not registered as a pair.
+        """
+        from .quantum_dot_pair import QuantumDotPair
+
+        if not isinstance(other, QuantumDot):
+            return NotImplemented
+
+        machine = self.machine
+        pair_name = machine.find_quantum_dot_pair(self.id, other.id)
+        if pair_name is None:
+            raise ValueError(
+                f"No QuantumDotPair registered for dots " f"'{self.id}' and '{other.id}'."
+            )
+        return machine.quantum_dot_pairs[pair_name]
 
     def play(
         self,

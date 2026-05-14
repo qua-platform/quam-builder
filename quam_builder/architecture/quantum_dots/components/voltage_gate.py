@@ -1,12 +1,14 @@
-from typing import Optional, Dict, Union
+from typing import Any, Callable, Optional, Union
 
-from quam.components import SingleChannel, Channel
-from quam.core import quam_dataclass, QuamComponent
+from quam.components import SingleChannel
+from quam.core import quam_dataclass
 
-from .readout_resonator import ReadoutResonatorBase
-from .readout_transport import ReadoutTransportBase
+from .readout_transport import ANY_READOUT_TRANSPORT
+from .readout_resonator import ANY_READOUT_RESONATOR
 
-__all__ = ["VoltageGate", "QdacSpec"]
+from .dac_spec import DacSpec, QdacSpec
+
+__all__ = ["VoltageGate"]
 
 
 @quam_dataclass
@@ -42,8 +44,8 @@ class VoltageGate(SingleChannel):
     settling_time: float = None
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
-    qdac_spec: "QdacSpec" = None
-    readout: Union[ReadoutTransportBase, ReadoutResonatorBase] = None
+    dac_spec: DacSpec = None
+    readout: Union[ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -53,6 +55,11 @@ class VoltageGate(SingleChannel):
     @property
     def physical_channel(self):
         return self
+
+    @property
+    def qdac_spec(self):
+        if self.dac_spec is not None and isinstance(self.dac_spec, QdacSpec):
+            return self.dac_spec
 
     @property
     def offset_parameter(self):
@@ -68,18 +75,3 @@ class VoltageGate(SingleChannel):
         """Wait for the voltage bias to settle"""
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
-
-
-@quam_dataclass
-class QdacSpec(QuamComponent):
-    """
-    Quam Component for a QDAC Channel, to be parented by VoltageGate.
-    Attributes:
-        - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the Qdac.
-        - qdac_trigger_in: The QDAC external trigger port associated with the VoltageGate DC component.
-        - qdac_output_port: The QDAC port associated with the VoltageGate DC component.
-    """
-
-    opx_trigger_out: Channel = None
-    qdac_trigger_in: int = None
-    qdac_output_port: int

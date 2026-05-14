@@ -1,14 +1,15 @@
-from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional, Type, ClassVar
+# Quantum component inheritance depth is framework-driven for QuAM dataclasses.
+# pylint: disable=too-many-ancestors
+
+from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
-from quam_builder.architecture.quantum_dots.operations import SINGLE_QUBIT_MACROS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
@@ -47,7 +48,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
         reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time).
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
@@ -57,6 +58,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
 
     quantum_dot: QuantumDot
     xy: XYDriveBase = None
+    preferred_readout_quantum_dot: Optional[str] = None
 
     larmor_frequency: float = None
 
@@ -66,16 +68,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     T2echo: float = None
     thermalization_time_factor: int = 5
 
-    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = SINGLE_QUBIT_MACROS
-
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
-
-    def __post_init__(self):
-        super().__post_init__()
-        if isinstance(self.quantum_dot, str):
-            return
-        if self.id is None:
-            self.id = self.quantum_dot.id
 
     @property
     def physical_channel(self) -> Channel:
@@ -191,27 +184,6 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         else:
             self.xy.intermediate_frequency = intermediate_frequency
 
-    def play_xy_pulse(
-        self,
-        pulse_name: str,
-        pulse_duration: Optional[int] = None,
-        amplitude_scale: float = None,
-        **kwargs,
-    ) -> None:
-        """Play a pulse from the XY associated with the Qubit"""
-        if self.xy is None:
-            raise ValueError(f"No XY configured on Qubit {self.id}")
-
-        if pulse_name not in self.xy.operations:
-            raise ValueError(f"Pulse {pulse_name} not in XY operations")
-
-        self.xy.play(
-            pulse_name=pulse_name,
-            amplitude_scale=amplitude_scale,
-            duration=pulse_duration,
-            **kwargs,
-        )
-
     def virtual_z(self, phase: float) -> None:
         """Apply a virtual Z rotation"""
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
@@ -226,12 +198,8 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
                 f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
             )
 
-    @property
-    def preferred_readout_quantum_dot(self) -> str:
-        return self._preferred_readout_quantum_dot
-
-    @preferred_readout_quantum_dot.setter
-    def preferred_readout_quantum_dot(self, value: str):
-        if value is not None and not isinstance(self.quantum_dot, str):
-            self._validate_readout_quantum_dot(value)
-        self._preferred_readout_quantum_dot = value
+    def __setattr__(self, name, value):
+        if name == "preferred_readout_quantum_dot" and value is not None:
+            if hasattr(self, "quantum_dot") and not isinstance(self.quantum_dot, str):
+                self._validate_readout_quantum_dot(value)
+        super().__setattr__(name, value)

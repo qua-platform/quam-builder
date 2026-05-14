@@ -1,96 +1,102 @@
-"""Macro dispatch mixin for dynamic macro invocation.
+"""Macro dispatch mixin for quantum-dot components.
 
-This module provides the infrastructure for storing and dynamically
-accessing macros as methods.
+Provides the ``MacroDispatchMixin`` base class that gives any quantum-dot
+component automatic macro storage, default materialization from the
+:mod:`~quam_builder.architecture.quantum_dots.operations.macro_registry`,
+and attribute-based macro invocation.
+
+Macro execution goes directly through ``macro.apply(**kwargs)`` without
+any additional tracking or wrapping.
 """
 
+from __future__ import annotations
+
+import warnings
 from typing import Dict
 
 from dataclasses import field
 
+from quam.components import QuantumComponent
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-from quam.components import QuantumComponent
 
-from quam_builder.tools.macros.default_macros import DEFAULT_MACROS
+from quam_builder.architecture.quantum_dots.operations.component_macro_catalog import (
+    register_default_component_macro_factories,
+)
+from quam_builder.architecture.quantum_dots.operations.macro_registry import (
+    get_default_macro_factories,
+)
 
 __all__ = ["MacroDispatchMixin"]
 
 
 @quam_dataclass
 class MacroDispatchMixin(QuantumComponent):
-    """Mixin providing macro storage and dynamic dispatch infrastructure.
+    """Mixin for macro storage and dispatch.
 
-    This mixin enables components to:
-    - Store macros in a serializable dictionary
-    - Access macros as methods via __getattr__
-    - Automatically initialize default macros
+    Any component that inherits from this mixin gains:
 
-    Features:
-        - Dynamic macro access: Macros in self.macros are callable as methods
-        - Serializable: All state stored in self.macros dict, compatible with QuAM serialization
+    * A ``macros`` dict populated with architecture defaults on construction.
+    * Attribute-based macro invocation (``component.x180()`` dispatches to
+      ``component.macros["x180"].apply()``).
 
-    Example:
-        component.macros['idle'] = StepPointMacro(...)
-        component.idle()  # Calls the macro via __getattr__
+    Example::
+
+        qubit = machine.qubits["q1"]
+        qubit.x180()                     # attribute dispatch
+        qubit.macros["x180"].apply()     # direct access
     """
 
     macros: Dict[str, QuamMacro] = field(default_factory=dict)
 
     def __post_init__(self):
-        """Initialize macro containers and set parent links."""
-        # Ensure macro containers exist and set parent links when possible
-        if not hasattr(self, "macros") or self.macros is None:
+        """Initialize macro storage, defaults, and parent links."""
+        self._ensure_macros_dict()
+        self.ensure_default_macros()
+        self._ensure_macro_parents()
+
+    def _ensure_macros_dict(self) -> None:
+        """Ensure ``self.macros`` exists before default materialization."""
+        if getattr(self, "macros", None) is None:
             self.macros = {}
 
-        # Add default macros if not already present
-        for macro_name, macro_class in DEFAULT_MACROS.items():
+    def ensure_default_macros(self) -> None:
+        """Materialize default macro instances for this component type."""
+        register_default_component_macro_factories()
+        for macro_name, macro_class in get_default_macro_factories(self).items():
             if macro_name not in self.macros:
-                # Use a fresh copy per component to avoid sharing parent links
                 self.macros[macro_name] = macro_class()
 
-        # Attach parents for any pre-populated entries
+    def _ensure_macro_parents(self) -> None:
+        """Ensure all macros have their parent set to this component."""
         for macro in self.macros.values():
             if getattr(macro, "parent", None) is None:
                 macro.parent = self
 
+    def set_macro(self, name: str, macro: QuamMacro) -> None:
+        """Add or replace a macro."""
+        self.macros[name] = macro
+        if getattr(macro, "parent", None) is None:
+            macro.parent = self
+
     def __getattr__(self, name):
-        """Enable calling macros as methods via attribute access.
+        """Expose macros via attribute access.
 
-        This allows dynamically-registered macros to be called as if they were
-        methods decorated with @QuantumComponent.register_macro, providing a
-        cleaner API: component.my_macro() instead of component.macros['my_macro']()
-
-        Example:
-            component.macros['idle'] = StepPointMacro(...)
-            component.idle()  # Calls the macro via __getattr__
+        Returns the macro object itself when callable (has ``__call__``),
+        enabling both ``component.x()`` and ``component.x.update()``.
+        Falls back to returning ``macro.apply`` for macros that are not
+        directly callable.
         """
-        # __getattr__ is only called after normal attribute lookup fails,
-        # so we only need to check macros here
-        macros = self.__dict__.get("macros", {})
-        if name in macros:
-            macro = macros[name]
-            return lambda **kwargs: macro.apply(**kwargs)
+        if name in self.macros:
+            macro = self.macros[name]
+            if getattr(macro, "parent", None) is None:
+                warnings.warn(
+                    f"Macro '{name}' on {type(self).__name__} has no parent set. "
+                    f"This may indicate it was added without using set_macro().",
+                    stacklevel=2,
+                )
+                macro.parent = self
+            if callable(macro):
+                return macro
+            return macro.apply
         raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")
-
-    def _resolve_macro_ref(self, name_or_ref: str, description: str) -> str:
-        """Convert macro name to reference string, validating existence.
-
-        Args:
-            name_or_ref: Either a macro name (e.g., 'measure') or reference string (starts with '#')
-            description: Description for error messages (e.g., 'Measurement macro')
-
-        Returns:
-            str: Reference string to the macro
-
-        Raises:
-            KeyError: If name_or_ref is a macro name that doesn't exist in self.macros
-        """
-        if name_or_ref.startswith("#"):
-            return name_or_ref
-        if name_or_ref not in self.macros:
-            raise KeyError(
-                f"{description} '{name_or_ref}' not found in macros. "
-                f"Available macros: {list(self.macros.keys())}"
-            )
-        return f"#../{name_or_ref}"

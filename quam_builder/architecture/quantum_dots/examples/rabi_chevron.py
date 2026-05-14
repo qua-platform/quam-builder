@@ -31,6 +31,8 @@ Requirements:
 - Voltage sequence with compensation pulse capability
 """
 
+import json
+from pathlib import Path
 from typing import List, Tuple
 from qm.qua import (
     program,
@@ -54,10 +56,7 @@ from quam.components.ports import LFFEMAnalogOutputPort, MWFEMAnalogOutputPort, 
 from quam.components.channels import StickyChannelAddon
 
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.components import (
-    VoltageGate,
-    XYDrive,
-)
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
 )
@@ -165,7 +164,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
     # XY Drive Channel
     # -------------------------------------------------------------------------
     # Microwave channel for qubit rotations
-    xy_drive = XYDrive(
+    xy_drive = XYDriveMW(
         id="Q1_xy",
         opx_output=MWFEMAnalogOutputPort(
             controller_id=controller,
@@ -176,7 +175,6 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
             full_scale_power_dbm=10,
         ),
         intermediate_frequency=100e6,
-        add_default_pulses=True,
     )
     # Add a variable-length drive pulse for Rabi experiments
     length = 100
@@ -235,7 +233,7 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
 
 def register_qubit_with_points(
     machine: LossDiVincenzoQuam,
-    xy_drive: XYDrive,
+    xy_drive: XYDriveMW,
 ) -> LDQubit:
     """
     Register an LDQubit and define voltage points for the experiment.
@@ -264,29 +262,23 @@ def register_qubit_with_points(
     qubit = machine.qubits["Q1"]
 
     # -------------------------------------------------------------------------
-    # Define Voltage Points using Fluent API
+    # Define voltage points explicitly
     # -------------------------------------------------------------------------
     # Note: All durations must be multiples of 4ns (OPX clock cycles)
-    (
-        qubit
-        # Init point: Load electron into dot at low voltage
-        .with_step_point(
-            name="init",
-            voltages={"virtual_dot_1": 0.05},
-            duration=500,  # 500ns hold time
-        )
-        # Operate point: Move to manipulation sweet spot
-        .with_step_point(
-            name="operate",
-            voltages={"virtual_dot_1": 0.15},
-            duration=2000,  # 2us hold time (will be overridden by drive duration)
-        )
-        # Readout point: Configure for PSB readout
-        .with_step_point(
-            name="readout",
-            voltages={"virtual_dot_1": -0.05},
-            duration=2000,  # 2us readout window
-        )
+    qubit.add_point(
+        point_name="init",
+        voltages={"virtual_dot_1": 0.05},
+        duration=500,  # 500ns hold time
+    )
+    qubit.add_point(
+        point_name="operate",
+        voltages={"virtual_dot_1": 0.15},
+        duration=2000,  # 2us hold time (will be overridden by drive duration)
+    )
+    qubit.add_point(
+        point_name="readout",
+        voltages={"virtual_dot_1": -0.05},
+        duration=2000,  # 2us readout window
     )
 
     return qubit
@@ -301,9 +293,9 @@ def add_qubit_macros(qubit: LDQubit):
     """
     Add drive and measure macros to the qubit using the QuamMacro pattern.
 
-    This follows the recommended approach from macro_examples.py where macros
-    are defined as QuamMacro subclasses and registered in qubit.macros. This
-    allows them to be called as methods (e.g., qubit.drive(duration=t)).
+    This follows the core QuAM pattern where custom QuamMacro subclasses are
+    registered in qubit.macros and then called as methods (for example,
+    qubit.drive(duration=t)).
 
     Macros defined:
     - DriveMacro: Applies MW pulse with optional duration override (for Rabi sweep)
@@ -337,6 +329,16 @@ def add_qubit_macros(qubit: LDQubit):
 
         pulse_name: str = "drive"
         amplitude_scale: float = None
+
+        @property
+        def inferred_duration(self) -> float | None:
+            """Default drive duration in seconds when using the configured pulse length."""
+            try:
+                parent_qubit = self.parent.parent
+                pulse = parent_qubit.xy.operations[self.pulse_name]
+                return pulse.length * 1e-9
+            except Exception:
+                return None
 
         def apply(self, **kwargs):
             """
@@ -382,6 +384,28 @@ def add_qubit_macros(qubit: LDQubit):
 
         pulse_name: str = "readout"
 
+        @property
+        def inferred_duration(self) -> float | None:
+            """Readout macro duration in seconds (wait + pulse) when resolvable."""
+            try:
+                parent_qubit = self.parent.parent
+                machine = parent_qubit.machine
+                qd_pair_id = machine.find_quantum_dot_pair(
+                    parent_qubit.quantum_dot.id, parent_qubit.preferred_readout_quantum_dot
+                )
+                if (
+                    qd_pair_id is not None
+                    and qd_pair_id in machine.quantum_dot_pairs
+                    and machine.quantum_dot_pairs[qd_pair_id].sensor_dots
+                ):
+                    sensor_dot = machine.quantum_dot_pairs[qd_pair_id].sensor_dots[0]
+                else:
+                    sensor_dot = next(iter(machine.sensor_dots.values()))
+                readout_pulse = sensor_dot.readout_resonator.operations[self.pulse_name]
+                return (64 * 4 + readout_pulse.length) * 1e-9
+            except Exception:
+                return None
+
         def apply(self, **kwargs) -> Tuple:
             """
             Perform demodulated measurement and return I, Q values.
@@ -397,7 +421,18 @@ def add_qubit_macros(qubit: LDQubit):
 
             # Navigate to qubit and get the associated sensor dot
             parent_qubit = self.parent.parent
-            sensor_dot = parent_qubit.sensor_dots[0]
+            machine = parent_qubit.machine
+            qd_pair_id = machine.find_quantum_dot_pair(
+                parent_qubit.quantum_dot.id, parent_qubit.preferred_readout_quantum_dot
+            )
+            if (
+                qd_pair_id is not None
+                and qd_pair_id in machine.quantum_dot_pairs
+                and machine.quantum_dot_pairs[qd_pair_id].sensor_dots
+            ):
+                sensor_dot = machine.quantum_dot_pairs[qd_pair_id].sensor_dots[0]
+            else:
+                sensor_dot = next(iter(machine.sensor_dots.values()))
 
             # Wait for transients, then perform measurement
             sensor_dot.readout_resonator.wait(64)
@@ -559,14 +594,25 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Cloud Simulator Configuration (QM SaaS Dev Server)
     # -------------------------------------------------------------------------
-    EMAIL = "email"
-    PASSWORD = "password"
 
     print("\nConnecting to QM SaaS cloud simulator...")
+
+    # Load SaaS credentials from config file
+    repo_root = Path(__file__).resolve().parents[4]
+    saas_config_path = repo_root / ".qm_saas_credentials.json"
+    if not saas_config_path.exists():
+        raise FileNotFoundError(
+            f"SaaS credentials not found at {saas_config_path}. "
+            "Copy .qm_saas_credentials.json.example to .qm_saas_credentials.json "
+            "and fill in your credentials."
+        )
+    with open(saas_config_path) as f:
+        saas_credentials = json.load(f)
+
     client = qm_saas.QmSaas(
-        email=EMAIL,
-        password=PASSWORD,
-        host="qm-saas.dev.quantum-machines.co",
+        email=saas_credentials["email"],
+        password=saas_credentials["password"],
+        host=saas_credentials.get("host", "qm-saas.dev.quantum-machines.co"),
     )
     print("Connected to QM SaaS cloud simulator...")
 

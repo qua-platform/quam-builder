@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional, Union
 
 from qualang_tools.wirer import Connectivity
@@ -5,10 +6,11 @@ from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 
 from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.quantum_dots.qpu import AnyQuamQD
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
 
-AnyQuam = Union[AnyQuamSC, AnyQuamNV]
+AnyQuam = Union[AnyQuamSC, AnyQuamNV, AnyQuamQD]
 
 
 def build_quam_wiring(
@@ -17,7 +19,8 @@ def build_quam_wiring(
     cluster_name: str,
     quam_instance: AnyQuam,
     port: Optional[int] = None,
-):
+    path: Optional[Union[str, Path]] = None,
+) -> AnyQuam:
     """Builds the QUAM wiring configuration and saves the machine setup.
 
     Args:
@@ -26,12 +29,18 @@ def build_quam_wiring(
         cluster_name (str): The name of the cluster as displayed in the admin panel.
         quam_instance (AnyQuam): The QUAM instance to be configured.
         port (Optional[int]): The port number. Defaults to None.
+        path (Optional[Union[str, Path]]): Directory to save the machine state.
+            Defaults to None (uses the machine's existing save path).
+
+    Returns:
+        AnyQuam: The configured QUAM instance.
     """
     machine = quam_instance
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
     machine.wiring = create_wiring(connectivity)
-    machine.save()
+    machine.save(path)
+    return machine
 
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):

@@ -15,7 +15,7 @@ Mixin Hierarchy:
 
     VoltageMacroMixin(VoltagePointMixin, MacroDispatchMixin)
         - Full API combining all functionality
-        - Fluent API methods (with_step_point, with_ramp_point, etc.)
+        - Direct voltage-point helpers plus dynamic macro dispatch
 """
 
 from .voltage_control import VoltageControlMixin

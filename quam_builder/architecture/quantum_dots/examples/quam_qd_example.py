@@ -47,7 +47,8 @@ from quam_builder.architecture.quantum_dots.components import (
     BarrierGate,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate, QdacSpec
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+from quam_builder.architecture.quantum_dots.components.dac_spec import QdacSpec
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.components.readout_resonator import (
     ReadoutResonatorSingle,
@@ -74,41 +75,56 @@ p1 = VoltageGate(
     id=f"plunger_1",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=1),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 p2 = VoltageGate(
     id=f"plunger_2",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=2),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 p3 = VoltageGate(
     id=f"plunger_3",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=3),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 p4 = VoltageGate(
     id=f"plunger_4",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=4),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 b1 = VoltageGate(
     id=f"barrier_1",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=5),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 b2 = VoltageGate(
     id=f"barrier_2",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=6),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 b3 = VoltageGate(
     id=f"barrier_3",
     opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=7),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 s1 = VoltageGate(
     id=f"sensor_DC",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=8),
+    opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=8),
     sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
+)
+
+s2 = VoltageGate(
+    id=f"sensor_DC_2",
+    opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=7),
+    sticky=StickyChannelAddon(duration=16, digital=False),
+    operations = {"half_max_square" : pulses.SquarePulse(length=16, amplitude=0.25, id="half_max_square")} 
 )
 
 
@@ -116,20 +132,29 @@ readout_pulse = pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.
 resonator = ReadoutResonatorSingle(
     id="readout_resonator",
     frequency_bare=0,
-    intermediate_frequency=500e6,
+    intermediate_frequency=350e6,
     operations={"readout": readout_pulse},
     opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1, upsampling_mode="mw"),
+    opx_input=LFFEMAnalogInputPort("con1", 5, port_id=1),
+)
+readout_pulse2 = pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)
+resonator2 = ReadoutResonatorSingle(
+    id="readout_resonator_2",
+    frequency_bare=0,
+    intermediate_frequency=250e6,
+    operations={"readout": readout_pulse2},
+    opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=2, upsampling_mode="mw"),
     opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
 )
 
-drain = DrainSingle(
-    id="drain",
-    opx_output=("con1", 1),  # Dummy output
-    readout=ReadoutTransportSingle(
-        id="readout_transport",
-        opx_input=LFFEMAnalogInputPort("con1", lf_fem, port_id=2),
-    ),
-)
+# drain = DrainSingle(
+#     id="drain",
+#     opx_output=("con1", lf_fem, 1),  # Dummy output
+#     readout=ReadoutTransportSingle(
+#         id="readout_transport",
+#         opx_input=LFFEMAnalogInputPort("con1", lf_fem, port_id=2),
+#     ),
+# )
 
 
 #####################################
@@ -148,6 +173,7 @@ machine.create_virtual_gate_set(
         "virtual_barrier_2": b2,
         "virtual_barrier_3": b3,
         "virtual_sensor_1": s1,
+        "virtual_sensor_2": s2,
     },
     gate_set_id="main_qpu",
 )
@@ -161,20 +187,34 @@ machine.create_virtual_gate_set(
 machine.register_channel_elements(
     plunger_channels=[p1, p2, p3, p4],
     barrier_channels=[b1, b2, b3],
-    sensor_resonator_mappings={s1: resonator},
-    sensor_transport_mappings={s1: drain},
+    sensor_resonator_mappings={s1: resonator, s2: resonator2},
 )
 
 ##################################################################
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = False
 if qdac_connect:
+    qdac_ip = "172.16.33.101"
+    qdac_name = "main_QDAC"
+    machine.set_dac_config(
+        {
+            qdac_name: {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": f"TCPIP::{qdac_ip}::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            }
+        }
+    )
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):
         if isinstance(ch_obj, VoltageGate):
-            ch_obj.qdac_spec = QdacSpec(
+            ch_obj.dac_spec = QdacSpec(
+                dac_name=qdac_name,
                 opx_trigger_out=Channel(
                     id=f"{ch_name}_qdac_trigger",
                     digital_outputs={
@@ -187,9 +227,7 @@ if qdac_connect:
                 qdac_output_port=i + 1,
             )
 
-    qdac_ip = "172.16.33.101"
-    machine.network.update({"qdac_ip": qdac_ip})
-    machine.connect_to_external_source(external_qdac=True)
+    machine.connect_to_external_source()
     machine.create_virtual_dc_set("main_qpu")
 
 ########################################
@@ -207,7 +245,7 @@ machine.register_quantum_dot_pair(
 machine.register_quantum_dot_pair(
     id="dot3_dot4_pair",
     quantum_dot_ids=["virtual_dot_3", "virtual_dot_4"],
-    sensor_dot_ids=["virtual_sensor_1"],
+    sensor_dot_ids=["virtual_sensor_2"],
     barrier_gate_id="virtual_barrier_3",
 )
 
@@ -244,6 +282,8 @@ machine.update_cross_compensation_submatrix(
     target="opx",
 )
 
+machine.save("/Users/kalidu_laptop/_nodes/CS_installations/quam_state")
+
 ###########################
 ###### Example Usage ######
 ###########################
@@ -256,40 +296,40 @@ machine.update_cross_compensation_submatrix(
 # In this example, we purposefully keep all the barrier and sensor voltages identical, so that they can be initialised together, and no gate should hold two voltages at once.
 
 
-machine.quantum_dots["virtual_dot_1"].add_point(
-    point_name="loading",
-    voltages={
-        "virtual_dot_1": 0.1,
-        "virtual_barrier_1": 0.4,
-        "virtual_barrier_2": 0.45,
-        "virtual_barrier_3": 0.42,
-        "virtual_sensor_1": 0.15,
-    },
-)
+# machine.quantum_dots["virtual_dot_1"].add_point(
+#     point_name="loading",
+#     voltages={
+#         "virtual_dot_1": 0.1,
+#         "virtual_barrier_1": 0.4,
+#         "virtual_barrier_2": 0.45,
+#         "virtual_barrier_3": 0.42,
+#         "virtual_sensor_1": 0.15,
+#     },
+# )
 
-machine.quantum_dots["virtual_dot_2"].add_point(
-    point_name="loading",
-    voltages={
-        "virtual_dot_2": 0.15,
-        "virtual_barrier_1": 0.4,
-        "virtual_barrier_2": 0.45,
-        "virtual_barrier_3": 0.42,
-        "virtual_sensor_1": 0.15,
-    },
-)
+# machine.quantum_dots["virtual_dot_2"].add_point(
+#     point_name="loading",
+#     voltages={
+#         "virtual_dot_2": 0.15,
+#         "virtual_barrier_1": 0.4,
+#         "virtual_barrier_2": 0.45,
+#         "virtual_barrier_3": 0.42,
+#         "virtual_sensor_1": 0.15,
+#     },
+# )
 
-# We can also initialise a tuning point for a qubit pair:
-machine.quantum_dot_pairs["dot3_dot4_pair"].add_point(
-    point_name="some_detuning_points",
-    voltages={
-        "virtual_dot_3": 0.2,
-        "virtual_dot_4": 0.25,
-        "virtual_barrier_1": 0.4,
-        "virtual_barrier_2": 0.45,
-        "virtual_barrier_3": 0.42,
-        "virtual_sensor_1": 0.15,
-    },
-)
+# # We can also initialise a tuning point for a qubit pair:
+# machine.quantum_dot_pairs["dot3_dot4_pair"].add_point(
+#     point_name="some_detuning_points",
+#     voltages={
+#         "virtual_dot_3": 0.2,
+#         "virtual_dot_4": 0.25,
+#         "virtual_barrier_1": 0.4,
+#         "virtual_barrier_2": 0.45,
+#         "virtual_barrier_3": 0.42,
+#         "virtual_sensor_1": 0.15,
+#     },
+# )
 
 
 # # Example QUA programme:
