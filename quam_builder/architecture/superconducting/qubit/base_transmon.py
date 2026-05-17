@@ -308,7 +308,7 @@ class BaseTransmon(Qubit):
 
     def reset_qubit_active_gef(
         self,
-        readout_pulse_name: str = "readout",
+        readout_pulse_name: str = "readout_GEF",
         pi_01_pulse_name: str = "x180",
         pi_12_pulse_name: str = "EF_x180",
     ):
@@ -321,7 +321,7 @@ class BaseTransmon(Qubit):
         confidence in the reset.
 
         Args:
-            readout_pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout".
+            readout_pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout_GEF".
             pi_01_pulse_name (str, optional): The name of the pulse to use for the 0-1 transition. Defaults to "x180".
             pi_12_pulse_name (str, optional): The name of the pulse to use for the 1-2 transition. Defaults to "EF_x180".
 
@@ -336,7 +336,7 @@ class BaseTransmon(Qubit):
         self.align()
         with while_(success < 2):
             self.readout_state_gef(res_ar, readout_pulse_name)
-            wait(self.rr.res_deplete_time // 4, self.xy.name)
+            wait(self.resonator.depletion_time // 4, self.resonator.name)
             self.align()
             with if_(res_ar == 0):
                 assign(success, success + 1)  # we need to measure 'g' two times in a row to increase our confidence
@@ -366,7 +366,7 @@ class BaseTransmon(Qubit):
 
         Args:
             state (QuaVariableBool): The variable to store the readout state (0 for 'g', 1 for 'e', 2 for 'f').
-            pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout".
+            pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout_GEF".
 
         Returns:
             None
