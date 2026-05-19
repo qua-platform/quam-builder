@@ -26,7 +26,7 @@ from quam_builder.builder.qop_connectivity.qdac_wiring import (
     extract_qdac_trigger_port,
     extract_qdac_unit_index,
 )
-from quam.components import FrequencyConverter, LocalOscillator, Octave
+from quam.components import Channel, FrequencyConverter, LocalOscillator, Octave, pulses
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.builder.quantum_dots.build_qpu import (
     _QpuBuilder,
@@ -651,10 +651,15 @@ def _wire_voltage_gate_qdac(
                 f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
             )
         dig = voltage_gate.digital_outputs[digital_output_key]
+        trigger_channel = Channel(
+            id=f"{getattr(voltage_gate, 'id', 'voltage_gate')}_qdac_trigger",
+            digital_outputs={"trigger": dig.get_reference()},
+            operations={"trigger": pulses.Pulse(length=100, digital_marker="ON")},
+        )
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
             qdac_output_port=qdac_output_port,
-            opx_trigger_out=dig.opx_output.get_reference(),
+            opx_trigger_out=trigger_channel,
             qdac_trigger_in=qdac_trigger_in,
         )
     else:

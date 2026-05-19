@@ -396,11 +396,16 @@ class BaseQuamQD(QuamRoot):
                     f"{getattr(voltage_gate, 'name', voltage_gate)!r}"
                 )
             dig = voltage_gate.digital_outputs[digital_output_key]
+            trigger_channel = Channel(
+                id=f"{getattr(voltage_gate, 'id', 'voltage_gate')}_qdac_trigger",
+                digital_outputs={"trigger": dig.get_reference()},
+                operations={"trigger": pulses.Pulse(length=100, digital_marker="ON")},
+            )
             
             voltage_gate.dac_spec = QdacSpec(
                 dac_name=dac_name,
                 qdac_output_port=qdac_output_port,
-                opx_trigger_out=dig.get_reference(),
+                opx_trigger_out=trigger_channel,
                 qdac_trigger_in=qdac_trigger_in,
             )
 

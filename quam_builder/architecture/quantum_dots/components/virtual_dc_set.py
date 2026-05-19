@@ -132,8 +132,9 @@ class VirtualDCSet(QuantumComponent):
         # Combine physical and virtual gate names
         return list(self.channels) + list(virtual_channels)
 
-    def add_point(self, name: str, voltages: Dict[str, float], duration: int) -> None:
+    def add_point(self, name: str, voltages: Dict[str, float]) -> None:
         invalid_channel_names = set(voltages) - set(self.valid_channel_names)
+        duration = 16 # Will not be used mid-qua programme. Placeholder value
 
         if invalid_channel_names:
             raise ValueError(
