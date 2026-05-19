@@ -7,13 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Changed
 - Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
 - **BREAKING:** `CZGate` renamed `flux_pulse_control` → `flux_pulse_qubit`, `flux_pulse_control_label` → `flux_pulse_qubit_label`, and the `apply()` parameters `amplitude_scale_control` → `amplitude_scale_qubit` and `duration_control` → `duration_qubit`. The moving qubit is now chosen via `qubit_pair.moving_qubit`.
+- **BREAKING:** `BaseTransmon.readout_state_gef` default `pulse_name` changed from `"readout"` to `"readout_GEF"`. `add_default_transmon_pulses` now seeds a matching `readout_GEF` operation, so default-pulse users are unaffected; callers using custom resonator operations may need to either pass `pulse_name="readout"` explicitly or define a `readout_GEF` operation on their resonator.
 ### Added
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
 - `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) selects which qubit carries the flux pulse during two-qubit gates.
 - `CZGate` now reads `qubit_pair.moving_qubit` to play the flux pulse on either the control or the target qubit.
+- Default `readout_GEF` `SquareReadoutPulse` added to transmon resonators by `add_default_transmon_pulses` so `readout_state_gef` works out of the box.
 ### Fixed
 - Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
 - `CZGate.apply()` now includes the tunable coupler channel in the initial and final `align()` calls, so coupler pulses no longer drift relative to the qubits.
+- `BaseTransmon.reset_qubit_active_gef` now passes `keep_phase=True` to all `update_frequency` calls, preserving the qubit drive phase across the f12 detour during GEF active reset.
 
 ## [0.3.0] - 2026-03-31
 ### Added
