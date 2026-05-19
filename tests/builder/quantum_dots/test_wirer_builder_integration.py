@@ -2,13 +2,20 @@
 
 # pylint: disable=too-few-public-methods
 
+import json
 import shutil
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from qualang_tools.wirer import Instruments, Connectivity, allocate_wiring
+from qualang_tools.wirer import (
+    Instruments,
+    Connectivity,
+    allocate_wiring,
+    lf_fem_spec,
+    qdac2_spec,
+)
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import (
@@ -122,6 +129,174 @@ class TestWirerBuilderIntegration:
         # Verify QPU elements were created
         assert len(machine.sensor_dots) > 0
         assert len(machine.quantum_dots) > 0
+
+    def test_build_quam_wiring_lf_fem_and_qdac2_dual_voltage_gate(self, temp_dir):
+        """Wiring dict includes LF analog ref and QDAC2 channel index from wirer allocation."""
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            [1],
+            triggered=False,
+            name="vg",
+            constraints=lf_fem_spec(con=1, out_slot=1) & qdac2_spec(index=1),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+
+        gate_wiring = machine.wiring["globals"]["vg1"][WiringLineType.GLOBAL_GATE.value]
+        assert "opx_output" in gate_wiring
+        qo = gate_wiring["qdac_output"]
+        assert qo["unit_index"] == 1 and qo["port"] == 1
+        assert qo["ref"] == "qdac/analog_outputs/qdac1/1"
+
+    def test_dac_config_round_trip_in_wiring_json(self, temp_dir):
+        """DAC driver map is stored under ``dac_config`` in ``wiring.json``."""
+        dac_cfg = {
+            "qdac1": {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": "TCPIP::127.0.0.1::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            },
+            "qdac2": {
+                "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
+                "driver_class": "QDac2",
+                "connection": {"visalib": "@py", "address": "TCPIP::127.0.0.2::5025::SOCKET"},
+                "channel_method": "channel",
+                "accessor": "dc_constant_V",
+                "is_qdac": True,
+            },
+        }
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        connectivity = Connectivity()
+        connectivity.add_quantum_dots(quantum_dots=[1], add_drive_lines=False)
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+            dac_config=dac_cfg,
+        )
+
+        wiring_files = list(Path(temp_dir).rglob("wiring.json"))
+        assert wiring_files, "expected wiring.json under save path"
+        on_disk = json.loads(wiring_files[0].read_text(encoding="utf-8"))
+        assert on_disk.get("dac_config") == dac_cfg
+        assert on_disk.get("network", {}).get("host") == "127.0.0.1"
+
+    def test_qdac_spec_from_wiring(self, temp_dir):
+        """Stage 1 attaches QdacSpec from ``machine.wiring``."""
+        instruments = Instruments()
+        instruments.add_lf_fem(controller=1, slots=[1])
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            [1],
+            triggered=False,
+            name="vg",
+            constraints=lf_fem_spec(con=1, out_slot=1) & qdac2_spec(index=1),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+        build_base_quam(
+            machine,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        vgs = machine.virtual_gate_sets["main_qpu"]
+        gate = vgs.channels["vg1"]
+        assert gate.dac_spec is not None
+        assert gate.dac_spec.qdac_output_port == 1
+        assert gate.dac_spec.dac_name == "qdac1"
+
+    def test_make_voltage_gate_qdac_only_skips_opx_output_ref(self):
+        """QDAC-only wiring must not set a dangling ``#/wiring/.../opx_output`` reference."""
+        from quam_builder.builder.quantum_dots.build_utils import _make_voltage_gate_with_qdac
+
+        ports = {
+            "qdac_output": {"unit_index": 1, "port": 10, "ref": "qdac/analog_outputs/qdac1/10"},
+        }
+        gate = _make_voltage_gate_with_qdac(
+            "source", "#/wiring/globals/source/g", ports, qdac_channel=10
+        )
+        assert gate.opx_output is None
+        assert gate.qdac_channel == 10
+        assert gate.sticky is None
+
+    def test_make_voltage_gate_lf_plus_qdac_keeps_opx_output_ref(self):
+        from quam_builder.builder.quantum_dots.build_utils import _make_voltage_gate_with_qdac
+
+        ports = {
+            "opx_output": "#/ports/analog_outputs/con1/1/1/1",
+            "qdac_output": {"unit_index": 1, "port": 3, "ref": "qdac/analog_outputs/qdac1/3"},
+        }
+        gate = _make_voltage_gate_with_qdac(
+            "vg1", "#/wiring/globals/vg1/g", ports, qdac_channel=3
+        )
+        assert gate.opx_output == "#/wiring/globals/vg1/g/opx_output"
+
+    def test_global_voltage_gate_qdac_only_stage1(self, temp_dir):
+        """Global gate with only QDAC2 channels: Stage 1 builds a gate without OPX analog ref."""
+        instruments = Instruments()
+        instruments.add_qdac2(indices=1)
+        connectivity = Connectivity()
+        connectivity.add_voltage_gate_lines(
+            "source",
+            name="",
+            triggered=False,
+            constraints=qdac2_spec(index=1, out_port=10),
+        )
+        allocate_wiring(connectivity, instruments)
+
+        machine = BaseQuamQD()
+        machine = build_quam_wiring(
+            connectivity,
+            host_ip="127.0.0.1",
+            cluster_name="test_cluster",
+            quam_instance=machine,
+            path=temp_dir,
+        )
+        build_base_quam(
+            machine,
+            calibration_db_path=temp_dir,
+            connect_qdac=False,
+            save=False,
+        )
+
+        vgs = machine.virtual_gate_sets["main_qpu"]
+        gate = vgs.channels["source"]
+        assert gate.opx_output is None
+        assert gate.qdac_channel == 10
+        assert gate.sticky is None
+        qua_cfg = machine.generate_config()
+        assert "source" not in qua_cfg.get("elements", {})
 
     def test_example_two_stage_workflow(self, temp_dir):
         """Exercise the two-stage flow used in wiring_example."""
