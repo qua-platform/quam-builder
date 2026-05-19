@@ -93,7 +93,12 @@ class VirtualDCSet(QuantumComponent):
     def current_physical_voltages(self) -> Dict[str, float]:
         """Query, update and return the current dict of all physical voltages"""
         for name, channel in self.channels.items():
-            self._current_physical_voltages[name] = channel.offset_parameter()
+            if callable(channel.offset_parameter):
+                self._current_physical_voltages[name] = channel.offset_parameter()
+            elif getattr(channel, "current_external_voltage", None) is not None:
+                self._current_physical_voltages[name] = channel.current_external_voltage
+            else:
+                self._current_physical_voltages[name] = 0.0
         return self._current_physical_voltages
 
     def _populate_virtual_gate_voltages(self, physical_voltages_dict):

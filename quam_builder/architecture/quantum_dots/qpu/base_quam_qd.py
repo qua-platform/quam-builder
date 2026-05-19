@@ -267,7 +267,12 @@ class BaseQuamQD(QuamRoot):
         if isinstance(global_channels, VoltageGate):
             global_channels = [global_channels]
         for ch in global_channels:
-            virtual_name = self._get_virtual_name(ch)
+            try:
+                virtual_name = self._get_virtual_name(ch)
+            except ValueError:
+                # Channels intentionally excluded from VirtualGateSet (e.g. QDAC-only)
+                # are still valid global gates and are keyed by their physical id.
+                virtual_name = ch.id
             global_gate = GlobalGate(
                 id=virtual_name,
                 physical_channel=ch.get_reference(),
@@ -561,6 +566,18 @@ class BaseQuamQD(QuamRoot):
         if gate_set_id is None:
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
 
+        # Always register channels under the machine, even when excluded from VGS.
+        for ch in virtual_channel_mapping.values():
+            if ch not in list(self.physical_channels.values()):
+                self.physical_channels[ch.id] = ch
+
+        # VirtualGateSet should contain only OPX-backed channels.
+        virtual_channel_mapping = {
+            virtual_name: ch
+            for virtual_name, ch in virtual_channel_mapping.items()
+            if getattr(ch, "opx_output", None) is not None
+        }
+
         virtual_gate_names, physical_gate_names = [], []
         channel_mapping = {}
         for virtual_name, ch in virtual_channel_mapping.items():
@@ -570,10 +587,6 @@ class BaseQuamQD(QuamRoot):
             # physical_name = f"{virtual_name}_physical"
             physical_name = ch.id
             physical_gate_names.append(physical_name)
-
-            # Add the channel to self.physical_channels if it does not already exist
-            if ch not in list(self.physical_channels.values()):
-                self.physical_channels[ch.id] = ch
 
             # Add to the channel mapping, which (for the VirtualGateSet) maps the physical channel names to the physical channel objects
             channel_mapping[physical_name] = ch.get_reference()
@@ -608,6 +621,7 @@ class BaseQuamQD(QuamRoot):
         self,
         gate_set_id: str,
         matrix: List[List[float]] = None,
+        include_all_dac_voltage_gates: bool = True,
     ) -> None:
         """
         Method to create a VirtualDCSet, using the same structure as the VirtualGateSet.
@@ -620,13 +634,26 @@ class BaseQuamQD(QuamRoot):
             )
         vgs = self.virtual_gate_sets[gate_set_id]
 
-        channel_mapping = {name: ch.get_reference() for name, ch in vgs.channels.items()}
+        # VDS is for external DC control: include only DAC-backed VoltageGates.
+        source_channels = self.physical_channels
+        if not include_all_dac_voltage_gates:
+            source_channels = {name: ch for name, ch in vgs.channels.items()}
 
-        virtual_names = list(vgs.layers[0].source_gates)
-        physical_names = list(vgs.layers[0].target_gates)
-        gate_set_matrix = [
-            row[:] for row in vgs.layers[0].matrix
-        ]  # Copy to avoid any mutability issues, just incase
+        channel_mapping = {}
+        for physical_name, ch in source_channels.items():
+            if not isinstance(ch, VoltageGate):
+                continue
+            if getattr(ch, "dac_spec", None) is None:
+                continue
+            channel_mapping[physical_name] = ch.get_reference()
+
+        # Keep VirtualDCSet compensation layer synced to the first VGS layer
+        # for the subset of physical targets present in the DC set.
+        layer = vgs.layers[0]
+        indices = [i for i, name in enumerate(layer.target_gates) if name in channel_mapping]
+        virtual_names = [layer.source_gates[i] for i in indices]
+        physical_names = [layer.target_gates[i] for i in indices]
+        gate_set_matrix = [[layer.matrix[i][j] for j in indices] for i in indices]
 
         allow_rectangular_matrices = vgs.allow_rectangular_matrices
 
@@ -635,13 +662,14 @@ class BaseQuamQD(QuamRoot):
             channels=channel_mapping,
             allow_rectangular_matrices=allow_rectangular_matrices,
         )
-        self.virtual_dc_sets[gate_set_id].add_to_layer(
-            layer_id="compensation_layer",
-            source_gates=virtual_names,
-            target_gates=physical_names,
-            matrix=gate_set_matrix,
-        )
-        if matrix:
+        if virtual_names and physical_names:
+            self.virtual_dc_sets[gate_set_id].add_to_layer(
+                layer_id="compensation_layer",
+                source_gates=virtual_names,
+                target_gates=physical_names,
+                matrix=gate_set_matrix,
+            )
+        if matrix and self.virtual_dc_sets[gate_set_id].layers:
             self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
 
     def update_cross_compensation_submatrix(

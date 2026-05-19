@@ -196,6 +196,30 @@ def build_base_quam(
         machine.qpu = QPU()
     # Map QDAC output ports from machine.wiring onto VoltageGate.dac_spec
     add_dacs(machine)
+    # Minimal fill-in for QDAC-only gates excluded from VirtualGateSet.
+    for ch in machine.physical_channels.values():
+        if not isinstance(ch, VoltageGate):
+            continue
+        if getattr(ch, "dac_spec", None) is not None:
+            continue
+        qdac_ch = getattr(ch, "qdac_channel", None)
+        if qdac_ch is None:
+            continue
+        qdac_unit = getattr(ch, "qdac_unit_index", None)
+        qdac_name = "qdac" if qdac_unit is None else f"qdac{qdac_unit}"
+        ch.dac_spec = QdacSpec(
+            dac_name=qdac_name,
+            qdac_output_port=qdac_ch,
+            qdac_trigger_in=getattr(ch, "qdac_trigger_in", None),
+        )
+    # Keep an always-available DC control layer in sync with OPX virtual gates.
+    has_dac_voltage_gate = any(
+        isinstance(ch, VoltageGate) and getattr(ch, "dac_spec", None) is not None
+        for ch in machine.physical_channels.values()
+    )
+    if has_dac_voltage_gate:
+        for gate_set_id in machine.virtual_gate_sets.keys():
+            machine.create_virtual_dc_set(gate_set_id=gate_set_id, include_all_dac_voltage_gates=True)
 
     wire_machine_macros(
         machine,
