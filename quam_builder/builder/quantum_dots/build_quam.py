@@ -23,7 +23,7 @@ from quam_builder.builder.quantum_dots.build_qpu import (
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
-from quam_builder.builder.quantum_dots.pulses import (
+from quam_builder.builder.quantum_dots.add_default_pulses import (
     add_default_ldv_qubit_pair_pulses,
     add_default_ldv_qubit_pulses,
     add_default_resonator_pulses,
