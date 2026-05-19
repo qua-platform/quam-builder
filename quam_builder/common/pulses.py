@@ -189,9 +189,7 @@ class GaussianFilteredSquarePulse(Pulse):
 
     @property
     def inferred_length(self) -> int:
-        return int(
-            np.ceil((self.pulse_length + self.padding_length) / 4) * 4
-        )
+        return int(np.ceil((self.pulse_length + self.padding_length) / 4) * 4)
 
     def waveform_function(self):
         if self.pulse_length <= 0:

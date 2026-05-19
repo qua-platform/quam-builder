@@ -358,19 +358,13 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
 
     @property
     def inferred_length(self) -> int:
-        return int(
-            np.ceil((self.pulse_length + self.padding_length) / 4) * 4
-        )
+        return int(np.ceil((self.pulse_length + self.padding_length) / 4) * 4)
 
     def waveform_function(self):
         if self.pulse_length <= 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.pulse_length must be positive"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be positive")
         if self.pulse_length % 2 != 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.pulse_length must be even"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
             raise ValueError(
                 "GaussianFilteredSymmetricBipolarPulse.post_zero_padding_length must be non-negative"
