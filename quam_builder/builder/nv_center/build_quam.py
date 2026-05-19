@@ -10,7 +10,7 @@ from quam_builder.architecture.nv_center.qpu import AnyQuamNV
 from quam_builder.builder.nv_center.add_nv_laser_component import add_nv_laser_component
 from quam_builder.builder.nv_center.add_nv_spcm_component import add_nv_spcm_component
 from quam_builder.builder.nv_center.add_nv_drive_component import add_nv_drive_component
-from quam_builder.builder.nv_center.pulses import (
+from quam_builder.builder.nv_center.add_default_pulses import (
     add_default_nv_center_pulses,
     add_default_nv_center_pair_pulses,
 )
