@@ -5,12 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 ### Changed
-Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
+- Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
+- **BREAKING:** `CZGate` renamed `flux_pulse_control` → `flux_pulse_qubit`, `flux_pulse_control_label` → `flux_pulse_qubit_label`, and the `apply()` parameters `amplitude_scale_control` → `amplitude_scale_qubit` and `duration_control` → `duration_qubit`. The moving qubit is now chosen via `qubit_pair.moving_qubit`.
 ### Added
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
 - `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) selects which qubit carries the flux pulse during two-qubit gates.
+- `CZGate` now reads `qubit_pair.moving_qubit` to play the flux pulse on either the control or the target qubit.
 ### Fixed
 - Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
+- `CZGate.apply()` now includes the tunable coupler channel in the initial and final `align()` calls, so coupler pulses no longer drift relative to the qubits.
 
 ## [0.3.0] - 2026-03-31
 ### Added
