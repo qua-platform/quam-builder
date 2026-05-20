@@ -329,9 +329,9 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
     Args:
         pulse_length (int): Total samples in the bipolar core (sum of positive and
             negative lobes). Must be positive and even.
-        post_zero_padding_length (int): Extra samples included in the total length
+        padding_length (int): Extra samples included in the total length
             budget (default 0). Together with ``pulse_length``, total ``length`` is
-            ``ceil((pulse_length + post_zero_padding_length) / 4) * 4``. Remaining
+            ``ceil((pulse_length + padding_length) / 4) * 4``. Remaining
             samples are split symmetrically left/right as zeros before filtering.
         digital_marker (str, list, optional): The digital marker to use for the pulse.
         amplitude (float): Target peak magnitude in volts after filtering and
@@ -345,7 +345,7 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
             of an IQ channel
             If not None, the pulse is meant for an IQ channel (0 is X, pi/2 is Y).
         length (int): Total waveform length in samples; inferred from
-            ``pulse_length + post_zero_padding_length`` rounded up to a multiple of 4.
+            ``pulse_length + padding_length`` rounded up to a multiple of 4.
     """
 
     pulse_length: int
@@ -367,7 +367,7 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
             raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
             raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.post_zero_padding_length must be non-negative"
+                "GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative"
             )
         if self.gaussian_filter_frequency_mhz <= 0:
             raise ValueError(
