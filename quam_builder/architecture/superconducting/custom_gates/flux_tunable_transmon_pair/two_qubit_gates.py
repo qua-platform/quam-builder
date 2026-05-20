@@ -232,9 +232,9 @@ class CZGate(QubitPairMacro):
         align(*channel_names)
 
         # Spectator qubit flux pulses
-        for qubit_name, spectator_qubit in zip(self.spectator_qubits.keys(), spectator_qubits_list):
-            if qubit_name in spectator_pulse_names:
-                spectator_qubit.z.play(spectator_pulse_names[qubit_name])
+        for qubit_name, pulse_name in spectator_pulse_names.items():
+            if qubit_name in self.spectator_qubits:
+                self.spectator_qubits[qubit_name].z.play(pulse_name)
 
         # Moving qubit flux
         moving_qubit = (
