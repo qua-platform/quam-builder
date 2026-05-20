@@ -13,6 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) selects which qubit carries the flux pulse during two-qubit gates.
 - `CZGate` now reads `qubit_pair.moving_qubit` to play the flux pulse on either the control or the target qubit.
 - Default `readout_GEF` `SquareReadoutPulse` added to transmon resonators by `add_default_transmon_pulses` so `readout_state_gef` works out of the box.
+Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
+- Added `scipy>=1.10` as a runtime dependency (required by the gaussian-filtered pulses).
+### Added
+- Updated the TWPA component with isolation pump and added corresponding builder functions.
+- Added `GaussianFilteredSquarePulse` to `quam_builder.common.pulses` (mirrors `quam.components.pulses`).
+- Added `GaussianFilteredSymmetricBipolarPulse` and `SNZPulse` to `quam_builder.architecture.superconducting.components.pulses` (mirrors `quam.components.pulses`).
 ### Fixed
 - Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
 - `CZGate.apply()` now includes the tunable coupler channel in the initial and final `align()` calls, so coupler pulses no longer drift relative to the qubits.
