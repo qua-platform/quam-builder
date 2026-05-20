@@ -71,7 +71,7 @@ class CZGate(QubitPairMacro):
       qubit instances that will be controlled during the gate.
     - ``spectator_qubits_control``: Dictionary mapping the same qubit names (str) to Pulse objects.
       These pulses are applied to the spectator qubits' Z (flux) lines simultaneously with the
-      control qubit flux pulse.
+      moving qubit flux pulse.
     - ``spectator_qubits_phase_shift``: Dictionary mapping qubit names (str) to phase shift values
       (float, in units of 2π). These frame rotations are applied to the spectator qubits after
       the flux pulses, similar to phase_shift_control and phase_shift_target.
@@ -103,8 +103,8 @@ class CZGate(QubitPairMacro):
     }
 
     # When apply() is called, spectator qubits will:
-    # 1. Be aligned with control and target qubits
-    # 2. Have their flux pulses played in parallel with the control qubit pulse
+    # 1. Be aligned with all qubit and coupler channels
+    # 2. Have their flux pulses played in parallel with the moving qubit flux pulse
     # 3. Receive phase corrections after the gate
     cz_gate.apply()
     ```
