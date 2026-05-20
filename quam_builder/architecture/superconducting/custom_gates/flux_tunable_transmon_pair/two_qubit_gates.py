@@ -54,7 +54,7 @@ class CZGate(QubitPairMacro):
          Collection of gate fidelity (e.g. fidelity["RB"]=xx, fidelity["XEB"]=xx).
     extras: Dict[str, Any]
          Additional attributes for the CZGate.
-    duration_control: ScalarInt
+    duration_qubit: ScalarInt
          Optional duration override for the moving qubit flux pulse.
 
     Spectator Qubits
@@ -178,7 +178,7 @@ class CZGate(QubitPairMacro):
 
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
-    duration_control: ScalarInt = None
+    duration_qubit: ScalarInt = None
 
     @property
     def flux_pulse_qubit_label(self) -> str:
