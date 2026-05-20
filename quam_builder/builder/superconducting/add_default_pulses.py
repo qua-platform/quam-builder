@@ -271,6 +271,7 @@ def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTuna
         * transmon.xy.operations["saturation"] = SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
         * transmon.z.operations["const"] = SquarePulse(amplitude=0.1, length=100)
         * transmon.resonator.operations["readout"] = SquareReadoutPulse(length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON")
+        * transmon.resonator.operations["readout_GEF"] = SquareReadoutPulse(length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON")
 
     Args:
         transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the pulses will be added.
@@ -288,6 +289,9 @@ def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTuna
     if hasattr(transmon, "resonator"):
         if transmon.resonator is not None:
             transmon.resonator.operations["readout"] = SquareReadoutPulse(
+                length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
+            )
+            transmon.resonator.operations["readout_GEF"] = SquareReadoutPulse(
                 length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
             )
 
