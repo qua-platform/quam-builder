@@ -6,36 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-### Changed
-
-- Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
-- **BREAKING:** `CZGate` renamed `flux_pulse_control` → `flux_pulse_qubit`, `flux_pulse_control_label` → `flux_pulse_qubit_label`, and the `apply()` parameters `amplitude_scale_control` → `amplitude_scale_qubit` and `duration_control` → `duration_qubit`. The moving qubit is now chosen via `qubit_pair.moving_qubit`.
-- **BREAKING:** `BaseTransmon.readout_state_gef` default `pulse_name` changed from `"readout"` to `"readout_GEF"`. `add_default_transmon_pulses` now seeds a matching `readout_GEF` operation, so default-pulse users are unaffected; callers using custom resonator operations may need to either pass `pulse_name="readout"` explicitly or define a `readout_GEF` operation on their resonator.
-
 ### Added
 
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
-- `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) selects which qubit carries the flux pulse during two-qubit gates.
+- Added `quam_builder/common/pulses.py` with general-purpose pulse classes (`GaussianPulse`, `FlatTopGaussianPulse`, `FlatTopCosinePulse`, `GaussianFilteredSquarePulse`) shared across architectures.
+- Added superconducting-specific pulse classes to `architecture/superconducting/components/pulses.py`: `FlatTopBlackmanPulse`, `BlackmanIntegralPulse`, `FlatTopTanhPulse`, `CosineBipolarPulse`, `GaussianFilteredSymmetricBipolarPulse`, and `SNZPulse`.
+- Added `scipy>=1.10` as a runtime dependency (required by the gaussian-filtered pulses).
+- Added `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) to select which qubit carries the flux pulse during two-qubit gates.
 - `CZGate` now reads `qubit_pair.moving_qubit` to play the flux pulse on either the control or the target qubit.
 - Default `readout_GEF` `SquareReadoutPulse` added to transmon resonators by `add_default_transmon_pulses` so `readout_state_gef` works out of the box.
-  Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
-- Added `scipy>=1.10` as a runtime dependency (required by the gaussian-filtered pulses).
-
-### Added
-
-- Updated the TWPA component with isolation pump and added corresponding builder functions.
-- Added `GaussianFilteredSquarePulse` to `quam_builder.common.pulses` (mirrors `quam.components.pulses`).
-- Added `GaussianFilteredSymmetricBipolarPulse` and `SNZPulse` to `quam_builder.architecture.superconducting.components.pulses` (mirrors `quam.components.pulses`).
-
-### Added
-
-- Updated the TWPA component with isolation pump and added corresponding builder functions.
-- Added `quam_builder/common/pulses.py` with general-purpose pulse classes (`GaussianPulse`, `FlatTopGaussianPulse`, `FlatTopCosinePulse`) shared across architectures.
-- Added superconducting-specific pulse classes to `architecture/superconducting/components/pulses.py`: `FlatTopBlackmanPulse`, `BlackmanIntegralPulse`, `FlatTopTanhPulse`, `CosineBipolarPulse`.
 
 ### Changed
 
-- Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
+- Updated qualang-tools requirement to `"qualang-tools>=0.22.0"`.
+- **BREAKING:** `CZGate` renamed `flux_pulse_control` → `flux_pulse_qubit`, `flux_pulse_control_label` → `flux_pulse_qubit_label`, and the `apply()` parameters `amplitude_scale_control` → `amplitude_scale_qubit` and `duration_control` → `duration_qubit`. The moving qubit is now chosen via `qubit_pair.moving_qubit`.
+- **BREAKING:** `BaseTransmon.readout_state_gef` default `pulse_name` changed from `"readout"` to `"readout_GEF"`. `add_default_transmon_pulses` now seeds a matching `readout_GEF` operation, so default-pulse users are unaffected; callers using custom resonator operations may need to either pass `pulse_name="readout"` explicitly or define a `readout_GEF` operation on their resonator.
 - Renamed `builder/superconducting/pulses.py` → `add_default_pulses.py` to clarify its role as a builder helper and avoid naming clash with the architecture-level `pulses.py`.
 - Renamed `builder/quantum_dots/pulses.py` → `add_default_pulses.py` and updated pulse imports to use explicit class imports; `GaussianPulse` now sourced from `quam_builder.common.pulses`.
 - Renamed `builder/nv_center/pulses.py` → `add_default_pulses.py` and switched to explicit class imports from `quam.components.pulses`.
