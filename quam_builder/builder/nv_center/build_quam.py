@@ -71,40 +71,40 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -
     return f"{x},{y}"
 
 
-def add_nv_center(machine: AnyQuamNV):
-    """Adds NV center qubits and qubit pairs to the machine based on the wiring configuration.
+def _add_nv_line_components(
+    nv_center, element_type: str, qubit_id: str, wiring_by_line_type
+) -> None:
+    """Dispatches component creation for each line type of an NV center qubit."""
+    spcm_number = ""
+    for line_type, ports in wiring_by_line_type.items():
+        wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
+        if line_type == WiringLineType.LASER.value:
+            add_nv_laser_component(nv_center, wiring_path, ports)
+        elif line_type == WiringLineType.SPCM.value:
+            spcm_name = f"spcm{spcm_number}"
+            add_nv_spcm_component(nv_center, wiring_path, ports, spcm_name)
+            spcm_number = 1 if spcm_number == "" else spcm_number + 1
+        elif line_type == WiringLineType.DRIVE.value:
+            add_nv_drive_component(nv_center, wiring_path, ports)
+        else:
+            raise ValueError(f"Unknown line type: {line_type}")
 
-    Args:
-        machine (AnyQuamNV): The QuAM to which the NV center will be added.
-    """
+
+def add_nv_center(machine: AnyQuamNV):
     for element_type, wiring_by_element in machine.wiring.items():
         if element_type == "qubits":
             machine.active_qubit_names = []
-            number_of_qubits = len(wiring_by_element.items())
-            qubit_number = 0
-            for qubit_id, wiring_by_line_type in wiring_by_element.items():
+            number_of_qubits = len(wiring_by_element)
+            for qubit_number, (qubit_id, wiring_by_line_type) in enumerate(
+                wiring_by_element.items()
+            ):
                 qubit_class = machine.qubit_type
                 nv_center = qubit_class(id=qubit_id)
                 machine.qubits[qubit_id] = nv_center
                 machine.qubits[qubit_id].grid_location = _set_default_grid_location(
                     qubit_number, number_of_qubits
                 )
-                qubit_number += 1
-                spcm_number = ""
-                for line_type, ports in wiring_by_line_type.items():
-                    wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
-                    if line_type == WiringLineType.LASER.value:
-                        add_nv_laser_component(nv_center, wiring_path, ports)
-                    elif line_type == WiringLineType.SPCM.value:
-                        spcm_name = f"spcm{spcm_number}"
-                        add_nv_spcm_component(nv_center, wiring_path, ports, spcm_name)
-                        if spcm_number == "":
-                            spcm_number = 1
-                        spcm_number += 1
-                    elif line_type == WiringLineType.DRIVE.value:
-                        add_nv_drive_component(nv_center, wiring_path, ports)
-                    else:
-                        raise ValueError(f"Unknown line type: {line_type}")
+                _add_nv_line_components(nv_center, element_type, qubit_id, wiring_by_line_type)
                 machine.active_qubit_names.append(nv_center.name)
 
         elif element_type == "qubit_pairs":
@@ -177,9 +177,7 @@ def add_octaves(
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(
-                            reference
-                        ).split("/")[2]
+                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -204,9 +202,7 @@ def add_external_mixers(machine: AnyQuamNV) -> AnyQuamNV:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split(
-                            "/"
-                        )[2]
+                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
                         nv_center_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",
