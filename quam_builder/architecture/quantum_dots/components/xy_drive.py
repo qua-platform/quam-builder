@@ -63,9 +63,7 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
         super().__post_init__()
         if self.add_default_pulses:
             if "gaussian" not in self.operations:
-                self.operations["gaussian"] = GaussianPulse(
-                    length=100, amplitude=0.2, sigma=40
-                )
+                self.operations["gaussian"] = GaussianPulse(length=100, amplitude=0.2, sigma=40)
             if "pi" not in self.operations:
                 self.operations["pi"] = SquarePulse(length=104, amplitude=0.2)
 
