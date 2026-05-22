@@ -9,7 +9,7 @@ from quam.components import StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort, LFFEMAnalogInputPort
 
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle, XYDriveSingle
-from quam_builder.builder.quantum_dots.pulses import (
+from quam_builder.builder.quantum_dots.add_default_pulses import (
     add_default_ldv_qubit_pulses,
     add_default_ldv_qubit_pair_pulses,
     add_default_resonator_pulses,
