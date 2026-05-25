@@ -9,6 +9,10 @@ from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
 from quam.utils.qua_types import ScalarInt
 
+from quam_builder.architecture.superconducting.custom_gates.flux_tunable_transmon_pair.utils import (
+    get_pulse,
+)
+
 __all__ = ["CZGate"]
 
 
@@ -279,3 +283,28 @@ class CZGate(QubitPairMacro):
         if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
             final_channel_names.add(self.qubit_pair.coupler.name)
         align(*final_channel_names)
+
+    @property
+    def inferred_duration(self) -> float:
+        moving_qubit = (
+            self.qubit_pair.qubit_control
+            if self.qubit_pair.moving_qubit == "control"
+            else self.qubit_pair.qubit_target
+        )
+        max_length_samples = get_pulse(self.flux_pulse_qubit_label, moving_qubit).length
+
+        for qubit_name, pulse in self.spectator_qubits_control.items():
+            if qubit_name in self.spectator_qubits:
+                spectator_qubit = self.spectator_qubits[qubit_name]
+                max_length_samples = max(
+                    max_length_samples,
+                    get_pulse(pulse, spectator_qubit).length,
+                )
+
+        if self.coupler_flux_pulse is not None:
+            max_length_samples = max(
+                max_length_samples,
+                get_pulse(self.coupler_flux_pulse_label, self.coupler).length,
+            )
+
+        return max_length_samples * 1e-9
