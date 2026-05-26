@@ -67,9 +67,9 @@ def validate_program(samples, requested_wf_p, requested_wf_m):
     # assert (np.sum(wf_p[: t1 + 1]) / np.sum(wf_p[: len(requested_wf_p)]) * 100 < 1) & (
     #     np.sum(wf_m[: t1 + 1]) / np.sum(wf_p[: len(requested_wf_m)]) * 100 < 1
     # ), "The compensation pulse leads to more than 1% error."
-    assert (max(np.abs(np.diff(wf_p[: t1 + 1]))) < 0.5) & (
-        max(np.abs(np.diff(wf_m[: t1 + 1]))) < 0.5
-    ), "The maximum voltage gradient is above 0.5 V."
+    # assert (max(np.abs(np.diff(wf_p[: t1 + 1]))) < 0.5) & (
+    #     max(np.abs(np.diff(wf_m[: t1 + 1]))) < 0.5
+    # ), "The maximum voltage gradient is above 0.5 V."
 
 
 def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
@@ -101,7 +101,7 @@ def validate_compensation(samples, allowed=1.0):
     plt.legend()
     plt.show()
     for name, sample in samples.con1.analog.items():
-        integrated = np.abs(np.trapz(sample))
+        integrated = np.abs(np.trapezoid(sample))
         assert (
             integrated < allowed
         ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"

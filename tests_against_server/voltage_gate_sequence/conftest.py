@@ -14,6 +14,8 @@ from quam_builder.builder.quantum_dots.pulses import add_default_baseband_pulse
 from qm import QuantumMachinesManager
 import numpy as np
 
+from quam.components import pulses
+
 
 @quam_dataclass
 class QuamGateSet(QuamRoot):
@@ -53,6 +55,8 @@ def machine():
             adjust_for_attenuation=True,
         ),
     )
+    for channel in machine.gate_set.channels.values():
+        add_default_baseband_pulse(channel)
     return machine
 
 
@@ -118,5 +122,6 @@ def virtual_machine():
         )
     )
 
-    # machine.virtual_gate_set = gate_set
+    for channel in machine.virtual_gate_set.channels.values():
+        add_default_baseband_pulse(channel)
     return machine
