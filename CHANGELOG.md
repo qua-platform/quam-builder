@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-26
+
 ### Added
 
 - Updated the TWPA component with isolation pump and added corresponding builder functions.
@@ -89,7 +91,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.4.0
 [0.3.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.3.0
 [0.2.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.0
 [0.1.2]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.2
