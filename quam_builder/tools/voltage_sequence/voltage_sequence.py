@@ -136,13 +136,13 @@ class VoltageSequence:
         self._channel_max_voltage: Dict[str, float] = {}
 
         for ch_name, channel_obj in self.gate_set.channels.items():
+            opx_voltage_limit = (
+                2.5
+                if hasattr(channel_obj.opx_output, "output_mode")
+                and channel_obj.opx_output.output_mode == "amplified"
+                else 0.5
+            )
             if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
-                opx_voltage_limit = (
-                    2.5
-                    if hasattr(channel_obj.opx_output, "output_mode")
-                    and channel_obj.opx_output.output_mode == "amplified"
-                    else 0.5
-                )
                 attenuation_scale = 10 ** (channel_obj.attenuation / 20)
                 self._channel_max_voltage[ch_name] = opx_voltage_limit / attenuation_scale
             else:
