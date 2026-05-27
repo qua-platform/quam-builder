@@ -1,31 +1,15 @@
-"""Tests for the pulse catalog and pulse registry."""
+"""Tests for the pulse builder helpers."""
 
 import pytest
 
-from quam.components.channels import SingleChannel
-from quam.components.pulses import GaussianPulse, SquareReadoutPulse
+from quam.components.pulses import SquareReadoutPulse
 
 from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 
 from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
     _make_xy_pulse_factories,
     _make_readout_pulse,
-    register_default_component_pulse_factories,
-    _reset_registration,
 )
-from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
-    _reset_registry,
-)
-
-
-@pytest.fixture(autouse=True)
-def reset_pulse_state():
-    """Reset pulse registry and catalog state for each test."""
-    _reset_registry()
-    _reset_registration()
-    yield
-    _reset_registry()
-    _reset_registration()
 
 
 class TestMakeXYPulseFactories:
@@ -86,17 +70,3 @@ class TestMakeReadoutPulse:
         pulse = _make_readout_pulse()
         assert pulse.length == 2000
         assert pulse.amplitude == 1.0
-
-
-class TestRegistration:
-    """Test pulse catalog registration."""
-
-    def test_idempotent(self):
-        register_default_component_pulse_factories()
-        register_default_component_pulse_factories()  # should not raise
-
-    def test_reset(self):
-        register_default_component_pulse_factories()
-        _reset_registration()
-        # After reset, re-registration should work
-        register_default_component_pulse_factories()

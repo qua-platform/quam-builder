@@ -11,10 +11,13 @@ Core modules:
 - [`default_macros/`](./default_macros): built-in macro classes and default per-component macro maps.
 - [`macro_registry.py`](./macro_registry.py): component-type -> default macro factory registration/resolution.
 - [`component_macro_catalog.py`](./component_macro_catalog.py): idempotent registration of architecture defaults (`QPU`, `LDQubit`, `LDQubitPair`).
-- [`pulse_registry.py`](./pulse_registry.py): component-type -> default pulse factory registration/resolution (parallel to macro registry).
-- [`component_pulse_catalog.py`](./component_pulse_catalog.py): idempotent registration of default pulse factories (`LDQubit` XY pulses, `SensorDot` readout).
+- [`component_pulse_catalog.py`](./component_pulse_catalog.py): helper builders for the default pulse materialization pass (`LDQubit` XY pulses, `SensorDot` readout).
 - [`../macro_engine/wiring.py`](../macro_engine/wiring.py): runtime wiring API (`wire_machine_macros`) that materializes macro and pulse defaults and applies overrides.
 - [`default_operations.py`](./default_operations.py): operation signatures exposed through `OperationsRegistry`.
+
+Macro defaults use a component-type registry. Pulse defaults are simpler: they
+are materialized directly in the runtime wiring pass from the concrete channel
+instances present on the built machine.
 
 ## Canonical Voltage Point Enums
 
@@ -593,24 +596,6 @@ wire_machine_macros(
 )
 ```
 
-### Pulse Registry (Advanced)
-
-For custom component types that need default pulses, use the pulse registry directly:
-
-```python
-from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
-    register_component_pulse_factories,
-)
-from quam.components.pulses import SquarePulse
-
-register_component_pulse_factories(
-    MyCustomComponent,
-    {"drive": lambda: SquarePulse(length=200, amplitude=0.5)},
-)
-```
-
-The registry follows MRO resolution: derived classes can override individual pulse names registered on a base class.
-
 ## Public APIs
 
 Register macro defaults for a custom component type:
@@ -621,16 +606,6 @@ from quam_builder.architecture.quantum_dots.operations.macro_registry import (
 )
 
 register_component_macro_factories(MyComponent, {"my_macro": MyMacroClass})
-```
-
-Register pulse defaults for a custom component type:
-
-```python
-from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
-    register_component_pulse_factories,
-)
-
-register_component_pulse_factories(MyComponent, {"drive": lambda: SquarePulse(length=200, amplitude=0.5)})
 ```
 
 Wire defaults + overrides (macros and pulses):
