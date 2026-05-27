@@ -14,7 +14,7 @@ You can use the **builder** to generate a full machine, or assemble **components
 You should be familiar with:
 
 - **[QUAM](https://qua-platform.github.io/quam/)** — machine components, serialization, and references.
-- **[QUA](https://docs.quantum-machines.com/)** — programs, sticky elements, and pulse play.
+- **[QUA](https://docs.quantum-machines.co/latest/)** — programs, sticky elements, and pulse play.
 - **[qualang_tools](https://github.com/qua-platform/qualang-tools)** (optional but common) — connectivity / wiring helpers used by several examples and by `build_quam_wiring`.
 
 This documentation stays **hardware-agnostic** (no specific OPX port lists here). Examples may assume LF-FEM or cluster settings; adapt ports and hosts to your setup.
