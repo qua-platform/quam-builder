@@ -54,7 +54,9 @@ The `VirtualGateSet` framework provides the necessary tools to implement these a
 
 #### 2.1.3 VoltageSequence
 
-`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
+`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each physical channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
+
+By default, `GateSet.new_sequence()` creates a sequence with **`keep_levels=True`**: physical and virtual gate names that you omit in a call keep their last set value (see [§4](#important-behavior-level-holding-and-zeroing-semantics)). Pass `keep_levels=False` only when you want omitted gates to be treated as 0 V on every call.
 
 #### 2.1.4 VirtualGateSet
 
@@ -95,7 +97,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   )
   ```
 
-- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
+- Each channel must have a base QUA operation named `"half_max_square"` (see `DEFAULT_PULSE_NAME` in the implementation), as shown above. Define this on the channel before generating the QUA config and opening the QM.
 
 
 #### 2.  Group channels into a channel dictionary
@@ -174,7 +176,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   my_virtual_gate_set.add_point(name="idle", voltages={"v_FineTune1": 0.1, "v_Coarse2": -0.05}, duration=1000)
   ```
 
-- NOTE: Any virtual gate not **explicitly** provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages. For more specific information on this, see sections [4](#important-behavior-zeroing-semantics) and [6.1](#61-important-behavior-unspecified-virtual-gates-are-zeroed-per-operation).
+- With the default `keep_levels=True`, gates you omit in a call keep their last value (physical or virtual). To force 0 V on a gate, pass it explicitly (e.g. `"v_FineTune2": 0.0`) or use `new_sequence(keep_levels=False)`. See [§4](#important-behavior-level-holding-and-zeroing-semantics) and [§6.1](#61-virtual-gates-and-keeplevels).
 
 #### 5.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
 
@@ -230,23 +232,18 @@ Represents a single linear transformation (matrix) from a set of source (virtual
           duration=1000
       )
 
-      # Fine ramp with virtual gates
+      # Ramp only v_FineTune2 to 0 V; other gates keep their levels (default keep_levels=True)
       voltage_seq.ramp_to_voltages(
           voltages={"v_FineTune2": 0.0},
           duration=500,
-          ramp_duration=40 # Ensure multiple of 4
+          ramp_duration=40  # Must be a multiple of 4 ns
       )
 
-      # Return to zero
+      # Return to zero on all physical channels
       voltage_seq.ramp_to_zero(ramp_duration=200)
-
-  # The system automatically resolves all virtual gate contributions:
-  # - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
-  # - v_FineTune2 (0.0V) -> v_Coarse2: 0.0V contribution
-  # - v_Coarse1 (0.1V) + readout (0.2V) -> P1: 0.3V total
-  # - v_Coarse2 (0.0V) + readout (0.1V) -> P2: 0.1V total
-  # - P3: 0.3V direct control
   ```
+
+  With `keep_levels=True` (default), each call only updates the gate names you list; all other physical and virtual names in the `VirtualGateSet` retain their previous values before resolution. Virtual layers then map the combined virtual + direct physical targets to physical outputs additively.
 
 ## 3. `GateSet`
 
@@ -262,22 +259,29 @@ A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate`
 
 - Defines named voltage/duration presets using the `add_point()` method, which internally registers a `VoltageTuningPoint` in `GateSet.macros`.
 
-- `resolve_voltages()`: Ensures all `GateSet` channels have a defined voltage (defaulting to 0.0V if unspecified). This is particularly useful when you want to specify voltages for only a subset of channels while ensuring all other channels have defined values.
+- `resolve_voltages()`: Ensures all channels in the `GateSet` have a defined voltage, defaulting to `0.0` V for any **physical** channel missing from the input dict. This is particularly useful when you specify voltages for only a subset of channels while ensuring every physical gate has a defined target. On a `VirtualGateSet`, this method is overridden: it first applies virtualization layers (virtual and physical names), then fills any remaining physical channels with `0.0` V.
 
-  **Example:**
+  Every `VoltageSequence` step/ramp/point call invokes `resolve_voltages()` after optional level holding:
+
+  - **`keep_levels=True` (default):** Omitted physical and virtual names are filled from the sequence’s `KeepLevels` tracker (last values) *before* `resolve_voltages()` runs. The method then completes the dict (zero-fill only for physical channels still missing after virtual resolution).
+  - **`keep_levels=False`:** No pre-fill; omitted names are treated as `0.0` V at resolution time (virtual layers use `0.0` for omitted source gates; `GateSet.resolve_voltages()` zero-fills omitted physical channels).
+
+  You can also call `resolve_voltages()` directly on a `GateSet` or `VirtualGateSet` to inspect the effective target dict without playing pulses.
+
+  **Example (`GateSet` only):**
 
   ```python
   # Assume gate_set has channels: {"P1": channel_P1, "P2": channel_P2, "B1": channel_B1}
 
-  # Only specify the voltages of a partial subset of all the gates in the GateSet.
+  # Only specify a partial subset; resolve_voltages fills un-named physical gates with 0.0 V
   partial_voltages = {"P1": 0.3, "B1": -0.1}
-
-  # resolve_voltages fills in missing channels, creating a complete voltages dict internally by replacing all the un-named gate voltages with 0.0V
   complete_voltages = gate_set.resolve_voltages(partial_voltages)
   # Result: {"P1": 0.3, "P2": 0.0, "B1": -0.1}
   ```
 
-- `new_sequence()`: Creates `VoltageSequence` instances.
+- `adjust_for_attenuation` (bool, default `False`): When `True`, pulse amplitudes sent to the OPX are scaled to account for each channel’s `attenuation` (dB). Compensation pulse limits also respect the effective voltage at the sample.
+
+- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details.
 
 - While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
 
@@ -293,22 +297,60 @@ Generates QUA commands for voltage manipulation, associated with a `GateSet`.
 
 - Tracks current voltage for each channel.
 
-- Optionally tracks integrated voltage for DC compensation (enable via `track_integrated_voltage=True` in `new_sequence()`).
+- Optionally tracks integrated voltage for DC compensation (`track_integrated_voltage=True` in `new_sequence()`; default is `False`).
 
 - Supports Python numbers and QUA variables for levels/durations.
 
-### Important Behavior (Zeroing Semantics)
+- Target levels are rounded to 16-bit precision before play (`round_amplitude`) to match sticky-element accumulation.
 
-- Any channels unspecified in the input voltages dict are treated as 0 V on each call (consistent with `GateSet.resolve_voltages`).
-- When the sequence is created from a `VirtualGateSet`, any virtual gate not included in a call is assumed 0 V for that operation. This clears any previous contribution from that virtual gate in the resolved physical voltages.
+### Important Behavior: Level Holding and Zeroing Semantics
 
-Implication: virtual gates do not maintain state across calls. To preserve a virtual configuration, always include all relevant virtual gates (and their values) in each `step_to_voltages`/`ramp_to_voltages` call, or operate directly on physical gates.
+**Recommended default: `keep_levels=True`** (set on `GateSet.new_sequence()` and `VoltageSequence`).
 
-- NOTE: When using QUA loops (such as for_, or infinite_loop_), it is good practise to end the inner loop with a `ramp_to_zero` command, to ensure that the voltages are accurately tracked across loops.
+Each `step_to_voltages`, `ramp_to_voltages`, `step_to_point`, or `ramp_to_point` call runs through:
 
-**Creating a `VoltageSequence`:**
+1. **`KeepLevels` (if `keep_levels=True`)** — For every name in `gate_set.valid_channel_names` (physical channels plus all virtual source gates on a `VirtualGateSet`), names you **omit** keep their last value from the previous call. Names you **include** are updated to the new value (use `0.0` to drive a gate to zero).
+2. **`GateSet.resolve_voltages()` / `VirtualGateSet.resolve_voltages()`** — Virtual layers map virtual targets to physical contributions; any physical channel still missing after resolution is set to `0.0` V.
 
-- The sequence must be defined within a QUA program.
+**Example (physical gates, default `keep_levels=True`):**
+
+```python
+voltage_seq = gate_set.new_sequence()  # keep_levels=True by default
+voltage_seq.step_to_voltages({"P1": 0.3}, duration=1000)   # P2 held at 0.0 (initial)
+voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)   # P1 stays at 0.3
+voltage_seq.step_to_voltages({"P1": 0.0}, duration=500)   # explicit 0 on P1; P2 stays at 0.1
+```
+
+**Stateless mode: `keep_levels=False`**
+
+Omitted physical channels are filled with `0.0` V before play. On a `VirtualGateSet`, each virtualization layer treats omitted **source** virtual gates as `0.0` V for that call, so prior virtual contributions are cleared unless you list those gates again. Use this when every call should define the full effective state, or when you rely on `GateSet.resolve_voltages()` zero-fill semantics directly.
+
+```python
+voltage_seq = gate_set.new_sequence(keep_levels=False)
+voltage_seq.step_to_voltages({"P1": 0.3}, duration=1000)
+voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)  # P1 driven to 0.0 (omitted)
+```
+
+**QUA loops:** End inner loops with `ramp_to_zero()` (and `apply_compensation_pulse()` when tracking integrated voltage) so physical trackers and compensation state stay consistent across iterations.
+
+### Creating a `VoltageSequence`
+
+- The sequence must be created inside a QUA program (`with program() as ...`).
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `track_integrated_voltage` | `False` | Track ∫V·dt per physical channel for `apply_compensation_pulse()`. |
+| `keep_levels` | `True` | Hold last voltage for omitted physical/virtual gate names (recommended). |
+| `enforce_qua_calcs` | `False` | If `True`, promote per-channel `current_level` to a QUA `fixed` variable at init so level tracking stays correct when targets are QUA expressions. |
+
+```python
+with program() as prog:
+    voltage_seq = my_gate_set.new_sequence(
+        track_integrated_voltage=True,  # enable compensation pulses
+        keep_levels=True,               # default; hold omitted gates
+        enforce_qua_calcs=False,
+    )
+```
 
 
 **Core Methods (used in `qua.program()` context):**
@@ -342,21 +384,40 @@ Implication: virtual gates do not maintain state across calls. To preserve a vir
   voltage_seq.ramp_to_point("idle", ramp_duration=50, duration=1000)
   ```
 
-- `ramp_to_zero(ramp_duration: Optional[int] = None)`
-  Ramps the voltage on all channels in the GateSet to zero and resets the integrated voltage tracking for each channel. If no duration is specified, uses QUA's built-in `ramp_to_zero` command for immediate ramping. Essential for safely returning to a neutral state. The `ramp_duration` parameter can be a QUA variable.
+- `ramp_to_zero(ramp_duration: Optional[int] = None, reset_tracker: bool = False)`
+  Ramps all **physical** channels in the GateSet to 0 V. Does **not** reset integrated-voltage trackers unless `reset_tracker=True`. If `ramp_duration` is `None`, uses QUA’s built-in `ramp_to_zero` per element (using each channel’s sticky duration). If `ramp_duration` is set, uses `ramp_to_voltages` to 0 V on all physical channels.
 
   ```python
-  voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
-  voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
+  voltage_seq.ramp_to_zero()  # QUA built-in ramp per channel
+  voltage_seq.ramp_to_zero(ramp_duration=100)
+  voltage_seq.ramp_to_zero(reset_tracker=True)  # also zero integrated-voltage trackers
   ```
 
-- `apply_compensation_pulse(max_voltage: float = 0.49)`
-  Applies a compensation pulse to each channel to counteract integrated voltage drift when tracking is enabled. The compensation amplitude is calculated based on the accumulated integrated voltage, with the pulse duration optimized to stay within the specified maximum voltage limit. Only available when `track_integrated_voltage=True`.
+- `apply_compensation_pulse(max_voltage: float = 0.05, go_to_zero: bool = True, return_to_zero: bool = True)`
+  Applies a compensation pulse on each physical channel to counteract integrated drift on AC-coupled lines. Requires `track_integrated_voltage=True` when the sequence was created. Resets integrated-voltage trackers after the pulse (including partial Python offsets when QUA variables were used).
+
+  - `go_to_zero`: If `True`, step all tracked gates to 0 V before computing compensation (default `True`).
+  - `return_to_zero`: If `True`, step to zero and call `ramp_to_zero()` after compensation (default `True`).
+  - With `keep_levels=True`, the pre/post zeroing uses all names in the level tracker (physical and virtual).
 
   ```python
-  voltage_seq.apply_compensation_pulse()  # Use default 0.49V limit
-  voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom voltage limit
+  voltage_seq = gate_set.new_sequence(track_integrated_voltage=True)
+  voltage_seq.apply_compensation_pulse()  # default max_voltage=0.05 V
+  voltage_seq.apply_compensation_pulse(max_voltage=0.03, go_to_zero=True, return_to_zero=True)
   ```
+
+- `simultaneous(duration=16, ramp_duration=None)` (context manager)
+  Batch several `step_to_voltages` / `ramp_to_voltages` calls so they execute on the same timeline. Updates are merged; one combined step or ramp runs on exit.
+
+  ```python
+  with voltage_seq.simultaneous(duration=1000):
+      voltage_seq.step_to_voltages({"P1": 0.3}, duration=1000)  # batched, not played yet
+      voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)
+  # Both channels step together when the block exits
+  ```
+
+- `track_sticky_duration(duration_ns: int)`
+  Updates integrated-voltage trackers for the hold time at current levels **without** emitting pulses. Used when other macros run while sticky DC is non-zero (see macro duration contract below).
 
 ### Custom Macro Duration Contract
 
@@ -392,27 +453,31 @@ A `VirtualGateSet` allows users to define and operate with virtual gates, abstra
 - **Rectangular Matrices (Opt-In):** Set `allow_rectangular_matrices=True` on a `VirtualGateSet` to enable virtualization layers whose matrices are not square. These layers are resolved with the Moore–Penrose pseudo-inverse, allowing over- or under-complete virtual controls while keeping square layers unchanged.
 - **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualization matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualization by processing layers from the outermost to the innermost.
 
-### 6.1 Important Behavior: Unspecified Virtual Gates Are Zeroed Per Operation
+### 6.1 Virtual Gates and `keep_levels`
 
-Each `VoltageSequence` call (e.g., `step_to_voltages`, `ramp_to_voltages`, `step_to_point`) is resolved independently. Any virtual gate not explicitly provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages.
+With the default **`keep_levels=True`**, virtual gate names are tracked the same way as physical channels: if you omit `v_C2` in a call, its last value is reused when resolving layers. To remove a virtual contribution, set it explicitly to `0.0` or use `new_sequence(keep_levels=False)`.
 
-- This applies at every layer. If a higher-level virtual gate is not specified, its contribution is taken as 0 V when resolving to lower levels.
-- Physical channels not specified in a call are also driven to 0 V for that operation (same behavior as `GateSet`).
-
-Implication: Virtual gates do not “remember” their last values across operations. If you want to maintain a virtual configuration, include all relevant virtual gates and their values in each call, or operate directly on physical gates.
-
-Example:
+**Default (`keep_levels=True`):**
 
 ```python
-# Suppose v_C1 and v_C2 map to P1, P2 via a layer
+voltage_seq = vgs.new_sequence()  # virtual + physical names tracked
 
-# First call: set both virtual gates
 voltage_seq.step_to_voltages({"v_C1": 0.2, "v_C2": 0.1}, duration=1000)
-
-# Second call: only specify v_C1
-# v_C2 is assumed 0 V for this call, so its previous contribution is removed
-voltage_seq.step_to_voltages({"v_C1": 0.2}, duration=1000)
+voltage_seq.step_to_voltages({"v_C1": 0.25}, duration=1000)
+# v_C2 remains 0.1; physical targets include both virtual contributions
 ```
+
+**Stateless (`keep_levels=False`):**
+
+```python
+voltage_seq = vgs.new_sequence(keep_levels=False)
+
+voltage_seq.step_to_voltages({"v_C1": 0.2, "v_C2": 0.1}, duration=1000)
+voltage_seq.step_to_voltages({"v_C1": 0.2}, duration=1000)
+# v_C2 treated as 0 V for this call — prior virtual contribution cleared
+```
+
+`VirtualGateSet.resolve_voltages()` still applies each layer’s inverse matrix and **adds** contributions from virtual and direct physical entries in the combined dict (see [§7.4](#74-additive-voltage-contributions)). Level holding happens **before** that resolution.
 
 
 ## 7. VirtualizationLayer
@@ -662,9 +727,12 @@ with program() as prog:
   my_new_seq.step_to_point("meas")
 ```
 
-**What is happening here?**
-- In `init`, the input dict is `{"ch1": -0.25, "ch3": 0.12}`. Since `ch2` is omitted in this layer, this will internally translate to a full dict of `{"ch1": -0.25, "ch2": 0.0, "ch3": 0.12}`.
+**What is happening here?** (default `keep_levels=True`; matrix `[[2, 1], [0, 1]]` for `V1`, `V2` → `ch1`, `ch2`)
 
-- In `op`, the input dict is comprised of virtual gates `{"V1": 0.2, "V2": 0.1}`. `ch3` is absent, and since `V1` and `V2` map only to `ch1` and `ch2`, `ch3` is interpreted as having an input 0.0, to produce a dict of `{"V1": 0.2, "V2": 0.1, "ch3": 0.0}`. Internally, the physical gate voltages are calculated using the inverse of the virtual gate matrix, to a physical gate dict of `{"ch1": 0.05, "ch2": 0.1, "ch3": 0.0}`. Bear in mind that these voltages are absolute, not relative, despite the sticky elements.
+- **`init`** — Tuning point sets `ch1` and `ch3` only. Level tracker: `ch1=-0.25`, `ch2=0`, `ch3=0.12`, `V1=0`, `V2=0`. Physical outputs match those targets (no virtual contribution yet).
 
-- In `meas`, the input dict is simply `{"ch3": -0.12}`, which is interpreted as `{"ch1": 0.0, "ch2": 0.0, "ch3": -0.12}`.
+- **`op`** — Tuning point sets `V1=0.2`, `V2=0.1` only. Level tracker keeps `ch1`, `ch2`, `ch3` from `init` unless you override them, and updates `V1`, `V2`. Resolution **adds** the virtual inverse contribution on top of the retained physical entries, e.g. `ch1` gets `-0.25` plus `0.05` from `(V1, V2)`, `ch2` gets `0` plus `0.1`, and **`ch3` stays at `0.12`** because it was not changed and `keep_levels` holds it.
+
+- **`meas`** — Sets `ch3=-0.12` only; `ch1`, `ch2`, `V1`, `V2` keep their previous tracked values, then layers resolve to updated physical targets. To return `ch1`/`ch2` to zero here, include them explicitly or call `ramp_to_zero()`.
+
+All targets are **absolute** sticky levels, not deltas. Enable `track_integrated_voltage=True` only when you need `apply_compensation_pulse()` on AC-coupled lines.
