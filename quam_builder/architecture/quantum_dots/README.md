@@ -24,16 +24,14 @@ This documentation stays **hardware-agnostic** (no specific OPX port lists here)
 | Area | Location | Role |
 |------|----------|------|
 | Components | [`components/`](components/) | Primary QuAM dataclasses: dots, gates, readout, `QPU`, etc. |
-| Voltage sequencing | [`voltage_sequence/`](voltage_sequence/) | `GateSet`, `VoltageSequence`, constants; see [voltage_sequence/README.md](voltage_sequence/README.md) for the full DC/virtual-gate guide |
-| Virtual gates (compat) | [`virtual_gates/`](virtual_gates/) | Re-exports aligned with legacy import paths; prefer `components` for new code |
+| Voltage sequencing and Virtual gates | [`voltage_sequence/`](voltage_sequence/), [`virtual_gates/`](virtual_gates/)| Shared control of channels and full layered virtualization of gates see [voltage_sequence/README.md](voltage_sequence/README.md) for the full DC/virtual-gate guide |
 | Operations & defaults | [`operations/`](operations/) | Macro and pulse registries, canonical names, default macro classes — [operations/README.md](operations/README.md) |
-| Macro engine | [`macro_engine/`](macro_engine/) | `wire_machine_macros`, TOML profiles, `ComponentOverrides` — entry in [`macro_engine/__init__.py`](macro_engine/__init__.py), implementation in [`macro_engine/wiring.py`](macro_engine/wiring.py) |
 | QPU models | [`qpu/`](qpu/) | `BaseQuamQD` (dot-centric root); **Loss DiVincenzo spin stack** — [`qpu/README.md`](qpu/README.md) (`LossDiVincenzoQuam`, `LDQubit`, `LDQubitPair`, XY drives) |
 | Examples | [`examples/`](examples/) | Runnable scripts and tutorial helpers |
 
 ## Start here
 
-Read the sections below in order for your goal. All paths assume you will run QUA against a QuAM machine object (built or loaded).
+First build a machine using the necessary components for your experimental setup.
 
 ### 1. Build the machine (recommended first step)
 
@@ -91,7 +89,7 @@ Override patterns (single macro, type-level, TOML profile): [operations/README.m
 - **`VoltageGate`** — Baseband channel with `offset_parameter` and `attenuation` (extends `SingleChannel`) for OPX control plus optional external DC drivers.
 - **`GateSet`**, **`VirtualGateSet`**, **`VirtualizationLayer`** — Group channels, named tuning points, and layered virtual-to-physical maps. Math and workflows: [voltage_sequence/README.md](voltage_sequence/README.md).
 - **`GlobalGate`** — `VoltageGate` not tied to a `GateSet` (e.g. global back gate).
-- **`VirtualDCSet`** — Python-side virtualization of external DC instruments (`offset_parameter`); shares layer concepts with `VirtualGateSet` but is not the QUA `VoltageSequence` path.
+- **`VirtualDCSet`** — Python-side virtualization of external DC instruments (`offset_parameter`); shares layer concepts with `VirtualGateSet` but is not used in `VoltageSequence`.
 - **`VoltageSequence`** — QUA sequence helper for a `GateSet` / `VirtualGateSet` (level tracking, optional integrated-voltage compensation). See [voltage_sequence/README.md](voltage_sequence/README.md).
 
 **Readout and transport**
@@ -100,7 +98,7 @@ Override patterns (single macro, type-level, TOML profile): [operations/README.m
 
 **Dot topology and coupling**
 
-- **`QuantumDot`** — Single dot, tied to a `VoltageGate` and the machine’s `VirtualGateSet`.
+- **`QuantumDot`** — Single dot, tied to a `VoltageGate` or `VirtualGate` and the machine’s `VirtualGateSet`.
 - **`QuantumDotPair`** — Two dots plus shared barrier control.
 - **`SensorDot`** — Sensor dot for SET-style readout.
 
