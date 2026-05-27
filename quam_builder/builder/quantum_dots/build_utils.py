@@ -317,43 +317,84 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     return control, target
 
 
+_OPX_ANALOG_WIRING_KEYS = frozenset({"opx_output", "opx_output_I", "opx_output_Q"})
+
+
+def _wiring_has_opx_analog_output(ports: Any) -> bool:
+    """True if the line wiring includes an OPX/LF analog port reference (not QDAC-only)."""
+    if not ports or not hasattr(ports, "keys"):
+        return False
+    for key in ports.keys():
+        if key not in _OPX_ANALOG_WIRING_KEYS:
+            continue
+        if hasattr(ports, "get_unreferenced_value"):
+            raw = ports.get_unreferenced_value(key)
+        elif hasattr(ports, "get"):
+            raw = ports.get(key)
+        else:
+            raw = ports[key]
+        if raw is not None and raw != "":
+            return True
+    return False
+
+
 def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
-    """Extract QDAC channel number from wiring configuration.
+    """Extract QDAC DC output port index from wiring (legacy int or structured block).
 
-    Args:
-        wiring_dict: Wiring dictionary that may contain 'qdac_channel' key.
-
-    Returns:
-        QDAC channel number if present, None otherwise.
+    Prefer the structured ``qdac_output`` dict from :mod:`quam_builder.builder.qop_connectivity.qdac_wiring`;
+    fall back to legacy ``qdac_channel`` integer.
     """
-    return wiring_dict.get("qdac_channel")
+    from quam_builder.builder.qop_connectivity.qdac_wiring import extract_qdac_output_port
+
+    return extract_qdac_output_port(wiring_dict)
 
 
 def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, ports: Dict[str, str], qdac_channel: int | None = None
+    gate_id: str, wiring_path: str, ports: Mapping[str, Any], qdac_channel: int | None = None
 ) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:
         gate_id: Identifier for the gate.
         wiring_path: JSON path to wiring configuration.
-        ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
+        ports: Port mapping for this line (OPX refs, ``qdac_output``, digitals, etc.).
         qdac_channel: Optional QDAC channel number for external voltage control.
 
     Returns:
         Configured VoltageGate instance with QDAC channel if provided.
+
+    When wiring is **QDAC-only** (no OPX/LF analog port keys), :attr:`VoltageGate.opx_output`
+    is set to ``None`` so QUAM does not resolve a missing ``#/wiring/.../opx_output`` path.
+    Sticky is omitted so :meth:`~quam.core.quam_classes.QuamRoot.generate_config` does not touch OPX.
     """
 
     digital_outputs = get_digital_outputs(wiring_path, ports, "qdac_trig")
+    opx_out = f"{wiring_path}/opx_output" if _wiring_has_opx_analog_output(ports) else None
+    sticky = _make_sticky_channel() if opx_out is not None else None
 
     gate = VoltageGate(
         id=gate_id,
-        opx_output=f"{wiring_path}/opx_output",
-        sticky=_make_sticky_channel(),
+        opx_output=opx_out,
+        sticky=sticky,
         digital_outputs=digital_outputs,
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
+    from quam_builder.builder.qop_connectivity.qdac_wiring import (
+        extract_qdac_trigger_port,
+        extract_qdac_trigger_unit_index,
+        extract_qdac_unit_index,
+    )
+
+    qdac_unit = extract_qdac_unit_index(ports)
+    if qdac_unit is not None:
+        gate.qdac_unit_index = qdac_unit
+    qdac_trigger_in = extract_qdac_trigger_port(ports)
+    if qdac_trigger_in is not None:
+        gate.qdac_trigger_in = qdac_trigger_in
+    qdac_trig_unit = extract_qdac_trigger_unit_index(ports)
+    if qdac_trig_unit is not None:
+        gate.qdac_trigger_unit_index = qdac_trig_unit
     return gate
 
 

@@ -9,6 +9,7 @@ from .sensor_dot import SensorDot
 from .barrier_gate import BarrierGate
 from .mixins import VoltageMacroMixin
 from .voltage_gate import VoltageGate
+from .virtual_gate_set import VirtualGateSet
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -47,23 +48,27 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
     def __post_init__(self):
         super().__post_init__()
-        if isinstance(self.quantum_dots[0], str):
-            return
-        if len(self.quantum_dots) != 2:
-            raise ValueError(
-                f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots"
-            )
-        if self.id is None:
-            self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
-
-        if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
-            raise ValueError("Quantum Dots not part of same VoltageSequence")
+        # if isinstance(self.quantum_dots[0], str):
+        #     return
+        # if len(self.quantum_dots) != 2:
+        #     raise ValueError(
+        #         f"Number of QuantumDots in QuantumDotPair must be 2. Received {len(self.quantum_dots)} QuantumDots"
+        #     )
+        # if self.id is None:
+        #     self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
+        #
+        # if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
+        #     raise ValueError("Quantum Dots not part of same VoltageSequence")
 
         self.detuning_axis_name = f"{self.id}_epsilon"
 
     @property
     def physical_channel(self) -> VoltageGate:
         return self.barrier_gate.physical_channel
+
+    @property
+    def gate_set(self) -> VirtualGateSet:
+        return self.quantum_dots[0].machine._get_virtual_gate_set(self.quantum_dots[0].physical_channel)
 
     @property
     def voltage_sequence(self) -> VoltageSequence:
@@ -91,7 +96,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         # Ensure that the detuning axis name held in object is consistent
         self.detuning_axis_name = detuning_axis_name
 
-        virtual_gate_set = self.voltage_sequence.gate_set
+        virtual_gate_set = self.gate_set
 
         # Should be the correct virtual axes in the first layer of the VirtualGateSet
         target_gates = [qd.id for qd in self.quantum_dots]

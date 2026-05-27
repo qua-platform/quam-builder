@@ -39,13 +39,14 @@ Usage::
 from __future__ import annotations
 
 from quam.components.channels import SingleChannel
-from quam.components.pulses import SquareReadoutPulse
+from quam.components.pulses import SquareReadoutPulse, SquarePulse
 
 from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 from quam_builder.architecture.quantum_dots.operations.names import DrivePulseName
 from quam_builder.architecture.quantum_dots.operations.pulse_registry import (
     register_component_pulse_factories,
 )
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
 
 _REGISTERED = False
 
@@ -120,6 +121,20 @@ def _make_readout_pulse():
         amplitude=_READOUT_AMP,
     )
 
+def _make_baseband_pulse(amplitude: float):
+    """Build default baseband pulse for all voltage gates connected to the OPX.
+
+    Args:
+        amplitude: The baseband pulse amplitude in Volt.
+
+    Returns:
+        ``SquarePulse`` with id ``DEFAULT_PULSE_NAME``, length MIN_PULSE_DURATION_NS ns, and specified amplitude.
+    """
+    return SquarePulse(
+        id=DEFAULT_PULSE_NAME,
+        length=MIN_PULSE_DURATION_NS,
+        amplitude=amplitude,
+    )
 
 def register_default_component_pulse_factories() -> None:
     """Register built-in pulse factories for core quantum-dot component types.
