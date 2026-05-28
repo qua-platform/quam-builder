@@ -49,4 +49,4 @@ def add_default_transmon_pair_macros(qubit_pair: AnyTransmonPair):
         return
     qubit_control = qubit_pair.qubit_control
     if hasattr(qubit_control, "z") and qubit_control.z is not None:
-        qubit_pair.macros["cz"] = CZGate(flux_pulse_control="const")
+        qubit_pair.macros["cz"] = CZGate(flux_pulse_qubit="const")
