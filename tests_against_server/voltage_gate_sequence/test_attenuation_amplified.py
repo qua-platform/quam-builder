@@ -5,7 +5,7 @@ from conftest import QuamGateSet
 from qm import qua
 
 
-def test_square_pulses_amplified_with_attenuation(qmm, machine_amplified: QuamGateSet):
+def test_square_pulses_amplified_with_attenuation(qmm_saas, machine_amplified: QuamGateSet):
     """Physical gate voltages match simulation when adjust_for_attenuation is on and ports are amplified."""
     level_init = [0.3, -0.1]
     duration_init = 1000
@@ -53,11 +53,11 @@ def test_square_pulses_amplified_with_attenuation(qmm, machine_amplified: QuamGa
         seq.step_to_point("readout")
         seq.ramp_to_zero()
 
-    qmm, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=20000)
+    _, samples = simulate_program(qmm_saas, machine_amplified, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
 
 
-def test_square_pulses_amplified_with_attenuation_qua(qmm, machine_amplified: QuamGateSet):
+def test_square_pulses_amplified_with_attenuation_qua(qmm_saas, machine_amplified: QuamGateSet):
     """Same as test_square_pulses_amplified_with_attenuation but first plateau uses QUA fixed variables."""
     level_init = [0.3, -0.1]
     duration_init = 1000
@@ -107,11 +107,11 @@ def test_square_pulses_amplified_with_attenuation_qua(qmm, machine_amplified: Qu
         seq.step_to_point("readout")
         seq.ramp_to_zero()
 
-    qmm, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=20000)
+    _, samples = simulate_program(qmm_saas, machine_amplified, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
 
 
-def test_qua_voltage_sequence_double_loop(qmm, machine: QuamGateSet):
+def test_qua_voltage_sequence_double_loop(qmm_saas, machine: QuamGateSet):
     with qua.program() as program:
         amplitude_1 = qua.declare(qua.fixed)
         amplitude_2 = qua.declare(qua.fixed)
@@ -132,11 +132,11 @@ def test_qua_voltage_sequence_double_loop(qmm, machine: QuamGateSet):
                 seq.apply_compensation_pulse(max_voltage=0.01)
                 qua.wait(1000)
 
-    qmm, samples = simulate_program(qmm, machine, program, int(1e5))
+    _, samples = simulate_program(qmm_saas, machine, program, int(1e5))
     validate_compensation(samples, allowed=100.0)
 
 
-def test_qua_voltage_sequence_single_loop(qmm, machine: QuamGateSet):
+def test_qua_voltage_sequence_single_loop(qmm_saas, machine: QuamGateSet):
     with qua.program() as program:
         amplitude_1 = qua.declare(qua.fixed, value=-0.02)
         amplitude_2 = qua.declare(qua.fixed)
@@ -152,11 +152,11 @@ def test_qua_voltage_sequence_single_loop(qmm, machine: QuamGateSet):
             seq.apply_compensation_pulse(max_voltage=0.02)
             qua.wait(1000)
 
-    qmm, samples = simulate_program(qmm, machine, program, int(5e4))
+    _, samples = simulate_program(qmm_saas, machine, program, int(5e4))
     validate_compensation(samples, allowed=100.0)
 
 
-def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):
+def test_python_voltage_sequence_zero_comp(qmm_saas, machine: QuamGateSet):
 
     with qua.program() as program:
         seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
@@ -164,5 +164,5 @@ def test_python_voltage_sequence_zero_comp(qmm, machine: QuamGateSet):
         seq.step_to_voltages(voltages={"ch1": -0.01, "ch2": -0.01}, duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
-    qmm, samples = simulate_program(qmm, machine, program, int(2e3))
+    _, samples = simulate_program(qmm_saas, machine, program, int(2e3))
     validate_compensation(samples)
