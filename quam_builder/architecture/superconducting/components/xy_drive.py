@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, Any
+from dataclasses import field
 
 from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
@@ -21,10 +22,10 @@ class XYDriveBase:
     QUAM component for a XY drive line.
     """
 
+    extras: Dict[str, Any] = field(default_factory=dict)
+
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -92,9 +93,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass

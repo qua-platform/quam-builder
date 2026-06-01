@@ -1,4 +1,5 @@
-from quam.components import QuantumComponent, pulses
+from quam.components import QuantumComponent
+from quam.components.pulses import SquarePulse
 from quam.components.channels import SingleChannel
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -105,15 +106,15 @@ class GateSet(QuantumComponent):
                 continue
             if hasattr(ch.opx_output, "output_mode"):
                 if ch.opx_output.output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
                         amplitude=1.25, length=MIN_PULSE_DURATION_NS
                     )
                 else:
-                    ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
                         amplitude=0.25, length=MIN_PULSE_DURATION_NS
                     )
             else:
-                ch.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+                ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
                     amplitude=0.25, length=MIN_PULSE_DURATION_NS
                 )
 

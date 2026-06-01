@@ -29,9 +29,7 @@ class FluxLine(SingleChannel):
     joint_offset: float = 0.0
     min_offset: float = 0.0
     arbitrary_offset: float = 0.0
-    flux_point: Literal["joint", "independent", "min", "arbitrary", "zero"] = (
-        "independent"
-    )
+    flux_point: Literal["joint", "independent", "min", "arbitrary", "zero"] = "independent"
     settle_time: float = None
 
     def settle(self):

@@ -16,7 +16,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from quam.components import StickyChannelAddon, pulses
+from quam.components import StickyChannelAddon
+from quam.components.pulses import SquareReadoutPulse
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
@@ -188,7 +189,7 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
         frequency_bare=0,
         intermediate_frequency=DEFAULT_INTERMEDIATE_FREQUENCY,
         operations={
-            "readout": pulses.SquareReadoutPulse(
+            "readout": SquareReadoutPulse(
                 length=DEFAULT_READOUT_LENGTH, id="readout", amplitude=DEFAULT_READOUT_AMPLITUDE
             )
         },

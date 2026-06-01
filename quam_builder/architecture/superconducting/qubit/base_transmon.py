@@ -136,9 +136,7 @@ class BaseTransmon(Qubit):
         QM: QuantumMachine,
         calibrate_drive: bool = True,
         calibrate_resonator: bool = True,
-    ) -> Tuple[
-        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
-    ]:
+    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (xy and resonator) linked to this transmon for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -199,9 +197,7 @@ class BaseTransmon(Qubit):
                     f"The gate '{gate}_{gate_shape}' is not part of the existing operations for {self.xy.name} --> {self.xy.operations.keys()}."
                 )
 
-    def readout_state(
-        self, state, pulse_name: str = "readout", threshold: Optional[float] = None
-    ):
+    def readout_state(self, state, pulse_name: str = "readout", threshold: Optional[float] = None):
         """
         Perform a readout of the qubit state using the specified pulse.
 
@@ -263,9 +259,7 @@ class BaseTransmon(Qubit):
         else:
             if log_callable is None:
                 log_callable = getLogger(__name__).warning
-            log_callable(
-                "For simulating the QUA program, the qubit reset has been skipped."
-            )
+            log_callable("For simulating the QUA program, the qubit reset has been skipped.")
 
     def reset_qubit_thermal(self):
         """
@@ -365,22 +359,23 @@ class BaseTransmon(Qubit):
                     success, success + 1
                 )  # we need to measure 'g' two times in a row to increase our confidence
             with if_(res_ar == 1):
-                update_frequency(self.xy.name, int(self.xy.intermediate_frequency))
+                update_frequency(self.xy.name, int(self.xy.intermediate_frequency), keep_phase=True)
                 self.xy.play(pi_01_pulse_name)
                 assign(success, 0)
             with if_(res_ar == 2):
                 update_frequency(
                     self.xy.name,
                     int(self.xy.intermediate_frequency - self.anharmonicity),
+                    keep_phase=True,
                 )
                 self.xy.play(pi_12_pulse_name)
-                update_frequency(self.xy.name, int(self.xy.intermediate_frequency))
+                update_frequency(self.xy.name, int(self.xy.intermediate_frequency), keep_phase=True)
                 self.xy.play(pi_01_pulse_name)
                 assign(success, 0)
             self.align()
             assign(attempts, attempts + 1)
 
-    def readout_state_gef(self, state: QuaVariable, pulse_name: str = "readout"):
+    def readout_state_gef(self, state: QuaVariable, pulse_name: str = "readout_GEF"):
         """
         Perform a GEF state readout using the specified pulse and update the state variable.
 
@@ -391,7 +386,7 @@ class BaseTransmon(Qubit):
 
         Args:
             state (QuaVariableBool): The variable to store the readout state (0 for 'g', 1 for 'e', 2 for 'f').
-            pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout".
+            pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout_GEF".
 
         Returns:
             None
@@ -401,10 +396,7 @@ class BaseTransmon(Qubit):
         diff = declare(fixed, size=3)
 
         self.resonator.update_frequency(
-            int(
-                self.resonator.intermediate_frequency
-                + self.resonator.GEF_frequency_shift
-            )
+            int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift)
         )
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)

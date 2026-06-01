@@ -154,23 +154,6 @@ class TestQUAHelperFunctionSuppression:
 class TestRegularPythonNotSuppressed:
     """Test that warnings are NOT suppressed for regular Python code."""
 
-    @pytest.mark.skip(reason="C1805 is disabled by default in pylint 4.x")
-    def test_c1805_not_suppressed_in_regular_python(self):
-        """
-        C1805 should still appear for regular Python code outside QUA contexts.
-        """
-        return_code, stdout, stderr = run_pylint(SAMPLE_FILE, use_plugin=True)
-
-        lines_with_c1805 = get_lines_with_message(stdout, "C1805")
-
-        # regular_python_function is around lines 36-48
-        # mixed_function is around lines 145-159
-        # These SHOULD have C1805 warnings
-
-        # At minimum, there should be SOME C1805 warnings for regular Python code
-        # The exact lines may vary, but we should see warnings outside QUA contexts
-        assert len(lines_with_c1805) > 0, "C1805 should still appear for regular Python code"
-
     def test_c0121_not_suppressed_in_regular_python(self):
         """
         C0121 should still appear for regular Python code outside QUA contexts.

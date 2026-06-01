@@ -1,4 +1,8 @@
-from quam.components import pulses
+from quam.components.pulses import SquarePulse, SquareReadoutPulse
+from quam_builder.architecture.superconducting.components.pulses import (
+    DragGaussianPulse,
+    DragCosinePulse,
+)
 from qualang_tools.units import unit
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
@@ -8,6 +12,7 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+from quam_builder.architecture.superconducting.components.twpa import TWPA
 import numpy as np
 from typing import Union
 
@@ -48,7 +53,7 @@ def add_DragGaussian_pulses(
     if transmon.xy is not None:
         if anharmonicity is None:
             anharmonicity = f"#/qubits/{transmon.name}/anharmonicity"
-        transmon.xy.operations["x180_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["x180_DragGaussian"] = DragGaussianPulse(
             length=length,
             sigma=sigma,
             amplitude=amplitude,
@@ -59,7 +64,7 @@ def add_DragGaussian_pulses(
             subtracted=subtracted,
             axis_angle=0,
         )
-        transmon.xy.operations["x90_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["x90_DragGaussian"] = DragGaussianPulse(
             length="#../x180_DragGaussian/length",
             sigma="#../x180_DragGaussian/sigma",
             amplitude=amplitude / 2,
@@ -70,7 +75,7 @@ def add_DragGaussian_pulses(
             subtracted="#../x180_DragGaussian/subtracted",
             axis_angle=0,
         )
-        transmon.xy.operations["-x90_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["-x90_DragGaussian"] = DragGaussianPulse(
             length="#../x180_DragGaussian/length",
             sigma="#../x180_DragGaussian/sigma",
             amplitude="#../x90_DragGaussian/amplitude",
@@ -81,7 +86,7 @@ def add_DragGaussian_pulses(
             subtracted="#../x180_DragGaussian/subtracted",
             axis_angle=np.pi,
         )
-        transmon.xy.operations["y180_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["y180_DragGaussian"] = DragGaussianPulse(
             length="#../x180_DragGaussian/length",
             sigma="#../x180_DragGaussian/sigma",
             amplitude="#../x180_DragGaussian/amplitude",
@@ -92,7 +97,7 @@ def add_DragGaussian_pulses(
             subtracted="#../x180_DragGaussian/subtracted",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["y90_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["y90_DragGaussian"] = DragGaussianPulse(
             length="#../x180_DragGaussian/length",
             sigma="#../x180_DragGaussian/sigma",
             amplitude="#../x90_DragGaussian/amplitude",
@@ -103,7 +108,7 @@ def add_DragGaussian_pulses(
             subtracted="#../x180_DragGaussian/subtracted",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["-y90_DragGaussian"] = pulses.DragGaussianPulse(
+        transmon.xy.operations["-y90_DragGaussian"] = DragGaussianPulse(
             length="#../x180_DragGaussian/length",
             sigma="#../x180_DragGaussian/sigma",
             amplitude="#../x90_DragGaussian/amplitude",
@@ -145,7 +150,7 @@ def add_DragCosine_pulses(
     if transmon.xy is not None:
         if anharmonicity is None:
             anharmonicity = f"#/qubits/{transmon.name}/anharmonicity"
-        transmon.xy.operations["x180_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["x180_DragCosine"] = DragCosinePulse(
             length=length,
             amplitude=amplitude,
             alpha=alpha,
@@ -154,7 +159,7 @@ def add_DragCosine_pulses(
             digital_marker=digital_marker,
             axis_angle=0,
         )
-        transmon.xy.operations["x90_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["x90_DragCosine"] = DragCosinePulse(
             length="#../x180_DragCosine/length",
             amplitude=amplitude / 2,
             alpha="#../x180_DragCosine/alpha",
@@ -163,7 +168,7 @@ def add_DragCosine_pulses(
             digital_marker="#../x180_DragCosine/digital_marker",
             axis_angle=0,
         )
-        transmon.xy.operations["-x90_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["-x90_DragCosine"] = DragCosinePulse(
             length="#../x180_DragCosine/length",
             amplitude="#../x90_DragCosine/amplitude",
             alpha="#../x180_DragCosine/alpha",
@@ -172,7 +177,7 @@ def add_DragCosine_pulses(
             digital_marker="#../x180_DragCosine/digital_marker",
             axis_angle=np.pi,
         )
-        transmon.xy.operations["y180_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["y180_DragCosine"] = DragCosinePulse(
             length="#../x180_DragCosine/length",
             amplitude="#../x180_DragCosine/amplitude",
             alpha="#../x180_DragCosine/alpha",
@@ -181,7 +186,7 @@ def add_DragCosine_pulses(
             digital_marker="#../x180_DragCosine/digital_marker",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["y90_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["y90_DragCosine"] = DragCosinePulse(
             length="#../x180_DragCosine/length",
             amplitude="#../x90_DragCosine/amplitude",
             alpha="#../x90_DragCosine/alpha",
@@ -190,7 +195,7 @@ def add_DragCosine_pulses(
             digital_marker="#../x180_DragCosine/digital_marker",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["-y90_DragCosine"] = pulses.DragCosinePulse(
+        transmon.xy.operations["-y90_DragCosine"] = DragCosinePulse(
             length="#../x180_DragCosine/length",
             amplitude="#../x90_DragCosine/amplitude",
             alpha="#../x90_DragCosine/alpha",
@@ -222,37 +227,37 @@ def add_Square_pulses(
         digital_marker (str, optional): The digital marker for the pulses. Defaults to None. Can be set to "ON".
     """
     if transmon.xy is not None:
-        transmon.xy.operations["x180_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["x180_Square"] = SquarePulse(
             length=length,
             amplitude=amplitude,
             digital_marker=digital_marker,
             axis_angle=0,
         )
-        transmon.xy.operations["x90_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["x90_Square"] = SquarePulse(
             length="#../x180_Square/length",
             amplitude=amplitude / 2,
             digital_marker="#../x180_Square/digital_marker",
             axis_angle=0,
         )
-        transmon.xy.operations["-x90_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["-x90_Square"] = SquarePulse(
             length="#../x180_Square/length",
             amplitude="#../x90_Square/amplitude",
             digital_marker="#../x180_Square/digital_marker",
             axis_angle=np.pi,
         )
-        transmon.xy.operations["y180_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["y180_Square"] = SquarePulse(
             length="#../x180_Square/length",
             amplitude="#../x180_Square/amplitude",
             digital_marker="#../x180_Square/digital_marker",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["y90_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["y90_Square"] = SquarePulse(
             length="#../x180_Square/length",
             amplitude="#../x90_Square/amplitude",
             digital_marker="#../x180_Square/digital_marker",
             axis_angle=np.pi / 2,
         )
-        transmon.xy.operations["-y90_Square"] = pulses.SquarePulse(
+        transmon.xy.operations["-y90_Square"] = SquarePulse(
             length="#../x180_Square/length",
             amplitude="#../x90_Square/amplitude",
             digital_marker="#../x180_Square/digital_marker",
@@ -261,59 +266,83 @@ def add_Square_pulses(
         transmon.set_gate_shape("Square")
 
 
-def add_default_transmon_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]
-):
+def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]):
     """Adds default pulses to a transmon qubit:
-        * transmon.xy.operations["saturation"] = pulses.SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
-        * transmon.z.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        * transmon.resonator.operations["readout"] = pulses.SquareReadoutPulse(length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON")
+        * transmon.xy.operations["saturation"] = SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
+        * transmon.z.operations["const"] = SquarePulse(amplitude=0.1, length=100)
+        * transmon.resonator.operations["readout"] = SquareReadoutPulse(length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON")
+        * transmon.resonator.operations["readout_GEF"] = SquareReadoutPulse(length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON")
 
     Args:
         transmon (Union[FixedFrequencyTransmon, FluxTunableTransmon]): The transmon qubit to which the pulses will be added.
     """
     if hasattr(transmon, "xy"):
         if transmon.xy is not None:
-            transmon.xy.operations["saturation"] = pulses.SquarePulse(
+            transmon.xy.operations["saturation"] = SquarePulse(
                 amplitude=0.25, length=20 * u.us, axis_angle=0
             )
 
     if hasattr(transmon, "z"):
         if transmon.z is not None:
-            transmon.z.operations["const"] = pulses.SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon.z.operations["const"] = SquarePulse(amplitude=0.1, length=100)
 
     if hasattr(transmon, "resonator"):
         if transmon.resonator is not None:
-            transmon.resonator.operations["readout"] = pulses.SquareReadoutPulse(
+            transmon.resonator.operations["readout"] = SquareReadoutPulse(
+                length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
+            )
+            transmon.resonator.operations["readout_GEF"] = SquareReadoutPulse(
                 length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
             )
 
 
 def add_default_transmon_pair_pulses(
-    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]
+    transmon_pair: Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair],
 ):
     """Adds default pulses to a transmon qubit pair depending on its attributes:
-        * transmon_pair.coupler.operations["const"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        * transmon_pair.cross_resonance.operations["square"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        * transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(amplitude=0.1, length=100)
+        * transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
+        * transmon_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+        * transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
 
     Args:
         transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the pulses will be added.
     """
     if hasattr(transmon_pair, "coupler"):
         if transmon_pair.coupler is not None:
-            transmon_pair.coupler.operations["const"] = pulses.SquarePulse(
-                amplitude=0.1, length=100
-            )
+            transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
     if hasattr(transmon_pair, "cross_resonance"):
         if transmon_pair.cross_resonance is not None:
-            transmon_pair.cross_resonance.operations["square"] = pulses.SquarePulse(
+            transmon_pair.cross_resonance.operations["square"] = SquarePulse(
                 amplitude=0.1, length=100
             )
     if hasattr(transmon_pair, "zz_drive"):
         if transmon_pair.zz_drive is not None:
-            transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
-                amplitude=0.1, length=100
+            transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+
+
+def add_default_twpa_pulses(twpa: TWPA):
+    """Adds default pulses to a TWPA:
+        * twpa.pump.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+        * twpa.pump_.operations["pump"] = SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+        * twpa.isolation.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+        * twpa.isolation_.operations["pump"] = SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+
+    Args:
+        twpa (TWPA): The TWPA component to which the pulses will be added.
+    """
+    if hasattr(twpa, "pump"):
+        if twpa.pump is not None:
+            twpa.pump.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+    if hasattr(twpa, "pump_"):
+        if twpa.pump_ is not None:
+            twpa.pump_.operations["pump"] = SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+
+    if hasattr(twpa, "isolation"):
+        if twpa.isolation is not None:
+            twpa.isolation.operations["pump"] = SquarePulse(amplitude=0.5, length=16, axis_angle=0)
+
+    if hasattr(twpa, "isolation_"):
+        if twpa.isolation_ is not None:
+            twpa.isolation_.operations["pump"] = SquarePulse(
+                amplitude=0.5, length=2000, axis_angle=0
             )
