@@ -4,7 +4,7 @@
 # pylint: disable=unsubscriptable-object
 
 from dataclasses import field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 import warnings
 import numpy as np
 
@@ -180,6 +180,29 @@ class VirtualGateSet(GateSet):
 
     layers: List[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
+    _influence_map: Dict[str, List[str]] = field(default_factory=dict)
+    play_threshold: float = 2 ** (-16)  # resolution of the QUA fixed type
+
+    @property
+    def influence_map(self) -> Dict[str, Set[str]]:
+        """A dictionary mapping each gate to the set of physical gates that it influences."""
+        return {k: set(v) for k, v in self._influence_map.items()}
+
+    def _calculate_influence_map(self) -> None:
+        """Calculates the influence map by probing each gate with a unit voltage."""
+        # Base physical gates do not influence any others, so they are mapped to itself
+        influence_map = {gate: [gate] for gate in self.channels.keys()}
+        for layer in self.layers:
+            for source_gate in layer.source_gates:
+                # TODO: This is an inefficient way to get the influence map. It should be replaced with a more efficient method.
+                dummy_dict = {
+                    source_gate: 2.5
+                }  # Maximum dummy input, so that the resulting map should represent the maximum possible output
+                resolved_voltages = self.resolve_voltages(dummy_dict)
+                influence_map[source_gate] = [
+                    pg for pg, v in resolved_voltages.items() if abs(v) > self.play_threshold
+                ]
+        self._influence_map = influence_map
 
     @property
     def valid_channel_names(self) -> list[str]:
@@ -338,6 +361,7 @@ class VirtualGateSet(GateSet):
             use_pseudoinverse=use_pseudoinverse,
         )
         self.layers.append(virtualization_layer)
+        self._calculate_influence_map()
         return virtualization_layer
 
     def add_to_layer(
@@ -451,7 +475,7 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
-
+        self._calculate_influence_map()
         return layer
 
     def resolve_voltages(
