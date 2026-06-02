@@ -11,6 +11,10 @@ same results as the batch ``build_quam()`` flow:
 
 import pytest
 
+from quam.config.models.quam import QuamConfig
+from quam.config.resolvers import get_quam_config
+from quam.config.vars import CONFIG_PATH_ENV_NAME
+
 from quam.components.ports import (
     FEMPortsContainer,
     MWFEMAnalogOutputPort,
@@ -48,6 +52,15 @@ from quam_builder.builder.qop_connectivity.modify_ports import (
 #                                Fixtures
 ##############################################################################
 ##############################################################################
+
+
+@pytest.fixture(autouse=True)
+def compatible_quam_config(tmp_path, monkeypatch):
+    """Use a qualibrate config that matches the installed quam package version."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(f"[quam]\nversion = {QuamConfig.version}\n")
+    monkeypatch.setenv(CONFIG_PATH_ENV_NAME, str(config_file))
+    get_quam_config.cache_clear()
 
 
 @pytest.fixture

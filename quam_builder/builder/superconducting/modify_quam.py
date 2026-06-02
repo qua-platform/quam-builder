@@ -30,6 +30,7 @@ Example::
 from typing import Dict, Optional
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam.core.quam_classes import QuamDict
 
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
@@ -61,9 +62,24 @@ _LINE_TYPE_TO_FIELD = {
 }
 
 
+def _port_reference_values(ports: Dict[str, str]):
+    """Yield port reference strings without resolving through ``machine.wiring``.
+
+    Wiring port dicts stored on the machine are ``QuamDict`` instances. Reading
+    ``ports[key]`` resolves references, but the port objects may not exist yet.
+    Use ``get_raw_value`` to read the stored reference string instead.
+    """
+    for key in ports:
+        if isinstance(ports, QuamDict):
+            ref = ports.get_raw_value(key)
+        else:
+            ref = ports[key]
+        yield ref
+
+
 def _create_ports(machine: AnyQuam, ports: Dict[str, str]):
     """Ensure every port reference in *ports* exists in ``machine.ports``."""
-    for ref in ports.values():
+    for ref in _port_reference_values(ports):
         if isinstance(ref, str) and "ports" in ref and machine.ports is not None:
             machine.ports.reference_to_port(ref, create=True)
 

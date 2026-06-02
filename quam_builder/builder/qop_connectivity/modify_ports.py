@@ -40,6 +40,18 @@ def _get_ports_container(machine: _HasPorts) -> _PortsContainer:
     return ports
 
 
+def _sanitize_fem_mw_kwargs(port_type: str, kwargs: dict) -> dict:
+    """Drop kwargs that ``FEMPortsContainer`` already passes explicitly."""
+    sanitized = dict(kwargs)
+    if port_type == "mw_output":
+        sanitized.pop("band", None)
+        sanitized.pop("upconverter_frequency", None)
+    elif port_type == "mw_input":
+        sanitized.pop("band", None)
+        sanitized.pop("downconverter_frequency", None)
+    return sanitized
+
+
 def _add_fem_port(
     container: FEMPortsContainer,
     port_type: str,
@@ -49,9 +61,21 @@ def _add_fem_port(
     **kwargs,
 ) -> BasePort:
     if port_type == "mw_output":
-        return container.get_mw_output(controller_id, fem_id, port_id, create=True, **kwargs)
+        return container.get_mw_output(
+            controller_id,
+            fem_id,
+            port_id,
+            create=True,
+            **_sanitize_fem_mw_kwargs(port_type, kwargs),
+        )
     elif port_type == "mw_input":
-        return container.get_mw_input(controller_id, fem_id, port_id, create=True, **kwargs)
+        return container.get_mw_input(
+            controller_id,
+            fem_id,
+            port_id,
+            create=True,
+            **_sanitize_fem_mw_kwargs(port_type, kwargs),
+        )
     elif port_type == "analog_output":
         return container.get_analog_output(controller_id, fem_id, port_id, create=True, **kwargs)
     elif port_type == "analog_input":
