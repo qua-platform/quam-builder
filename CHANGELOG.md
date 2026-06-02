@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 ### Fixed
 - NV center - fix invalid `SPCM` component.
+- Quantum Dots - fix for voltage_sequence with amplified and attenuated `VoltageGates`
 
 ## [0.2.0] - 2025-10-29
 ### Added

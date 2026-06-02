@@ -227,8 +227,9 @@ class VoltageSequence:
     ):
         """Plays a scaled step on a single channel."""
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
-        DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
+        inv_wf_amplitude = float(np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10))
+        log2_inv_wf = np.log2(1.0 / DEFAULT_WF_AMPLITUDE)
 
         if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
@@ -241,9 +242,14 @@ class VoltageSequence:
             return
 
         if is_qua_type(delta_v):
-            scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
+            # Bit-shift only matches scaling when 1/DEFAULT_WF_AMPLITUDE is a power of two
+            # (e.g. 0.25 V baseband). Amplified LF-FEM uses 1.25 V → use explicit multiply.
+            if log2_inv_wf == int(log2_inv_wf) and int(log2_inv_wf) >= 0:
+                scaled_amp = delta_v << int(log2_inv_wf)
+            else:
+                scaled_amp = delta_v * inv_wf_amplitude
         else:
-            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10)
+            scaled_amp = np.round(delta_v * inv_wf_amplitude, 10)
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -727,8 +733,6 @@ class VoltageSequence:
             self._common_voltages_change(target_voltages_dict=zero_dict, duration=16)
 
         for ch_name, channel_obj in self.gate_set.channels.items():
-            DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
-            DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
             channel_limit = self._channel_max_voltage[ch_name]
             channel_max_voltage = min(max_voltage, channel_limit)
             if max_voltage > channel_limit:
@@ -843,7 +847,9 @@ class VoltageSequence:
 
         Args:
             ramp_duration: Optional. The duration (ns) of the ramp to zero.
-                If None, QUA's `ramp_to_zero` command is used for an immediate ramp.
+                If None, uses QUA's ``ramp_to_zero`` on each element when
+                ``adjust_for_attenuation`` is off; when it is on, uses an explicit
+                ramp so OPX scaling matches ``step_to_voltages`` / ``ramp_to_voltages``.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
             reset_tracker: Optional. Reset integrated voltage tracking
@@ -863,12 +869,38 @@ class VoltageSequence:
         """
 
         if ramp_duration is None:
-            for ch_name, channel_obj in self.gate_set.channels.items():
-                tracker = self.state_trackers[ch_name]
-                ramp_to_zero(channel_obj.name)
-                tracker.update_integrated_voltage(
-                    level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
+            if self.gate_set.adjust_for_attenuation:
+                # QUA ramp_to_zero() does not apply the same OPX scaling as _play_*_on_channel
+                # when adjust_for_attenuation is enabled; use an explicit ramp so attenuation
+                # and default-pulse amplitude stay consistent (e.g. amplified LF-FEM).
+                sticky_durations = [
+                    int(sticky.duration)
+                    for sticky in (
+                        getattr(ch, "sticky", None) for ch in self.gate_set.channels.values()
+                    )
+                    if sticky is not None and getattr(sticky, "duration", None) is not None
+                ]
+                ramp_ns = max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
+                self.ramp_to_voltages(
+                    voltages={ch_name: 0.0 for ch_name in self.gate_set.channels},
+                    duration=0,
+                    ramp_duration=ramp_ns,
                 )
+                if not self._track_integrated_voltage:
+                    for ch_name, channel_obj in self.gate_set.channels.items():
+                        tracker = self.state_trackers[ch_name]
+                        tracker.update_integrated_voltage(
+                            level=0.0,
+                            duration=0,
+                            ramp_duration=channel_obj.sticky.duration,
+                        )
+            else:
+                for ch_name, channel_obj in self.gate_set.channels.items():
+                    tracker = self.state_trackers[ch_name]
+                    ramp_to_zero(channel_obj.name)
+                    tracker.update_integrated_voltage(
+                        level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
+                    )
 
         else:
             self.ramp_to_voltages(
