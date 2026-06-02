@@ -317,3 +317,23 @@ def add_default_transmon_pair_pulses(
             transmon_pair.zz_drive.operations["square"] = pulses.SquarePulse(
                 amplitude=0.1, length=100
             )
+
+
+def add_default_twpa_pulses(twpa):
+    """Adds default pump pulses to a TWPA's pump/pump_ MW channels.
+
+    Matches the known-good KRISS TWPA state: a long square pump at full operation amplitude
+    (scaled at play time by the calibrated ``pump_amplitude``). ``axis_angle=0`` because the
+    pump runs on an MW (complex) channel.
+
+    Args:
+        twpa: The TWPA to which the pump pulses will be added.
+    """
+    if getattr(twpa, "pump", None) is not None:
+        twpa.pump.operations["pump"] = pulses.SquarePulse(
+            length=20000, amplitude=1, axis_angle=0, digital_marker="ON"
+        )
+    if getattr(twpa, "pump_", None) is not None:
+        twpa.pump_.operations["pump_"] = pulses.SquarePulse(
+            length=20000, amplitude=1, axis_angle=0, digital_marker="ON"
+        )

@@ -64,6 +64,7 @@ class BaseQuam(QuamRoot):
 
     active_qubit_names: List[str] = field(default_factory=list)
     active_qubit_pair_names: List[str] = field(default_factory=list)
+    active_twpa_names: List[str] = field(default_factory=list)
 
     ports: Optional[Union[FEMPortsContainer, OPXPlusPortsContainer]] = None
 

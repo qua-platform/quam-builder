@@ -16,6 +16,7 @@ from quam_builder.builder.qop_connectivity.concrete_strategies import (
     QubitPairWiringStrategy,
     GlobalElementWiringStrategy,
     ReadoutWiringStrategy,
+    TwpaWiringStrategy,
 )
 
 
@@ -29,6 +30,7 @@ class ElementCategory(Enum):
     QUBIT_PAIR = "qubit_pair"
     GLOBAL_ELEMENT = "global_element"
     READOUT = "readout"
+    TWPA = "twpa"
 
 
 class LineTypeRegistry:
@@ -92,12 +94,23 @@ class LineTypeRegistry:
         for line_type in readout_lines:
             self.register(line_type, ElementCategory.READOUT)
 
+        # TWPA line types - readout parametric amplifier pump. NOTE: TWPA_PUMP.value == "p" is the
+        # same string as PLUNGER_GATE.value, so this registration (done last) wins and maps "p" to
+        # TWPA. That is correct for superconducting setups (no plunger gates); quantum-dot setups
+        # using plunger gates should pass a custom_registry to create_wiring.
+        twpa_lines = [
+            WiringLineType.TWPA_PUMP,
+        ]
+        for line_type in twpa_lines:
+            self.register(line_type, ElementCategory.TWPA)
+
         # Register default strategies
         self._strategy_map = {
             ElementCategory.QUBIT: QubitWiringStrategy,
             ElementCategory.QUBIT_PAIR: QubitPairWiringStrategy,
             ElementCategory.GLOBAL_ELEMENT: GlobalElementWiringStrategy,
             ElementCategory.READOUT: ReadoutWiringStrategy,
+            ElementCategory.TWPA: TwpaWiringStrategy,
         }
 
     def register(
