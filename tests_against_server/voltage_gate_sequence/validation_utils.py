@@ -96,7 +96,10 @@ def validate_compensation(samples, allowed=1.0):
     plt.legend()
     plt.show()
     for name, sample in samples.con1.analog.items():
-        integrated = np.abs(np.trapezoid(sample))
+        try:
+            integrated = np.abs(np.trapezoid(sample))
+        except AttributeError:
+            integrated = np.abs(np.trapz(sample))
         assert (
             integrated < allowed
         ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"
