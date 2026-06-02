@@ -141,6 +141,9 @@ def add_port(
     For FEM-based machines, ``fem_id`` and ``port_id`` are both required.
     For OPX+-based machines, only ``port_id`` is required.
 
+    FEM port types: ("mw_output", "mw_input", "analog_output", "analog_input", "digital_output")
+    OPX+ port types: ("analog_output", "analog_input", "digital_output", "digital_input")
+
     Args:
         machine: A QUAM machine with a ``ports`` attribute (``FEMPortsContainer``
             or ``OPXPlusPortsContainer``).
@@ -178,6 +181,9 @@ def remove_port(
     port_id: Optional[int] = None,
 ) -> BasePort:
     """Remove a port from the machine's ports container.
+
+    FEM port types: ("mw_output", "mw_input", "analog_output", "analog_input", "digital_output")
+    OPX+ port types: ("analog_output", "analog_input", "digital_output", "digital_input")
 
     Args:
         machine: A QUAM machine with a ``ports`` attribute.
