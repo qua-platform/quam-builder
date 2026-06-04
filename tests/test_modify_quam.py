@@ -46,7 +46,6 @@ from quam_builder.builder.qop_connectivity.modify_ports import (
     remove_port,
 )
 
-
 ##############################################################################
 ##############################################################################
 #                                Fixtures
@@ -184,7 +183,9 @@ def test_add_qubit_adds_default_pulses(empty_ff_machine: FixedFrequencyQuam, mw_
     assert "readout" in transmon.resonator.operations
 
 
-def test_add_qubit_skips_pulses_when_disabled(empty_ff_machine: FixedFrequencyQuam, mw_wiring) -> None:
+def test_add_qubit_skips_pulses_when_disabled(
+    empty_ff_machine: FixedFrequencyQuam, mw_wiring
+) -> None:
     transmon = add_qubit(empty_ff_machine, "q0", mw_wiring, add_default_pulses=False)
 
     assert len(transmon.xy.operations) == 0
@@ -273,6 +274,7 @@ def test_remove_qubit_no_longer_in_config(empty_ff_machine: FixedFrequencyQuam, 
     config = empty_ff_machine.generate_config()
     element_names = set(config.get("elements", {}).keys())
     assert not any("q0" in n for n in element_names)
+
 
 ##############################################################################
 ##############################################################################
@@ -389,7 +391,9 @@ def test_remove_channel_updates_wiring(empty_ff_machine: FixedFrequencyQuam, mw_
     assert "xy" not in empty_ff_machine.wiring["qubits"]["q0"]
 
 
-def test_remove_channel_not_in_iterate_components(empty_ff_machine: FixedFrequencyQuam, mw_wiring) -> None:
+def test_remove_channel_not_in_iterate_components(
+    empty_ff_machine: FixedFrequencyQuam, mw_wiring
+) -> None:
     transmon = add_qubit(empty_ff_machine, "q0", mw_wiring)
     xy = transmon.xy
     remove_channel(empty_ff_machine, "q0", "xy")
@@ -403,6 +407,7 @@ def test_remove_channel_not_in_iterate_components(empty_ff_machine: FixedFrequen
 #                                add_port / remove_port tests
 ##############################################################################
 ##############################################################################
+
 
 def test_add_mw_output_port():
     machine = FixedFrequencyQuam(ports=FEMPortsContainer())
