@@ -26,7 +26,7 @@ Notable attributes and behaviour (see class docstring for the full list):
 A Loss DiVincenzo qubit ties a **`QuantumDot`** (plunger / voltage sequence) to microwave control and readout-oriented fields:
 
 - **`quantum_dot`** — The physical dot; voltage macros (`step_to_point`, `add_point`, …) are delegated through the dot’s `VoltageSequence`.
-- **`xy`** — Optional **`XYDriveBase`** subclass ([`../components/xy_drive.py`](../components/xy_drive.py)): **`XYDriveSingle`**, **`XYDriveIQ`**, or **`XYDriveMW`** for EDSR/ESR drive lines (frequencies, IF, power helpers on the base type).
+- **`xy`** — Optional **`XYDriveBase`** subclass for EDSR/ESR drive lines; see [XY drive components](#xy-drive-components) below.
 - **Coherence and reset** — `T1`, `T2ramsey`, `T2echo`, `thermalization_time_factor`, `reset`, and **`calibrate_octave`** for drive (and resonator paths where configured).
 - **Macros** — Inherits **`VoltageMacroMixin`** with QuAM `Qubit`; default single-qubit gates and state macros are wired via [`operations/`](../operations/) and **`wire_machine_macros`**.
 
@@ -36,14 +36,50 @@ Pairs two **`LDQubit`** instances for two-qubit primitives; default two-qubit ma
 
 ## XY drive components ([`../components/xy_drive.py`](../components/xy_drive.py))
 
-| Type | Role |
-|------|------|
-| **`XYDriveBase`** | Shared helpers (e.g. power scaling between dBm levels). |
-| **`XYDriveSingle`** | Single MW channel with `RF_frequency` for simple ESR-style lines. |
-| **`XYDriveIQ`** | IQ channel for shaped pulses and IF control. |
-| **`XYDriveMW`** | MW channel integration for OPX/Octave-style setups. |
+All three concrete drive types inherit **`XYDriveBase`** and are composed on **`LDQubit.xy`**. They differ by **QuAM channel type** and **hardware wiring**, not by macro API — single-qubit gates still go through `XYDriveMacro` and default pulses from [`component_pulse_catalog`](../operations/component_pulse_catalog.py).
 
-These are composed under **`LDQubit.xy`**; pulse factories for XY are registered in the operations layer (`component_pulse_catalog`, default pulses for `LDQubit`).
+| Variant | QuAM base | Typical hardware | Required ports | IF / LO |
+|---------|-----------|------------------|----------------|---------|
+| **`XYDriveSingle`** | `SingleChannel` | LF-FEM / OPX+ **baseband** analog output | single `opx_output` → `analog_outputs` | Required `RF_frequency` (aliases `intermediate_frequency`) |
+| **`XYDriveIQ`** | `IQChannel` | LF-FEM / OPX+ + **Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
+| **`XYDriveMW`** | `MWChannel` | **MW-FEM** direct microwave output | single `opx_output` → `mw_outputs` | `intermediate_frequency` + upconverter on port (`upconverter_frequency` from `opx_output`) |
+
+**`XYDriveBase`** provides shared helpers (e.g. `calculate_voltage_scaling_factor` for scaling between dBm levels).
+
+### `XYDriveSingle`
+
+- Baseband EDSR/ESR on a **single** LF-FEM analog port — no external upconversion.
+- Simplest setup; `RF_frequency` is the drive IF.
+- Pulses use **real-valued waveforms** (`axis_angle=None`); rotation axis is handled by **virtual-Z** in `XYDriveMacro`, not hardware IQ mixing.
+- No built-in `get_output_power` / `set_output_power` (only shared `XYDriveBase.calculate_voltage_scaling_factor`).
+
+### `XYDriveIQ`
+
+- Preferred when wiring exposes **I/Q outputs and a frequency converter** (Octave path).
+- **Hardware IQ mixing** — default reference pulse gets `axis_angle=0.0`; macro applies virtual-Z for X/Y axis selection (same macro path as MW).
+- Power helpers: `get_output_power` / `set_output_power` via IQ gain/amplitude ([`power_tools.py`](../../../tools/power_tools.py)).
+- Builder note: preferred for LF-FEM RF allocation when IQ ports are available (see `_create_xy_drive_from_wiring` in [`build_utils.py`](../../../builder/quantum_dots/build_utils.py)).
+
+### `XYDriveMW`
+
+- For **MW-FEM** setups (examples: [`quam_ld_generator_example.py`](../examples/quam_ld_generator_example.py), [`rabi_chevron.py`](../examples/rabi_chevron.py)).
+- Single MW port with on-module upconversion; IF + port upconverter frequency define the emitted tone.
+- Same pulse/macro model as IQ (`axis_angle=0.0`).
+- Power helpers via MW full-scale power ([`power_tools.py`](../../../tools/power_tools.py)).
+
+### Builder auto-detection
+
+When you use [`build_loss_divincenzo_quam`](../../../builder/quantum_dots/) (or stage-2 wiring), `_validate_drive_ports` in [`build_utils.py`](../../../builder/quantum_dots/build_utils.py) picks the variant from port keys and reference paths:
+
+```mermaid
+flowchart TD
+  wiring[Wiring ports] --> validate[_validate_drive_ports]
+  validate -->|I+Q+converter| IQ[XYDriveIQ]
+  validate -->|opx_output mw_outputs| MW[XYDriveMW]
+  validate -->|opx_output analog_outputs| Single[XYDriveSingle]
+```
+
+Pulse factories for XY are registered in the operations layer (`component_pulse_catalog`, default pulses for `LDQubit`) via **`wire_machine_macros`**.
 
 ## Macros and wiring
 
