@@ -13,8 +13,8 @@ You can use the **builder** to generate a full machine, or assemble **components
 
 You should be familiar with:
 
-- **[QUAM](https://qua-platform.github.io/quam/)** — machine components, serialization, and references.
 - **[QUA](https://docs.quantum-machines.co/latest/)** — programs, sticky elements, and pulse play.
+- **[QUAM](https://qua-platform.github.io/quam/)** — machine components, serialization, and references.
 - **[qualang_tools](https://github.com/qua-platform/py-qua-tools)** (optional but common) — connectivity / wiring helpers used by several examples and by `build_quam_wiring`.
 
 This documentation stays **hardware-agnostic** (no specific OPX port lists here). Examples may assume LF-FEM or cluster settings; adapt ports and hosts to your setup.
@@ -58,9 +58,9 @@ Key groupings: `virtual_gate_sets`, `voltage_sequences`, `quantum_dots`, `qubit_
 
 Details: [`qpu/README.md`](qpu/README.md).
 
-### 3. DC gates and voltage sequences
+### 3. Gates and voltage sequences
 
-For **sticky DC** control in QUA:
+For **sticky** control in QUA:
 
 1. Define **`VoltageGate`** channels (with `half_max_square` operations).
 2. Group them in a **`GateSet`** or **`VirtualGateSet`** (virtualization layers for tuning axes).
@@ -106,9 +106,8 @@ Override patterns (single macro, type-level, TOML profile): [operations/README.m
 
 - **`DacSpec`**, **`QdacSpec`** — DAC channel metadata on `VoltageGate` ([`dac_spec.py`](components/dac_spec.py)).
 
-**Mixins and pulses**
+**Pulses**
 
-- **`mixins/`** — `VoltageMacroMixin`, voltage-point helpers, macro dispatch shared by several components.
 - **`pulses.py`** — Pulse helpers; default pulse factories are registered with macros in `operations/`.
 
 **Spin qubits (Loss DiVincenzo)**
@@ -138,7 +137,7 @@ Canonical names (`initialize`, `measure`, `x180`, `cz`, …) live in [`operation
 
 **`wire_machine_macros`** ([`macro_engine/wiring.py`](macro_engine/wiring.py)) materializes missing default macros and pulses and merges **`ComponentOverrides`** from Python or TOML (`load_macro_profile`). It runs during component setup, **builder** entry points, and `BaseQuamQD` / `LossDiVincenzoQuam` **`load()`** so serialized machines stay consistent.
 
-Helper entry points: [`macro_engine/__init__.py`](macro_engine/__init__.py) (`macro`, `pulse`, `overrides`, `disabled`). Details: [operations/README.md](operations/README.md).
+<!-- Helper entry points: [`macro_engine/__init__.py`](macro_engine/__init__.py) (`macro`, `pulse`, `overrides`, `disabled`). Details: [operations/README.md](operations/README.md). -->
 
 ## Building and loading QuAM machines
 

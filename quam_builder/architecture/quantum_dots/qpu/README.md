@@ -1,3 +1,5 @@
+> This document is the detailed guide for Loss DiVincenzo and spin-qubit quam. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
+
 # Loss DiVincenzo and spin-qubit QuAM
 
 This document covers the **spin-qubit layer** built on top of the quantum-dot architecture: the QuAM root types that register qubits and pairs, microwave **XY** control lines, and how they connect to underlying `QuantumDot` objects and voltage sequencing.
@@ -14,10 +16,10 @@ For DC gates, virtual gates, and `VoltageSequence`, see the parent [quantum-dot 
 
 Notable attributes and behaviour (see class docstring for the full list):
 
-- **`qubits`** — `Dict[str, AnySpinQubit]`; today this is primarily **`LDQubit`** instances keyed by name.
+- **`qubits`** — `Dict[str, AnySpinQubit]`; **`LDQubit`** instances keyed by name.
 - **`qubit_pairs`** — `Dict[str, AnySpinQubitPair]` (e.g. **`LDQubitPair`**) for two-qubit control.
 - **`b_field`** — Operating external magnetic field (device metadata).
-- **`active_qubit_names`**, **`active_qubit_pair_names`** — Subsets used when broadcasting QPU-level routines (e.g. Octave calibration, `declare_qua_variables`).
+- **`active_qubit_names`**, **`active_qubit_pair_names`** — Subsets used when broadcasting QPU-level routines.
 - **`register_qubit`**, **`register_qubit_pair`** — Construct qubit / pair objects from existing `QuantumDot` (and pair) topology.
 - **`get_component`** — Resolves names across qubits, pairs, dots, sensors, barriers, etc.
 
@@ -27,7 +29,7 @@ A Loss DiVincenzo qubit ties a **`QuantumDot`** (plunger / voltage sequence) to 
 
 - **`quantum_dot`** — The physical dot; voltage macros (`step_to_point`, `add_point`, …) are delegated through the dot’s `VoltageSequence`.
 - **`xy`** — Optional **`XYDriveBase`** subclass for EDSR/ESR drive lines; see [XY drive components](#xy-drive-components) below.
-- **Coherence and reset** — `T1`, `T2ramsey`, `T2echo`, `thermalization_time_factor`, `reset`, and **`calibrate_octave`** for drive (and resonator paths where configured).
+- **Coherence and reset** — `T1`, `T2ramsey`, `T2echo`, `thermalization_time_factor`, `reset`, and **`calibrate_octave`** for drive.
 - **Macros** — Inherits **`VoltageMacroMixin`** with QuAM `Qubit`; default single-qubit gates and state macros are wired via [`operations/`](../operations/) and **`wire_machine_macros`**.
 
 ## `LDQubitPair` ([`../qubit_pair/ld_qubit_pair.py`](../qubit_pair/ld_qubit_pair.py))
@@ -40,8 +42,8 @@ All three concrete drive types inherit **`XYDriveBase`** and are composed on **`
 
 | Variant | QuAM base | Typical hardware | Required ports | IF / LO |
 |---------|-----------|------------------|----------------|---------|
-| **`XYDriveSingle`** | `SingleChannel` | LF-FEM / OPX+ **baseband** analog output | single `opx_output` → `analog_outputs` | Required `RF_frequency` (aliases `intermediate_frequency`) |
-| **`XYDriveIQ`** | `IQChannel` | LF-FEM / OPX+ + **Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
+| **`XYDriveSingle`** | `SingleChannel` | **LF-FEM / OPX+** baseband analog output | single `opx_output` → `analog_outputs` | Required `RF_frequency` (aliases `intermediate_frequency`) |
+| **`XYDriveIQ`** | `IQChannel` | **LF-FEM / OPX+ + Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
 | **`XYDriveMW`** | `MWChannel` | **MW-FEM** direct microwave output | single `opx_output` → `mw_outputs` | `intermediate_frequency` + upconverter on port (`upconverter_frequency` from `opx_output`) |
 
 **`XYDriveBase`** provides shared helpers (e.g. `calculate_voltage_scaling_factor` for scaling between dBm levels).
@@ -66,6 +68,10 @@ All three concrete drive types inherit **`XYDriveBase`** and are composed on **`
 - Single MW port with on-module upconversion; IF + port upconverter frequency define the emitted tone.
 - Same pulse/macro model as IQ (`axis_angle=0.0`).
 - Power helpers via MW full-scale power ([`power_tools.py`](../../../tools/power_tools.py)).
+
+### `XYDrive` Parallel execution
+
+For all types of XYDrive, it is important to note that they are by default running in parallel to `VirtualGateSet / VoltageSequence` operations and other XYDrive components. This has implications on the user managing timings of these pulses.
 
 ### Builder auto-detection
 
