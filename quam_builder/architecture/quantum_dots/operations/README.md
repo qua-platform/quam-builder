@@ -1,3 +1,4 @@
+> This document is the detailed guide for Quantum Dot Operations and Macros. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
 # Quantum Dots Operations and Macro Defaults
 
 This folder contains the default operations and catalog-based macro wiring system for quantum-dot QuAM components.
