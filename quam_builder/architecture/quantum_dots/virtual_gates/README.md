@@ -1,0 +1,1 @@
+See [../voltage_sequence/README.md](../voltage_sequence/README.md) for a full description of `VirtualGateSet` and `VoltageSequence`.
