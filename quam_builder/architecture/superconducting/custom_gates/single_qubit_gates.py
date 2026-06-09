@@ -89,7 +89,7 @@ class ResetMacro(QubitMacro):
             qubit.reset_qubit_active_gef(
                 readout_pulse_name=get_pulse_name(readout_pulse),
                 pi_01_pulse_name=get_pulse_name(pi_pulse),
-                pi_12_pulse_name=get_pulse_name(pi_pulse),
+                pi_12_pulse_name=get_pulse_name(pi_12_pulse),
             )
 
     @property
