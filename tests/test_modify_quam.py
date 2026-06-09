@@ -34,6 +34,7 @@ from quam_builder.architecture.superconducting.components.readout_resonator impo
     ReadoutResonatorMW,
 )
 from quam_builder.architecture.superconducting.components.flux_line import FluxLine
+from quam_builder.architecture.superconducting.qubit_pair import FixedFrequencyTransmonPair
 
 from quam_builder.builder.superconducting.modify_quam import (
     add_qubit,
@@ -274,6 +275,36 @@ def test_remove_qubit_no_longer_in_config(empty_ff_machine: FixedFrequencyQuam, 
     config = empty_ff_machine.generate_config()
     element_names = set(config.get("elements", {}).keys())
     assert not any("q0" in n for n in element_names)
+
+
+def test_remove_qubit_rejects_when_in_pair(
+    empty_ff_machine: FixedFrequencyQuam, mw_wiring
+) -> None:
+    add_qubit(empty_ff_machine, "q0", mw_wiring)
+    add_qubit(empty_ff_machine, "q1", mw_wiring)
+    empty_ff_machine.qubit_pairs["q0-q1"] = FixedFrequencyTransmonPair(
+        id="q0-q1",
+        qubit_control="#/qubits/q0",
+        qubit_target="#/qubits/q1",
+    )
+
+    with pytest.raises(ValueError, match="qubit pair"):
+        remove_qubit(empty_ff_machine, "q0")
+
+    assert "q0" in empty_ff_machine.qubits
+
+
+def test_remove_qubit_rejects_when_in_pair_wiring_only(
+    empty_ff_machine: FixedFrequencyQuam, mw_wiring
+) -> None:
+    add_qubit(empty_ff_machine, "q0", mw_wiring)
+    empty_ff_machine.wiring.setdefault("qubit_pairs", {})
+    empty_ff_machine.wiring["qubit_pairs"]["q0-q1"] = {}
+
+    with pytest.raises(ValueError, match="qubit pair"):
+        remove_qubit(empty_ff_machine, "q0")
+
+    assert "q0" in empty_ff_machine.qubits
 
 
 ##############################################################################

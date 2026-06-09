@@ -27,8 +27,6 @@ Example::
     remove_qubit(machine, "q5")
 """
 
-from typing import Dict, Optional
-
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.core.quam_classes import QuamDict
 
@@ -62,7 +60,7 @@ _LINE_TYPE_TO_FIELD = {
 }
 
 
-def _port_reference_values(ports: Dict[str, str]):
+def _port_reference_values(ports: dict[str, str]):
     """Yield port reference strings without resolving through ``machine.wiring``.
 
     Wiring port dicts stored on the machine are ``QuamDict`` instances. Reading
@@ -77,17 +75,42 @@ def _port_reference_values(ports: Dict[str, str]):
         yield ref
 
 
-def _create_ports(machine: AnyQuam, ports: Dict[str, str]):
+def _create_ports(machine: AnyQuam, ports: dict[str, str]):
     """Ensure every port reference in *ports* exists in ``machine.ports``."""
     for ref in _port_reference_values(ports):
         if isinstance(ref, str) and "ports" in ref and machine.ports is not None:
             machine.ports.reference_to_port(ref, create=True)
 
 
+def _get_referencing_qubit_pair_ids(machine: AnyQuam, qubit_id: str) -> list[str]:
+    """Pair ids that reference ``qubit_id`` in ``machine.qubit_pairs`` or wiring."""
+    found: set[str] = set()
+
+    for pair_id, pair in machine.qubit_pairs.items():
+        for ref in (pair.qubit_control, pair.qubit_target):
+            if ref is None:
+                continue
+            if isinstance(ref, str):
+                name = ref.rstrip("/").split("/")[-1]
+            else:
+                name = ref.name
+            if name == qubit_id:
+                found.add(pair_id)
+                break
+
+    for pair_id in machine.wiring.get("qubit_pairs", {}):
+        qc, qt = pair_id.split("-", 1)
+        qt = qt if str(qt).startswith("q") else f"q{qt}"
+        if qubit_id in (qc, qt):
+            found.add(pair_id)
+
+    return sorted(found)
+
+
 def add_qubit(
     machine: AnyQuam,
     qubit_id: str,
-    wiring: Optional[Dict[str, Dict[str, str]]] = None,
+    wiring: dict[str, dict[str, str]] | None = None,
     add_default_pulses: bool = True,
 ) -> AnyTransmon:
     """Add a single qubit to an existing machine.
@@ -165,9 +188,18 @@ def remove_qubit(machine: AnyQuam, qubit_id: str) -> AnyTransmon:
 
     Raises:
         KeyError: If no qubit with ``qubit_id`` exists.
+        ValueError: If the qubit participates in one or more qubit pairs.
     """
     if qubit_id not in machine.qubits:
         raise KeyError(f"Qubit '{qubit_id}' not found")
+
+    pairs = _get_referencing_qubit_pair_ids(machine, qubit_id)
+    if pairs:
+        pair_list = ", ".join(pairs)
+        raise ValueError(
+            f"Cannot remove qubit '{qubit_id}': referenced by qubit pair(s): {pair_list}. "
+            "Remove the qubit pair(s) first."
+        )
 
     transmon = machine.qubits.pop(qubit_id)
     transmon.parent = None
@@ -185,7 +217,7 @@ def add_channel(
     machine: AnyQuam,
     qubit_id: str,
     line_type: str,
-    ports: Dict[str, str],
+    ports: dict[str, str],
     add_default_pulses: bool = True,
 ) -> None:
     """Add a single channel to an existing qubit.
