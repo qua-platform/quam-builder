@@ -15,6 +15,7 @@ from quam.config.models.quam import QuamConfig
 from quam.config.resolvers import get_quam_config
 from quam.config.vars import CONFIG_PATH_ENV_NAME
 
+from quam.components.pulses import SquarePulse
 from quam.components.ports import (
     FEMPortsContainer,
     MWFEMAnalogOutputPort,
@@ -326,6 +327,25 @@ def test_add_flux_channel_to_existing_qubit() -> None:
 
     assert transmon.z is not None
     assert isinstance(transmon.z, FluxLine)
+
+
+def test_add_channel_preserves_existing_pulses() -> None:
+    """Adding a channel must not overwrite calibrated pulses on other channels."""
+    machine = FluxTunableQuam(ports=FEMPortsContainer())
+    drive_wiring = {"xy": {"opx_output": "#/ports/mw_outputs/con1/1/1"}}
+    transmon = add_qubit(machine, "q0", drive_wiring, add_default_pulses=True)
+    transmon.xy.operations["saturation"] = SquarePulse(amplitude=0.99, length=100)
+
+    add_channel(
+        machine,
+        "q0",
+        "z",
+        {"opx_output": "#/ports/analog_outputs/con1/3/1"},
+        add_default_pulses=True,
+    )
+
+    assert transmon.xy.operations["saturation"].amplitude == 0.99
+    assert "const" in transmon.z.operations
 
 
 def test_add_channel_duplicate_raises(empty_ff_machine: FixedFrequencyQuam, mw_wiring) -> None:

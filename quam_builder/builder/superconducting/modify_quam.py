@@ -33,7 +33,7 @@ from quam.core.quam_classes import QuamDict
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
 from quam_builder.builder.superconducting.add_default_pulses import (
-    add_default_transmon_pulses,
+    add_default_transmon_channel_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
@@ -129,7 +129,7 @@ def add_qubit(
 
             If ``None``, the wiring must already exist in
             ``machine.wiring["qubits"][qubit_id]``.
-        add_default_pulses: Seed default pulse operations on the new channels.
+        add_default_pulses: Seed default pulse operations on the new channels only.
 
     Returns:
         The newly created qubit, fully wired with channels and (optionally) pulses.
@@ -164,7 +164,8 @@ def add_qubit(
         adder(transmon, wiring_path, ports)
 
     if add_default_pulses:
-        add_default_transmon_pulses(transmon)
+        for line_type in qubit_wiring:
+            add_default_transmon_channel_pulses(transmon, line_type)
 
     if qubit_id not in machine.active_qubit_names:
         machine.active_qubit_names.append(transmon.name)
@@ -228,7 +229,7 @@ def add_channel(
         line_type: One of ``"xy"`` (drive), ``"rr"`` (resonator), or ``"z"`` (flux).
         ports: Dict with port references, e.g.
             ``{"opx_output": "#/ports/mw_outputs/con1/1/5"}``.
-        add_default_pulses: Seed default pulse operations on the new channel.
+        add_default_pulses: Seed default pulse operations on the new channel only.
 
     Raises:
         KeyError: If the qubit doesn't exist.
@@ -258,7 +259,7 @@ def add_channel(
     adder(transmon, wiring_path, ports)
 
     if add_default_pulses:
-        add_default_transmon_pulses(transmon)
+        add_default_transmon_channel_pulses(transmon, line_type)
 
 
 def remove_channel(machine: AnyQuam, qubit_id: str, line_type: str) -> None:
