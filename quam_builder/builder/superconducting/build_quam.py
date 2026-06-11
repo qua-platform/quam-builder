@@ -46,7 +46,6 @@ def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
     add_ports(machine)
     add_transmons(machine)
     add_pulses(machine)
-
     machine.save()
 
     return machine

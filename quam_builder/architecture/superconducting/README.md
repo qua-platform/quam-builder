@@ -29,7 +29,7 @@ Defines the auxiliary hardware components and control elements associated with q
 - **`FluxLine`**: Defines the parameters for the flux bias line used to tune qubit frequency. Includes various attributes suc as the different flux bias offsets (`joint_offset`, `independent_offset`...), the corresponding flux points (`flux_point`), and the flux voltage settle time (`settle_time`) and methods to go to the specified bias points (`to_independent_idle`, `to_joint_idle`...) for instance.
 - **`Mixer`**: Defines mixer calibration parameters, typically including the correction matrix (`correction_matrix`) to compensate for IQ imbalance and skewness.
 - **`TunableCoupler`**: Models a tunable coupling element between qubits. Includes various attributes suc as the different flux bias offsets (`decouple_offset`, `interaction_offset`...), the corresponding flux points (`flux_point`), and the flux voltage settle time (`settle_time`) and methods to go to the specified bias points (`to_decouple_idle`, `to_interaction_idle`...) for instance.
-- **`CrossResonance`**: Defines parameters specific to cross-resonance (CR) based two-qubit gates. 
+- **`CrossResonance`**: Defines parameters specific to cross-resonance (CR) based two-qubit gates.
 - **`ZZDrive`**: Represents drives used for dynamical decoupling or ZZ interaction cancellation.
 
 ## 4. Qubit Pair (`architecture/superconducting/qubit_pair/`)
@@ -38,6 +38,74 @@ Defines structures representing pairs of interacting qubits, holding parameters 
 
 - **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `ZZ_drive` or `cross_resonance`.
 - **`FluxTunableTransmonPair`**: Represents a pair of interacting flux-tunable transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `coupler` or `mutual_flux_bias` for instance.
+
+## 5. Custom Gate Macros (`architecture/superconducting/custom_gates/`)
+
+> **Note:** This module is specific to the superconducting architecture. No equivalent exists for other architectures yet.
+
+Defines high-level gate macros that compose hardware pulses into logical quantum operations. Macros are `@quam_dataclass` objects whose `apply()` method emits the corresponding QUA instruction sequence at runtime.
+
+### Single-Qubit Macros
+
+All single-qubit macros operate on any `BaseTransmon` subtype (`FixedFrequencyTransmon` or `FluxTunableTransmon`).
+
+| Macro | Default key | Description |
+|---|---|---|
+| `MeasureMacro` | `"measure"` | Plays a readout pulse and performs I/Q integration with threshold-based state discrimination. Default pulse: `"readout"`. |
+| `ResetMacro` | `"reset"` | Resets a qubit via thermalization, active (measure-and-pulse), or active GEF. Default: active reset using `"x180"` and `"readout"`. |
+| `VirtualZMacro` | `"rz"` | Applies a frame rotation on the XY drive channel (instantaneous, no hardware pulse). |
+| `DelayMacro` | `"delay"` | Inserts a wait across all qubit channels for the specified duration. |
+| `IdMacro` | `"id"` | Aligns all qubit channels (identity operation). |
+
+`add_default_transmon_macros()` in `quam_builder.builder.superconducting.macros` seeds each transmon with the full set above, wired to the default pulse names added by `add_default_transmon_pulses()`.
+
+### Two-Qubit Macros (FluxTunableTransmonPair only)
+
+> **Note:** CZ gate macros are currently only supported for `FluxTunableTransmonPair`. `FixedFrequencyTransmonPair` receives no default two-qubit gate macros.
+
+#### `CZGate`
+
+A flux-activated controlled-Z gate for flux-tunable transmon pairs, located in `custom_gates/flux_tunable_transmon_pair/two_qubit_gates.py`.
+
+**How it works:**
+
+1. Aligns all involved channels (control, target, coupler if present, spectator qubits if configured).
+2. Plays a flux pulse on the "moving" qubit — the qubit selected by `qubit_pair.moving_qubit` (`"control"` or `"target"`, default `"control"`).
+3. Optionally plays a simultaneous flux pulse on a tunable coupler (`coupler_flux_pulse`).
+4. Optionally plays compensating flux pulses on spectator qubits.
+5. Applies virtual-Z frame corrections on control and target (and spectators) after the interaction.
+6. Performs a final alignment across all involved channels.
+
+**Key parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `flux_pulse_qubit` | `Pulse \| str` | Flux pulse (or its name) applied to the moving qubit's Z line. |
+| `coupler_flux_pulse` | `Pulse \| None` | Optional pulse on the tunable coupler. |
+| `phase_shift_control` | `float` | Default frame rotation (in units of 2π) for the control qubit. |
+| `phase_shift_target` | `float` | Default frame rotation (in units of 2π) for the target qubit. |
+| `spectator_qubits` | `dict[str, Any]` | Additional qubits that receive flux pulses for crosstalk compensation. |
+
+**Pulse naming:** The default CZ macro added by `add_default_transmon_pair_macros()` references `flux_pulse_qubit="const"`, which matches the `"const"` `SquarePulse` that `add_default_transmon_pulses()` adds to every `FluxTunableTransmon`'s Z line. After calibration, replace `"const"` with a purpose-shaped pulse (e.g. a `FlatTopGaussianPulse` or `SNZPulse`).
+
+**Minimal usage example:**
+
+```python
+from quam_builder.architecture.superconducting.custom_gates import CZGate
+
+# Added automatically by build_quam / add_default_transmon_pair_macros:
+qubit_pair.macros["cz"] = CZGate(flux_pulse_qubit="const")
+
+# Inside a QUA program:
+qubit_pair.macros["cz"].apply()
+
+# With per-call overrides (e.g. during calibration):
+qubit_pair.macros["cz"].apply(
+    amplitude_scale_qubit=0.9,
+    phase_shift_control=0.05,
+    phase_shift_target=-0.02,
+)
+```
 
 ---
 
