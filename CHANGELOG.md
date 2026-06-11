@@ -9,11 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
+- Added incremental add/remove helpers for qubits, channels, and ports.
 
 ### Fixed
 
 - `add_default_transmon_pair_macros` now passes `flux_pulse_qubit="const"` (was `flux_pulse_control="const"`) to `CZGate`, matching the field rename introduced in v0.4.0 and aligning with the `"const"` pulse added to every `FluxTunableTransmon` Z line by `add_default_transmon_pulses`.
-- Added incremental add/remove helpers for qubits, channels, and ports.
 
 ## [0.4.0] - 2026-05-26
 
