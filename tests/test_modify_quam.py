@@ -278,9 +278,7 @@ def test_remove_qubit_no_longer_in_config(empty_ff_machine: FixedFrequencyQuam, 
     assert not any("q0" in n for n in element_names)
 
 
-def test_remove_qubit_rejects_when_in_pair(
-    empty_ff_machine: FixedFrequencyQuam, mw_wiring
-) -> None:
+def test_remove_qubit_rejects_when_in_pair(empty_ff_machine: FixedFrequencyQuam, mw_wiring) -> None:
     add_qubit(empty_ff_machine, "q0", mw_wiring)
     add_qubit(empty_ff_machine, "q1", mw_wiring)
     empty_ff_machine.qubit_pairs["q0-q1"] = FixedFrequencyTransmonPair(
@@ -404,9 +402,7 @@ def test_add_qubit_octave_wiring_reuses_existing_octave(tmp_path) -> None:
         },
     }
 
-    add_qubit(
-        machine, "q0", octave_wiring, add_default_pulses=False, calibration_db_path=tmp_path
-    )
+    add_qubit(machine, "q0", octave_wiring, add_default_pulses=False, calibration_db_path=tmp_path)
     existing_octave = machine.octaves["oct1"]
 
     add_qubit(

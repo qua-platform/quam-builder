@@ -95,9 +95,7 @@ def _port_reference_values(ports: dict[str, str]):
         yield ref
 
 
-def _calibration_db_path(
-    machine: AnyQuam, calibration_db_path: Path | str | None
-) -> Path:
+def _calibration_db_path(machine: AnyQuam, calibration_db_path: Path | str | None) -> Path:
     if calibration_db_path is None:
         calibration_db_path = machine.get_serialiser()._get_state_path().parent
     if isinstance(calibration_db_path, str):
@@ -170,7 +168,9 @@ def _validate_qubit_wiring(qubit_wiring: dict[str, dict[str, str]]) -> None:
         raise ValueError("Qubit wiring cannot be empty")
     for line_type, ports in qubit_wiring.items():
         if line_type not in _LINE_TYPE_TO_ADDER:
-            raise ValueError(f"Unknown line type: {line_type}. Valid line types are: {_LINE_TYPE_TO_ADDER.keys()}")
+            raise ValueError(
+                f"Unknown line type: {line_type}. Valid line types are: {_LINE_TYPE_TO_ADDER.keys()}"
+            )
         _validate_port_mapping(line_type, ports)
 
 
@@ -182,9 +182,7 @@ def _wire_qubit_channels(
     calibration_db_path: Path | str | None = None,
 ) -> None:
     for line_type, ports in qubit_wiring.items():
-        _create_line_refs(
-            machine, ports, qubit_id, line_type, calibration_db_path
-        )
+        _create_line_refs(machine, ports, qubit_id, line_type, calibration_db_path)
         wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
         _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
@@ -252,9 +250,7 @@ def add_qubit(
         raise KeyError(f"Qubit '{qubit_id}' already exists")
 
     qubit_wiring = (
-        wiring
-        if wiring is not None
-        else machine.wiring.get("qubits", {}).get(qubit_id, {})
+        wiring if wiring is not None else machine.wiring.get("qubits", {}).get(qubit_id, {})
     )
     _validate_qubit_wiring(qubit_wiring)
 
@@ -272,9 +268,7 @@ def add_qubit(
 
     machine.qubits[qubit_id] = transmon
 
-    _wire_qubit_channels(
-        machine, transmon, qubit_id, qubit_wiring, calibration_db_path
-    )
+    _wire_qubit_channels(machine, transmon, qubit_id, qubit_wiring, calibration_db_path)
 
     if add_default_pulses:
         for line_type in qubit_wiring:
@@ -371,9 +365,7 @@ def add_channel(
     machine.wiring["qubits"][qubit_id][line_type] = ports
 
     wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
-    _create_line_refs(
-        machine, ports, qubit_id, line_type, calibration_db_path
-    )
+    _create_line_refs(machine, ports, qubit_id, line_type, calibration_db_path)
     _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
     if add_default_pulses:
