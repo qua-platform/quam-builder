@@ -6,6 +6,9 @@ incrementally-added objects are identical to batch-built ones.
 Line type keys match ``WiringLineType`` enum values: ``"xy"`` (drive),
 ``"rr"`` (resonator), ``"z"`` (flux).
 
+``add_qubit`` and ``add_channel`` validate wiring and port mappings before
+mutating the machine, so invalid input raises without changing state.
+
 Example::
 
     from quam_builder.builder.superconducting.modify_quam import (
@@ -32,6 +35,12 @@ from quam.core.quam_classes import QuamDict
 
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
+from quam_builder.builder.qop_connectivity.channel_ports import (
+    iq_in_out_channel_ports,
+    iq_out_channel_ports,
+    mw_in_out_channel_ports,
+    mw_out_channel_ports,
+)
 from quam_builder.builder.superconducting.add_default_pulses import (
     add_default_transmon_channel_pulses,
 )
@@ -80,6 +89,42 @@ def _create_ports(machine: AnyQuam, ports: dict[str, str]):
     for ref in _port_reference_values(ports):
         if isinstance(ref, str) and "ports" in ref and machine.ports is not None:
             machine.ports.reference_to_port(ref, create=True)
+
+
+def _validate_port_mapping(line_type: str, ports: dict[str, str]) -> None:
+    keys = set(ports.keys())
+    if line_type == WiringLineType.FLUX.value:
+        if "opx_output" in keys:
+            return
+    elif line_type == WiringLineType.DRIVE.value:
+        if all(key in keys for key in iq_out_channel_ports) or all(
+            key in keys for key in mw_out_channel_ports
+        ):
+            return
+    elif line_type == WiringLineType.RESONATOR.value:
+        if all(key in keys for key in iq_in_out_channel_ports) or all(
+            key in keys for key in mw_in_out_channel_ports
+        ):
+            return
+    raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")
+
+
+def _validate_qubit_wiring(qubit_wiring: dict[str, dict[str, str]]) -> None:
+    if not qubit_wiring:
+        raise ValueError("Qubit wiring cannot be empty")
+    for line_type, ports in qubit_wiring.items():
+        if line_type not in _LINE_TYPE_TO_ADDER:
+            raise ValueError(f"Unknown line type: {line_type}. Valid line types are: {_LINE_TYPE_TO_ADDER.keys()}")
+        _validate_port_mapping(line_type, ports)
+
+
+def _wire_qubit_channels(
+    machine: AnyQuam, transmon: AnyTransmon, qubit_id: str, qubit_wiring: dict[str, dict[str, str]]
+) -> None:
+    for line_type, ports in qubit_wiring.items():
+        _create_ports(machine, ports)
+        wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
+        _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
 
 def _get_referencing_qubit_pair_ids(machine: AnyQuam, qubit_id: str) -> list[str]:
@@ -136,32 +181,33 @@ def add_qubit(
 
     Raises:
         KeyError: If a qubit with ``qubit_id`` already exists.
+        ValueError: If wiring is invalid.
     """
     if qubit_id in machine.qubits:
         raise KeyError(f"Qubit '{qubit_id}' already exists")
 
-    if wiring is not None:
-        machine.wiring.setdefault("qubits", {})
-        machine.wiring["qubits"][qubit_id] = wiring
-
-    qubit_wiring = machine.wiring.get("qubits", {}).get(qubit_id, {})
+    qubit_wiring = (
+        wiring
+        if wiring is not None
+        else machine.wiring.get("qubits", {}).get(qubit_id, {})
+    )
+    _validate_qubit_wiring(qubit_wiring)
 
     try:
         transmon = machine.qubit_type(id=qubit_id)
-        machine.qubits[qubit_id] = transmon
     except AttributeError as e:
         raise TypeError(
             f"{type(machine).__name__} does not define qubit_type. "
             "Use FixedFrequencyQuam or FluxTunableQuam."
         ) from e
 
-    for line_type, ports in qubit_wiring.items():
-        _create_ports(machine, ports)
-        wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
-        adder = _LINE_TYPE_TO_ADDER.get(line_type)
-        if adder is None:
-            raise ValueError(f"Unknown line type: {line_type}")
-        adder(transmon, wiring_path, ports)
+    if wiring is not None:
+        machine.wiring.setdefault("qubits", {})
+        machine.wiring["qubits"][qubit_id] = wiring
+
+    machine.qubits[qubit_id] = transmon
+
+    _wire_qubit_channels(machine, transmon, qubit_id, qubit_wiring)
 
     if add_default_pulses:
         for line_type in qubit_wiring:
@@ -233,7 +279,7 @@ def add_channel(
 
     Raises:
         KeyError: If the qubit doesn't exist.
-        ValueError: If the channel slot is already occupied.
+        ValueError: If the channel slot is already occupied or ports are invalid.
     """
     if qubit_id not in machine.qubits:
         raise KeyError(f"Qubit '{qubit_id}' not found")
@@ -248,15 +294,15 @@ def add_channel(
             f"Channel '{line_type}' (field '{field_name}') already exists on qubit '{qubit_id}'"
         )
 
-    _create_ports(machine, ports)
+    _validate_port_mapping(line_type, ports)
 
     machine.wiring.setdefault("qubits", {})
     machine.wiring["qubits"].setdefault(qubit_id, {})
     machine.wiring["qubits"][qubit_id][line_type] = ports
 
     wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
-    adder = _LINE_TYPE_TO_ADDER[line_type]
-    adder(transmon, wiring_path, ports)
+    _create_ports(machine, ports)
+    _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
     if add_default_pulses:
         add_default_transmon_channel_pulses(transmon, line_type)

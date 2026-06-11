@@ -308,6 +308,52 @@ def test_remove_qubit_rejects_when_in_pair_wiring_only(
     assert "q0" in empty_ff_machine.qubits
 
 
+def test_add_qubit_rejects_invalid_wiring_before_mutating(
+    empty_ff_machine: FixedFrequencyQuam,
+) -> None:
+    wiring = {
+        "xy": {"opx_output": "#/ports/mw_outputs/con1/1/1"},
+        "rr": {"not_a_valid_port_key": "#/ports/mw_outputs/con1/2/1"},
+    }
+
+    with pytest.raises(ValueError, match="Unimplemented mapping"):
+        add_qubit(empty_ff_machine, "q0", wiring)
+
+    assert "q0" not in empty_ff_machine.qubits
+    assert "q0" not in empty_ff_machine.wiring.get("qubits", {})
+
+
+def test_add_qubit_rejects_unknown_line_type_before_mutating(
+    empty_ff_machine: FixedFrequencyQuam,
+) -> None:
+    wiring = {
+        "xy": {"opx_output": "#/ports/mw_outputs/con1/1/1"},
+        "coupler": {"opx_output": "#/ports/analog_outputs/con1/3/1"},
+    }
+
+    with pytest.raises(ValueError, match="Unknown line type"):
+        add_qubit(empty_ff_machine, "q0", wiring)
+
+    assert "q0" not in empty_ff_machine.qubits
+    assert "q0" not in empty_ff_machine.wiring.get("qubits", {})
+
+
+def test_add_channel_rejects_invalid_ports_before_mutating() -> None:
+    machine = FluxTunableQuam(ports=FEMPortsContainer())
+    add_qubit(
+        machine,
+        "q0",
+        {"xy": {"opx_output": "#/ports/mw_outputs/con1/1/1"}},
+        add_default_pulses=False,
+    )
+
+    with pytest.raises(ValueError, match="Unimplemented mapping"):
+        add_channel(machine, "q0", "z", {"not_a_valid_port_key": "#/ports/analog_outputs/con1/3/1"})
+
+    assert machine.qubits["q0"].z is None
+    assert "z" not in machine.wiring["qubits"]["q0"]
+
+
 ##############################################################################
 ##############################################################################
 #                                add_channel tests
