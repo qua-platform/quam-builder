@@ -8,6 +8,8 @@ Line type keys match ``WiringLineType`` enum values: ``"xy"`` (drive),
 
 ``add_qubit`` and ``add_channel`` validate wiring and port mappings before
 mutating the machine, so invalid input raises without changing state.
+Port dicts may reference ``#/ports/...``, ``#/octaves/...``, and
+``#/mixers/...``; the latter two are created on the machine when missing.
 
 Example::
 
@@ -30,9 +32,13 @@ Example::
     remove_qubit(machine, "q5")
 """
 
+from pathlib import Path
+
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam.components import FrequencyConverter, LocalOscillator, Octave
 from quam.core.quam_classes import QuamDict
 
+from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.architecture.superconducting.qubit import AnyTransmon
 from quam_builder.builder.qop_connectivity.channel_ports import (
@@ -68,6 +74,11 @@ _LINE_TYPE_TO_FIELD = {
     WiringLineType.FLUX.value: "z",
 }
 
+_MIXER_CHANNEL_FIELD = {
+    WiringLineType.DRIVE.value: "xy",
+    WiringLineType.RESONATOR.value: "resonator",
+}
+
 
 def _port_reference_values(ports: dict[str, str]):
     """Yield port reference strings without resolving through ``machine.wiring``.
@@ -84,11 +95,56 @@ def _port_reference_values(ports: dict[str, str]):
         yield ref
 
 
-def _create_ports(machine: AnyQuam, ports: dict[str, str]):
-    """Ensure every port reference in *ports* exists in ``machine.ports``."""
+def _calibration_db_path(
+    machine: AnyQuam, calibration_db_path: Path | str | None
+) -> Path:
+    if calibration_db_path is None:
+        calibration_db_path = machine.get_serialiser()._get_state_path().parent
+    if isinstance(calibration_db_path, str):
+        calibration_db_path = Path(calibration_db_path)
+    return calibration_db_path
+
+
+def _create_line_refs(
+    machine: AnyQuam,
+    ports: dict[str, str],
+    qubit_id: str,
+    line_type: str,
+    calibration_db_path: Path | str | None = None,
+) -> None:
+    """Create ports, octaves, and mixers referenced by a wiring port dict if missing."""
+
     for ref in _port_reference_values(ports):
-        if isinstance(ref, str) and "ports" in ref and machine.ports is not None:
+        if not isinstance(ref, str):
+            continue
+        if "ports" in ref and machine.ports is not None:
             machine.ports.reference_to_port(ref, create=True)
+        elif "octaves" in ref:
+            db_path = _calibration_db_path(machine, calibration_db_path)
+            octave_name = ref.split("/")[2]
+            if octave_name not in machine.octaves:
+                octave = Octave(
+                    name=octave_name,
+                    calibration_db_path=str(db_path),
+                )
+                machine.octaves[octave_name] = octave
+                octave.initialize_frequency_converters()
+        elif "mixers" in ref:
+            channel_field = _MIXER_CHANNEL_FIELD.get(line_type)
+            if channel_field is None:
+                raise ValueError(
+                    f"Cannot create mixer for line type '{line_type}' on qubit '{qubit_id}'"
+                )
+            mixer_name = ref.split("/")[2]
+            if mixer_name not in machine.mixers:
+                machine.mixers[mixer_name] = FrequencyConverter(
+                    local_oscillator=LocalOscillator(),
+                    mixer=StandaloneMixer(
+                        intermediate_frequency=(
+                            f"#/qubits/{qubit_id}/{channel_field}/intermediate_frequency"
+                        ),
+                    ),
+                )
 
 
 def _validate_port_mapping(line_type: str, ports: dict[str, str]) -> None:
@@ -119,10 +175,16 @@ def _validate_qubit_wiring(qubit_wiring: dict[str, dict[str, str]]) -> None:
 
 
 def _wire_qubit_channels(
-    machine: AnyQuam, transmon: AnyTransmon, qubit_id: str, qubit_wiring: dict[str, dict[str, str]]
+    machine: AnyQuam,
+    transmon: AnyTransmon,
+    qubit_id: str,
+    qubit_wiring: dict[str, dict[str, str]],
+    calibration_db_path: Path | str | None = None,
 ) -> None:
     for line_type, ports in qubit_wiring.items():
-        _create_ports(machine, ports)
+        _create_line_refs(
+            machine, ports, qubit_id, line_type, calibration_db_path
+        )
         wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
         _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
@@ -157,6 +219,7 @@ def add_qubit(
     qubit_id: str,
     wiring: dict[str, dict[str, str]] | None = None,
     add_default_pulses: bool = True,
+    calibration_db_path: Path | str | None = None,
 ) -> AnyTransmon:
     """Add a single qubit to an existing machine.
 
@@ -175,6 +238,8 @@ def add_qubit(
             If ``None``, the wiring must already exist in
             ``machine.wiring["qubits"][qubit_id]``.
         add_default_pulses: Seed default pulse operations on the new channels only.
+        calibration_db_path: Path to the Octave calibration database. Defaults to
+            the machine state directory.
 
     Returns:
         The newly created qubit, fully wired with channels and (optionally) pulses.
@@ -207,7 +272,9 @@ def add_qubit(
 
     machine.qubits[qubit_id] = transmon
 
-    _wire_qubit_channels(machine, transmon, qubit_id, qubit_wiring)
+    _wire_qubit_channels(
+        machine, transmon, qubit_id, qubit_wiring, calibration_db_path
+    )
 
     if add_default_pulses:
         for line_type in qubit_wiring:
@@ -266,6 +333,7 @@ def add_channel(
     line_type: str,
     ports: dict[str, str],
     add_default_pulses: bool = True,
+    calibration_db_path: Path | str | None = None,
 ) -> None:
     """Add a single channel to an existing qubit.
 
@@ -276,6 +344,8 @@ def add_channel(
         ports: Dict with port references, e.g.
             ``{"opx_output": "#/ports/mw_outputs/con1/1/5"}``.
         add_default_pulses: Seed default pulse operations on the new channel only.
+        calibration_db_path: Path to the Octave calibration database. Defaults to
+            the machine state directory.
 
     Raises:
         KeyError: If the qubit doesn't exist.
@@ -301,7 +371,9 @@ def add_channel(
     machine.wiring["qubits"][qubit_id][line_type] = ports
 
     wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
-    _create_ports(machine, ports)
+    _create_line_refs(
+        machine, ports, qubit_id, line_type, calibration_db_path
+    )
     _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
     if add_default_pulses:

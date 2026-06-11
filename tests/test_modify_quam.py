@@ -354,6 +354,78 @@ def test_add_channel_rejects_invalid_ports_before_mutating() -> None:
     assert "z" not in machine.wiring["qubits"]["q0"]
 
 
+def test_add_qubit_octave_wiring_creates_octave(tmp_path) -> None:
+    machine = FixedFrequencyQuam(ports=FEMPortsContainer())
+    machine.save(tmp_path / "state")
+    wiring = {
+        "xy": {
+            "opx_output_I": "#/ports/analog_outputs/con1/1/1",
+            "opx_output_Q": "#/ports/analog_outputs/con1/1/2",
+            "frequency_converter_up": "#/octaves/oct1/RF_outputs/1",
+        },
+    }
+
+    add_qubit(
+        machine,
+        "q0",
+        wiring,
+        add_default_pulses=False,
+        calibration_db_path=tmp_path,
+    )
+
+    assert "oct1" in machine.octaves
+    assert machine.qubits["q0"].xy is not None
+
+
+def test_add_qubit_mixer_wiring_creates_mixer() -> None:
+    machine = FixedFrequencyQuam(ports=FEMPortsContainer())
+    wiring = {
+        "xy": {
+            "opx_output_I": "#/ports/analog_outputs/con1/1/1",
+            "opx_output_Q": "#/ports/analog_outputs/con1/1/2",
+            "frequency_converter_up": "#/mixers/mixercon1.q0.xy",
+        },
+    }
+
+    add_qubit(machine, "q0", wiring, add_default_pulses=False)
+
+    assert "mixercon1.q0.xy" in machine.mixers
+    assert machine.qubits["q0"].xy is not None
+
+
+def test_add_qubit_octave_wiring_reuses_existing_octave(tmp_path) -> None:
+    machine = FixedFrequencyQuam(ports=FEMPortsContainer())
+    machine.save(tmp_path / "state")
+    octave_wiring = {
+        "xy": {
+            "opx_output_I": "#/ports/analog_outputs/con1/1/1",
+            "opx_output_Q": "#/ports/analog_outputs/con1/1/2",
+            "frequency_converter_up": "#/octaves/oct1/RF_outputs/1",
+        },
+    }
+
+    add_qubit(
+        machine, "q0", octave_wiring, add_default_pulses=False, calibration_db_path=tmp_path
+    )
+    existing_octave = machine.octaves["oct1"]
+
+    add_qubit(
+        machine,
+        "q1",
+        {
+            "xy": {
+                "opx_output_I": "#/ports/analog_outputs/con1/2/1",
+                "opx_output_Q": "#/ports/analog_outputs/con1/2/2",
+                "frequency_converter_up": "#/octaves/oct1/RF_outputs/2",
+            },
+        },
+        add_default_pulses=False,
+        calibration_db_path=tmp_path,
+    )
+
+    assert machine.octaves["oct1"] is existing_octave
+
+
 ##############################################################################
 ##############################################################################
 #                                add_channel tests
