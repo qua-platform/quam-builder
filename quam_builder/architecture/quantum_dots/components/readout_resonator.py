@@ -3,6 +3,8 @@ from typing import Optional, Union
 from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel, InOutSingleChannel
 
+from qualang_tools.units import unit as _unit
+
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
     set_output_power_mw_channel,
@@ -33,7 +35,9 @@ class ReadoutResonatorBase:
     frequency_bare: float = None
 
     @staticmethod
-    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
+    def calculate_voltage_scaling_factor(
+        fixed_power_dBm: float, target_power_dBm: float
+    ):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -51,21 +55,62 @@ class ReadoutResonatorBase:
 class ReadoutResonatorSingle(InOutSingleChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#/inferred_intermediate_frequency"
 
+    def __post_init__(self):
+        if hasattr(self.opx_output, "upsampling_mode"):
+            self.opx_output.upsampling_mode = "mw"
+
     def set_output_power(
         self,
         power_in_dbm: float,
-        gain: Optional[int] = None,
+        gain: Optional[float] = None,
         max_amplitude: Optional[float] = None,
         Z: int = 50,
         operation: Optional[str] = "readout",
     ):
+        """Set readout pulse amplitude from a target power at the load (same dBm→V model as IQ path).
 
-        pass
+        ``power_in_dbm`` is the **desired** output power (dBm, 50 Ω). Any fixed gain in the analog
+        chain (e.g. MW-FEM or off-chip amp modelled as an additive dB) is given by ``gain``:
+        the OPX amplitude is chosen as the voltage that corresponds to ``power_in_dbm - gain``
+        in dBm, matching :func:`~quam_builder.tools.power_tools.set_output_power_iq_channel`
+        (``amplitude = dBm2volts(P - gain)`` with Octave gain).
+
+        Parameters
+        ----------
+        power_in_dbm
+            Target power at the load (dBm).
+        gain
+            Chain gain in **dB** to subtract before converting to volts (default ``0`` = no extra term).
+            Not a linear voltage divider; use ``0`` if you do not model a converter/amp.
+        max_amplitude
+            Absolute ceiling on ``|amplitude|`` (V). Default ``0.5`` (OPX+ single-ended limit).
+        Z
+            Impedance for dBm↔V conversion (Ω), default 50.
+        operation
+            Pulse name on this resonator, default ``"readout"``.
+        """
+        if max_amplitude is None:
+            max_amplitude = 0.5
+        if gain is None:
+            gain = 0.0
+
+        u = _unit(coerce_to_integer=True)
+        amplitude_in_v = u.dBm2volts(power_in_dbm - gain, Z=Z)
+        if abs(amplitude_in_v) > max_amplitude:
+            raise ValueError(
+                f"Converted amplitude |{amplitude_in_v}| V exceeds max_amplitude {max_amplitude} V "
+                f"(power_in_dbm={power_in_dbm} dBm, gain={gain} dB, Z={Z} Ω)."
+            )
+        self.operations[operation].amplitude = amplitude_in_v
 
 
 @quam_dataclass
 class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
     intermediate_frequency: int = "#./inferred_intermediate_frequency"
+
+    def __post_init__(self):
+        if hasattr(self.opx_output, "upsampling_mode"):
+            self.opx_output.upsampling_mode = "mw"
 
     @property
     def upconverter_frequency(self):
@@ -113,7 +158,9 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
+        return set_output_power_iq_channel(
+            self, power_in_dbm, gain, max_amplitude, Z, operation
+        )
 
 
 @quam_dataclass
