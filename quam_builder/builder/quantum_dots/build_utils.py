@@ -26,6 +26,7 @@ from quam_builder.architecture.quantum_dots.components.xy_drive import (
     XYDriveMW,
     XYDriveSingle,
 )
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.builder.qop_connectivity.get_digital_outputs import (
     get_digital_outputs,
 )
@@ -34,13 +35,8 @@ from quam_builder.builder.qop_connectivity.channel_ports import (
     mw_out_channel_ports,
 )
 
-# Default configuration constants for quantum dot systems
 DEFAULT_GATE_SET_ID = "main_qpu"
-DEFAULT_STICKY_DURATION = 16
-DEFAULT_INTERMEDIATE_FREQUENCY = 500e6
-DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY = 0
-DEFAULT_READOUT_LENGTH = 200
-DEFAULT_READOUT_AMPLITUDE = 0.01
+_FALLBACK_INTERMEDIATE_FREQUENCY = DEFAULTS.frequency.intermediate_frequency
 
 _ELEMENT_TYPE_ALIASES = {
     "globals": "globals",
@@ -107,7 +103,9 @@ def _normalize_element_type(element_type: str) -> str:
     try:
         return _ELEMENT_TYPE_ALIASES[element_type]
     except KeyError as exc:
-        raise ValueError(f"Unsupported element type '{element_type}' in wiring") from exc
+        raise ValueError(
+            f"Unsupported element type '{element_type}' in wiring"
+        ) from exc
 
 
 def _validate_line_type(element_type: str, line_type: str) -> None:
@@ -156,9 +154,9 @@ def _make_sticky_channel() -> StickyChannelAddon:
     """Create a sticky channel addon with default duration.
 
     Returns:
-        StickyChannelAddon configured with DEFAULT_STICKY_DURATION.
+        StickyChannelAddon configured with ``DEFAULTS.misc.sticky_duration``.
     """
-    return StickyChannelAddon(duration=DEFAULT_STICKY_DURATION, digital=False)
+    return StickyChannelAddon(duration=DEFAULTS.misc.sticky_duration, digital=False)
 
 
 def _make_voltage_gate(gate_id: str, wiring_path: str) -> VoltageGate:
@@ -178,7 +176,9 @@ def _make_voltage_gate(gate_id: str, wiring_path: str) -> VoltageGate:
     )
 
 
-def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> ReadoutResonatorSingle:
+def _make_resonator(
+    sensor_id: str, wiring_path: str, resonator_cls: Any
+) -> ReadoutResonatorSingle:
     """Create a readout resonator with default configuration and readout pulse.
 
     Args:
@@ -192,11 +192,13 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
     sensor_number = _extract_qubit_number(sensor_id)
     return resonator_cls(
         id=f"readout_resonator_{sensor_number}",
-        frequency_bare=0,
-        intermediate_frequency=DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY,
+        frequency_bare=DEFAULTS.readout.frequency,
+        intermediate_frequency=DEFAULTS.readout.frequency,
         operations={
             "readout": pulses.SquareReadoutPulse(
-                length=DEFAULT_READOUT_LENGTH, id="readout", amplitude=DEFAULT_READOUT_AMPLITUDE
+                length=DEFAULTS.readout.length,
+                id="readout",
+                amplitude=DEFAULTS.readout.amplitude,
             )
         },
         opx_output=f"{wiring_path}/opx_output",
@@ -409,7 +411,7 @@ def _create_xy_drive_from_wiring(
     qubit_id: str,
     drive_type: str,
     wiring_path: str,
-    intermediate_frequency: float = DEFAULT_INTERMEDIATE_FREQUENCY,
+    intermediate_frequency: float = _FALLBACK_INTERMEDIATE_FREQUENCY,
 ) -> Any:  # Returns XYDriveIQ, XYDriveMW, or XYDriveSingle
     """Create an XY drive channel from wiring specification.
 
@@ -439,12 +441,10 @@ def _create_xy_drive_from_wiring(
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
             frequency_converter_up=f"{wiring_path}/frequency_converter_up",
-            RF_frequency=None,
         )
     if drive_type == "MW":
         return XYDriveMW(
             id=drive_id,
-            RF_frequency=None,
             opx_output=f"{wiring_path}/opx_output",
         )
     if drive_type == "Single":
@@ -454,16 +454,14 @@ def _create_xy_drive_from_wiring(
             opx_output=f"{wiring_path}/opx_output",
         )
 
-    raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'.")
+    raise ValueError(
+        f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'."
+    )
 
 
 # pylint: disable=undefined-all-variable
 __all__ = [
     "DEFAULT_GATE_SET_ID",
-    "DEFAULT_STICKY_DURATION",
-    "DEFAULT_INTERMEDIATE_FREQUENCY",
-    "DEFAULT_READOUT_LENGTH",
-    "DEFAULT_READOUT_AMPLITUDE",
     "_natural_sort_key",
     "_sorted_items",
     "_normalize_element_type",

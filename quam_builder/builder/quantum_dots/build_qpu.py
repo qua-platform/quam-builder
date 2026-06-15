@@ -28,11 +28,8 @@ from quam_builder.architecture.quantum_dots.components import (
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 from quam_builder.builder.quantum_dots.build_utils import (
+    _FALLBACK_INTERMEDIATE_FREQUENCY,
     DEFAULT_GATE_SET_ID,
-    DEFAULT_INTERMEDIATE_FREQUENCY,
-    DEFAULT_READOUT_AMPLITUDE,
-    DEFAULT_READOUT_LENGTH,
-    DEFAULT_STICKY_DURATION,
     _build_virtual_mapping,
     _extract_qubit_number,
     _make_resonator,
@@ -87,8 +84,12 @@ class QpuAssembly:  # pylint: disable=too-few-public-methods,too-many-instance-a
     plunger_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
     barrier_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
     sensor_id_to_channel: Dict[str, VoltageGate] = field(default_factory=dict)
-    sensor_id_to_resonator: Dict[str, ReadoutResonatorSingle] = field(default_factory=dict)
-    qubit_id_to_xy_info: Dict[str, Tuple[str, str, Mapping[str, Any]]] = field(default_factory=dict)
+    sensor_id_to_resonator: Dict[str, ReadoutResonatorSingle] = field(
+        default_factory=dict
+    )
+    qubit_id_to_xy_info: Dict[str, Tuple[str, str, Mapping[str, Any]]] = field(
+        default_factory=dict
+    )
     qubit_pair_id_to_barrier_id: Dict[str, str] = field(default_factory=dict)
 
     plunger_virtual_names: Dict[str, str] = field(default_factory=dict)
@@ -149,7 +150,9 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
         self.machine.active_qubit_pair_names = []
 
         self._wiring_by_type = self._normalize_wiring(self.machine.wiring or {})
-        self._normalized_pair_sensor_map = self._normalize_sensor_map(self._qubit_pair_sensor_map)
+        self._normalized_pair_sensor_map = self._normalize_sensor_map(
+            self._qubit_pair_sensor_map
+        )
         self._collect_physical_channels()
         self._create_virtual_gate_set()
         self._register_channels()
@@ -157,7 +160,9 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
         self._register_qubit_pairs()
         return self.machine
 
-    def _normalize_wiring(self, wiring: Mapping[str, Any]) -> Dict[str, Mapping[str, Any]]:
+    def _normalize_wiring(
+        self, wiring: Mapping[str, Any]
+    ) -> Dict[str, Mapping[str, Any]]:
         normalized: Dict[str, Mapping[str, Any]] = {}
         for element_type, wiring_by_element in wiring.items():
             canonical_type = _normalize_element_type(element_type)
@@ -217,9 +222,13 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
             for line_type, ports in _sorted_items(wiring_by_line_type):
                 _validate_line_type(element_type, line_type)
                 wiring_path = f"#/wiring/{element_type}/{global_gate_id}/{line_type}"
-                self.assembly.global_gates.append(_make_voltage_gate(global_gate_id, wiring_path))
+                self.assembly.global_gates.append(
+                    _make_voltage_gate(global_gate_id, wiring_path)
+                )
 
-    def _collect_sensor_dots(self, wiring_by_element: Mapping[str, Any], resonator_cls: Any):
+    def _collect_sensor_dots(
+        self, wiring_by_element: Mapping[str, Any], resonator_cls: Any
+    ):
         element_type = "readout"
         for sensor_dot_id, wiring_by_line_type in _sorted_items(wiring_by_element):
             sensor_number = _extract_qubit_number(sensor_dot_id)
@@ -245,9 +254,15 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                 wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
                 if line_type == WiringLineType.DRIVE.value:
                     drive_type = _validate_drive_ports(qubit_id, ports)
-                    self.assembly.qubit_id_to_xy_info[qubit_id] = (drive_type, wiring_path, ports)
+                    self.assembly.qubit_id_to_xy_info[qubit_id] = (
+                        drive_type,
+                        wiring_path,
+                        ports,
+                    )
                 elif line_type == WiringLineType.PLUNGER_GATE.value:
-                    plunger_gate = _make_voltage_gate(f"plunger_{qubit_index}", wiring_path)
+                    plunger_gate = _make_voltage_gate(
+                        f"plunger_{qubit_index}", wiring_path
+                    )
                     self.assembly.plunger_channels.append(plunger_gate)
                     self.assembly.plunger_id_to_channel[plunger_gate.id] = plunger_gate
 
@@ -264,7 +279,9 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                     self.assembly.barrier_counter += 1
                     self.assembly.barrier_channels.append(barrier_gate)
                     self.assembly.barrier_id_to_channel[barrier_gate.id] = barrier_gate
-                    self.assembly.qubit_pair_id_to_barrier_id[qubit_pair_id] = barrier_gate.id
+                    self.assembly.qubit_pair_id_to_barrier_id[qubit_pair_id] = (
+                        barrier_gate.id
+                    )
 
     def _create_virtual_gate_set(self):
         virtual_channel_mapping: Dict[str, VoltageGate] = {}
@@ -313,14 +330,18 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
         for sensor_id, channel in self.assembly.sensor_id_to_channel.items():
             resonator = self.assembly.sensor_id_to_resonator.get(sensor_id)
             if resonator is None:
-                raise ValueError(f"Missing resonator wiring for sensor gate '{sensor_id}'")
+                raise ValueError(
+                    f"Missing resonator wiring for sensor gate '{sensor_id}'"
+                )
             sensor_resonator_mappings[channel] = resonator
 
         self.machine.register_channel_elements(
             plunger_channels=self.assembly.plunger_channels,
             sensor_resonator_mappings=sensor_resonator_mappings,
             barrier_channels=self.assembly.barrier_channels,
-            global_gates=self.assembly.global_gates if self.assembly.global_gates else None,
+            global_gates=(
+                self.assembly.global_gates if self.assembly.global_gates else None
+            ),
         )
 
         self.machine.active_sensor_dot_names = [
@@ -333,7 +354,9 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
     def _register_qubits(self):
         if not self.assembly.plunger_channels:
             if self._wiring_by_type.get("qubits"):
-                raise ValueError("No plunger gates collected while qubit wiring is defined")
+                raise ValueError(
+                    "No plunger gates collected while qubit wiring is defined"
+                )
             return
 
         number_of_qubits = len(self.assembly.plunger_channels)
@@ -361,7 +384,7 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                 elif xy_type == "Single":
                     xy = XYDriveSingle(
                         id=f"{qubit_name}_xy",
-                        RF_frequency=int(DEFAULT_INTERMEDIATE_FREQUENCY),
+                        RF_frequency=int(_FALLBACK_INTERMEDIATE_FREQUENCY),
                         opx_output=f"{wiring_path}/opx_output",
                     )
 
@@ -405,12 +428,18 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                 for sensor in requested_sensors
             ]
         else:
-            sensor_dot_ids = [name for _, name in _sorted_items(self.assembly.sensor_virtual_names)]
+            sensor_dot_ids = [
+                name for _, name in _sorted_items(self.assembly.sensor_virtual_names)
+            ]
 
         barrier_gate_id = None
-        physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(qubit_pair_id)
+        physical_barrier_id = self.assembly.qubit_pair_id_to_barrier_id.get(
+            qubit_pair_id
+        )
         if physical_barrier_id:
-            barrier_gate_id = self.assembly.barrier_virtual_names.get(physical_barrier_id)
+            barrier_gate_id = self.assembly.barrier_virtual_names.get(
+                physical_barrier_id
+            )
             if barrier_gate_id is None:
                 raise ValueError(
                     f"Barrier gate '{physical_barrier_id}' has no registered virtual mapping"
@@ -447,9 +476,7 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
         self.machine.active_qubit_pair_names.append(f"{qc_name}_{qt_name}")
 
     def _resolve_sensor_virtual_name(self, pair_id: str, sensor: str) -> str:
-        allowed_formats = (
-            "virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1)"
-        )
+        allowed_formats = "virtual_sensor_<n>, sensor_<n>, or s<n> (e.g., virtual_sensor_1, sensor_1, s1)"
         if not isinstance(sensor, str):
             raise ValueError(
                 f"Sensor mapping for pair '{pair_id}' must contain string identifiers; "
@@ -501,9 +528,5 @@ __all__ = [
     "_build_virtual_mapping",
     "_parse_qubit_pair_ids",
     "DEFAULT_GATE_SET_ID",
-    "DEFAULT_STICKY_DURATION",
-    "DEFAULT_INTERMEDIATE_FREQUENCY",
-    "DEFAULT_READOUT_LENGTH",
-    "DEFAULT_READOUT_AMPLITUDE",
 ]
 # pylint: enable=undefined-all-variable
