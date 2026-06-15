@@ -10,11 +10,13 @@ wiring infrastructure.
 
 # pylint: disable=no-member
 
+import inspect
 import shutil
 import tempfile
 
 import pytest
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
+from qualang_tools.wirer.connectivity.wiring_spec import WiringFrequency
 
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.architecture.quantum_dots.qpu.loss_divincenzo_quam import (
@@ -26,6 +28,22 @@ from quam_builder.builder.quantum_dots import (
     build_loss_divincenzo_quam,
     build_quam as build_quam_qd,
 )
+
+
+def _quantum_dot_drive_line_kw_dc():
+    """LF-FEM drives: ``wiring_frequency=DC`` (new API) or ``use_mw_fem=False`` (current)."""
+    params = inspect.signature(Connectivity.add_quantum_dot_drive_lines).parameters
+    if "wiring_frequency" in params:
+        return {"wiring_frequency": WiringFrequency.DC}
+    return {"use_mw_fem": False}
+
+
+def _quantum_dot_drive_line_kw_rf():
+    """MW-FEM drives: ``wiring_frequency=RF`` (new API) or ``use_mw_fem=True`` (current)."""
+    params = inspect.signature(Connectivity.add_quantum_dot_drive_lines).parameters
+    if "wiring_frequency" in params:
+        return {"wiring_frequency": WiringFrequency.RF}
+    return {"use_mw_fem": True}
 
 
 @pytest.fixture
@@ -61,13 +79,11 @@ class TestQuantumDotsCombinedWorkflow:
         connectivity = Connectivity()
         connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
         connectivity.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+            sensor_dots=sensor_dots, shared_resonator_line=False
         )
-        connectivity.add_quantum_dots(
-            quantum_dots=quantum_dots,
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
+        connectivity.add_quantum_dot_drive_lines(
+            quantum_dots=quantum_dots, shared_line=True
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
         allocate_wiring(connectivity, instruments)
@@ -94,13 +110,9 @@ class TestQuantumDotsCombinedWorkflow:
     def test_two_dot_minimal(self, instruments, temp_dir):
         """Minimal 2-dot system without global gates."""
         connectivity = Connectivity()
-        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
-        connectivity.add_quantum_dots(
-            quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
-        )
+        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(quantum_dots=[1, 2], shared_line=True)
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
         allocate_wiring(connectivity, instruments)
 
@@ -133,9 +145,9 @@ class TestQuantumDotsTwoStageWorkflow:
         connectivity = Connectivity()
         connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
         connectivity.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+            sensor_dots=sensor_dots, shared_resonator_line=False
         )
-        connectivity.add_quantum_dots(quantum_dots=quantum_dots, add_drive_lines=False)
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
         return connectivity
 
@@ -144,14 +156,12 @@ class TestQuantumDotsTwoStageWorkflow:
         connectivity = Connectivity()
         connectivity.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
         connectivity.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+            sensor_dots=sensor_dots, shared_resonator_line=False
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
-        connectivity.add_quantum_dots(
-            quantum_dots=quantum_dots,
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
+        connectivity.add_quantum_dot_drive_lines(
+            quantum_dots=quantum_dots, shared_line=True
         )
         return connectivity
 
@@ -168,7 +178,10 @@ class TestQuantumDotsTwoStageWorkflow:
 
         # Stage 1: dot layer only
         connectivity_s1 = self._make_stage1_connectivity(
-            self.GLOBAL_GATES, self.SENSOR_DOTS, self.QUANTUM_DOTS, self.QUANTUM_DOT_PAIRS
+            self.GLOBAL_GATES,
+            self.SENSOR_DOTS,
+            self.QUANTUM_DOTS,
+            self.QUANTUM_DOT_PAIRS,
         )
         allocate_wiring(connectivity_s1, instruments)
 
@@ -182,7 +195,9 @@ class TestQuantumDotsTwoStageWorkflow:
 
         assert len(machine.quantum_dots) == 3
         assert len(machine.sensor_dots) == 2
-        assert not hasattr(machine, "qubits") or len(getattr(machine, "qubits", {})) == 0
+        assert (
+            not hasattr(machine, "qubits") or len(getattr(machine, "qubits", {})) == 0
+        )
 
         # Stage 2: add qubits with drive lines
         instruments_s2 = Instruments()
@@ -190,7 +205,10 @@ class TestQuantumDotsTwoStageWorkflow:
         instruments_s2.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity_s2 = self._make_stage2_connectivity(
-            self.GLOBAL_GATES, self.SENSOR_DOTS, self.QUANTUM_DOTS, self.QUANTUM_DOT_PAIRS
+            self.GLOBAL_GATES,
+            self.SENSOR_DOTS,
+            self.QUANTUM_DOTS,
+            self.QUANTUM_DOT_PAIRS,
         )
         allocate_wiring(connectivity_s2, instruments_s2)
 
@@ -222,7 +240,10 @@ class TestQuantumDotsTwoStageWorkflow:
 
         # Stage 1
         connectivity_s1 = self._make_stage1_connectivity(
-            self.GLOBAL_GATES, self.SENSOR_DOTS, self.QUANTUM_DOTS, self.QUANTUM_DOT_PAIRS
+            self.GLOBAL_GATES,
+            self.SENSOR_DOTS,
+            self.QUANTUM_DOTS,
+            self.QUANTUM_DOT_PAIRS,
         )
         allocate_wiring(connectivity_s1, instruments)
 
@@ -237,7 +258,7 @@ class TestQuantumDotsTwoStageWorkflow:
         # Stage 2: only drive lines
         connectivity_drive = Connectivity()
         connectivity_drive.add_quantum_dot_drive_lines(
-            quantum_dots=self.QUANTUM_DOTS, use_mw_fem=True, shared_line=True
+            quantum_dots=self.QUANTUM_DOTS, shared_line=True
         )
         allocate_wiring(connectivity_drive, instruments)
 
@@ -266,8 +287,8 @@ class TestQuantumDotsBaseQuamOnly:
 
         connectivity = Connectivity()
         connectivity.add_voltage_gate_lines(voltage_gates=[1], name="rb")
-        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
-        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3], add_drive_lines=False)
+        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
+        connectivity.add_quantum_dots(quantum_dots=[1, 2, 3])
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2), (2, 3)])
         allocate_wiring(connectivity, instruments)
 
@@ -301,13 +322,11 @@ class TestQuantumDotsLargeSystem:
 
         connectivity = Connectivity()
         connectivity.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+            sensor_dots=sensor_dots, shared_resonator_line=False
         )
-        connectivity.add_quantum_dots(
-            quantum_dots=quantum_dots,
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+        connectivity.add_quantum_dots(quantum_dots=quantum_dots)
+        connectivity.add_quantum_dot_drive_lines(
+            quantum_dots=quantum_dots, shared_line=True
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
         allocate_wiring(connectivity, instruments)
@@ -330,10 +349,10 @@ class TestQuantumDotsLargeSystem:
 
 
 class TestLfFemSingleDriveWorkflow:
-    """E2E tests for LF-FEM-only systems using use_mw_fem=False.
+    """E2E tests for LF-FEM-only systems using LF-FEM drive wiring.
 
-    When no MW-FEM is present and use_mw_fem=False is specified, the wirer
-    allocates single LF-FEM outputs for drive lines.  quam-builder should
+    When no MW-FEM is present and drive lines use ``WiringFrequency.DC``, the
+    wirer allocates single LF-FEM outputs for drive lines. quam-builder should
     create XYDriveSingle (not XYDriveMW) for these.
     """
 
@@ -344,7 +363,7 @@ class TestLfFemSingleDriveWorkflow:
         return instruments
 
     def _run_lf_only_two_stage(self, instruments, temp_dir):
-        """Two-stage build with LF-FEM only and use_mw_fem=False."""
+        """Two-stage build with LF-FEM only and DC (LF-FEM) drive lines."""
         sensor_dots = [1, 2]
         quantum_dots = [1, 2, 3, 4]
         dot_pairs = [(1, 2), (3, 4)]
@@ -352,37 +371,37 @@ class TestLfFemSingleDriveWorkflow:
 
         # Stage 1
         conn_s1 = Connectivity()
-        conn_s1.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
-        )
-        conn_s1.add_quantum_dots(quantum_dots=quantum_dots, add_drive_lines=False)
+        conn_s1.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False)
+        conn_s1.add_quantum_dots(quantum_dots=quantum_dots)
         conn_s1.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
         allocate_wiring(conn_s1, instruments)
 
         machine = BaseQuamQD()
-        machine = build_quam_wiring(conn_s1, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        machine = build_quam_wiring(
+            conn_s1, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
         machine = build_base_quam(
             machine, calibration_db_path=temp_dir, connect_qdac=False, save=False
         )
 
-        # Stage 2 with LF-FEM-only instruments and use_mw_fem=False
+        # Stage 2 with LF-FEM-only instruments (LF-FEM drive lines via WiringFrequency.DC)
         instruments_s2 = Instruments()
         instruments_s2.add_lf_fem(controller=1, slots=[3, 5])
 
         conn_s2 = Connectivity()
-        conn_s2.add_sensor_dots(
-            sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
-        )
-        conn_s2.add_quantum_dots(
+        conn_s2.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False)
+        conn_s2.add_quantum_dots(quantum_dots=quantum_dots)
+        conn_s2.add_quantum_dot_drive_lines(
             quantum_dots=quantum_dots,
-            add_drive_lines=True,
-            use_mw_fem=False,
-            shared_drive_line=True,
+            shared_line=True,
+            **_quantum_dot_drive_line_kw_dc(),
         )
         conn_s2.add_quantum_dot_pairs(quantum_dot_pairs=dot_pairs)
         allocate_wiring(conn_s2, instruments_s2)
 
-        machine = build_quam_wiring(conn_s2, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        machine = build_quam_wiring(
+            conn_s2, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
         machine = build_loss_divincenzo_quam(
             machine,
             qubit_pair_sensor_map=qubit_pair_sensor_map,
@@ -392,7 +411,7 @@ class TestLfFemSingleDriveWorkflow:
         return machine
 
     def test_lf_fem_drives_are_xy_drive_single(self, instruments, temp_dir):
-        """With use_mw_fem=False, all XY drives should be XYDriveSingle."""
+        """With LF-FEM (DC) drive wiring, all XY drives should be XYDriveSingle."""
         from quam_builder.architecture.quantum_dots.components.xy_drive import (
             XYDriveSingle,
         )
@@ -418,7 +437,8 @@ class TestLfFemSingleDriveWorkflow:
             raw_ref = wiring_xy.get_raw_value("opx_output")
             ref = str(raw_ref)
             assert "analog_outputs" in ref, (
-                f"Qubit {qubit_id} drive wiring should reference analog_outputs, " f"got: {ref}"
+                f"Qubit {qubit_id} drive wiring should reference analog_outputs, "
+                f"got: {ref}"
             )
             assert "mw_outputs" not in ref
 
@@ -443,11 +463,13 @@ class TestTwoStageWiringIntegration:
         """Run the full two-stage workflow and return the final machine."""
         # Stage 1: dot layer only (no drive lines)
         connectivity_s1 = Connectivity()
-        connectivity_s1.add_voltage_gate_lines(voltage_gates=self.GLOBAL_GATES, name="rb")
-        connectivity_s1.add_sensor_dots(
-            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False, use_mw_fem=False
+        connectivity_s1.add_voltage_gate_lines(
+            voltage_gates=self.GLOBAL_GATES, name="rb"
         )
-        connectivity_s1.add_quantum_dots(quantum_dots=self.QUANTUM_DOTS, add_drive_lines=False)
+        connectivity_s1.add_sensor_dots(
+            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False
+        )
+        connectivity_s1.add_quantum_dots(quantum_dots=self.QUANTUM_DOTS)
         connectivity_s1.add_quantum_dot_pairs(quantum_dot_pairs=self.QUANTUM_DOT_PAIRS)
         allocate_wiring(connectivity_s1, instruments)
 
@@ -465,16 +487,18 @@ class TestTwoStageWiringIntegration:
         instruments_s2.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity_s2 = Connectivity()
-        connectivity_s2.add_voltage_gate_lines(voltage_gates=self.GLOBAL_GATES, name="rb")
+        connectivity_s2.add_voltage_gate_lines(
+            voltage_gates=self.GLOBAL_GATES, name="rb"
+        )
         connectivity_s2.add_sensor_dots(
-            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False, use_mw_fem=False
+            sensor_dots=self.SENSOR_DOTS, shared_resonator_line=False
         )
         connectivity_s2.add_quantum_dot_pairs(quantum_dot_pairs=self.QUANTUM_DOT_PAIRS)
-        connectivity_s2.add_quantum_dots(
+        connectivity_s2.add_quantum_dots(quantum_dots=self.QUANTUM_DOTS)
+        connectivity_s2.add_quantum_dot_drive_lines(
             quantum_dots=self.QUANTUM_DOTS,
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
+            **_quantum_dot_drive_line_kw_rf(),
         )
         allocate_wiring(connectivity_s2, instruments_s2)
 
@@ -521,11 +545,15 @@ class TestTwoStageWiringIntegration:
 
         pair_q1_q2 = machine.qubit_pairs["q1_q2"]
         assert len(pair_q1_q2.quantum_dot_pair.sensor_dots) > 0
-        assert "#/sensor_dots/virtual_sensor_1" in pair_q1_q2.quantum_dot_pair.sensor_dots
+        assert (
+            "#/sensor_dots/virtual_sensor_1" in pair_q1_q2.quantum_dot_pair.sensor_dots
+        )
 
         pair_q2_q3 = machine.qubit_pairs["q2_q3"]
         assert len(pair_q2_q3.quantum_dot_pair.sensor_dots) > 0
-        assert "#/sensor_dots/virtual_sensor_2" in pair_q2_q3.quantum_dot_pair.sensor_dots
+        assert (
+            "#/sensor_dots/virtual_sensor_2" in pair_q2_q3.quantum_dot_pair.sensor_dots
+        )
 
     def test_two_stage_preferred_readout_dot(self, instruments, temp_dir):
         """Each qubit should have preferred_readout_quantum_dot set.
@@ -547,4 +575,6 @@ class TestTwoStageWiringIntegration:
 
         for sensor in machine.sensor_dots.values():
             rr = sensor.readout_resonator
-            assert rr.sticky is None, f"Readout resonator {rr.id} should not have sticky"
+            assert (
+                rr.sticky is None
+            ), f"Readout resonator {rr.id} should not have sticky"

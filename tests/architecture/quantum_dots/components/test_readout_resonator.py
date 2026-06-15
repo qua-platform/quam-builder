@@ -21,7 +21,9 @@ class TestReadoutResonatorSingleCreation:
             frequency_bare=5e9,
             intermediate_frequency=100e6,
             operations={
-                "readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)
+                "readout": pulses.SquareReadoutPulse(
+                    length=200, id="readout", amplitude=0.01
+                )
             },
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
             opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
@@ -35,7 +37,11 @@ class TestReadoutResonatorSingleCreation:
             id="rr_sticky",
             frequency_bare=0,
             intermediate_frequency=200e6,
-            operations={"readout": pulses.SquareReadoutPulse(length=100, id="ro", amplitude=0.05)},
+            operations={
+                "readout": pulses.SquareReadoutPulse(
+                    length=100, id="ro", amplitude=0.05
+                )
+            },
             opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
             opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
             sticky=StickyChannelAddon(duration=16, digital=False),
