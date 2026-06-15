@@ -4,7 +4,6 @@ from quam_builder.architecture.superconducting.components.pulses import (
     DragCosinePulse,
 )
 from qualang_tools.units import unit
-from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.superconducting.qubit import (
     FixedFrequencyTransmon,
     FluxTunableTransmon,
@@ -265,34 +264,6 @@ def add_Square_pulses(
             axis_angle=-np.pi / 2,
         )
         transmon.set_gate_shape("Square")
-
-
-def add_default_transmon_channel_pulses(
-    transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon],
-    line_type: str,
-) -> None:
-    """Seed default pulse operations for a single channel.
-
-    Only adds operations that are not already present on the channel.
-    """
-    if line_type == WiringLineType.DRIVE.value:
-        if transmon.xy is not None and "saturation" not in transmon.xy.operations:
-            transmon.xy.operations["saturation"] = SquarePulse(
-                amplitude=0.25, length=20 * u.us, axis_angle=0
-            )
-    elif line_type == WiringLineType.FLUX.value:
-        if transmon.z is not None and "const" not in transmon.z.operations:
-            transmon.z.operations["const"] = SquarePulse(amplitude=0.1, length=100)
-    elif line_type == WiringLineType.RESONATOR.value:
-        if transmon.resonator is not None:
-            if "readout" not in transmon.resonator.operations:
-                transmon.resonator.operations["readout"] = SquareReadoutPulse(
-                    length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
-                )
-            if "readout_GEF" not in transmon.resonator.operations:
-                transmon.resonator.operations["readout_GEF"] = SquareReadoutPulse(
-                    length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
-                )
 
 
 def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTunableTransmon]):

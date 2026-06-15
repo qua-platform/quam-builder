@@ -34,8 +34,10 @@ Example::
 
 from pathlib import Path
 
+from qualang_tools.units import unit
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
+from quam.components.pulses import SquarePulse, SquareReadoutPulse
 from quam.core.quam_classes import QuamDict
 
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
@@ -46,9 +48,6 @@ from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
     mw_in_out_channel_ports,
     mw_out_channel_ports,
-)
-from quam_builder.builder.superconducting.add_default_pulses import (
-    add_default_transmon_channel_pulses,
 )
 from quam_builder.builder.superconducting.add_transmon_drive_component import (
     add_transmon_drive_component,
@@ -61,6 +60,8 @@ from quam_builder.builder.superconducting.add_transmon_resonator_component impor
 )
 
 __all__ = ["add_qubit", "remove_qubit", "add_channel", "remove_channel"]
+
+_u = unit(coerce_to_integer=True)
 
 _LINE_TYPE_TO_ADDER = {
     WiringLineType.DRIVE.value: add_transmon_drive_component,
@@ -174,6 +175,34 @@ def _validate_qubit_wiring(qubit_wiring: dict[str, dict[str, str]]) -> None:
         _validate_port_mapping(line_type, ports)
 
 
+def _seed_default_pulses_for_line(transmon: AnyTransmon, line_type: str) -> None:
+    """Map wiring line type to a transmon channel and seed missing default pulses."""
+    field_name = _LINE_TYPE_TO_FIELD.get(line_type)
+    if field_name is None:
+        return
+    channel = getattr(transmon, field_name, None)
+    if channel is None:
+        return
+
+    if field_name == "xy":
+        if "saturation" not in channel.operations:
+            channel.operations["saturation"] = SquarePulse(
+                amplitude=0.25, length=20 * _u.us, axis_angle=0
+            )
+    elif field_name == "z":
+        if "const" not in channel.operations:
+            channel.operations["const"] = SquarePulse(amplitude=0.1, length=100)
+    elif field_name == "resonator":
+        if "readout" not in channel.operations:
+            channel.operations["readout"] = SquareReadoutPulse(
+                length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
+            )
+        if "readout_GEF" not in channel.operations:
+            channel.operations["readout_GEF"] = SquareReadoutPulse(
+                length=2000, amplitude=0.01, threshold=0.0, digital_marker="ON"
+            )
+
+
 def _wire_qubit_channels(
     machine: AnyQuam,
     transmon: AnyTransmon,
@@ -272,7 +301,7 @@ def add_qubit(
 
     if add_default_pulses:
         for line_type in qubit_wiring:
-            add_default_transmon_channel_pulses(transmon, line_type)
+            _seed_default_pulses_for_line(transmon, line_type)
 
     if qubit_id not in machine.active_qubit_names:
         machine.active_qubit_names.append(transmon.name)
@@ -369,7 +398,7 @@ def add_channel(
     _LINE_TYPE_TO_ADDER[line_type](transmon, wiring_path, ports)
 
     if add_default_pulses:
-        add_default_transmon_channel_pulses(transmon, line_type)
+        _seed_default_pulses_for_line(transmon, line_type)
 
 
 def remove_channel(machine: AnyQuam, qubit_id: str, line_type: str) -> None:
