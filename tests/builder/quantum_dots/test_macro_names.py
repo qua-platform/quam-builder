@@ -66,7 +66,9 @@ def test_single_qubit_aliases_map_to_supported_canonical_names():
     canonical_single_qubit_names = {name.value for name in SingleQubitMacroName}
 
     assert set(SINGLE_QUBIT_MACRO_ALIAS_MAP.keys()) == set(SINGLE_QUBIT_MACRO_ALIASES)
-    assert set(SINGLE_QUBIT_MACRO_ALIAS_MAP.values()).issubset(canonical_single_qubit_names)
+    assert set(SINGLE_QUBIT_MACRO_ALIAS_MAP.values()).issubset(
+        canonical_single_qubit_names
+    )
 
 
 def test_two_qubit_enum_values_are_default_keys():

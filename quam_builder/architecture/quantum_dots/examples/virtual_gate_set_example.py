@@ -12,7 +12,8 @@ from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
 
 def _channels(names):
     return {
-        name: SingleChannel(id=name, opx_output=("con", idx + 1)) for idx, name in enumerate(names)
+        name: SingleChannel(id=name, opx_output=("con", idx + 1))
+        for idx, name in enumerate(names)
     }
 
 

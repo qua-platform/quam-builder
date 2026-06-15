@@ -21,7 +21,6 @@ from qm.qua.type_hints import (
 )
 
 from quam.components.channels import SingleChannel
-from quam.components.pulses import SquarePulse
 
 from quam_builder.architecture.quantum_dots.components.gate_set import (
     GateSet,
@@ -47,8 +46,6 @@ from ...tools.qua_tools import (
 __all__ = [
     "VoltageTuningPoint",
     "VoltageSequence",
-    "DEFAULT_PULSE_NAME",
-    "MIN_PULSE_DURATION_NS",
 ]
 
 # --- Constants ---
@@ -106,7 +103,8 @@ class VoltageSequence:
         gate_set: GateSet,
         track_integrated_voltage: bool = True,
         keep_levels: bool = True,
-        enforce_qua_calcs: bool = False,
+        enforce_qua_calcs: bool = True,
+        limit_play_commands: bool = False,
     ):
         """
         Initializes the VoltageSequence.
@@ -118,12 +116,14 @@ class VoltageSequence:
             keep_levels: without keep_levels, the default behaviour for resolving voltages
             will be that any unspecified voltages will be treated as 0,
             with keep_levels, unspecified voltages instead use the latest value
-            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
-            track the current level for certain programs, defaults to False.
+            enforce_qua_calcs: When True, all voltage and integrated-voltage
+            tracking uses QUA variables, ensuring correct runtime behaviour
+            inside QUA loops and switch/case blocks. Defaults to True.
+            Set to False only if you need pure Python-mode tracking for
+            a program with no QUA control flow around voltage operations.
 
         """
         self.gate_set: GateSet = gate_set
-        self._update_baseband_pulse_amplitude()
         self.state_trackers: Dict[str, SequenceStateTracker] = {
             ch_name: SequenceStateTracker(
                 ch_name,
@@ -135,68 +135,51 @@ class VoltageSequence:
         self._temp_qua_vars: Dict[str, QuaVariable] = {}  # For ramp_rate etc.
         self._track_integrated_voltage: bool = track_integrated_voltage
         self._keep_levels: bool = keep_levels
-        self._channel_max_voltage: Dict[str, float] = {}
-
-        for ch_name, channel_obj in self.gate_set.channels.items():
-            opx_voltage_limit = (
-                2.5
-                if hasattr(channel_obj.opx_output, "output_mode")
-                and channel_obj.opx_output.output_mode == "amplified"
-                else 0.5
-            )
-            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
-                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
-                self._channel_max_voltage[ch_name] = opx_voltage_limit / attenuation_scale
-            else:
-                self._channel_max_voltage[ch_name] = opx_voltage_limit
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
 
         self._batched_voltages = None
         self._prog_id = None
+        self.limit_play_commands: bool = limit_play_commands
 
-    def _update_baseband_pulse_amplitude(self):
-        for ch in self.gate_set.channels.values():
-            if ch.opx_output is not None:
-                if DEFAULT_PULSE_NAME not in ch.operations:
-                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                        id=DEFAULT_PULSE_NAME,
-                        length=MIN_PULSE_DURATION_NS,
-                        amplitude=0.25,
-                    )
-                output_mode = getattr(ch.opx_output, "output_mode", None)
-                if output_mode is None:
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
-                elif output_mode == "direct":
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
-                elif output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 1.25
+    def _check_for_new_program(self, update_prog_id: bool = False) -> bool:
+        current_program_scope = id(scopes_manager.program_scope)
+        is_new = self._prog_id != current_program_scope
+        if update_prog_id:
+            self._prog_id = current_program_scope
+        return is_new
 
     def _initialise_attenuation_qua_vars(self) -> None:
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
-        current_program_scope = id(scopes_manager.program_scope)
-        if self._prog_id != current_program_scope:
-            self._prog_id = current_program_scope
+        # current_program_scope = id(scopes_manager.program_scope)
+        # if self._prog_id != current_program_scope:
+        #     self._prog_id = current_program_scope
 
-            self.attenuation_qua_variables = {
-                ch_name: (
-                    declare(
-                        fixed,
-                        value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
-                    )
-                    if hasattr(ch, "attenuation")
-                    else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+        # if self._check_for_new_program(update_prog_id = False):
+        self.attenuation_qua_variables = {
+            ch_name: (
+                declare(
+                    fixed,
+                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
                 )
-                for (ch_name, ch) in self.gate_set.channels.items()
+                if hasattr(ch, "attenuation")
+                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
+            )
+            for (ch_name, ch) in self.gate_set.channels.items()
+        }
+        if self.gate_set.adjust_for_attenuation:
+            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
+                ch_name: declare(fixed) for ch_name in self.gate_set.channels.keys()
             }
-            if self.gate_set.adjust_for_attenuation:
-                self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
-                    ch_name: declare(fixed) for ch_name in self.gate_set.channels.keys()
-                }
 
-        else:
-            return
+        # else:
+        #     return
+
+    def declare_qua_variables(self):
+        """Declare all deferred QUA variables. Must be called inside a program scope."""
+        for tracker in self.state_trackers.values():
+            tracker.initialize_qua_vars()
 
     @contextmanager
     def simultaneous(self, duration: int = 16, ramp_duration: int = None):
@@ -231,7 +214,10 @@ class VoltageSequence:
         attenuation_scale = self.attenuation_qua_variables[ch_name]
         if is_qua_type(delta_v):
             unattenuated_delta_v = self._attenuated_delta_v_vars[ch_name]
-            assign(unattenuated_delta_v, (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT)
+            assign(
+                unattenuated_delta_v,
+                (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT,
+            )
         else:
             unattenuated_delta_v = delta_v * (
                 10 ** (channel.attenuation / 20) if hasattr(channel, "attenuation") else 1
@@ -246,11 +232,8 @@ class VoltageSequence:
     ):
         """Plays a scaled step on a single channel."""
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
-        
+        DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
-
-        inv_wf_amplitude = float(np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10))
-        log2_inv_wf = np.log2(1.0 / DEFAULT_WF_AMPLITUDE)
 
         if self.gate_set.adjust_for_attenuation:
             delta_v = self._adjust_for_attenuation(channel, delta_v)
@@ -263,14 +246,9 @@ class VoltageSequence:
             return
 
         if is_qua_type(delta_v):
-            # Bit-shift only matches scaling when 1/DEFAULT_WF_AMPLITUDE is a power of two
-            # (e.g. 0.25 V baseband). Amplified LF-FEM uses 1.25 V → use explicit multiply.
-            if log2_inv_wf == int(log2_inv_wf) and int(log2_inv_wf) >= 0:
-                scaled_amp = delta_v << int(log2_inv_wf)
-            else:
-                scaled_amp = delta_v * inv_wf_amplitude
+            scaled_amp = delta_v << DEFAULT_AMPLITUDE_BITSHIFT
         else:
-            scaled_amp = np.round(delta_v * inv_wf_amplitude, 10)
+            scaled_amp = np.round(delta_v * (1.0 / (DEFAULT_WF_AMPLITUDE)), 10)
         duration_cycles = duration >> 2  # Convert ns to clock cycles
 
         if is_qua_type(duration):
@@ -362,8 +340,13 @@ class VoltageSequence:
         ensure_align: bool = True,
     ):
         """Common logic for step_to_voltages and ramp_to_voltages."""
-        if self.gate_set.adjust_for_attenuation:
-            self._initialise_attenuation_qua_vars()
+        # Redeclare the QUA variables for every new programme, on the first common voltages change call
+
+        if self._check_for_new_program(update_prog_id=True):
+            self._temp_qua_vars.clear()
+            self.declare_qua_variables()
+            if self.gate_set.adjust_for_attenuation:
+                self._initialise_attenuation_qua_vars()
 
         if self._batched_voltages is not None:
             self._batched_voltages.update(target_voltages_dict)
@@ -377,6 +360,7 @@ class VoltageSequence:
                     "Guidance: Using QUA variable for `ramp_duration`. "
                     "Ensure hold `duration` is sufficient."
                 )
+        changed_gates = set(target_voltages_dict.keys())
 
         if self._keep_levels:
             target_voltages_dict = self._keep_levels_tracker.update_voltage_dict_with_current(
@@ -384,6 +368,13 @@ class VoltageSequence:
             )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
+        if hasattr(self.gate_set, "influence_map") and self.limit_play_commands:
+            affected = set()
+            for gate in changed_gates:
+                affected = affected | self.gate_set.influence_map.get(gate, {gate})
+            full_target_voltages_dict = {
+                ch: v for ch, v in full_target_voltages_dict.items() if ch in affected
+            }
         if ensure_align:
             # this align is need for general use, as "step_to_voltages" adds math that can offset pulses in time
             # ensure_align allows to overwrite this, (currently only set to False inside apply_compensation_pulse)
@@ -414,8 +405,12 @@ class VoltageSequence:
                     duration,
                     ramp_duration,
                 )
+            if not is_qua_type(delta_v) and delta_v == 0.0:
+                # Skip the play command if the delta_v is zero. Also no need to update tracker.
+                # Integrated voltage is already tracked above.
+                continue
 
-            if ramp_duration is None or (
+            elif ramp_duration is None or (
                 not is_qua_type(ramp_duration) and int(float(str(ramp_duration))) == 0
             ):
                 self._play_step_on_channel(channel_obj, delta_v, duration)
@@ -427,8 +422,24 @@ class VoltageSequence:
                     duration,
                 )
             tracker.current_level = target_voltage
+        if (
+            self._track_integrated_voltage
+            and hasattr(self.gate_set, "influence_map")
+            and self.limit_play_commands
+        ):
+            for ch_name in self.gate_set.channels:
+                if ch_name not in affected:
+                    tracker = self.state_trackers[ch_name]
+                    # Channels outside the affected set do not ramp in this call;
+                    # they only hold their current level for `duration`.
+                    tracker.update_integrated_voltage(tracker.current_level, duration, None)
 
-    def step_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType):
+    def step_to_voltages(
+        self,
+        voltages: Dict[str, VoltageLevelType],
+        duration: DurationType,
+        ensure_align: bool = True,
+    ):
         """
         Steps all specified channels directly to the given voltage levels.
 
@@ -450,6 +461,9 @@ class VoltageSequence:
                 Each voltage level can be a fixed value or a QUA variable.
             duration: The duration (ns) to hold the voltages, must be >16ns and
                 a multiple of 4ns. Can be a fixed value or a QUA variable.
+            ensure_align: If False, skip the internal align() call. Set to
+                False inside strict_timing_() blocks where alignment is
+                managed externally.
 
         Example:
             >>> with qua.program() as prog:
@@ -459,13 +473,16 @@ class VoltageSequence:
             ...     # Any channel not specified (e.g., "B1") will be set to 0.0V
             ...     voltage_seq.step_to_voltages({"P1": 0.5}, duration=500)
         """
-        self._common_voltages_change(voltages, duration, ramp_duration=None)
+        self._common_voltages_change(
+            voltages, duration, ramp_duration=None, ensure_align=ensure_align
+        )
 
     def ramp_to_voltages(
         self,
         voltages: Dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: DurationType,
+        ensure_align: bool = True,
     ):
         """
         Ramps all specified channels to the given voltage levels, then holds.
@@ -490,6 +507,9 @@ class VoltageSequence:
                 >16ns and a multiple of 4ns. Can be a fixed value or a QUA variable.
             ramp_duration: The duration (ns) of the ramp. Can be a fixed value or a QUA
                 variable.
+            ensure_align: If False, skip the internal align() call. Set to
+                False inside strict_timing_() blocks where alignment is
+                managed externally.
 
         Example:
             >>> with qua.program() as prog:
@@ -507,7 +527,9 @@ class VoltageSequence:
             ...         voltages={"P2": 0.2}, duration=1000, ramp_duration=ramp_time
             ...     )
         """
-        self._common_voltages_change(voltages, duration, ramp_duration=ramp_duration)
+        self._common_voltages_change(
+            voltages, duration, ramp_duration=ramp_duration, ensure_align=ensure_align
+        )
 
     def track_sticky_duration(self, duration_ns: int) -> None:
         """Track hold time at current channel levels without emitting pulses.
@@ -517,16 +539,16 @@ class VoltageSequence:
         """
         if not self._track_integrated_voltage:
             return
-        if not isinstance(duration_ns, int):
-            raise TypeError("duration_ns must be an integer number of nanoseconds.")
-        if duration_ns < 0:
-            raise TypeError("duration_ns must be non-negative.")
-        if duration_ns % CLOCK_CYCLE_NS != 0:
-            raise TypeError(
-                f"duration_ns ({duration_ns}ns) must be a multiple of {CLOCK_CYCLE_NS}ns."
-            )
-        if duration_ns == 0:
-            return
+        # if not isinstance(duration_ns, int):
+        #     raise TypeError("duration_ns must be an integer number of nanoseconds.")
+        # if duration_ns < 0:
+        #     raise TypeError("duration_ns must be non-negative.")
+        # if duration_ns % CLOCK_CYCLE_NS != 0:
+        #     raise TypeError(
+        #         f"duration_ns ({duration_ns}ns) must be a multiple of {CLOCK_CYCLE_NS}ns."
+        #     )
+        # if duration_ns == 0:
+        #     return
 
         for tracker in self.state_trackers.values():
             tracker.update_integrated_voltage(
@@ -535,7 +557,12 @@ class VoltageSequence:
                 ramp_duration=None,
             )
 
-    def step_to_point(self, name: str, duration: Optional[DurationType] = None):
+    def step_to_point(
+        self,
+        name: str,
+        duration: Optional[DurationType] = None,
+        ensure_align: bool = True,
+    ):
         """
         Steps all channels to the voltages defined in a predefined tuning point.
 
@@ -549,6 +576,9 @@ class VoltageSequence:
                 If None, the default duration from the VoltageTuningPoint is used.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
+            ensure_align: If False, skip the internal align() call. Set to
+                False inside strict_timing_() blocks where alignment is
+                managed externally.
 
         Example:
             >>> # First, define tuning points on the GateSet
@@ -568,13 +598,19 @@ class VoltageSequence:
             )
         tuning_point: VoltageTuningPoint = tuning_point_macro
         effective_duration = duration if duration is not None else tuning_point.duration
-        self._common_voltages_change(tuning_point.voltages, effective_duration, ramp_duration=None)
+        self._common_voltages_change(
+            tuning_point.voltages,
+            effective_duration,
+            ramp_duration=None,
+            ensure_align=ensure_align,
+        )
 
     def ramp_to_point(
         self,
         name: str,
         ramp_duration: DurationType,
         duration: Optional[DurationType] = None,
+        ensure_align: bool = True,
     ):
         """
         Ramps all channels to the voltages defined in a predefined tuning point.
@@ -591,6 +627,9 @@ class VoltageSequence:
                 If None, the default duration from the VoltageTuningPoint is used.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
+            ensure_align: If False, skip the internal align() call. Set to
+                False inside strict_timing_() blocks where alignment is
+                managed externally.
 
         Example:
             >>> # First, define tuning points on the GateSet
@@ -615,6 +654,7 @@ class VoltageSequence:
             tuning_point.voltages,
             effective_duration,
             ramp_duration=ramp_duration,
+            ensure_align=ensure_align,
         )
 
     def _calculate_python_compensation_params(
@@ -739,8 +779,8 @@ class VoltageSequence:
             raise ValueError(
                 "apply_compensation_pulse is not supported when integrated voltage is not tracked."
             )
-        if self.gate_set.adjust_for_attenuation:
-            self._initialise_attenuation_qua_vars()
+        # if self.gate_set.adjust_for_attenuation:
+        #     self._initialise_attenuation_qua_vars()
 
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")
@@ -754,14 +794,21 @@ class VoltageSequence:
             self._common_voltages_change(target_voltages_dict=zero_dict, duration=16)
 
         for ch_name, channel_obj in self.gate_set.channels.items():
-            channel_limit = self._channel_max_voltage[ch_name]
-            channel_max_voltage = min(max_voltage, channel_limit)
-            if max_voltage > channel_limit:
-                print(
-                    f"Channel '{ch_name}': supplied max_voltage ({max_voltage:.4f}) exceeds channel max_voltage "
-                    f"({channel_limit:.4f}). Using reduced max_voltage of {channel_max_voltage:.4f}."
-                )
-            
+            DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
+            DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
+            opx_voltage_limit = (
+                2.5
+                if hasattr(channel_obj.opx_output, "output_mode")
+                and channel_obj.opx_output.output_mode == "amplified"
+                else 0.5
+            )
+
+            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
+                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
+                if max_voltage * attenuation_scale > opx_voltage_limit:
+                    raise ValueError(
+                        f"Channel '{ch_name}' attenuation-corrected max_voltage of {max_voltage * attenuation_scale:.2f} exceeds OPX output limit of {opx_voltage_limit}"
+                    )
             tracker = self.state_trackers[ch_name]
             current_v = tracker.current_level
 
@@ -769,7 +816,7 @@ class VoltageSequence:
 
             if not is_qua_type(tracker.integrated_voltage) and not is_qua_type(current_v):
                 py_comp_amp, py_comp_dur = self._calculate_python_compensation_params(
-                    tracker, channel_max_voltage
+                    tracker, max_voltage
                 )
                 if py_comp_dur == 0:  # No pulse needed
                     tracker.current_level = py_comp_amp  # Should be 0.0
@@ -784,7 +831,7 @@ class VoltageSequence:
                 comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
             else:
                 q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
-                    tracker, channel_max_voltage, channel_obj.name
+                    tracker, max_voltage, channel_obj.name
                 )
                 delta_v_q = q_comp_amp - current_v
                 with if_(q_comp_dur_4ns > 0):
@@ -868,9 +915,7 @@ class VoltageSequence:
 
         Args:
             ramp_duration: Optional. The duration (ns) of the ramp to zero.
-                If None, uses QUA's ``ramp_to_zero`` on each element when
-                ``adjust_for_attenuation`` is off; when it is on, uses an explicit
-                ramp so OPX scaling matches ``step_to_voltages`` / ``ramp_to_voltages``.
+                If None, QUA's `ramp_to_zero` command is used for an immediate ramp.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
                 variable.
             reset_tracker: Optional. Reset integrated voltage tracking
@@ -890,38 +935,12 @@ class VoltageSequence:
         """
 
         if ramp_duration is None:
-            if self.gate_set.adjust_for_attenuation:
-                # QUA ramp_to_zero() does not apply the same OPX scaling as _play_*_on_channel
-                # when adjust_for_attenuation is enabled; use an explicit ramp so attenuation
-                # and default-pulse amplitude stay consistent (e.g. amplified LF-FEM).
-                sticky_durations = [
-                    int(sticky.duration)
-                    for sticky in (
-                        getattr(ch, "sticky", None) for ch in self.gate_set.channels.values()
-                    )
-                    if sticky is not None and getattr(sticky, "duration", None) is not None
-                ]
-                ramp_ns = max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
-                self.ramp_to_voltages(
-                    voltages={ch_name: 0.0 for ch_name in self.gate_set.channels},
-                    duration=0,
-                    ramp_duration=ramp_ns,
+            for ch_name, channel_obj in self.gate_set.channels.items():
+                tracker = self.state_trackers[ch_name]
+                ramp_to_zero(channel_obj.name)
+                tracker.update_integrated_voltage(
+                    level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
                 )
-                if not self._track_integrated_voltage:
-                    for ch_name, channel_obj in self.gate_set.channels.items():
-                        tracker = self.state_trackers[ch_name]
-                        tracker.update_integrated_voltage(
-                            level=0.0,
-                            duration=0,
-                            ramp_duration=channel_obj.sticky.duration,
-                        )
-            else:
-                for ch_name, channel_obj in self.gate_set.channels.items():
-                    tracker = self.state_trackers[ch_name]
-                    ramp_to_zero(channel_obj.name)
-                    tracker.update_integrated_voltage(
-                        level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
-                    )
 
         else:
             self.ramp_to_voltages(

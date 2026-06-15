@@ -44,8 +44,8 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
 from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_macros import (
     Measure2QMacro,
 )
-from quam_builder.architecture.quantum_dots.operations.component_pulse_catalog import (
-    _make_xy_pulse_factories,
+from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
+    make_xy_pulse_factories,
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -69,24 +69,24 @@ class TestSingleChannelPulses:
             opx_output=LFFEMAnalogOutputPort("con1", 3, port_id=1),
             RF_frequency=100_000_000,
         )
-        default_pulses = _make_xy_pulse_factories(xy)
+        default_pulses = make_xy_pulse_factories(xy)
         for name, pulse in default_pulses.items():
             xy.operations[name] = pulse
 
-        pulse = xy.operations["gaussian"]
+        pulse = xy.operations["gaussian_x90"]
         assert (
             pulse.axis_angle is None
-        ), "Pulse 'gaussian' should have axis_angle=None for SingleChannel"
+        ), "Pulse 'gaussian_x90' should have axis_angle=None for SingleChannel"
 
     def test_iq_channel_pulse_has_axis_angle(self):
         """IQ channels should still get axis_angle=0.0."""
         xy = MagicMock(spec=XYDriveIQ)
         xy.operations = {}
-        default_pulses = _make_xy_pulse_factories(xy)
+        default_pulses = make_xy_pulse_factories(xy)
         for name, pulse in default_pulses.items():
             xy.operations[name] = pulse
 
-        pulse = xy.operations["gaussian"]
+        pulse = xy.operations["gaussian_x90"]
         assert pulse.axis_angle == 0.0
 
 
@@ -106,7 +106,7 @@ class TestZNeg90Macro:
         macro = ZNeg90Macro()
         assert macro.default_angle == pytest.approx(-np.pi / 2)
 
-    def test_z_neg90_wired_to_qubit(self, reset_catalog):
+    def test_z_neg90_wired_to_qubit(self):
         """After wiring, qubit should have z_neg90 macro."""
         machine = _make_wired_machine()
         wire_machine_macros(machine)
@@ -123,25 +123,25 @@ class TestZNeg90Macro:
 class TestMeasureMacroRegistration:
     """Verify macro types are correctly registered in the catalog."""
 
-    def test_measure1q_macro_type(self, reset_catalog):
+    def test_measure1q_macro_type(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         q = machine.qubits["Q1"]
         assert isinstance(q.macros["measure"], Measure1QMacro)
 
-    def test_measure_psb_pair_macro_type(self, reset_catalog):
+    def test_measure_psb_pair_macro_type(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         assert isinstance(pair.macros["measure"], MeasurePSBPairMacro)
 
-    def test_sensor_dot_measure_macro_type(self, reset_catalog):
+    def test_sensor_dot_measure_macro_type(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         sd = machine.sensor_dots["virtual_sensor_1"]
         assert isinstance(sd.macros["measure"], SensorDotMeasureMacro)
 
-    def test_measure2q_delegates(self, reset_catalog):
+    def test_measure2q_delegates(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         qp = machine.qubit_pairs["Q1_Q2"]
@@ -151,7 +151,7 @@ class TestMeasureMacroRegistration:
 class TestMeasure1QNavigation:
     """Test that Measure1QMacro navigates to the correct QuantumDotPair."""
 
-    def test_raises_without_preferred_readout(self, reset_catalog):
+    def test_raises_without_preferred_readout(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         q = machine.qubits["Q1"]
@@ -160,7 +160,7 @@ class TestMeasure1QNavigation:
         with pytest.raises(ValueError, match="preferred_readout_quantum_dot"):
             q.macros["measure"].apply()
 
-    def test_raises_with_invalid_pair(self, reset_catalog):
+    def test_raises_with_invalid_pair(self):
         """Setting preferred_readout_quantum_dot to a non-existent dot should fail at the setter."""
         machine = _make_wired_machine()
         wire_machine_macros(machine)
@@ -172,14 +172,14 @@ class TestMeasure1QNavigation:
 class TestMeasurePSBPairNavigation:
     """Test MeasurePSBPairMacro structure and error paths."""
 
-    def test_pair_macro_has_correct_point(self, reset_catalog):
+    def test_pair_macro_has_correct_point(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
         macro = pair.macros["measure"]
         assert macro.point == VoltagePointName.MEASURE.value
 
-    def test_pair_has_sensor_dots(self, reset_catalog):
+    def test_pair_has_sensor_dots(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
@@ -204,7 +204,9 @@ class TestStateMacroPointDispatch:
         assert "point_name" not in measure_pair_sig.parameters
 
     def test_initialize_state_macro_ramps_to_named_point(self):
-        macro = InitializeStateMacro(point="custom_init", ramp_duration=48, hold_duration=64)
+        macro = InitializeStateMacro(
+            point="custom_init", ramp_duration=48, hold_duration=64
+        )
         owner = MagicMock()
 
         with patch(
@@ -213,7 +215,9 @@ class TestStateMacroPointDispatch:
         ):
             macro.apply()
 
-        owner.ramp_to_point.assert_called_once_with("custom_init", ramp_duration=48, duration=64)
+        owner.ramp_to_point.assert_called_once_with(
+            "custom_init", ramp_duration=48, duration=64
+        )
         owner.ramp_to_voltages.assert_not_called()
 
     def test_initialize_state_macro_ramps_to_voltage_dict(self):
@@ -227,7 +231,9 @@ class TestStateMacroPointDispatch:
         ):
             macro.apply()
 
-        owner.ramp_to_voltages.assert_called_once_with(voltages, duration=64, ramp_duration=48)
+        owner.ramp_to_voltages.assert_called_once_with(
+            voltages, duration=64, ramp_duration=48
+        )
         owner.ramp_to_point.assert_not_called()
 
     def test_exchange_state_macro_accepts_voltage_dict_targets(self):
@@ -258,11 +264,12 @@ class TestStateMacroPointDispatch:
 
     def test_measure_psb_pair_macro_steps_to_voltage_dict(self):
         voltages = {"virtual_dot_1": -0.1}
-        macro = MeasurePSBPairMacro(point=voltages, hold_duration=96)
+        macro = MeasurePSBPairMacro(point=voltages, buffer_duration=96)
         sensor_dot = MagicMock()
         owner = MagicMock()
         owner.id = "dot1_dot2_pair"
         owner.sensor_dots = [sensor_dot]
+        owner.voltage_sequence = None
 
         with patch(
             "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
@@ -274,19 +281,21 @@ class TestStateMacroPointDispatch:
         owner.step_to_point.assert_not_called()
         sensor_dot.macros[VoltagePointName.MEASURE.value].apply.assert_called_once_with(
             quantum_dot_pair_id="dot1_dot2_pair",
+            voltage_sequence=None,
+            gate_channel_names=None,
         )
 
 
 class TestMeasure2QDelegation:
     """Test Measure2QMacro delegates to quantum_dot_pair."""
 
-    def test_qubit_pair_has_quantum_dot_pair(self, reset_catalog):
+    def test_qubit_pair_has_quantum_dot_pair(self):
         machine = _make_wired_machine()
         wire_machine_macros(machine)
         qp = machine.qubit_pairs["Q1_Q2"]
         assert qp.quantum_dot_pair is not None
 
-    def test_measure2q_raises_without_quantum_dot_pair(self, reset_catalog):
+    def test_measure2q_raises_without_quantum_dot_pair(self):
         """Directly test Measure2QMacro.apply with no quantum_dot_pair."""
         macro = Measure2QMacro()
         owner = MagicMock()
@@ -328,7 +337,9 @@ def _make_wired_machine() -> LossDiVincenzoQuam:
         frequency_bare=0,
         intermediate_frequency=500e6,
         operations={
-            "readout": quam_pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)
+            "readout": quam_pulses.SquareReadoutPulse(
+                length=200, id="readout", amplitude=0.01
+            )
         },
         opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
         opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
@@ -361,13 +372,9 @@ def _make_wired_machine() -> LossDiVincenzoQuam:
         barrier_gate_id="virtual_barrier_1",
     )
 
-    machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
-        matrix=[[1, -1]],
-        detuning_axis_name="dot1_dot2_epsilon",
-        set_dc_virtual_axis=False,
+    machine.register_qubit_pair(
+        qubit_control_name="Q1", qubit_target_name="Q2", id="Q1_Q2"
     )
-
-    machine.register_qubit_pair(qubit_control_name="Q1", qubit_target_name="Q2", id="Q1_Q2")
     machine.reset_voltage_sequence("main_qpu")
 
     return machine

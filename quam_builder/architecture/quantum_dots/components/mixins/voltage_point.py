@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 from quam.core import quam_dataclass
 
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from .voltage_control import VoltageControlMixin
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ class VoltagePointMixin(VoltageControlMixin):
         self,
         point_name: str,
         voltages: Dict[str, float],
-        duration: int = 16,
+        duration: int = DEFAULTS.state_macro.point_duration,
         replace_existing_point: bool = True,
     ) -> str:
         """Define a reusable voltage point in the gate set.
@@ -97,7 +98,12 @@ class VoltagePointMixin(VoltageControlMixin):
         """
         return f"{self.id}_{point_name}"
 
-    def step_to_point(self, point_name: str, duration: Optional[int] = None) -> None:
+    def step_to_point(
+        self,
+        point_name: str,
+        duration: Optional[int] = None,
+        ensure_align: bool = True,
+    ) -> None:
         """Step instantly to a pre-defined voltage point (convenience method).
 
         This is a convenience wrapper around voltage_sequence.step_to_point()
@@ -106,6 +112,9 @@ class VoltagePointMixin(VoltageControlMixin):
         Args:
             point_name: Local point name (without prefix, must be added via add_point())
             duration: Hold duration in nanoseconds (default: uses point's default)
+            ensure_align: If False, skip the internal align() call.
+                Set to False inside strict_timing_() blocks where
+                alignment is already managed externally.
 
         Raises:
             KeyError: If the point has not been registered via add_point()
@@ -118,10 +127,16 @@ class VoltagePointMixin(VoltageControlMixin):
                 quantum_dot.step_to_point('idle', duration=100)
         """
         full_name = self._create_point_name(point_name)
-        self.voltage_sequence.step_to_point(name=full_name, duration=duration)
+        self.voltage_sequence.step_to_point(
+            name=full_name, duration=duration, ensure_align=ensure_align
+        )
 
     def ramp_to_point(
-        self, point_name: str, ramp_duration: int, duration: Optional[int] = None
+        self,
+        point_name: str,
+        ramp_duration: int,
+        duration: Optional[int] = None,
+        ensure_align: bool = True,
     ) -> None:
         """Ramp gradually to a pre-defined voltage point (convenience method).
 
@@ -132,6 +147,9 @@ class VoltagePointMixin(VoltageControlMixin):
             point_name: Local point name (without prefix, must be added via add_point())
             ramp_duration: Time for voltage transition in nanoseconds
             duration: Hold duration at target in nanoseconds (default: uses point's default)
+            ensure_align: If False, skip the internal align() call.
+                Set to False inside strict_timing_() blocks where
+                alignment is already managed externally.
 
         Raises:
             KeyError: If the point has not been registered via add_point()
@@ -145,5 +163,8 @@ class VoltagePointMixin(VoltageControlMixin):
         """
         full_name = self._create_point_name(point_name)
         self.voltage_sequence.ramp_to_point(
-            name=full_name, duration=duration, ramp_duration=ramp_duration
+            name=full_name,
+            duration=duration,
+            ramp_duration=ramp_duration,
+            ensure_align=ensure_align,
         )

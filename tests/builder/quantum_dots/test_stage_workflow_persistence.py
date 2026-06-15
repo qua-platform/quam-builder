@@ -7,7 +7,10 @@ import pytest
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam
+from quam_builder.builder.quantum_dots import (
+    build_base_quam,
+    build_loss_divincenzo_quam,
+)
 
 
 EXAMPLE_GLOBAL_GATES = [1]
@@ -19,15 +22,15 @@ EXAMPLE_QUANTUM_DOT_PAIRS = [(1, 2), (2, 3)]
 def _make_stage1_connectivity():
     connectivity = Connectivity()
     if EXAMPLE_GLOBAL_GATES:
-        connectivity.add_voltage_gate_lines(voltage_gates=EXAMPLE_GLOBAL_GATES, name="rb")
+        connectivity.add_voltage_gate_lines(
+            voltage_gates=EXAMPLE_GLOBAL_GATES, name="rb"
+        )
     connectivity.add_sensor_dots(
         sensor_dots=EXAMPLE_SENSOR_DOTS,
         shared_resonator_line=False,
-        use_mw_fem=False,
     )
     connectivity.add_quantum_dots(
         quantum_dots=EXAMPLE_QUANTUM_DOTS,
-        add_drive_lines=False,
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=EXAMPLE_QUANTUM_DOT_PAIRS)
     return connectivity
@@ -36,18 +39,19 @@ def _make_stage1_connectivity():
 def _make_stage2_connectivity():
     connectivity = Connectivity()
     if EXAMPLE_GLOBAL_GATES:
-        connectivity.add_voltage_gate_lines(voltage_gates=EXAMPLE_GLOBAL_GATES, name="rb")
+        connectivity.add_voltage_gate_lines(
+            voltage_gates=EXAMPLE_GLOBAL_GATES, name="rb"
+        )
     connectivity.add_sensor_dots(
         sensor_dots=EXAMPLE_SENSOR_DOTS,
         shared_resonator_line=False,
-        use_mw_fem=False,
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=EXAMPLE_QUANTUM_DOT_PAIRS)
-    connectivity.add_quantum_dots(
+    connectivity.add_quantum_dots(quantum_dots=EXAMPLE_QUANTUM_DOTS)
+    connectivity.add_quantum_dot_drive_lines(
         quantum_dots=EXAMPLE_QUANTUM_DOTS,
-        add_drive_lines=True,
+        shared_line=True,
         use_mw_fem=True,
-        shared_drive_line=True,
     )
     return connectivity
 
@@ -62,7 +66,9 @@ def _make_instruments():
 def _add_calibration_data(machine: BaseQuamQD) -> None:
     gate_set = machine.virtual_gate_sets["main_qpu"]
     virtual_targets = [
-        name for name in gate_set.layers[0].source_gates if name.startswith("virtual_dot_")
+        name
+        for name in gate_set.layers[0].source_gates
+        if name.startswith("virtual_dot_")
     ][:2]
     gate_set.add_to_layer(
         layer_id="calibration_layer",
@@ -122,7 +128,9 @@ def test_calibration_data_persists_across_two_stage_build(tmp_path):
     )
 
     gate_set = machine_stage2.virtual_gate_sets["main_qpu"]
-    calibration_layer = next(layer for layer in gate_set.layers if layer.id == "calibration_layer")
+    calibration_layer = next(
+        layer for layer in gate_set.layers if layer.id == "calibration_layer"
+    )
     assert calibration_layer.source_gates == ["virtual_calibration_axis"]
 
     quantum_dot = machine_stage2.quantum_dots["virtual_dot_1"]

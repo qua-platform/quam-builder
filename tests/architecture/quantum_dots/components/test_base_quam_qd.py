@@ -34,7 +34,11 @@ def _resonator() -> ReadoutResonatorSingle:
         id="rr",
         frequency_bare=0,
         intermediate_frequency=500e6,
-        operations={"readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)},
+        operations={
+            "readout": pulses.SquareReadoutPulse(
+                length=200, id="readout", amplitude=0.01
+            )
+        },
         opx_output=LFFEMAnalogOutputPort("con1", 5, port_id=1),
         opx_input=LFFEMAnalogInputPort("con1", 5, port_id=2),
         sticky=StickyChannelAddon(duration=16, digital=False),
@@ -289,7 +293,9 @@ class TestQuaVariables:
 
     def test_declare_qua_variables_custom_count(self, qd_machine):
         with qua.program() as _prog:
-            iq_i, _i_st, iq_q, _q_st, _n, _n_st = qd_machine.declare_qua_variables(num_IQ_pairs=2)
+            iq_i, _i_st, iq_q, _q_st, _n, _n_st = qd_machine.declare_qua_variables(
+                num_IQ_pairs=2
+            )
 
         assert len(iq_i) == 2
         assert len(iq_q) == 2

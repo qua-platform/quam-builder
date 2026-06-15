@@ -24,11 +24,14 @@ repos:
         hooks:
           - id: pylint
             name: pylint
-            entry: python -m pylint --rcfile=.pylintrc
+            # Monorepo: git (and pre-commit) run from ``CS_installations`` root, not ``quam-builder/``
+            entry: python -m pylint --rcfile=quam-builder/.pylintrc
             language: system
             types: [python]
+            # Only the quam-builder package; ``qualibration_graphs`` etc. live alongside at repo root
+            files: ^quam-builder/
             # Exclude the pylint plugin and its test files (which contain intentional lint violations)
-            exclude: ^(pylint_qua_plugin|tests/pylint_plugin|tests)/
+            exclude: ^quam-builder/(pylint_qua_plugin|tests/pylint_plugin|tests)/
       # 4. Type checking – heavier, so run on push instead of every commit
       - repo: https://github.com/pre-commit/mirrors-mypy
         rev: v1.11.1

@@ -44,7 +44,9 @@ class BarrierGate(VoltageMacroMixin):
         """Return the associated voltage sequence, if available."""
         machine = self.machine
         try:
-            virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
+            virtual_gate_set_name = machine._get_virtual_gate_set(
+                self.physical_channel
+            ).id
             return machine.get_voltage_sequence(virtual_gate_set_name)
         except (AttributeError, ValueError, KeyError):
             return None

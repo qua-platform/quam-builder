@@ -22,7 +22,7 @@ def add_nv_spcm_component(
     Raises:
         ValueError: If the port keys do not match any implemented mapping.
     """
-    time_of_flight: int = 32  # 4ns above default so that it appears in state.json
+    time_of_flight: int = 32  # 4ns above default so that it appears in state_old.json
 
     signal_threshold: float = 800 / 4096  # The signal threshold in volts
     signal_polarity: Literal["above", "below"] = (

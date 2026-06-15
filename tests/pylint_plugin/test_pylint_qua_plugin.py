@@ -62,7 +62,10 @@ def run_pylint(file_path: Path, use_plugin: bool = True) -> tuple[int, str, str]
         ]
 
     result = subprocess.run(
-        cmd, capture_output=True, text=True, env={**dict(__import__("os").environ), **env}
+        cmd,
+        capture_output=True,
+        text=True,
+        env={**dict(__import__("os").environ), **env},
     )
     return result.returncode, result.stdout, result.stderr
 
@@ -173,7 +176,9 @@ class TestRegularPythonNotSuppressed:
 
         # At minimum, there should be SOME C1805 warnings for regular Python code
         # The exact lines may vary, but we should see warnings outside QUA contexts
-        assert len(lines_with_c1805) > 0, "C1805 should still appear for regular Python code"
+        assert (
+            len(lines_with_c1805) > 0
+        ), "C1805 should still appear for regular Python code"
 
     def test_c0121_not_suppressed_in_regular_python(self):
         """
@@ -184,7 +189,9 @@ class TestRegularPythonNotSuppressed:
         lines_with_c0121 = get_lines_with_message(stdout, "C0121")
 
         # regular_python_function and mixed_function should have C0121 warnings
-        assert len(lines_with_c0121) > 0, "C0121 should still appear for regular Python code"
+        assert (
+            len(lines_with_c0121) > 0
+        ), "C0121 should still appear for regular Python code"
 
 
 class TestComparisonWithoutPlugin:
@@ -219,7 +226,8 @@ class TestRealWorldExample:
 
     @pytest.mark.skipif(
         not (
-            REPO_ROOT / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
+            REPO_ROOT
+            / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
         ).exists(),
         reason="rabi_chevron.py not found",
     )
@@ -228,7 +236,10 @@ class TestRealWorldExample:
         Run pylint on the actual rabi_chevron.py and verify QUA-related
         false positives are suppressed.
         """
-        rabi_file = REPO_ROOT / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
+        rabi_file = (
+            REPO_ROOT
+            / "quam_builder/architecture/quantum_dots/examples/rabi_chevron.py"
+        )
         return_code, stdout, stderr = run_pylint(rabi_file, use_plugin=True)
 
         # The file uses QUA constructs - verify no false positives

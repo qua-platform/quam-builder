@@ -4,22 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
-### Changed
-Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
 ### Added
-- Updated the TWPA component with isolation pump and added corresponding builder functions.
-### Fixed
-- Fix the default behavior of `def initialize_qpu(self, isolation: bool = False, **kwargs):` in the SC `BaseQuam`.
-
-## [0.3.0] - 2026-03-31
-### Added
-- Added support for Python 3.13.
 - Add support for cloud-based QMM instances in `machine.connect()`
-- A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
-- TWPA: add `pumpline_attenuation` and `signalline_attenuation` (float, optional) attributes.
-- BaseQuam , XYDriveBase and ReadoutResonatorBase: `extras` (dict) for additional QUAM-level attributes.
-### Changed
-- FluxTunableQuam.set_all_fluxes: `target` is now optional; when `target=None`, settle and align are applied to all qubits.
+  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 ### Fixed
 - NV center - fix invalid `SPCM` component.
 
@@ -50,8 +37,7 @@ Updated qualang-tools requirement `"qualang-tools>=0.22.0"`.
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.3.0
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.0
 [0.1.2]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.2
 [0.1.1]: https://github.com/qua-platform/quam-builder/releases/tag/v0.1.1

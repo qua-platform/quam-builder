@@ -1,8 +1,13 @@
-import numpy as np
-from typing import Union, List, Optional
+from typing import TYPE_CHECKING
 
-from quam.core import quam_dataclass, QuamComponent
+import numpy as np
+
 from quam.components import Channel
+from quam.core import QuamComponent, quam_dataclass
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
+
+if TYPE_CHECKING:
+    from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["DacSpec", "QdacSpec"]
 
@@ -75,7 +80,7 @@ class QdacSpec(DacSpec):
 
     def load_dc_list(
         self,
-        voltages: Union[List, np.ndarray],
+        voltages: list | np.ndarray,
         dwell_s: float = 200e-6,
         stepped: bool = True,
     ) -> None:
@@ -89,15 +94,15 @@ class QdacSpec(DacSpec):
 
     def play_triangle_wave(
         self,
-        frequency_Hz: Optional[float] = None,
-        period_s: Optional[float] = None,
+        frequency_Hz: float | None = None,
+        period_s: float | None = None,
         repetitions: int = -1,
         duty_cycle_percent: float = 50.0,
         inverted: bool = False,
-        span_V: float = 0.2,
+        span_V: float = DEFAULTS.qdac.triangle_span_V,
         offset_V: float = 0.0,
         delay_s: float = 0,
-        slew_V_s: Optional[float] = None,
+        slew_V_s: float | None = None,
         triggered: bool = True,
     ):
         """An example of how to fully utilise the QDAC API in the QdacSpec. This example plays a triangle wave."""

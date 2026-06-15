@@ -1,15 +1,16 @@
 from typing import Dict, List, TYPE_CHECKING
 from dataclasses import field
+from qm.qua import Cast, assign, declare, fixed
 
 from quam.core import quam_dataclass
 
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from .quantum_dot import QuantumDot
 from .sensor_dot import SensorDot
 from .barrier_gate import BarrierGate
 from .mixins import VoltageMacroMixin
 from .voltage_gate import VoltageGate
-from .virtual_gate_set import VirtualGateSet
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -48,7 +49,9 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
     def __post_init__(self):
         super().__post_init__()
-        if isinstance(self.quantum_dots[0], str):
+        if isinstance(self.quantum_dots[0], str) or isinstance(
+            self.quantum_dots[1], str
+        ):
             return
         if len(self.quantum_dots) != 2:
             raise ValueError(
@@ -57,7 +60,10 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         if self.id is None:
             self.id = f"{self.quantum_dots[0].id}_{self.quantum_dots[1].id}"
 
-        if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
+        if (
+            self.quantum_dots[0].voltage_sequence
+            is not self.quantum_dots[1].voltage_sequence
+        ):
             raise ValueError("Quantum Dots not part of same VoltageSequence")
 
         self.detuning_axis_name = f"{self.id}_epsilon"
@@ -69,10 +75,6 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     @property
     def voltage_sequence(self) -> VoltageSequence:
         return self.quantum_dots[0].voltage_sequence
-    
-    @property 
-    def gate_set(self) -> VirtualGateSet: 
-        return self.voltage_sequence.gate_set
 
     @property
     def machine(self) -> "BaseQuamQD":
@@ -96,7 +98,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         # Ensure that the detuning axis name held in object is consistent
         self.detuning_axis_name = detuning_axis_name
 
-        virtual_gate_set = self.gate_set
+        virtual_gate_set = self.voltage_sequence.gate_set
 
         # Should be the correct virtual axes in the first layer of the VirtualGateSet
         target_gates = [qd.id for qd in self.quantum_dots]
@@ -124,22 +126,37 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
                 matrix=matrix,
             )
 
-    def go_to_detuning(self, voltage: float, duration: int = 16) -> None:
+    def go_to_detuning(
+        self,
+        voltage: float,
+        duration: int = DEFAULTS.state_macro.point_duration,
+    ) -> None:
         """To be used in a simultaneous block to step/ramp detuning to specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages(
             {self.detuning_axis_name: voltage}, duration=duration
         )
 
-    def step_to_detuning(self, voltage: float, duration: int = 16) -> None:
+    def step_to_detuning(
+        self,
+        voltage: float,
+        duration: int = DEFAULTS.state_macro.point_duration,
+    ) -> None:
         """Steps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.step_to_voltages(
             {self.detuning_axis_name: voltage}, duration=duration
         )
 
-    def ramp_to_detuning(self, voltage: float, ramp_duration: int, duration: int = 16):
+    def ramp_to_detuning(
+        self,
+        voltage: float,
+        ramp_duration: int,
+        duration: int = DEFAULTS.state_macro.point_duration,
+    ):
         """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.ramp_to_voltages(
-            {self.detuning_axis_name: voltage}, duration=duration, ramp_duration=ramp_duration
+            {self.detuning_axis_name: voltage},
+            duration=duration,
+            ramp_duration=ramp_duration,
         )
 
     def _get_component_id_for_voltages(self) -> str:
@@ -150,9 +167,6 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
             str: The detuning axis name to use for voltage operations
         """
         return self.detuning_axis_name
-
-    def measure(self):
-        pass
 
     def readout_state(
         self,
@@ -173,7 +187,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
         sensor_dot = self.sensor_dots[0]
 
-        threshold, projector = sensor_dot._readout_threshold(self.id)
+        threshold, projector = sensor_dot._readout_params(self.id)
 
         sensor_dot.measure(pulse_name, qua_vars=(I, Q))
 

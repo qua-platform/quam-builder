@@ -69,7 +69,9 @@ class QuantumDot(VoltageMacroMixin):
     def voltage_sequence(self) -> VoltageSequence:
         machine = self.machine
         try:
-            virtual_gate_set_name = machine._get_virtual_gate_set(self.physical_channel).id
+            virtual_gate_set_name = machine._get_virtual_gate_set(
+                self.physical_channel
+            ).id
             return machine.get_voltage_sequence(virtual_gate_set_name)
         except (AttributeError, ValueError, KeyError):
             return None
@@ -106,7 +108,8 @@ class QuantumDot(VoltageMacroMixin):
         pair_name = machine.find_quantum_dot_pair(self.id, other.id)
         if pair_name is None:
             raise ValueError(
-                f"No QuantumDotPair registered for dots " f"'{self.id}' and '{other.id}'."
+                f"No QuantumDotPair registered for dots "
+                f"'{self.id}' and '{other.id}'."
             )
         return machine.quantum_dot_pairs[pair_name]
 

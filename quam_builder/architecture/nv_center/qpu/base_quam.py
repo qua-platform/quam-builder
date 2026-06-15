@@ -70,7 +70,7 @@ class BaseQuamNV(QuamRoot):
         This method can be overridden by subclasses to provide a custom serialiser.
         """
         return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
+            content_mapping={"wiring": "wiring_old.json", "network": "wiring_old.json"}
         )
 
     def get_octave_config(self) -> QmOctaveConfig:

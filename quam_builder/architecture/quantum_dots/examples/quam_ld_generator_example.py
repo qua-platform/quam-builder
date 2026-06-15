@@ -16,7 +16,9 @@ from qm.qua import *
 import numpy as np
 
 # Instantiate Quam
-state_path = Path(os.environ.get("QUAM_STATE_PATH", "/Users/kalidu_laptop/.qualibrate/quam_state"))
+state_path = Path(
+    os.environ.get("QUAM_STATE_PATH", "/Users/kalidu_laptop/.qualibrate/quam_state")
+)
 if not state_path.exists():
     print(f"State path not found: {state_path}. Set QUAM_STATE_PATH to run.")
     raise SystemExit(0)
@@ -47,7 +49,11 @@ for i in range(num_qubits):
             intermediate_frequency=5e6 + 1e6 * i,
             operations={
                 "x90": pulses.GaussianPulse(
-                    length=200, id="x90_Gaussian", digital_marker=None, amplitude=0.02, sigma=50
+                    length=200,
+                    id="x90_Gaussian",
+                    digital_marker=None,
+                    amplitude=0.02,
+                    sigma=50,
                 )
             },
         ),
@@ -78,6 +84,8 @@ for i in range(len(machine.barrier_gates)):
 
 for i in range(len(machine.quantum_dots)):
     neighbor_idx = i - 1 if i == len(machine.quantum_dots) - 1 else i + 1
-    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
+    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = (
+        f"virtual_dot_{neighbor_idx}"
+    )
 
 config = machine.generate_config()

@@ -136,7 +136,9 @@ def add_transmons(machine: AnyQuam):
                             transmon_pair, wiring_path, ports
                         )
                     elif line_type == WiringLineType.ZZ_DRIVE.value:
-                        add_transmon_pair_zz_drive_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_zz_drive_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
                     machine.qubit_pairs[transmon_pair.name] = transmon_pair
@@ -182,7 +184,9 @@ def add_octaves(
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
+                        octave_name = references.get_unreferenced_value(
+                            reference
+                        ).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -207,7 +211,9 @@ def add_external_mixers(machine: AnyQuam) -> AnyQuam:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
+                        mixer_name = references.get_unreferenced_value(reference).split(
+                            "/"
+                        )[2]
                         transmon_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",

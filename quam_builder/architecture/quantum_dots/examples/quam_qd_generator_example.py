@@ -40,7 +40,11 @@ from quam.components.ports import (
     MWFEMAnalogOutputPort,
 )
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveMW, QPU
+from quam_builder.architecture.quantum_dots.components import (
+    VoltageGate,
+    XYDriveMW,
+    QPU,
+)
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
 from qm.qua import *
@@ -130,7 +134,11 @@ rs = [
         id=f"readout_resonator_{i}",
         frequency_bare=0,
         intermediate_frequency=500e6,
-        operations={"readout": pulses.SquareReadoutPulse(length=200, id="readout", amplitude=0.01)},
+        operations={
+            "readout": pulses.SquareReadoutPulse(
+                length=200, id="readout", amplitude=0.01
+            )
+        },
         opx_output=LFFEMAnalogOutputPort("con1", lf_fem_resonators, port_id=i + 1),
         opx_input=LFFEMAnalogInputPort("con1", lf_fem_resonators, port_id=i + 1),
         sticky=StickyChannelAddon(duration=16, digital=False),
@@ -182,10 +190,6 @@ for i in range(barrier_gates):
         barrier_gate_id=f"virtual_barrier_{i}",
     )
 
-    machine.quantum_dot_pairs[dot_id].define_detuning_axis(
-        matrix=[[1, -1]], set_dc_virtual_axis=False
-    )
-
 #####################################
 ###### Register Qubits & Pairs  ######
 #####################################
@@ -231,7 +235,9 @@ for i in range(plunger_gates):
 # Set a preferred readout quantum dot for each qubit
 for i in range(plunger_gates):
     neighbor_idx = i - 1 if i == plunger_gates - 1 else i + 1
-    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = f"virtual_dot_{neighbor_idx}"
+    machine.qubits[f"Q{i}"].preferred_readout_quantum_dot = (
+        f"virtual_dot_{neighbor_idx}"
+    )
 
 # Register adjacent qubit pairs (Q0_Q1, Q1_Q2, ...)
 for i in range(plunger_gates - 1):

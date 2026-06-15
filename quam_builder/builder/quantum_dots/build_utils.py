@@ -26,21 +26,15 @@ from quam_builder.architecture.quantum_dots.components.xy_drive import (
     XYDriveMW,
     XYDriveSingle,
 )
-from quam_builder.builder.qop_connectivity.get_digital_outputs import (
-    get_digital_outputs,
-)
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
+from quam_builder.architecture.superconducting.qpu import AnyQuam
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
     mw_out_channel_ports,
 )
 
-# Default configuration constants for quantum dot systems
 DEFAULT_GATE_SET_ID = "main_qpu"
-DEFAULT_STICKY_DURATION = 16
-DEFAULT_INTERMEDIATE_FREQUENCY = 500e6
-DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY = 0
-DEFAULT_READOUT_LENGTH = 200
-DEFAULT_READOUT_AMPLITUDE = 0.01
+_FALLBACK_INTERMEDIATE_FREQUENCY = DEFAULTS.frequency.intermediate_frequency
 
 _ELEMENT_TYPE_ALIASES = {
     "globals": "globals",
@@ -107,7 +101,9 @@ def _normalize_element_type(element_type: str) -> str:
     try:
         return _ELEMENT_TYPE_ALIASES[element_type]
     except KeyError as exc:
-        raise ValueError(f"Unsupported element type '{element_type}' in wiring") from exc
+        raise ValueError(
+            f"Unsupported element type '{element_type}' in wiring"
+        ) from exc
 
 
 def _validate_line_type(element_type: str, line_type: str) -> None:
@@ -156,9 +152,9 @@ def _make_sticky_channel() -> StickyChannelAddon:
     """Create a sticky channel addon with default duration.
 
     Returns:
-        StickyChannelAddon configured with DEFAULT_STICKY_DURATION.
+        StickyChannelAddon configured with ``DEFAULTS.misc.sticky_duration``.
     """
-    return StickyChannelAddon(duration=DEFAULT_STICKY_DURATION, digital=False)
+    return StickyChannelAddon(duration=DEFAULTS.misc.sticky_duration, digital=False)
 
 
 def _make_voltage_gate(gate_id: str, wiring_path: str) -> VoltageGate:
@@ -178,7 +174,9 @@ def _make_voltage_gate(gate_id: str, wiring_path: str) -> VoltageGate:
     )
 
 
-def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> ReadoutResonatorSingle:
+def _make_resonator(
+    sensor_id: str, wiring_path: str, resonator_cls: Any
+) -> ReadoutResonatorSingle:
     """Create a readout resonator with default configuration and readout pulse.
 
     Args:
@@ -192,11 +190,13 @@ def _make_resonator(sensor_id: str, wiring_path: str, resonator_cls: Any) -> Rea
     sensor_number = _extract_qubit_number(sensor_id)
     return resonator_cls(
         id=f"readout_resonator_{sensor_number}",
-        frequency_bare=0,
-        intermediate_frequency=DEFAULT_RESONATOR_INTERMEDIATE_FREQUENCY,
+        frequency_bare=DEFAULTS.readout.frequency,
+        intermediate_frequency=DEFAULTS.readout.frequency,
         operations={
             "readout": pulses.SquareReadoutPulse(
-                length=DEFAULT_READOUT_LENGTH, id="readout", amplitude=DEFAULT_READOUT_AMPLITUDE
+                length=DEFAULTS.readout.length,
+                id="readout",
+                amplitude=DEFAULTS.readout.amplitude,
             )
         },
         opx_output=f"{wiring_path}/opx_output",
@@ -317,84 +317,38 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     return control, target
 
 
-_OPX_ANALOG_WIRING_KEYS = frozenset({"opx_output", "opx_output_I", "opx_output_Q"})
-
-
-def _wiring_has_opx_analog_output(ports: Any) -> bool:
-    """True if the line wiring includes an OPX/LF analog port reference (not QDAC-only)."""
-    if not ports or not hasattr(ports, "keys"):
-        return False
-    for key in ports.keys():
-        if key not in _OPX_ANALOG_WIRING_KEYS:
-            continue
-        if hasattr(ports, "get_unreferenced_value"):
-            raw = ports.get_unreferenced_value(key)
-        elif hasattr(ports, "get"):
-            raw = ports.get(key)
-        else:
-            raw = ports[key]
-        if raw is not None and raw != "":
-            return True
-    return False
-
-
 def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
-    """Extract QDAC DC output port index from wiring (legacy int or structured block).
+    """Extract QDAC channel number from wiring configuration.
 
-    Prefer the structured ``qdac_output`` dict from :mod:`quam_builder.builder.qop_connectivity.qdac_wiring`;
-    fall back to legacy ``qdac_channel`` integer.
+    Args:
+        wiring_dict: Wiring dictionary that may contain 'qdac_channel' key.
+
+    Returns:
+        QDAC channel number if present, None otherwise.
     """
-    from quam_builder.builder.qop_connectivity.qdac_wiring import extract_qdac_output_port
-
-    return extract_qdac_output_port(wiring_dict)
+    return wiring_dict.get("qdac_channel")
 
 
 def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, ports: Mapping[str, Any], qdac_channel: int | None = None
+    gate_id: str, wiring_path: str, qdac_channel: int | None = None
 ) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:
         gate_id: Identifier for the gate.
         wiring_path: JSON path to wiring configuration.
-        ports: Port mapping for this line (OPX refs, ``qdac_output``, digitals, etc.).
         qdac_channel: Optional QDAC channel number for external voltage control.
 
     Returns:
         Configured VoltageGate instance with QDAC channel if provided.
-
-    When wiring is **QDAC-only** (no OPX/LF analog port keys), :attr:`VoltageGate.opx_output`
-    is set to ``None`` so QUAM does not resolve a missing ``#/wiring/.../opx_output`` path.
-    Sticky is omitted so :meth:`~quam.core.quam_classes.QuamRoot.generate_config` does not touch OPX.
     """
-
-    digital_outputs = get_digital_outputs(wiring_path, ports, "qdac_trig")
-    opx_out = f"{wiring_path}/opx_output" if _wiring_has_opx_analog_output(ports) else None
-    sticky = _make_sticky_channel() if opx_out is not None else None
-
     gate = VoltageGate(
         id=gate_id,
-        opx_output=opx_out,
-        sticky=sticky,
-        digital_outputs=digital_outputs,
+        opx_output=f"{wiring_path}/opx_output",
+        sticky=_make_sticky_channel(),
     )
     if qdac_channel is not None:
         gate.qdac_channel = qdac_channel
-    from quam_builder.builder.qop_connectivity.qdac_wiring import (
-        extract_qdac_trigger_port,
-        extract_qdac_trigger_unit_index,
-        extract_qdac_unit_index,
-    )
-
-    qdac_unit = extract_qdac_unit_index(ports)
-    if qdac_unit is not None:
-        gate.qdac_unit_index = qdac_unit
-    qdac_trigger_in = extract_qdac_trigger_port(ports)
-    if qdac_trigger_in is not None:
-        gate.qdac_trigger_in = qdac_trigger_in
-    qdac_trig_unit = extract_qdac_trigger_unit_index(ports)
-    if qdac_trig_unit is not None:
-        gate.qdac_trigger_unit_index = qdac_trig_unit
     return gate
 
 
@@ -450,7 +404,7 @@ def _create_xy_drive_from_wiring(
     qubit_id: str,
     drive_type: str,
     wiring_path: str,
-    intermediate_frequency: float = DEFAULT_INTERMEDIATE_FREQUENCY,
+    intermediate_frequency: float = _FALLBACK_INTERMEDIATE_FREQUENCY,
 ) -> Any:  # Returns XYDriveIQ, XYDriveMW, or XYDriveSingle
     """Create an XY drive channel from wiring specification.
 
@@ -480,12 +434,10 @@ def _create_xy_drive_from_wiring(
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
             frequency_converter_up=f"{wiring_path}/frequency_converter_up",
-            RF_frequency=None,
         )
     if drive_type == "MW":
         return XYDriveMW(
             id=drive_id,
-            RF_frequency=None,
             opx_output=f"{wiring_path}/opx_output",
         )
     if drive_type == "Single":
@@ -495,16 +447,14 @@ def _create_xy_drive_from_wiring(
             opx_output=f"{wiring_path}/opx_output",
         )
 
-    raise ValueError(f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'.")
+    raise ValueError(
+        f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'."
+    )
 
 
 # pylint: disable=undefined-all-variable
 __all__ = [
     "DEFAULT_GATE_SET_ID",
-    "DEFAULT_STICKY_DURATION",
-    "DEFAULT_INTERMEDIATE_FREQUENCY",
-    "DEFAULT_READOUT_LENGTH",
-    "DEFAULT_READOUT_AMPLITUDE",
     "_natural_sort_key",
     "_sorted_items",
     "_normalize_element_type",

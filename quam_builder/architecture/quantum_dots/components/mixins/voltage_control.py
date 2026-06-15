@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Dict
 from quam.core import quam_dataclass
 from quam.components import QuantumComponent
 
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
 
 if TYPE_CHECKING:
@@ -83,7 +84,9 @@ class VoltageControlMixin(QuantumComponent):
                 f"Valid channel names: {list(valid_channel_names)}"
             )
 
-    def go_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType) -> None:
+    def go_to_voltages(
+        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
+    ) -> None:
         """Agnostic function to set voltage in a sequence.simultaneous block.
 
         Whether it is a step or a ramp should be determined by the context manager.
@@ -96,21 +99,30 @@ class VoltageControlMixin(QuantumComponent):
         self.voltage_sequence.step_to_voltages(voltages, duration=duration)
 
     def step_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
+        self,
+        voltages: Dict[str, VoltageLevelType],
+        duration: DurationType,
+        ensure_align: bool = True,
     ) -> None:
         """Step to a specified voltage.
 
         Args:
             voltages: Target voltages (key: gate/qubit name, value: voltage)
             duration: Duration to hold the voltage in nanoseconds
+            ensure_align: If False, skip the internal align() call.
+                Set to False inside strict_timing_() blocks where
+                alignment is already managed externally.
         """
-        self.voltage_sequence.step_to_voltages(voltages, duration=duration)
+        self.voltage_sequence.step_to_voltages(
+            voltages, duration=duration, ensure_align=ensure_align
+        )
 
     def ramp_to_voltages(
         self,
         voltages: Dict[str, VoltageLevelType],
         duration: DurationType,
         ramp_duration: DurationType,
+        ensure_align: bool = True,
     ) -> None:
         """Ramp to a specified voltage.
 
@@ -118,5 +130,31 @@ class VoltageControlMixin(QuantumComponent):
             voltages: Target voltages (key: gate/qubit name, value: voltage)
             ramp_duration: Duration of the ramp in nanoseconds
             duration: Duration to hold the final voltage in nanoseconds
+            ensure_align: If False, skip the internal align() call.
+                Set to False inside strict_timing_() blocks where
+                alignment is already managed externally.
         """
-        self.voltage_sequence.ramp_to_voltages(voltages, duration, ramp_duration)
+        self.voltage_sequence.ramp_to_voltages(
+            voltages, duration, ramp_duration, ensure_align=ensure_align
+        )
+
+    def step_to_zero(
+        self,
+        duration: DurationType = DEFAULTS.state_macro.point_duration,
+        ensure_align: bool = True,
+    ) -> None:
+        """Step to zero voltage.
+
+        Args:
+            duration: Duration to hold the voltage in nanoseconds
+            ensure_align: If False, skip the internal align() call.
+                Set to False inside strict_timing_() blocks where
+                alignment is already managed externally.
+        """
+        self.voltage_sequence.step_to_voltages(
+            voltages={
+                ch_name: 0.0 for ch_name in self.voltage_sequence.gate_set.channels
+            },
+            duration=duration,
+            ensure_align=ensure_align,
+        )

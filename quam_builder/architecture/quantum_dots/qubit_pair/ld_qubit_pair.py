@@ -1,7 +1,9 @@
 # Quantum component inheritance depth is framework-driven for QuAM dataclasses.
 # pylint: disable=too-many-ancestors
 
-from typing import Union, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from dataclasses import field
+from qm.qua import wait
 
 from quam.core import quam_dataclass
 from quam.components import QubitPair
@@ -9,7 +11,7 @@ from quam.components import QubitPair
 from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
-from quam_builder.architecture.quantum_dots.components import VoltageGate
+from quam_builder.architecture.quantum_dots.components import VoltageGate, XYDriveBase
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -28,6 +30,7 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
     Attributes:
         qubit_control (LDQubit): The first Loss-DiVincenzo Qubit instance
         qubit_target (LDQubit): The second Loss-DiVincenzo Qubit instance
+        gate_fidelity (Dict[str, Any]): Collection of two-qubit gate fidelity metrics.
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods:
@@ -43,6 +46,10 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
     qubit_target: LDQubit
 
     quantum_dot_pair: QuantumDotPair = None
+    gate_fidelity: Dict[str, Any] = field(default_factory=dict)
+
+    xy: XYDriveBase = None
+    heralded_initialize_target_state: Optional[int] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -78,4 +85,17 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
         """
         return self.detuning_axis_name
 
-    # Voltage point methods (add_point, step_to_point, ramp_to_point) are now provided by VoltageMacroMixin
+    def _create_point_name(self, point_name: str) -> str:
+        """Delegate point naming to the quantum_dot_pair so keys match the gate set."""
+        return self.quantum_dot_pair._create_point_name(point_name)
+
+    def idle(self, duration) -> None:
+        wait(
+            duration,
+            self.physical_channel.name,
+            self.qubit_target.physical_channel.name,
+            self.qubit_target.xy.name,
+            self.qubit_control.physical_channel.name,
+            self.qubit_control.xy.name,
+
+        )

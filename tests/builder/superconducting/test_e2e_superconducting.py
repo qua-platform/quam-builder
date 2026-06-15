@@ -61,7 +61,9 @@ class TestSuperconductingOPXPlusOctave:
         connectivity = self._make_connectivity(qubits, qubit_pairs, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
 
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
@@ -85,7 +87,9 @@ class TestSuperconductingOPXPlusOctave:
         connectivity = self._make_connectivity(qubits, qubit_pairs, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
 
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
@@ -111,7 +115,9 @@ class TestSuperconductingOPXPlusOctave:
         allocate_wiring(connectivity, instruments)
 
         machine = FixedFrequencyQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
 
         machine = FixedFrequencyQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
@@ -145,7 +151,9 @@ class TestSuperconductingOPXPlusOctave:
         allocate_wiring(connectivity, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
 
@@ -162,7 +170,9 @@ class TestSuperconductingOPXPlusOctave:
         connectivity = self._make_connectivity(qubits, qubit_pairs, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
 
         assert "qubits" in machine.wiring
         assert "qubit_pairs" in machine.wiring
@@ -192,7 +202,9 @@ class TestSuperconductingLFFEMMWFEM:
         connectivity = Connectivity()
         connectivity.add_resonator_line(qubits=qubits[:4], constraints=q1to4_res_ch)
         connectivity.add_resonator_line(qubits=qubits[4:], constraints=q5to8_res_ch)
-        connectivity.add_qubit_drive_lines(qubits=qubits[:4], constraints=q1to4_drive_ch)
+        connectivity.add_qubit_drive_lines(
+            qubits=qubits[:4], constraints=q1to4_drive_ch
+        )
         for qubit in qubits[4:]:
             connectivity.add_qubit_drive_lines(qubits=qubit, constraints=q5to8_drive_ch)
             allocate_wiring(connectivity, instruments, block_used_channels=False)
@@ -201,7 +213,9 @@ class TestSuperconductingLFFEMMWFEM:
         allocate_wiring(connectivity, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
 
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
@@ -230,7 +244,9 @@ class TestSuperconductingLFFEMMWFEM:
         allocate_wiring(connectivity, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
 
@@ -265,7 +281,9 @@ class TestSuperconductingLFFEMOctave:
         allocate_wiring(connectivity, instruments)
 
         machine = FluxTunableQuam()
-        build_quam_wiring(connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir)
+        build_quam_wiring(
+            connectivity, "127.0.0.1", "test_cluster", machine, path=temp_dir
+        )
         machine = FluxTunableQuam.load(temp_dir)
         build_quam_sc(machine, calibration_db_path=temp_dir, save=False)
 

@@ -1,10 +1,20 @@
 """Single-qubit default macros for quantum-dot qubits.
 
+Pulse family switching
+----------------------
+All single-qubit XY rotations are parameterised by a **pulse family**
+(``"gaussian"``, ``"square"``, ``"kaiser"``, ``"hermite"``, or ``"drag"``).  The active family is
+stored in ``XYDriveMacro.pulse_family`` and determines which operation
+from ``qubit.xy.operations`` is played.  Operations follow the naming
+convention ``{family}_{gate}`` (e.g. ``"kaiser_x180"``).
+
+Changing ``machine.pulse_family`` (and propagating via
+``machine.set_pulse_family()``) switches **all** macros simultaneously.
+
 Rescaling philosophy
 --------------------
-All single-qubit rotations derive from a **single reference pulse** (by
-default a ``GaussianPulse`` named ``"gaussian"``).  The ``XYDriveMacro``
-rescales only **amplitude** and **phase** at the macro level:
+The ``XYDriveMacro`` rescales only **amplitude** and **phase** at the
+macro level:
 
 * **Amplitude** is scaled proportionally to the requested rotation angle
   relative to ``reference_angle`` (default π).
@@ -12,16 +22,15 @@ rescales only **amplitude** and **phase** at the macro level:
   (0 → X, π/2 → Y, arbitrary → any XY axis).
 
 The pulse is **never time-stretched** via QUA's ``play(duration=…)``
-parameter, because arbitrary waveforms (Gaussian, DRAG) have internal
-shape parameters (e.g. ``sigma``) defined in absolute samples.  Stretching
-the waveform without scaling ``sigma`` distorts the envelope.  By always
-playing at the pulse's native ``length``, the macro guarantees the
-waveform shape is self-consistent.
+parameter, because arbitrary waveforms (Gaussian, Kaiser) have internal
+shape parameters defined in absolute samples.  By always playing at the
+pulse's native ``length``, the macro guarantees the waveform shape is
+self-consistent.
 
 For experiments that require sweeping pulse duration (e.g. time-Rabi),
 users should define a custom macro that explicitly accepts the
-sigma/length trade-off, or register multiple pulses with different
-(length, sigma) pairs.
+shape/length trade-off, or register multiple pulses with different
+length parameters.
 """
 
 # Framework macro base classes introduce deep inheritance chains by design.
@@ -29,23 +38,33 @@ sigma/length trade-off, or register multiple pulses with different
 
 from __future__ import annotations
 
+import dataclasses
 import math
+from typing import ClassVar
 
 import numpy as np
+
 from qm.qua import wait
 from quam.components.macro import QubitMacro
+from quam.components.quantum_components.qubit import qua
+from quam.core import quam_dataclass
+from quam.core.macro import QuamMacro
+from virtual_qpu import pulse
 
-from quam_builder.architecture.quantum_dots.operations.names import (
-    DrivePulseName,
-    SingleQubitMacroName,
-    VoltagePointName,
-    X_NEG_90_ALIAS,
-    Y_NEG_90_ALIAS,
-)
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
     InitializeStateMacro,
+    MeasurePSBPairMacro,
 )
+from quam_builder.architecture.quantum_dots.operations.names import (
+    X_NEG_90_ALIAS,
+    Y_NEG_90_ALIAS,
+    DrivePulseName,
+    SingleQubitMacroName,
+    VoltagePointName,
+)
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
+from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, is_qua_type
 
 __all__ = [
     "SINGLE_QUBIT_MACROS",
@@ -95,12 +114,90 @@ def _compose_amplitude_scale(
     return scale
 
 
-class Initialize1QMacro(InitializeStateMacro, QubitMacro):
-    """Initialize qubit by ramping to the `initialize` voltage point."""
+def _resolve_qubit_pair(qubit):
+    """Resolve the LDQubitPair for a qubit via preferred_readout_quantum_dot.
 
-    point: str = VoltagePointName.INITIALIZE.value
+    Iterates ``machine.qubit_pairs`` to find a pair where one member is
+    *qubit* and the other member's quantum dot matches
+    ``preferred_readout_quantum_dot``.
+
+    Raises:
+        ValueError: If preferred_readout_quantum_dot is not set or pair not found.
+    """
+    preferred_dot_id = getattr(qubit, "preferred_readout_quantum_dot", None)
+    if preferred_dot_id is None:
+        raise ValueError(
+            f"Qubit '{qubit.id}' has no preferred_readout_quantum_dot set."
+        )
+    machine = qubit.machine
+    for pair in machine.qubit_pairs.values():
+        qc, qt = pair.qubit_control, pair.qubit_target
+        if qc is qubit and qt.quantum_dot.id == preferred_dot_id:
+            return pair
+        if qt is qubit and qc.quantum_dot.id == preferred_dot_id:
+            return pair
+    raise ValueError(
+        f"No QubitPair found for qubit '{qubit.id}' with "
+        f"preferred_readout_quantum_dot '{preferred_dot_id}'."
+    )
 
 
+def _state_macro_field_names(state_macro_cls: type) -> frozenset[str]:
+    """Dataclass field names on *state_macro_cls* excluding QuamMacro base fields."""
+    base = {f.name for f in dataclasses.fields(QuamMacro)}
+    return frozenset(f.name for f in dataclasses.fields(state_macro_cls)) - base
+
+
+@quam_dataclass
+class Initialize1QMacro(QubitMacro):
+    """Initialize qubit by delegating to the QuantumDotPair's initialize macro."""
+
+    _CANONICAL_MACRO_NAME = "initialize"
+
+    def _resolve_canonical_macro(self):
+        pair = _resolve_qubit_pair(self.qubit)
+        return pair.macros[self._CANONICAL_MACRO_NAME]
+
+    @property
+    def inferred_duration(self) -> float | None:
+        try:
+            return self._resolve_canonical_macro().inferred_duration
+        except (ValueError, KeyError):
+            return None
+
+    def update(self, **kwargs) -> None:
+        self._resolve_canonical_macro().update(**kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
+
+    def apply(self, **kwargs):
+        # Let qubit.initialize() default to driving/conditioning on itself when
+        # the underlying initialize macro supports heralded arguments.
+        if kwargs.get("qubit_name") is None:
+            kwargs["qubit_name"] = self.qubit.name
+        return self._resolve_canonical_macro().apply(**kwargs)
+
+    def __getattr__(self, name):
+        field_names = _state_macro_field_names(InitializeStateMacro)
+        if name in field_names:
+            return getattr(self._resolve_canonical_macro(), name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+    def __setattr__(self, name, value):
+        try:
+            field_names = _state_macro_field_names(InitializeStateMacro)
+        except TypeError:
+            field_names = frozenset()
+        if name in field_names:
+            setattr(self._resolve_canonical_macro(), name, value)
+            return
+        super().__setattr__(name, value)
+
+
+@quam_dataclass
 class Measure1QMacro(QubitMacro):
     """PSB measure macro for a single qubit.
 
@@ -109,152 +206,140 @@ class Measure1QMacro(QubitMacro):
     pair's measure macro which performs the full PSB readout chain.
     """
 
+    _CANONICAL_MACRO_NAME = "measure"
+
+    def _resolve_canonical_macro(self):
+        pair = _resolve_qubit_pair(self.qubit)
+        return pair.macros[self._CANONICAL_MACRO_NAME]
+
+    @property
+    def inferred_duration(self) -> float | None:
+        try:
+            return self._resolve_canonical_macro().inferred_duration
+        except (ValueError, KeyError):
+            return None
+
+    def update(self, **kwargs) -> None:
+        self._resolve_canonical_macro().update(**kwargs)
+
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
-        """Perform PSB readout via the qubit's preferred readout dot pair.
+        return self._resolve_canonical_macro().apply(**kwargs)
 
-        Returns:
-            QUA boolean expression from the PSB state discrimination.
-        """
-        qubit = self.qubit
-        preferred_dot_id = getattr(qubit, "preferred_readout_quantum_dot", None)
-        if preferred_dot_id is None:
-            raise ValueError(f"Qubit '{qubit.id}' has no preferred_readout_quantum_dot set.")
+    def __getattr__(self, name):
+        field_names = _state_macro_field_names(MeasurePSBPairMacro)
+        if name in field_names:
+            return getattr(self._resolve_canonical_macro(), name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
 
-        own_dot = qubit.quantum_dot
-        machine = qubit.machine
-        pair_name = machine.find_quantum_dot_pair(own_dot.id, preferred_dot_id)
-        if pair_name is None:
-            raise ValueError(
-                f"No QuantumDotPair found for dots '{own_dot.id}' and " f"'{preferred_dot_id}'."
-            )
-
-        qd_pair = machine.quantum_dot_pairs[pair_name]
-        return qd_pair.macros[SingleQubitMacroName.MEASURE].apply(**kwargs)
-
-
-class Empty1QMacro(EmptyStateMacro, QubitMacro):
-    """Move qubit to the `empty` voltage point."""
-
-    point: str = VoltagePointName.EMPTY.value
+    def __setattr__(self, name, value):
+        try:
+            field_names = _state_macro_field_names(MeasurePSBPairMacro)
+        except TypeError:
+            field_names = frozenset()
+        if name in field_names:
+            setattr(self._resolve_canonical_macro(), name, value)
+            return
+        super().__setattr__(name, value)
 
 
-class XYDriveMacro(QubitMacro):
-    """Canonical XY-drive macro with angle-to-amplitude conversion.
+@quam_dataclass
+class Empty1QMacro(QubitMacro):
+    """Move qubit to empty by delegating to the QuantumDotPair's empty macro."""
 
-    The macro converts rotation angle to drive amplitude using a reference
-    pulse (``"gaussian"`` by default).  The pulse is **always played at its
-    native length** — only amplitude and phase are rescaled at the macro
-    level.  This guarantees the waveform shape (e.g. Gaussian sigma)
-    remains self-consistent, avoiding distortion from QUA's
-    ``play(duration=…)`` waveform stretching.
+    _CANONICAL_MACRO_NAME = "empty"
 
-    Calibrated amplitude is stored as ``reference_amplitude`` on the macro
-    (not on the pulse), keeping pulse definitions as normalised shape
-    templates.  The pulse amplitude should remain at 1.0.
-
-    Negative angles are represented as a +π phase shift on the requested
-    axis, so amplitude scaling is always computed from ``abs(angle)``.
-
-    The optional ``phase`` rotates the drive axis in the XY plane by
-    applying a temporary virtual-Z frame rotation before the pulse and
-    restoring it afterwards.
-    """
-
-    reference_pulse_name: str = DrivePulseName.GAUSSIAN.value
-    reference_angle: float = float(np.pi)
-    default_angle: float = float(np.pi)
-    reference_amplitude: float = 1.0
+    def _resolve_canonical_macro(self):
+        pair = _resolve_qubit_pair(self.qubit)
+        return pair.macros[self._CANONICAL_MACRO_NAME]
 
     @property
-    def reference_pulse(self):
-        """Return the pulse object backing this macro's XY rotations."""
-        name = self._resolve_pulse_name(None)
-        return self.qubit.xy.operations[name]
+    def inferred_duration(self) -> float | None:
+        try:
+            return self._resolve_canonical_macro().inferred_duration
+        except (ValueError, KeyError):
+            return None
+
+    def update(self, **kwargs) -> None:
+        self._resolve_canonical_macro().update(**kwargs)
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def _resolve_pulse_name(self, pulse_name: str | None) -> str:
-        if self.qubit.xy is None:
-            raise ValueError(f"Qubit '{self.qubit.id}' has no XY drive configured.")
+    def apply(self, **kwargs):
+        return self._resolve_canonical_macro().apply(**kwargs)
 
-        if pulse_name is not None:
-            if pulse_name not in self.qubit.xy.operations:
-                raise KeyError(
-                    f"Pulse operation '{pulse_name}' is not defined on qubit '{self.qubit.id}'."
-                )
-            return pulse_name
-
-        for candidate in (
-            self.reference_pulse_name,
-            DrivePulseName.GAUSSIAN,
-            DrivePulseName.DRAG,
-            SingleQubitMacroName.X_180,
-            SingleQubitMacroName.X_90,
-        ):
-            if candidate in self.qubit.xy.operations:
-                return candidate
-
-        raise KeyError(
-            f"No reference pulse found for qubit '{self.qubit.id}'. "
-            "Expected one of: "
-            f"'{self.reference_pulse_name}', "
-            f"'{SingleQubitMacroName.X_180}', "
-            f"'{SingleQubitMacroName.X_90}'."
+    def __getattr__(self, name):
+        field_names = _state_macro_field_names(EmptyStateMacro)
+        if name in field_names:
+            return getattr(self._resolve_canonical_macro(), name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
-    def _reference_pulse_length_ns(self, pulse_name: str) -> int | None:
-        """Reference pulse native length in nanoseconds.
-
-        Used for voltage-sequence hold timing so the hold matches the
-        pulse's actual waveform length.
-        """
-        pulse = self.qubit.xy.operations[pulse_name]
-        length = getattr(pulse, "length", None)
-        return length if isinstance(length, int) else None
-
-    def _angle_to_amplitude_scale(self, angle: float) -> float:
-        """Convert rotation angle to amplitude scale relative to reference.
-
-        Returns a multiplicative factor: ``abs(angle) / reference_angle``.
-        """
-        if self.reference_angle <= 0:
-            raise ValueError("reference_angle must be positive.")
-        return abs(angle) / self.reference_angle
-
-    @staticmethod
-    def _normalize_angle_sign_to_phase(angle: float, phase: float) -> tuple[float, float]:
-        """Encode negative-angle rotations as positive angle + pi phase offset."""
-        if angle < 0:
-            return abs(angle), phase + float(np.pi)
-        return angle, phase
-
-    def inferred_duration_for_angle(self, angle: float) -> float | None:
-        """Infer runtime duration (seconds) for a given rotation angle.
-
-        Duration is always the reference pulse's native length regardless
-        of the angle — only amplitude changes.
-        """
+    def __setattr__(self, name, value):
         try:
-            pulse_name = self._resolve_pulse_name(None)
-            length_ns = self._reference_pulse_length_ns(pulse_name)
-        except Exception:  # pragma: no cover - defensive
-            return None
+            field_names = _state_macro_field_names(EmptyStateMacro)
+        except TypeError:
+            field_names = frozenset()
+        if name in field_names:
+            setattr(self._resolve_canonical_macro(), name, value)
+            return
+        super().__setattr__(name, value)
 
-        return length_ns * 1e-9 if isinstance(length_ns, int) else None
+
+@quam_dataclass
+class XYDriveMacro(QubitMacro):
+    """Base macro for XY-plane rotations with switchable pulse families.
+
+    The active pulse envelope is determined by ``pulse_family`` combined
+    with a per-subclass ``_gate_suffix``.  Changing ``pulse_family``
+    (e.g. from ``"gaussian"`` to ``"kaiser"``) switches the envelope
+    used by all XY macros simultaneously.
+    """
+
+    pulse_family: str = DrivePulseName.GAUSSIAN.value
+    reference_angle: float = None
+    phase: float = None
+
+    _gate_suffix: ClassVar[str] = "_x90"
+    _reference_gate_suffix: ClassVar[str] = "_x90"
+
+    @property
+    def pulse_name(self) -> str:
+        """Operation name resolved from the active family and gate suffix."""
+        return f"{self.pulse_family}{self._gate_suffix}"
+
+    @property
+    def reference_pulse_name(self) -> str:
+        """Reference (x90) operation name for the active family."""
+        return f"{self.pulse_family}{self._reference_gate_suffix}"
+
+    @property
+    def pulse(self):
+        """Return the pulse object backing this macro's XY rotations."""
+        return self.qubit.xy.operations[self.reference_pulse_name]
+
+    @property
+    def pi_pulse(self):
+        """Return the pi pulse (x180) object for the active family."""
+        return self.qubit.xy.operations[f"{self.pulse_family}_x180"]
 
     @property
     def inferred_duration(self) -> float | None:
-        """Infer runtime duration (seconds) for ``default_angle``."""
-        return self.inferred_duration_for_angle(self.default_angle)
+        return self.pulse.length
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def update(
         self,
         *,
-        amplitude: float | None = None,
+        pi_amplitude: float | None = None,
         amplitude_scale: float | None = None,
         duration: int | None = None,
         frequency: float | None = None,
@@ -266,194 +351,85 @@ class XYDriveMacro(QubitMacro):
         captured by subsequent serialisation (``machine.save``).
 
         Args:
-            amplitude: Set ``reference_amplitude`` to this absolute value.
-            amplitude_scale: Multiply current ``reference_amplitude`` by
-                this factor.  Mutually exclusive with *amplitude*.
+            pi_amplitude: Set the x180 pulse amplitude to this value and
+                the x90 pulse amplitude to half this value.
+            amplitude_scale: Multiply the current amplitudes of both
+                pulses by this factor.  Mutually exclusive with
+                *pi_amplitude*.
             duration: Set the reference pulse length in **nanoseconds**
-                (quantised to 4 ns).  For ``ScalableGaussianPulse`` the
-                sigma auto-scales via ``sigma_ratio``; for plain
-                ``GaussianPulse`` sigma is rescaled proportionally.
-            frequency: Set ``qubit.xy.intermediate_frequency`` to this
-                absolute value.  Mutually exclusive with *frequency_offset*.
-            frequency_offset: Add this offset to the current
-                ``qubit.xy.intermediate_frequency``.
+                (quantised to 4 ns).  For Gaussian pulses, sigma
+                auto-scales via ``sigma_ratio``.
+            frequency: Set ``qubit.larmor_frequency`` to this absolute
+                value (Hz).  Mutually exclusive with *frequency_offset*.
+            frequency_offset: Add this offset (Hz) to the current
+                ``qubit.larmor_frequency``.
         """
-        if amplitude is not None and amplitude_scale is not None:
-            raise ValueError("Provide either amplitude or amplitude_scale, not both.")
-        if frequency is not None and frequency_offset is not None:
-            raise ValueError("Provide either frequency or frequency_offset, not both.")
+        if pi_amplitude is not None and amplitude_scale is not None:
+            raise ValueError("pi_amplitude and amplitude_scale are mutually exclusive")
 
-        if amplitude is not None:
-            self.reference_amplitude = float(amplitude)
-        elif amplitude_scale is not None:
-            self.reference_amplitude *= float(amplitude_scale)
+        if pi_amplitude is not None:
+            self.pulse.amplitude = pi_amplitude / 2
+            self.pi_pulse.amplitude = pi_amplitude
+
+        if amplitude_scale is not None:
+            self.pulse.amplitude = self.pulse.amplitude * amplitude_scale
+            self.pi_pulse.amplitude = self.pi_pulse.amplitude * amplitude_scale
 
         if duration is not None:
-            pulse = self.reference_pulse
-            new_length = _quantize_ns(duration)
-            old_length = int(pulse.length)
+            self.pulse.length = duration
+            self.pi_pulse.length = duration
 
-            if hasattr(pulse, "sigma_ratio"):
-                # ScalableGaussianPulse: sigma auto-follows via ratio
-                pulse.length = new_length
-                pulse.sigma = pulse.length * pulse.sigma_ratio
-            else:
-                # Legacy GaussianPulse: proportionally rescale sigma
-                sigma = getattr(pulse, "sigma", None)
-                pulse.length = new_length
-                if sigma is not None and old_length > 0 and hasattr(pulse, "sigma"):
-                    pulse.sigma = sigma * new_length / old_length
+            if hasattr(self.pulse, "sigma_ratio"):
+                self.pulse.sigma = duration * self.pulse.sigma_ratio
+                self.pi_pulse.sigma = duration * self.pi_pulse.sigma_ratio
 
         if frequency is not None:
-            self.qubit.xy.intermediate_frequency = float(frequency)
+            self.qubit.larmor_frequency = float(frequency)
+
         elif frequency_offset is not None:
-            self.qubit.xy.intermediate_frequency += float(frequency_offset)
+            self.qubit.larmor_frequency = float(
+                self.qubit.larmor_frequency + frequency_offset
+            )
 
     def apply(
-        self,
-        angle: float | None = None,
-        phase: float = 0.0,
-        pulse_name: str | None = None,
-        amplitude_scale: float | None = None,
-        frequency_offset=None,
-        duration=None,
-        restore_frame: bool = True,
-        **kwargs,
+            self,
+            phase: float = 0.0,
+            amplitude_scale: float | None = None,
+            duration=None,
+            **kwargs,
     ):
-        """Play a phase-rotated XY drive pulse with compositional scaling.
-
-        The pulse is always played at its native waveform length unless
-        ``duration`` is provided (in **clock cycles**, 4 ns each).  When
-        a custom duration is given, both the voltage-sequence hold and
-        the QUA ``play(duration=…)`` use the same value so they stay in
-        sync.
-
-        Runtime ``amplitude_scale`` multiplies the angle-derived scale
-        from the reference pulse instead of replacing it.
-
-        Runtime ``frequency_offset`` temporarily shifts the drive
-        intermediate frequency for this pulse and restores it afterwards.
-        """
-        target_angle = self.default_angle if angle is None else float(angle)
-        if math.isclose(target_angle, 0.0):
-            return None
-
-        target_angle, phase = self._normalize_angle_sign_to_phase(target_angle, phase)
-        resolved_pulse_name = self._resolve_pulse_name(pulse_name)
-
-        auto_amplitude_scale = self._angle_to_amplitude_scale(target_angle)
-        if math.isclose(auto_amplitude_scale, 0.0):
-            return None
-
-        drive_scale = _compose_amplitude_scale(
-            self.reference_amplitude * auto_amplitude_scale,
-            amplitude_scale,
-        )
-
-        # Runtime frequency shift (before pulse)
-        has_freq_offset = frequency_offset is not None
-        if has_freq_offset:
-            self.qubit.xy.update_frequency(
-                self.qubit.xy.intermediate_frequency + frequency_offset,
-            )
+        phase += self.phase
 
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
-
-        if duration is not None:
-            hold_duration_ns = duration * 4
-        else:
-            hold_duration_ns = self._reference_pulse_length_ns(resolved_pulse_name)
-        self.qubit.voltage_sequence.step_to_voltages(
-            {},
-            duration=hold_duration_ns,
-        )
-
-        play_kwargs = dict(kwargs)
-        if duration is not None:
-            play_kwargs["duration"] = duration
         self.qubit.xy.play(
-            pulse_name=resolved_pulse_name,
-            amplitude_scale=drive_scale,
-            **play_kwargs,
-        )
-
-        if restore_frame and not math.isclose(phase, 0.0):
-            self.qubit.virtual_z(-phase)
-
-        # Restore frequency (after pulse)
-        if has_freq_offset:
-            self.qubit.xy.update_frequency(
-                self.qubit.xy.intermediate_frequency,
-            )
-
-
-class _AxisRotationMacro(QubitMacro):
-    """Canonical axis-rotation macro delegating to `xy_drive`."""
-
-    default_angle: float = float(np.pi)
-    phase: float = 0.0
-
-    def _xy_drive_macro(self):
-        macro = self.qubit.macros.get(SingleQubitMacroName.XY_DRIVE)
-        if macro is None:
-            raise KeyError(f"Missing canonical macro '{SingleQubitMacroName.XY_DRIVE}' on qubit.")
-        return macro
-
-    @property
-    def reference_pulse(self):
-        """Delegate to the XY-drive macro's reference pulse."""
-        return self._xy_drive_macro().reference_pulse
-
-    @property
-    def inferred_duration(self) -> float | None:
-        """Infer runtime duration (seconds) for `default_angle`."""
-        return self.inferred_duration_for_angle(self.default_angle)
-
-    def inferred_duration_for_angle(self, angle: float) -> float | None:
-        """Infer runtime duration (seconds) for a given angle via `xy_drive`."""
-        macro = self._xy_drive_macro()
-        infer_fn = getattr(macro, "inferred_duration_for_angle", None)
-        return infer_fn(angle) if callable(infer_fn) else None
-
-    def update(self, **kwargs) -> None:
-        """Delegate persistent parameter updates to the XY-drive macro."""
-        self._xy_drive_macro().update(**kwargs)
-
-    def __call__(self, *args, **kwargs):
-        return self.apply(*args, **kwargs)
-
-    def apply(self, angle: float | None = None, **kwargs):
-        """Apply rotation around fixed XY axis by delegating to `xy_drive`."""
-        target_angle = self.default_angle if angle is None else float(angle)
-        phase = _compose_phase(self.phase, kwargs.pop("phase", None))
-        runtime_amplitude_scale = kwargs.pop("amplitude_scale", None)
-        call_kwargs = dict(kwargs)
-        call_kwargs.update(
-            angle=target_angle,
-            phase=phase,
-        )
-        if runtime_amplitude_scale is not None:
-            call_kwargs["amplitude_scale"] = runtime_amplitude_scale
-        return self.qubit.macros[SingleQubitMacroName.XY_DRIVE].apply(
-            **call_kwargs,
+            pulse_name=self.pulse_name,
+            amplitude_scale=amplitude_scale,
+            duration=duration
         )
 
 
-class XMacro(_AxisRotationMacro):
+@quam_dataclass
+class XMacro(XYDriveMacro):
     """Canonical X-axis rotation macro."""
 
-    default_angle: float = float(np.pi)
+    _gate_suffix: ClassVar[str] = "_x90"
+
+    reference_angle: float = None
     phase: float = 0.0
 
 
-class YMacro(_AxisRotationMacro):
+@quam_dataclass
+class YMacro(XYDriveMacro):
     """Canonical Y-axis rotation macro."""
 
-    default_angle: float = float(np.pi)
-    phase: float = float(np.pi / 2)
+    _gate_suffix: ClassVar[str] = "_y90"
+
+    reference_angle: float = None
+    phase: float = -np.pi
 
 
+@quam_dataclass
 class ZMacro(QubitMacro):
     """Canonical virtual-Z rotation macro."""
 
@@ -473,127 +449,97 @@ class ZMacro(QubitMacro):
         self.qubit.virtual_z(target_angle)
 
 
-class _FixedAxisAngleMacro(QubitMacro):
-    """Fixed-angle wrapper that delegates to canonical `x`, `y`, or `z` macro."""
+@quam_dataclass
+class X180Macro(XYDriveMacro):
+    """Apply 180-degree rotation around X axis via the dedicated pi pulse."""
 
-    axis_macro_name: str
-    default_angle: float
+    _gate_suffix: ClassVar[str] = "_x180"
+
+    axis_macro_name: str = SingleQubitMacroName.X.value
+    reference_angle: float = float(np.pi)
     phase: float = 0.0
 
-    @property
-    def reference_pulse(self):
-        """Delegate to the axis macro's reference pulse."""
-        axis_macro = self.qubit.macros.get(self.axis_macro_name)
-        if axis_macro is None:
-            raise KeyError(f"Missing macro '{self.axis_macro_name}' on qubit.")
-        return axis_macro.reference_pulse
 
-    @property
-    def inferred_duration(self) -> float | None:
-        axis_macro = self.qubit.macros.get(self.axis_macro_name)
-        if axis_macro is None:
-            return None
+@quam_dataclass
+class X90Macro(XYDriveMacro):
+    """Apply 90-degree rotation around X axis."""
 
-        infer_fn = getattr(axis_macro, "inferred_duration_for_angle", None)
-        if callable(infer_fn):
-            return infer_fn(self.default_angle)
-
-        duration = getattr(axis_macro, "inferred_duration", None)
-        return float(duration) if isinstance(duration, (int, float)) else None
-
-    def update(self, **kwargs) -> None:
-        """Delegate persistent parameter updates to the XY-drive macro."""
-        xy_drive = self.qubit.macros.get(SingleQubitMacroName.XY_DRIVE)
-        if xy_drive is None:
-            raise KeyError(f"Missing canonical macro '{SingleQubitMacroName.XY_DRIVE}' on qubit.")
-        xy_drive.update(**kwargs)
-
-    def __call__(self, *args, **kwargs):
-        return self.apply(*args, **kwargs)
-
-    def apply(self, angle: float | None = None, **kwargs):
-        target_angle = self.default_angle if angle is None else float(angle)
-        extra_phase = kwargs.pop("phase", None)
-        runtime_amplitude_scale = kwargs.pop("amplitude_scale", None)
-        phase = _compose_phase(self.phase, extra_phase)
-        call_kwargs = dict(kwargs)
-        if extra_phase is not None or not math.isclose(self.phase, 0.0):
-            call_kwargs["phase"] = phase
-        if runtime_amplitude_scale is not None:
-            call_kwargs["amplitude_scale"] = runtime_amplitude_scale
-        return self.qubit.macros[self.axis_macro_name].apply(
-            angle=target_angle,
-            **call_kwargs,
-        )
-
-
-class X180Macro(_FixedAxisAngleMacro):
-    """Apply 180-degree rotation around X axis via canonical `x` macro."""
+    _gate_suffix: ClassVar[str] = "_x90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    default_angle: float = float(np.pi)
+    reference_angle: float = float(np.pi / 2)
+    phase: float = 0.0
 
 
-class X90Macro(_FixedAxisAngleMacro):
-    """Apply 90-degree rotation around X axis via canonical `x` macro."""
+@quam_dataclass
+class XNeg90Macro(XYDriveMacro):
+    """Apply -90-degree rotation around X axis via dedicated pulse with axis_angle=pi."""
 
-    axis_macro_name: str = SingleQubitMacroName.X.value
-    default_angle: float = float(np.pi / 2)
-
-
-class XNeg90Macro(_FixedAxisAngleMacro):
-    """Apply -90-degree rotation around X axis via canonical `x` macro."""
+    _gate_suffix: ClassVar[str] = "_x_neg90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    default_angle: float = float(-np.pi / 2)
+    reference_angle: float = float(np.pi / 2)
+    phase: float = 0.0
 
 
-class Y180Macro(_FixedAxisAngleMacro):
-    """Apply 180-degree rotation around Y axis via canonical `y` macro."""
+@quam_dataclass
+class Y180Macro(XYDriveMacro):
+    """Apply 180-degree rotation around Y axis via dedicated pulse with axis_angle=pi/2."""
 
-    axis_macro_name: str = SingleQubitMacroName.Y.value
-    default_angle: float = float(np.pi)
-
-
-class Y90Macro(_FixedAxisAngleMacro):
-    """Apply 90-degree rotation around Y axis via canonical `y` macro."""
+    _gate_suffix: ClassVar[str] = "_y180"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    default_angle: float = float(np.pi / 2)
+    reference_angle: float = float(np.pi)
+    phase: float = 0.0
 
 
-class YNeg90Macro(_FixedAxisAngleMacro):
-    """Apply -90-degree rotation around Y axis via canonical `y` macro."""
+@quam_dataclass
+class Y90Macro(XYDriveMacro):
+    """Apply 90-degree rotation around Y axis via dedicated pulse with axis_angle=pi/2."""
+
+    _gate_suffix: ClassVar[str] = "_y90"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    default_angle: float = float(-np.pi / 2)
+    reference_angle: float = float(np.pi / 2)
+    phase: float = 0.0
 
 
-class Z180Macro(_FixedAxisAngleMacro):
+@quam_dataclass
+class YNeg90Macro(XYDriveMacro):
+    """Apply -90-degree rotation around Y axis via dedicated pulse with axis_angle=-pi/2."""
+
+    _gate_suffix: ClassVar[str] = "_y_neg90"
+
+    axis_macro_name: str = SingleQubitMacroName.Y.value
+    reference_angle: float = float(np.pi / 2)
+    phase: float = 0.0
+
+
+@quam_dataclass
+class Z180Macro(ZMacro):
     """Apply virtual 180-degree Z rotation via canonical `z` macro."""
-
     axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle: float = float(np.pi)
 
 
-class Z90Macro(_FixedAxisAngleMacro):
+@quam_dataclass
+class Z90Macro(ZMacro):
     """Apply virtual 90-degree Z rotation via canonical `z` macro."""
-
     axis_macro_name: str = SingleQubitMacroName.Z.value
-    default_angle: float = float(np.pi / 2)
+    default_angle = float(np.pi / 2)
 
 
-class ZNeg90Macro(_FixedAxisAngleMacro):
+@quam_dataclass
+class ZNeg90Macro(ZMacro):
     """Apply virtual -90-degree Z rotation via canonical `z` macro."""
-
     axis_macro_name: str = SingleQubitMacroName.Z.value
-    default_angle: float = float(-np.pi / 2)
+    default_angle = float(-np.pi / 2)
 
-
+@quam_dataclass
 class IdentityMacro(QubitMacro):
     """Identity operation implemented as wait."""
 
-    duration: int = 16
+    duration: int = DEFAULTS.misc.identity_duration
 
     @property
     def inferred_duration(self) -> float:
@@ -604,17 +550,7 @@ class IdentityMacro(QubitMacro):
         return self.apply(*args, **kwargs)
 
     def apply(self, duration: int | None = None, **kwargs):
-        """Implement identity as a quantized wait on qubit channels."""
-        duration_ns = self.duration if duration is None else duration
-        if duration_ns < 0:
-            raise ValueError("Identity duration must be non-negative.")
-        duration_ns = max(0, int(round(duration_ns / 4.0)) * 4)
-
-        # Qubit.wait also issues qua.wait but expects clock cycles. Use it when available.
-        if hasattr(self.qubit, "wait"):
-            self.qubit.wait(duration_ns // 4)
-        else:
-            wait(duration_ns // 4)
+        self.qubit.idle(duration=duration)
 
 
 SINGLE_QUBIT_MACROS = {

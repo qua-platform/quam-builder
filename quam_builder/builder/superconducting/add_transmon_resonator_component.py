@@ -32,7 +32,7 @@ def add_transmon_resonator_component(
     digital_outputs = get_digital_outputs(wiring_path, ports)
 
     depletion_time = 1 * u.us
-    time_of_flight = 32  # 4ns above default so that it appears in state.json
+    time_of_flight = 32  # 4ns above default so that it appears in state_old.json
 
     if all(key in ports for key in iq_in_out_channel_ports):
         transmon.resonator = ReadoutResonatorIQ(

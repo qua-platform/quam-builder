@@ -1,11 +1,10 @@
-from typing import Any, Dict, Generator, Optional, Sequence, Union
+from typing import Optional, Dict, Union
 
-from quam.components import SingleChannel
-from quam.core import quam_dataclass
-from quam.core.quam_classes import QuamBase
+from quam.components import SingleChannel, Channel
+from quam.core import quam_dataclass, QuamComponent
 
-from .readout_transport import ANY_READOUT_TRANSPORT
-from .readout_resonator import ANY_READOUT_RESONATOR
+from .readout_resonator import ReadoutResonatorBase
+from .readout_transport import ReadoutTransportBase
 
 from .dac_spec import DacSpec, QdacSpec
 
@@ -23,10 +22,6 @@ class VoltageGate(SingleChannel):
             automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
             Can be e.g. a QDAC channel.
-        opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). It is omitted from
-            :meth:`~quam.core.quam_classes.QuamRoot.generate_config` (no ``elements`` entry, no sticky);
-            use :attr:`dac_spec` / external drivers for DC.
-
 
     Example:
         >>>
@@ -50,8 +45,7 @@ class VoltageGate(SingleChannel):
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
     dac_spec: DacSpec = None
-    readout: Union[ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT] = None
-    opx_output: Any = None
+    readout: Union[ReadoutTransportBase, ReadoutResonatorBase] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -81,26 +75,3 @@ class VoltageGate(SingleChannel):
         """Wait for the voltage bias to settle"""
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
-
-    def iterate_components(
-        self, skip_elems: Optional[Sequence[QuamBase]] = None
-    ) -> Generator[QuamBase, None, None]:
-        """QDAC-only gates are excluded from QUA config generation (no OPX element conflicts)."""
-        if self.opx_output is None:
-            return
-        yield from super().iterate_components(skip_elems=skip_elems)
-
-    def apply_to_config(self, config: Dict[str, dict]) -> None:
-        """Only OPX-backed gates contribute to ``elements``; QDAC-only gates skip via :meth:`iterate_components`."""
-        if self.opx_output is None:
-            return
-        super().apply_to_config(config)
-
-    def set_dc_offset(self, offset):  # noqa: ANN001 — match SingleChannel API
-        """Raise for QDAC-only gates; OPX has no DC line to offset."""
-        if self.opx_output is None:
-            raise RuntimeError(
-                "VoltageGate has no OPX analog output (QDAC-only wiring); "
-                "cannot use set_dc_offset on the OPX. Control DC via dac_spec / external DAC."
-            )
-        super().set_dc_offset(offset)

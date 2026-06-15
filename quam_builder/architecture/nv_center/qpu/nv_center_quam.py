@@ -21,7 +21,7 @@ class NVCenterQuam(BaseQuamNV):
         qubit_pairs (Dict[str, NVCenterPair]): A dictionary of qubit pairs composing the QUAM.
 
     Methods:
-        load: Loads the QUAM from the state.json file.
+        load: Loads the QUAM from the state_old.json file.
     """
 
     qubit_type: ClassVar[Type[NVCenter]] = NVCenter
