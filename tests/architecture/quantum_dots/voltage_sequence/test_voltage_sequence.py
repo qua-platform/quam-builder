@@ -29,7 +29,7 @@ from test_utils import compare_ast_nodes, print_ast_as_code  # type: ignore
 def test_invalid_timing_multiple_4(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=41)
     with qua.program() as _prog:  # noqa: F841
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         with pytest.raises(TypeError):
             seq.step_to_point("p1")
 
@@ -37,7 +37,7 @@ def test_invalid_timing_multiple_4(machine):
 def test_invalid_timing_min_duration(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=12)
     with qua.program() as _prog:  # noqa: F841
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         with pytest.raises(TypeError):
             seq.step_to_point("p1")
 
@@ -46,7 +46,7 @@ def test_go_to_single_point(machine):
     """Tests stepping to a single predefined point."""
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
 
@@ -63,7 +63,7 @@ def test_go_to_multiple_points(machine):
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=100)
     machine.gate_set.add_point("p2", voltages={"ch1": 0.3, "ch2": 0.4}, duration=200)
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_point("p1")
         seq.step_to_point("p2")
     ast = ProgramTreeBuilder().build(prog)
@@ -80,9 +80,11 @@ def test_go_to_multiple_points(machine):
 
 def test_step_to_point_with_custom_duration(machine):
     """Tests overriding the point's default duration in step_to_point."""
-    machine.gate_set.add_point("p1", voltages={"ch1": 0.1}, duration=100)  # Default duration
+    machine.gate_set.add_point(
+        "p1", voltages={"ch1": 0.1}, duration=100
+    )  # Default duration
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_point("p1", duration=60)
         seq.step_to_point("p1")
     ast = ProgramTreeBuilder().build(prog)
@@ -100,7 +102,7 @@ def test_step_to_point_with_custom_duration(machine):
 def test_step_to_voltages_single_channel(machine):
     """Tests stepping a single channel to a specified voltage level."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.25}, duration=120)
     ast = ProgramTreeBuilder().build(prog)
 
@@ -114,7 +116,7 @@ def test_step_to_voltages_single_channel(machine):
 def test_step_to_voltages_multiple_channels(machine):
     """Tests stepping multiple channels to specified voltage levels simultaneously."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.15, "ch2": -0.1}, duration=160)
     ast = ProgramTreeBuilder().build(prog)
 
@@ -127,9 +129,11 @@ def test_step_to_voltages_multiple_channels(machine):
 
 def test_step_to_voltages_then_step_to_point(machine):
     """Tests a step_to_voltages operation followed by a step_to_point."""
-    machine.gate_set.add_point("p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80)
+    machine.gate_set.add_point(
+        "p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80
+    )
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1}, duration=100)
         seq.step_to_point("p_after_step")
 
@@ -147,7 +151,9 @@ def test_step_to_voltages_then_step_to_point(machine):
 def test_sequence_with_qua_variable_duration_step_to_voltages(machine):
     """Tests using a QUA variable for duration in step_to_voltages."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         qua_duration = qua.declare(int)
         qua.assign(qua_duration, 200)  # ns
         seq.step_to_voltages(voltages={"ch1": 0.2}, duration=qua_duration)
@@ -174,7 +180,9 @@ def test_sequence_with_qua_variable_duration_step_to_voltages(machine):
 def test_sequence_with_qua_variable_voltage_step_to_voltages(machine):
     """Tests using a QUA variable for voltage in step_to_voltages."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         qua_voltage = qua.declare(qua.fixed)
         qua.assign(qua_voltage, 0.15)
         seq.step_to_voltages(voltages={"ch1": qua_voltage, "ch2": 0.1}, duration=100)
@@ -196,7 +204,7 @@ def test_sequence_with_qua_variable_voltage_step_to_voltages(machine):
 def test_ramp_to_zero_immediate(machine):
     """Tests ramp_to_zero with no duration (immediate QUA ramp_to_zero)."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.2, "ch2": -0.15}, duration=100)
         seq.ramp_to_zero()  # Uses QUA's ramp_to_zero(element_name)
     ast = ProgramTreeBuilder().build(prog)
@@ -214,7 +222,7 @@ def test_ramp_to_zero_immediate(machine):
 def test_ramp_to_zero_with_duration(machine):
     """Tests ramp_to_zero with a specified ramp duration."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.25}, duration=100)
         seq.ramp_to_zero(ramp_duration=200)
     ast = ProgramTreeBuilder().build(prog)
@@ -230,7 +238,7 @@ def test_ramp_to_zero_with_duration(machine):
 def test_ramp_to_zero_with_duration_multiple_channels(machine):
     """Tests ramp_to_zero with a specified ramp duration."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence()
+        seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.25}, duration=100)
         seq.step_to_voltages(voltages={"ch1": 0.25, "ch2": 0.25}, duration=100)
         seq.ramp_to_zero(ramp_duration=200)
@@ -250,7 +258,7 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
 # def test_apply_compensation_pulse_from_zero_integrated_voltage(machine):
 #     """Tests apply_compensation_pulse when integrated voltage is zero."""
 #     with qua.program() as prog:
-#         seq = machine.gate_set.new_sequence()
+#         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
 #         # No prior operations, so integrated voltage is zero for all channels.
 #         seq.apply_compensation_pulse(max_voltage=0.4)
 #     # ast = ProgramTreeBuilder().build(prog)
@@ -263,7 +271,7 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
 # For example:
 # def test_apply_compensation_pulse_with_positive_integrated_voltage(machine):
 #     with qua.program() as prog:
-#         seq = machine.gate_set.new_sequence()
+#         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
 #         seq.step_to_voltages(voltages={"ch1": 0.1}, duration=1000) # Positive integrated_v
 #         seq.apply_compensation_pulse(max_voltage=0.4)
 #     # ast = ProgramTreeBuilder().build(prog)
@@ -271,7 +279,7 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
 
 # def test_apply_compensation_pulse_with_qua_vars(machine):
 #     with qua.program() as prog:
-#         seq = machine.gate_set.new_sequence()
+#         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
 #         qua_level = qua.declare(qua.fixed, value=0.05)
 #         qua_dur = qua.declare(int, value=2000) #ns
 #         seq.step_to_voltages(voltages={"ch1": qua_level}, duration=qua_dur)

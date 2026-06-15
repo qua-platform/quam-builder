@@ -97,13 +97,17 @@ class LossDiVincenzoQuam(BaseQuamQD):
         if not hasattr(instance, "active_qubit_pair_names"):
             instance.active_qubit_pair_names = []
 
-        from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+        from quam_builder.architecture.quantum_dots.macro_engine import (
+            wire_machine_macros,
+        )
 
-        wire_machine_macros(instance)
+        wire_machine_macros(instance, fill_only=True)
 
         return instance
 
-    def get_component(self, name: str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
+    def get_component(
+        self, name: str
+    ) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
         """
         Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
 
@@ -138,7 +142,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
         d = quantum_dot_id
         dot = self.quantum_dots[d]  # Assume a single quantum dot for a LD Qubit
         qubit = LDQubit(
-            id=d,
+            id=qubit_name,
             quantum_dot=dot.get_reference(),
             xy=xy,
             preferred_readout_quantum_dot=readout_quantum_dot,
@@ -193,7 +197,9 @@ class LossDiVincenzoQuam(BaseQuamQD):
             try:
                 qubit.calibrate_octave(QM)
             except NoCalibrationElements:
-                print(f"No calibration elements found for {qubit.id}. Skipping calibration.")
+                print(
+                    f"No calibration elements found for {qubit.id}. Skipping calibration."
+                )
 
     @property
     def active_qubits(self) -> List[AnySpinQubit]:

@@ -93,10 +93,13 @@ class SequenceStateTracker:
         self._element_name: str = element_name
         # Initialize state variables directly for the single element
         self._current_level_internal: Scalar[float] = 0.0
-        if enforce_qua_calcs:
-            self._current_level_internal = declare(
-                fixed, value=self._current_level_internal
-            )
+        self._enforce_qua_calcs = enforce_qua_calcs
+
+        # ### Keep the declarations out, lazily done in the QUA program ###
+        # if enforce_qua_calcs:
+        #     self._current_level_internal = declare(
+        #         fixed, value=self._current_level_internal
+        #     )
         # Whether to track integrated voltage
         self._track_integrated_voltage: bool = track_integrated_voltage
         # Stores accumulated voltage*duration*scale_factor
@@ -104,6 +107,20 @@ class SequenceStateTracker:
         # Keep track of the declared QUA variable for integrated voltage, if any
         self._integrated_voltage_qua_var: Optional[QuaVariable] = None
         self._current_py_val_before_promotion = None
+
+    def initialize_qua_vars(self):
+        # Reset integrated voltage tracking — stale QUA refs from previous program
+        self._integrated_voltage_internal = 0
+        self._integrated_voltage_qua_var = None
+        self._current_py_val_before_promotion = None
+
+        if self._enforce_qua_calcs:
+            val = (
+                self._current_level_internal
+                if not is_qua_type(self._current_level_internal)
+                else 0.0
+            )
+            self._current_level_internal = declare(fixed, value=val)
 
     @property
     def element_name(self) -> str:
@@ -263,12 +280,18 @@ class SequenceStateTracker:
         # --- Calculate contribution from the constant level (flat top) part ---
         if needs_qua_calc:
             int_v_var = self._ensure_qua_integrated_voltage_var()
-            level_contribution = Cast.mul_int_by_fixed(
-                duration
-                << INTEGRATED_VOLTAGE_BITSHIFT,  # duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
-                level,
-            )
-            assign(int_v_var, int_v_var + level_contribution)
+            if is_qua_type(level):
+                level_contribution = Cast.mul_int_by_fixed(
+                    duration
+                    << INTEGRATED_VOLTAGE_BITSHIFT,  # duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
+                    level,
+                )
+                assign(int_v_var, int_v_var + level_contribution)
+            else:
+                # level is a Python float; pre-scale to avoid Cast.mul_int_by_fixed
+                # requiring a QUA fixed argument
+                level_scaled = int(round(float(level) * INTEGRATED_VOLTAGE_SCALING_FACTOR))
+                assign(int_v_var, int_v_var + duration * level_scaled)
         else:  # All inputs and current state are Python types
             level_contribution = int(
                 np.round((level * duration) * INTEGRATED_VOLTAGE_SCALING_FACTOR)
@@ -290,12 +313,20 @@ class SequenceStateTracker:
                         "not initialized during QUA ramp calculation."
                     )
 
-                ramp_contribution = Cast.mul_int_by_fixed(
-                    ramp_duration
-                    << INTEGRATED_VOLTAGE_BITSHIFT,  # ramp_duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
-                    avg_ramp_level,
-                )
-                assign(int_v_var, int_v_var + ramp_contribution)
+                if is_qua_type(avg_ramp_level):
+                    ramp_contribution = Cast.mul_int_by_fixed(
+                        ramp_duration
+                        << INTEGRATED_VOLTAGE_BITSHIFT,  # ramp_duration * INTEGRATED_VOLTAGE_SCALING_FACTOR
+                        avg_ramp_level,
+                    )
+                    assign(int_v_var, int_v_var + ramp_contribution)
+                else:
+                    # avg_ramp_level is a Python float; pre-scale to avoid Cast.mul_int_by_fixed
+                    # requiring a QUA fixed argument
+                    avg_ramp_level_scaled = int(
+                        round(float(avg_ramp_level) * INTEGRATED_VOLTAGE_SCALING_FACTOR)
+                    )
+                    assign(int_v_var, int_v_var + ramp_duration * avg_ramp_level_scaled)
             else:  # All inputs for ramp part are Python types
                 ramp_contribution = int(
                     np.round(
