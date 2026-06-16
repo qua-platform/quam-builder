@@ -169,7 +169,7 @@ machine.register_channel_elements(
 ###### Connect the physical channels to the external source ######
 ##################################################################
 
-qdac_connect = True
+qdac_connect = False
 if qdac_connect:
     # Set up the QDAC port specs
     for i, (ch_name, ch_obj) in enumerate(machine.physical_channels.items()):
