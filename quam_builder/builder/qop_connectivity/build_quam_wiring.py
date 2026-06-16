@@ -32,6 +32,8 @@ def build_quam_wiring(
     machine.wiring = create_wiring(connectivity)
     machine.save()
 
+    return machine
+
 
 def add_ports_container(connectivity: Connectivity, machine: AnyQuam):
     """Detects whether the `connectivity` is using OPX+ or OPX1000 and returns the corresponding base object.

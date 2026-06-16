@@ -271,7 +271,6 @@ def test_python_voltage_sequence_virtual_gates_and_elements(
 
 
 def test_keep_levels(qmm, virtual_machine: QuamVirtualGateSet):
-    """ """
     virtual_machine.virtual_gate_set.channels["ch1"].attenuation = 0
     virtual_machine.virtual_gate_set.channels["ch2"].attenuation = 0
     with qua.program() as program:
