@@ -16,7 +16,6 @@ from quam_builder.architecture.superconducting.qubit import (
 )
 from qualang_tools.addons.calibration.calibrations import unit
 
-
 u = unit(coerce_to_integer=True)
 
 
@@ -60,6 +59,4 @@ def add_transmon_drive_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

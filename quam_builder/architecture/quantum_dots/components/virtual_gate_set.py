@@ -12,7 +12,6 @@ from quam.core import QuamComponent, quam_dataclass
 from .gate_set import GateSet
 from quam_builder.tools.qua_tools import VoltageLevelType
 
-
 __all__ = ["VirtualGateSet", "VirtualizationLayer"]
 
 

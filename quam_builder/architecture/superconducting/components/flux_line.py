@@ -3,7 +3,6 @@ from typing import Literal
 from quam.core import quam_dataclass
 from quam.components import SingleChannel
 
-
 __all__ = ["FluxLine"]
 
 

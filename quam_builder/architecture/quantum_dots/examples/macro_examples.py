@@ -25,7 +25,6 @@ from qm import qua
 
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 
-
 # ============================================================================
 # Example Component Setup
 # ============================================================================

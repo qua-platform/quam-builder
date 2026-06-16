@@ -4,7 +4,6 @@ from pathlib import Path
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 from qualang_tools.wirer.wirer.channel_specs import lf_fem_spec
 
-
 EXAMPLES_DIR = Path(__file__).resolve().parent
 os.environ.setdefault("QUAM_STATE_PATH", str(EXAMPLES_DIR / "quam_state"))
 

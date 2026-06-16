@@ -75,7 +75,6 @@ from quam_builder.architecture.quantum_dots.components.readout_resonator import 
 )
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
-
 # =============================================================================
 # SECTION 1: Create Machine and Physical Channels
 # =============================================================================

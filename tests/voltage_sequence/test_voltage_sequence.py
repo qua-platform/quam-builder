@@ -80,9 +80,7 @@ def test_go_to_multiple_points(machine):
 
 def test_step_to_point_with_custom_duration(machine):
     """Tests overriding the point's default duration in step_to_point."""
-    machine.gate_set.add_point(
-        "p1", voltages={"ch1": 0.1}, duration=100
-    )  # Default duration
+    machine.gate_set.add_point("p1", voltages={"ch1": 0.1}, duration=100)  # Default duration
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
         seq.step_to_point("p1", duration=60)
@@ -129,9 +127,7 @@ def test_step_to_voltages_multiple_channels(machine):
 
 def test_step_to_voltages_then_step_to_point(machine):
     """Tests a step_to_voltages operation followed by a step_to_point."""
-    machine.gate_set.add_point(
-        "p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80
-    )
+    machine.gate_set.add_point("p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80)
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence()
         seq.step_to_voltages(voltages={"ch1": 0.1}, duration=100)
