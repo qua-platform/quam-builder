@@ -648,18 +648,18 @@ class BaseQuamQD(QuamRoot):
                 actual_voltages[name] = value
 
         if not default_to_zero:
-            for qubit in self.qubits.keys():
+            for qubit, qubit_obj in self.qubits.items():
                 if qubit in voltages:
                     continue
                 else:
-                    voltages[qubit] = self.qubits[qubit].current_voltage
+                    voltages[qubit] = qubit_obj.current_voltage
 
         new_sequence.step_to_voltages(actual_voltages)
 
     def initialise(self, qubit_name: str) -> None:
         if qubit_name not in self.qubits:
             raise ValueError(
-                f"Qubit {qubit_name} not in registered qubits: {list[self.qubits.keys()]}"
+                f"Qubit {qubit_name} not in registered qubits: {list(self.qubits.keys())}"
             )
 
         try:

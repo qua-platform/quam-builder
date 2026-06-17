@@ -138,8 +138,9 @@ def set_output_power_iq_channel(
     """
 
     u = unit(coerce_to_integer=True)
+    amplitude = None
 
-    if not ((max_amplitude is None) ^ (gain is None)):
+    if (max_amplitude is None) == (gain is None):
         raise RuntimeError("Either or gain or amplitude must be specified.")
     elif max_amplitude is not None:
         gain = round((power_in_dbm - u.volts2dBm(max_amplitude, Z=Z)) * 2) / 2

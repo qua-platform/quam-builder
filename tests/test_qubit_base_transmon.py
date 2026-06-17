@@ -43,7 +43,7 @@ def test_class_attribute():
 def test_name():
     for name in ["AbCd", "q12", 0, 51]:
         transmon = BaseTransmon(id=name)
-        if type(name) == str:
+        if isinstance(name, str):
             assert transmon.name == name
         else:
             assert transmon.name == f"q{name}"

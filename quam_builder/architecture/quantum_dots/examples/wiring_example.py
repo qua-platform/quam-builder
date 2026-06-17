@@ -56,6 +56,11 @@ def example_1_two_stage_workflow():
     print("EXAMPLE 1: Two-Stage Workflow")
     print("=" * 80)
 
+    machine_stage1 = example_1_stage_1()
+    example_1_stage_2(machine_stage1)
+
+
+def example_1_stage_1():
     # ============================================================================
     # STAGE 1: Create connectivity WITHOUT drive lines (dot-layer only)
     # ============================================================================
@@ -132,6 +137,10 @@ def example_1_two_stage_workflow():
         traceback.print_exc()
         raise
 
+    return machine_stage1
+
+
+def example_1_stage_2(machine_stage1):
     # ============================================================================
     # STAGE 2: Recreate connectivity WITH drive lines, then build full QUAM
     # ============================================================================
@@ -320,6 +329,11 @@ def example_3_incremental_drive_lines():
     instruments_stage3.add_mw_fem(controller=1, slots=[1])
     instruments_stage3.add_lf_fem(controller=1, slots=[2, 3])
 
+    machine_stage3 = example_3_stage_1(instruments_stage3)
+    example_3_stage_2(instruments_stage3, machine_stage3)
+
+
+def example_3_stage_1(instruments_stage3):
     # ============================================================================
     # STAGE 1: Create connectivity WITHOUT drive lines (dot-layer only)
     # ============================================================================
@@ -386,6 +400,10 @@ def example_3_incremental_drive_lines():
         traceback.print_exc()
         raise
 
+    return machine_stage3
+
+
+def example_3_stage_2(instruments_stage3, machine_stage3):
     # ============================================================================
     # STAGE 2: Add ONLY drive lines to the same connectivity, reuse same instruments
     # ============================================================================
