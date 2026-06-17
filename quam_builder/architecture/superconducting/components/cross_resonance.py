@@ -19,6 +19,14 @@ class CrossResonanceBase:
     target_qubit_IF_frequency: float = None
     bell_state_fidelity: float = None
 
+    # --- CR gate-level parameters (read by the CRGate macro; defaults = identity) ---
+    drive_amplitude_scaling: float = 1.0
+    drive_phase: float = 0.0
+    cancel_amplitude_scaling: float = 1.0
+    cancel_phase: float = 0.0
+    qc_correction_phase: float = 0.0
+    qt_correction_phase: float = 0.0
+
 
 @quam_dataclass
 class CrossResonanceIQ(IQChannel, CrossResonanceBase):
