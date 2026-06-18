@@ -1,24 +1,22 @@
 """Macro runtime entry points for quantum-dot components.
 
 Exports:
-    load_macro_profile: Read TOML macro profile data.
-    wire_machine_macros: Materialize defaults and apply user overrides.
-    macro: Create a macro override entry with early validation.
-    disabled: Create a disabled override entry (removes macro/pulse).
-    pulse: Create a pulse override entry.
-    overrides: Create a ComponentOverrides grouping macros and pulses.
-    ComponentOverrides: Typed container for macro and pulse overrides.
+    wire_machine_macros: Wire macros and pulses onto a machine (main entry point).
+    MacroWirer: Materializes macros from a MacroRegistry.
+    PulseWirer: Materializes default pulses onto channels.
+    DISABLED: Sentinel to remove a macro in override dicts.
+
+For the catalog protocol and registry classes, import from
+:mod:`quam_builder.architecture.quantum_dots.operations.macro_catalog`.
 """
 
-from .wiring import load_macro_profile, wire_machine_macros
-from .overrides import macro, disabled, pulse, overrides, ComponentOverrides
+from .wiring import MacroWirer, PulseWirer, wire_machine_macros
+
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import DISABLED
 
 __all__ = [
-    "load_macro_profile",
     "wire_machine_macros",
-    "macro",
-    "disabled",
-    "pulse",
-    "overrides",
-    "ComponentOverrides",
+    "MacroWirer",
+    "PulseWirer",
+    "DISABLED",
 ]
