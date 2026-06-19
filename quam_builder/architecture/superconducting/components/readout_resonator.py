@@ -1,16 +1,15 @@
 from typing import Optional
 
-from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel
+from quam.core import quam_dataclass
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
-    set_output_power_mw_channel,
+    get_output_power_iq_channel,
     get_output_power_mw_channel,
     set_output_power_iq_channel,
-    get_output_power_iq_channel,
+    set_output_power_mw_channel,
 )
-
 
 __all__ = ["ReadoutResonatorIQ", "ReadoutResonatorMW"]
 
@@ -43,9 +42,7 @@ class ReadoutResonatorBase:
     GEF_frequency_shift: float = None
 
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -109,9 +106,7 @@ class ReadoutResonatorIQ(InOutIQChannel, ReadoutResonatorBase):
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
 
 @quam_dataclass
@@ -148,7 +143,7 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         """
         Sets the power level in dBm for a specified operation, increasing the full-scale power
         in 3 dB steps if necessary until it covers the target power level, then scaling the
-        given operation’s amplitude to match exactly the target power level.
+        given operation's amplitude to match exactly the target power level.
 
         Parameters:
             power_in_dbm (float): The target power level in dBm for the operation.
@@ -156,6 +151,4 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(
-            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
-        )
+        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)

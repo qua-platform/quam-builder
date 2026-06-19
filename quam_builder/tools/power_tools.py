@@ -1,11 +1,9 @@
-import numpy as np
-
 from typing import Optional
 
+import numpy as np
+from qualang_tools.units import unit
 from quam.components import IQChannel
 from quam.components.channels import MWChannel
-
-from qualang_tools.units import unit
 
 __all__ = [
     "set_output_power_mw_channel",
@@ -26,7 +24,7 @@ def set_output_power_mw_channel(
     """
     Sets the power level in dBm for a specified operation, increasing the full-scale power
     in 3 dB steps if necessary until it covers the target power level, then scaling the
-    given operation’s amplitude to match exactly the target power level.
+    given operation's amplitude to match exactly the target power level.
 
     Parameters:
         channel: A MW-FEM channel.
@@ -39,10 +37,7 @@ def set_output_power_mw_channel(
     allowed_full_scale_power_in_dbm_values = np.arange(-11, 17, 3)
 
     if full_scale_power_dbm is not None:
-        if (
-            full_scale_power_dbm < -20
-            or full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values
-        ):
+        if full_scale_power_dbm < -20 or full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
             raise ValueError(
                 f"Expected full_scale_power_dbm to be > -20 in QOP3.2.0, or "
                 f"in range [-41, 10] in steps of 3 dB, got {full_scale_power_dbm}."
@@ -73,8 +68,7 @@ def set_output_power_mw_channel(
 
     if temp_full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
         raise ValueError(
-            f"Expected full_scale_power_dbm to be in range [-41, 10] "
-            f"in steps of 3 dB, got {temp_full_scale_power_dbm}."
+            f"Expected full_scale_power_dbm to be in range [-41, 10] in steps of 3 dB, got {temp_full_scale_power_dbm}."
         )
 
     channel.operations[operation].amplitude = calculate_voltage_scaling_factor(
