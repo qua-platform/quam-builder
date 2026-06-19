@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from numbers import Integral, Real
 from typing import Any, Optional
 
+from qm import qua
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
-from quam_builder.tools.qua_tools import VoltageLevelType
+from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, VoltageLevelType
 
 __all__ = [
     "InitializeStateMacro",
@@ -26,6 +29,18 @@ __all__ = [
 ]
 
 PointType = str | dict[str, VoltageLevelType]
+
+# ``update()`` sentinel: keyword was omitted (vs. explicitly passed ``None``).
+_OMIT_HOLD_UPDATE = object()
+
+
+def _pulse_length_samples_to_ns(length: Any) -> int | None:
+    """Return pulse length in nanoseconds (1 sample = 1 ns on OPX)."""
+    if isinstance(length, Integral):
+        return int(length)
+    if isinstance(length, Real) and float(length).is_integer():
+        return int(length)
+    return None
 
 
 def _owner_component(macro: QuamMacro) -> Any:
@@ -48,7 +63,7 @@ def _owner_component(macro: QuamMacro) -> Any:
     return owner
 
 
-def _resolve_default_point_duration_ns(owner: Any, point: PointType) -> Optional[int]:
+def _resolve_default_point_duration_ns(owner: Any, point: PointType) -> int | None:
     """Best-effort lookup of a point's default hold duration in nanoseconds."""
     if not isinstance(point, str):
         return None
@@ -86,10 +101,15 @@ def _ramp_to_target(
 
 @quam_dataclass
 class InitializeStateMacro(QuamMacro):
-    """Move component to initialize voltages using a ramp transition."""
+    """Move component to initialize voltages using a ramp transition.
+
+    ``hold_duration`` on this macro, if set, overrides the hold time; if ``None``,
+    the :class:`~quam_builder.architecture.quantum_dots.components.gate_set.VoltageTuningPoint`
+    ``duration`` is used (via ``ramp_to_*`` with ``duration=None``).
+    """
 
     point: PointType = VoltagePointName.INITIALIZE.value
-    ramp_duration: int = 16
+    ramp_duration: int = DEFAULTS.state_macro.ramp_duration
     hold_duration: int | None = None
 
     @property
@@ -118,10 +138,28 @@ class InitializeStateMacro(QuamMacro):
         hold = self.hold_duration if hold_duration is None else hold_duration
         _ramp_to_target(owner, self.point, ramp_duration=ramp, duration=hold)
 
+    def update(
+        self,
+        *,
+        ramp_duration: int | None = None,
+        hold_duration: int | None | object = _OMIT_HOLD_UPDATE,
+        point: PointType | None = None,
+    ) -> None:
+        """Persistently update calibrated initialization parameters."""
+        if ramp_duration is not None:
+            self.ramp_duration = ramp_duration
+        if hold_duration is not _OMIT_HOLD_UPDATE:
+            self.hold_duration = hold_duration  # type: ignore[assignment]
+        if point is not None:
+            self.point = point
+
 
 @quam_dataclass
 class EmptyStateMacro(QuamMacro):
-    """Move component to empty voltages."""
+    """Move component to empty voltages.
+
+    If ``hold_duration`` is ``None``, the hold uses the ``VoltageTuningPoint`` ``duration``.
+    """
 
     point: PointType = VoltagePointName.EMPTY.value
     hold_duration: int | None = None
@@ -144,6 +182,18 @@ class EmptyStateMacro(QuamMacro):
         hold = self.hold_duration if hold_duration is None else hold_duration
         _step_to_target(owner, self.point, duration=hold)
 
+    def update(
+        self,
+        *,
+        hold_duration: int | None | object = _OMIT_HOLD_UPDATE,
+        point: PointType | None = None,
+    ) -> None:
+        """Persistently update calibrated empty parameters."""
+        if hold_duration is not _OMIT_HOLD_UPDATE:
+            self.hold_duration = hold_duration  # type: ignore[assignment]
+        if point is not None:
+            self.point = point
+
 
 @quam_dataclass
 class ExchangeStateMacro(QuamMacro):
@@ -161,8 +211,8 @@ class ExchangeStateMacro(QuamMacro):
 
     point: PointType = VoltagePointName.EXCHANGE.value
     return_point: PointType = VoltagePointName.INITIALIZE.value
-    ramp_duration: int = 16
-    wait_duration: int = 16
+    ramp_duration: int = DEFAULTS.exchange.ramp_duration
+    wait_duration: int = DEFAULTS.exchange.wait_duration
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -180,7 +230,9 @@ class ExchangeStateMacro(QuamMacro):
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         wait = self.wait_duration if wait_duration is None else wait_duration
         exchange_point = self.point if point is None else point
-        exchange_return_point = self.return_point if return_point is None else return_point
+        exchange_return_point = (
+            self.return_point if return_point is None else return_point
+        )
 
         # Ramp to exchange; hold at plateau for wait_duration (ns after ramp completes)
         _ramp_to_target(owner, exchange_point, ramp_duration=ramp, duration=wait)
@@ -197,75 +249,202 @@ class SensorDotMeasureMacro(QuamMacro):
     returning a QUA boolean suitable for ``Cast.to_int()``.
 
     Without a pair ID, falls back to a raw resonator measurement.
+
+    When ``gate_channel_names`` and ``voltage_sequence`` are provided
+    (typically by ``MeasurePSBPairMacro``), the macro aligns the voltage
+    gates with the resonator before measuring and tracks the elapsed
+    readout time on the voltage sequencer so integrated-voltage
+    bookkeeping stays correct.
     """
 
     pulse_name: str = "readout"
 
+
+    def _resolve_pulse_name_for_pair(self, pair_name: Optional[str] = None) -> str | None:
+        owner = _owner_component(self)
+        resonator = owner.readout_resonator
+        if resonator is None: 
+            return None
+        ops = getattr(resonator, "operations", None)
+        if pair_name is not None: 
+            pair_pulse_name = f"{self.pulse_name}_{pair_name}"
+            if ops is not None and pair_pulse_name in ops: 
+                return pair_pulse_name
+        return self.pulse_name
+
+    def readout_pulse_length_ns_for_pair(self, pair_name: Optional[str] = None) -> int | None:
+        owner = _owner_component(self)
+        resonator = owner.readout_resonator
+        if resonator is None:
+            return None
+        pulse_name = self._resolve_pulse_name_for_pair(pair_name)
+        if pulse_name is None:
+            return None
+        pulse = resonator.operations.get(pulse_name)
+        if pulse is None:
+            return None
+        return _pulse_length_samples_to_ns(getattr(pulse, "length", None))
+
+    @property
+    def readout_pulse_length_ns(self) -> int | None:
+        """Length of the readout pulse in nanoseconds, or ``None``."""
+        return self.readout_pulse_length_ns_for_pair(None)
+
+    def inferred_duration_for_pair(self, qd_pair_name: Optional[str] = None) -> float | None:
+        length = self.readout_pulse_length_ns_for_pair(qd_pair_name)
+        return length * 1e-9 if length is not None else None
+
+    @property
+    def inferred_duration(self) -> float | None:
+        """Duration dictated by the readout pulse length (seconds)."""
+        return self.inferred_duration_for_pair(None)
+
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, *args, quantum_dot_pair_id: Optional[str] = None, **kwargs):
+    def apply(
+        self,
+        *args,
+        quantum_dot_pair_id: str | None = None,
+        voltage_sequence=None,
+        gate_channel_names: list[str] | None = None,
+        return_iq: bool = False,
+        **kwargs,
+    ):
         """Measure the readout resonator and optionally perform state assignment.
 
         Args:
             quantum_dot_pair_id: If provided, apply the projector and threshold
                 stored on this sensor dot for the given pair, returning a QUA
                 boolean (projected_value > threshold).
+            voltage_sequence: Voltage sequencer for integrated-voltage tracking.
+            gate_channel_names: QUA element names of voltage gate channels to
+                align with the readout resonator before measuring.
             *args, **kwargs: Forwarded to ``readout_resonator.measure()`` when
                 no pair ID is given.
 
         Returns:
             QUA boolean expression when ``quantum_dot_pair_id`` is set,
-            otherwise ``None`` (raw measurement stored in qua_vars).
+            otherwise ``(i_qua, q_qua)`` tuple (raw measurement).
         """
-        from qm.qua import declare, fixed, assign
+        from qm.qua import declare, fixed
 
         owner = _owner_component(self)
+        resonator = owner.readout_resonator
+        readout_pulse_name = self._resolve_pulse_name_for_pair(quantum_dot_pair_id)
+        if readout_pulse_name is None:
+            raise ValueError("Sensor dot has no readout resonator configured.")
 
-        I = declare(fixed)
-        Q = declare(fixed)
-        owner.readout_resonator.measure(self.pulse_name, qua_vars=(I, Q))
+        # if gate_channel_names:
+        #     qua.align(*gate_channel_names, resonator.name)
+
+        # if voltage_sequence is not None:
+        #     pulse_length_ns = self.readout_pulse_length_ns_for_pair(quantum_dot_pair_id)
+        #     if pulse_length_ns is not None:
+        #         voltage_sequence.step_to_voltages({}, pulse_length_ns, ensure_align=False)
+
+        i_qua = declare(fixed)
+        q_qua = declare(fixed)
+        resonator.measure(readout_pulse_name, qua_vars=(i_qua, q_qua))
 
         if quantum_dot_pair_id is None:
-            return (I, Q)
+            return (i_qua, q_qua)
 
         threshold, projector = owner._readout_params(quantum_dot_pair_id)
-        wI = projector.get("wI", 1.0)
-        wQ = projector.get("wQ", 0.0)
-        offset = projector.get("offset", 0.0)
+        # wI = float(projector.get("wI", 1.0))
+        # wQ = float(projector.get("wQ", 0.0))
+        # offset = float(projector.get("offset", 0.0))
 
-        x = declare(fixed)
-        assign(x, I * wI + Q * wQ + offset)
-        return x > threshold
+        # projected = declare(fixed)
+        # assign(projected, i_qua * wI + q_qua * wQ + offset)
+
+        state = i_qua > threshold # Assuming that the readout projects onto the I axis
+        if return_iq:
+            return (i_qua, q_qua, state)
+        return state
 
 
 @quam_dataclass
 class MeasurePSBPairMacro(QuamMacro):
     """PSB measure macro for QuantumDotPair.
 
-    Steps to the measure target, then dispatches readout to the
-    first coupled sensor dot with the pair ID for threshold lookup.
+    The timing sequence is:
+
+    1. **Buffer** -- step to the measure voltage point for
+       ``buffer_duration`` ns (settling time before readout).
+    2. **Align** -- synchronize voltage gate channels with the readout
+       resonator (handled inside the sensor macro).
+    3. **Readout + track** -- the sensor macro plays the readout pulse
+       and calls ``track_sticky_duration`` on the voltage sequencer so
+       integrated-voltage bookkeeping stays correct.
+
     Returns a QUA boolean for state discrimination.
     """
 
     point: PointType = VoltagePointName.MEASURE.value
-    hold_duration: int | None = None
+    buffer_duration: int | None = DEFAULTS.state_macro.buffer_duration
+
+    @property
+    def inferred_duration(self) -> float | None:
+        """Total duration = buffer + sensor readout (seconds)."""
+        owner = _owner_component(self)
+        buffer_ns = self.buffer_duration or 0
+        if not getattr(owner, "sensor_dots", None):
+            return None
+        sensor_dot = owner.sensor_dots[0]
+        sensor_macro = sensor_dot.macros.get(TwoQubitMacroName.MEASURE)
+        if sensor_macro is None:
+            return None
+        if hasattr(sensor_macro, "inferred_duration_for_pair"):
+            sensor_dur = sensor_macro.inferred_duration_for_pair(owner.id)
+        else:
+            sensor_dur = sensor_macro.inferred_duration
+        if sensor_dur is None:
+            return None
+        return (buffer_ns * 1e-9) + sensor_dur
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, hold_duration: int | None = None, **kwargs):
+    def apply(self, buffer_duration: int | None = None, **kwargs):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
-        hold = self.hold_duration if hold_duration is None else hold_duration
-        _step_to_target(owner, self.point, duration=hold)
+        buf = self.buffer_duration if buffer_duration is None else buffer_duration
+        _step_to_target(owner, self.point, duration=buf)
 
         if not owner.sensor_dots:
-            raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
+            raise ValueError(
+                f"QuantumDotPair '{owner.id}' has no sensor dots for readout."
+            )
         sensor_dot = owner.sensor_dots[0]
+
+        gate_names = []
+        vs = getattr(owner, "voltage_sequence", None)
+        if vs is not None:
+            gate_set = getattr(vs, "gate_set", None)
+            if gate_set is not None:
+                gate_names = [ch.name for ch in gate_set.channels.values()]
+
+        qua.align(sensor_dot.readout_resonator.name, *gate_names)
+
         return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
             quantum_dot_pair_id=owner.id,
+            voltage_sequence=vs,
+            gate_channel_names=None,
+            **kwargs,
         )
+
+    def update(
+        self,
+        *,
+        buffer_duration: int | None = None,
+        point: PointType | None = None,
+    ) -> None:
+        """Persistently update calibrated measure parameters."""
+        if buffer_duration is not None:
+            self.buffer_duration = buffer_duration
+        if point is not None:
+            self.point = point
 
 
 def _iter_qpu_targets(machine: Any):

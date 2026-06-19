@@ -27,6 +27,7 @@ class VoltagePointName(StrEnum):
     MEASURE = "measure"
     EMPTY = "empty"
     EXCHANGE = "exchange"
+    CZ = "CZ"
 
 
 class SingleQubitMacroName(StrEnum):
@@ -67,6 +68,7 @@ class TwoQubitMacroName(StrEnum):
 
     CNOT = "cnot"
     CZ = "cz"
+    CROT = "crot"
     SWAP = "swap"
     ISWAP = "iswap"
 
@@ -74,18 +76,21 @@ class TwoQubitMacroName(StrEnum):
 class DrivePulseName(StrEnum):
     """Canonical drive pulse operation names for XY drive channels.
 
-    Each entry identifies a pulse envelope type registered in
-    ``qubit.xy.operations``.  The ``XYDriveMacro.reference_pulse_name``
-    field selects which pulse is used as the single source of truth
-    for all single-qubit rotations.
+    Each entry identifies a pulse envelope family registered in
+    ``qubit.xy.operations``.  Operations follow the naming convention
+    ``{family}_{gate}`` (e.g. ``gaussian_x90``, ``kaiser_x180``).
 
-    Users can register multiple pulse types (e.g. both ``gaussian``
-    and ``drag``) and switch between them by updating
-    ``reference_pulse_name`` on the macro.
+    The active family is selected globally via
+    ``BaseQuamQD.pulse_family`` and propagated to macros via QuAM
+    references.
     """
 
     GAUSSIAN = "gaussian"
+    SQUARE = "square"
+    KAISER = "kaiser"
+    HERMITE = "hermite"
     DRAG = "drag"
+    CROT = "crot"
 
 
 X_NEG_90_ALIAS = "-x90"
@@ -134,6 +139,7 @@ TWO_QUBIT_MACRO_NAMES = (
     TwoQubitMacroName.EMPTY.value,
     TwoQubitMacroName.CNOT.value,
     TwoQubitMacroName.CZ.value,
+    TwoQubitMacroName.CROT.value,
     TwoQubitMacroName.SWAP.value,
     TwoQubitMacroName.ISWAP.value,
     TwoQubitMacroName.EXCHANGE.value,
