@@ -47,7 +47,7 @@ def test_vgs_go_to_virtual_point(virtual_gate_set: VirtualGateSet):
     )
 
     with qua.program() as prog:
-        seq = vgs.new_sequence()
+        seq = vgs.new_sequence(enforce_qua_calcs=False)
         seq.step_to_point("virt_p1")
 
     # Calculate expected physical voltages (assuming initial state is 0V for ch1, ch2)
@@ -72,7 +72,7 @@ def test_vgs_step_to_virtual_level(virtual_gate_set: VirtualGateSet):
     add_default_virtual_layer(vgs)
 
     with qua.program() as prog:
-        seq = vgs.new_sequence()
+        seq = vgs.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"v_g1": -0.5, "v_g2": 0.2}, duration=80)  # ns
 
     # Calculate expected physical voltages (initial state 0V)
@@ -97,7 +97,7 @@ def test_vgs_step_to_virtual_level_qua_voltage(virtual_gate_set: VirtualGateSet)
     add_default_virtual_layer(vgs)
 
     with qua.program() as prog:
-        seq = vgs.new_sequence(track_integrated_voltage=False)
+        seq = vgs.new_sequence(track_integrated_voltage=False, enforce_qua_calcs=False)
         qua_v_g1_level = qua.declare(qua.fixed)
         qua.assign(qua_v_g1_level, 0.8)  # Target for v_g1
 
@@ -127,7 +127,8 @@ def test_vgs_step_to_virtual_level_qua_voltage(virtual_gate_set: VirtualGateSet)
             duration=30,
         )
         qua.play(
-            DEFAULT_PULSE_NAME * qua.amp((((0.0 + ((0.0 * exp_qua_v_g1_level) + 0.6)) - 0.0) << 2)),
+            DEFAULT_PULSE_NAME
+            * qua.amp((((0.0 + ((0.0 * exp_qua_v_g1_level) + 0.6)) - 0.0) << 2)),
             "ch2",
             duration=30,
         )
@@ -142,7 +143,7 @@ def test_vgs_ramp_to_zero_after_virtual_step(virtual_gate_set: VirtualGateSet):
     add_default_virtual_layer(vgs)
 
     with qua.program() as prog:
-        seq = vgs.new_sequence()
+        seq = vgs.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"v_g1": 0.2, "v_g2": 0.1}, duration=40)  # ns
         seq.ramp_to_zero()
 
@@ -167,7 +168,9 @@ def test_vgs_ramp_to_zero_after_virtual_step(virtual_gate_set: VirtualGateSet):
 def test_ramp_to_voltages_simple(machine):
     """Tests a simple ramp_to_voltages operation."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         seq.ramp_to_voltages(
             voltages={"ch1": 0.2, "ch2": -0.1},
             duration=120,
@@ -188,9 +191,13 @@ def test_ramp_to_voltages_simple(machine):
 
 def test_ramp_to_point_simple(machine):
     """Tests a simple ramp_to_point operation."""
-    machine.gate_set.add_point("p_ramp", voltages={"ch1": 0.15, "ch2": 0.05}, duration=200)
+    machine.gate_set.add_point(
+        "p_ramp", voltages={"ch1": 0.15, "ch2": 0.05}, duration=200
+    )
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         seq.ramp_to_point("p_ramp", ramp_duration=80)
     ast = ProgramTreeBuilder().build(prog)
 
@@ -207,11 +214,17 @@ def test_ramp_to_point_simple(machine):
 
 def test_step_then_ramp(machine):
     """Tests a step operation followed by a ramp operation."""
-    machine.gate_set.add_point("p_step", voltages={"ch1": 0.1, "ch2": 0.1}, duration=100)
+    machine.gate_set.add_point(
+        "p_step", voltages={"ch1": 0.1, "ch2": 0.1}, duration=100
+    )
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         seq.step_to_point("p_step")  # Current level: ch1=0.1, ch2=0.1
-        seq.ramp_to_voltages(voltages={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80)
+        seq.ramp_to_voltages(
+            voltages={"ch1": 0.3, "ch2": -0.1}, duration=160, ramp_duration=80
+        )
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -231,9 +244,13 @@ def test_step_then_ramp(machine):
 
 def test_ramp_then_step(machine):
     """Tests a ramp operation followed by a step operation."""
-    machine.gate_set.add_point("p_final", voltages={"ch1": 0.05, "ch2": -0.05}, duration=500)
+    machine.gate_set.add_point(
+        "p_final", voltages={"ch1": 0.05, "ch2": -0.05}, duration=500
+    )
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         seq.ramp_to_voltages(
             voltages={"ch1": 0.2, "ch2": 0.2}, duration=100, ramp_duration=40
         )  # Current level: ch1=0.2, ch2=0.2
@@ -258,7 +275,9 @@ def test_ramp_then_step(machine):
 def test_ramp_to_voltages_with_qua_voltage(machine):
     """Tests ramp_to_voltages using a QUA variable for the voltage level."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         qua_level = qua.declare(qua.fixed)
         qua.assign(qua_level, 0.15)
         seq.ramp_to_voltages(
@@ -288,10 +307,14 @@ def test_ramp_to_voltages_with_qua_voltage(machine):
 def test_ramp_to_voltages_with_qua_ramp_duration(machine):
     """Tests ramp_to_voltages using a QUA variable for the ramp duration."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=False)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=False, enforce_qua_calcs=False
+        )
         qua_ramp_dur = qua.declare(int)
         qua.assign(qua_ramp_dur, 80)  # ns
-        seq.ramp_to_voltages(voltages={"ch1": 0.2}, duration=160, ramp_duration=qua_ramp_dur)
+        seq.ramp_to_voltages(
+            voltages={"ch1": 0.2}, duration=160, ramp_duration=qua_ramp_dur
+        )
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
@@ -301,14 +324,18 @@ def test_ramp_to_voltages_with_qua_ramp_duration(machine):
         qua.assign(expected_qua_ramp_dur, 80)
         # ch1: 0.0 -> 0.2 (delta=0.2), ramp=80(20), hold=160(40) -> 40
         # ch2: 0.0 -> 0.0 (delta=0.0), ramp=80(20), hold=160(40) -> 40
-        qua.assign(_vseq_tmp_ch1_ramp_rate, 0.2 * qua.Math.div(1.0, expected_qua_ramp_dur))
+        qua.assign(
+            _vseq_tmp_ch1_ramp_rate, 0.2 * qua.Math.div(1.0, expected_qua_ramp_dur)
+        )
         qua.play(
             qua.ramp(_vseq_tmp_ch1_ramp_rate),
             "ch1",
             duration=expected_qua_ramp_dur >> 2,
         )
         qua.wait(40, "ch1")
-        qua.assign(_vseq_tmp_ch2_ramp_rate, 0.0 * qua.Math.div(1.0, expected_qua_ramp_dur))
+        qua.assign(
+            _vseq_tmp_ch2_ramp_rate, 0.0 * qua.Math.div(1.0, expected_qua_ramp_dur)
+        )
         qua.play(
             qua.ramp(_vseq_tmp_ch2_ramp_rate),
             "ch2",
