@@ -1,0 +1,113 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us diagnose and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what went wrong
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Create a machine with '...'
+        2. Run operation '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: I expected...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Instead, I got...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Code Sample
+      description: If applicable, provide a minimal code sample that reproduces the issue
+      placeholder: |
+        ```python
+        from quam_builder import ...
+
+        # Your code here
+        ```
+      render: python
+
+  - type: textarea
+    id: error-message
+    attributes:
+      label: Error Message / Traceback
+      description: If applicable, paste the full error message or traceback
+      placeholder: Paste the error message here
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: quam-builder Version
+      description: Which version of quam-builder are you using?
+      placeholder: e.g., 0.1.0 (run `pip show quam-builder`)
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: Which Python version are you using?
+      placeholder: e.g., 3.12.0 (run `python --version`)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      placeholder: e.g., macOS 14.0, Ubuntu 22.04, Windows 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (screenshots, logs, etc.)
+      placeholder: Any additional information that might help
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have provided all the information requested above
+          required: true

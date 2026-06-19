@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/qua-platform/quam-builder/blob/main/README.md
+    about: Check the documentation for guides and API reference
+  - name: 💬 GitHub Discussions
+    url: https://github.com/qua-platform/quam-builder/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🔬 Quantum Machines Support
+    url: https://quantum-machines.co/support/
+    about: Contact your Customer Success Physicist for complex technical questions

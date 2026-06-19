@@ -1,6 +1,11 @@
+"""Helpers for voltage-gate sequence validation against a server."""
+
 # from configuration import *
 
+import pytest
+
 from qm import SimulationConfig, QuantumMachinesManager, generate_qua_script
+pytest.importorskip("qm_saas")
 from qm_saas import QOPVersion, QmSaas
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,6 +27,7 @@ def simulate_program(qmm, machine, prog, simulation_duration=10000):
 def validate_program(samples, requested_wf_p, requested_wf_m):
     t0 = np.where(samples["con1"].analog[f"{5}-{6}"] != 0)[0][0]
     import matplotlib.pyplot as plt
+
     wf_p = samples["con1"].analog[f"{5}-{6}"][t0:]
     wf_m = samples["con1"].analog[f"{5}-{3}"][t0:]
     plt.plot(wf_p)
@@ -78,5 +84,38 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
     num_points = duration
     if num_points <= 1:
         return [start_value] * num_points
-    ramp = [start_value + (end_value - start_value) * (i + 1) / num_points for i in range(num_points)]
+    ramp = [
+        start_value + (end_value - start_value) * (i + 1) / num_points for i in range(num_points)
+    ]
     return [point for point in ramp for _ in range(sampling_rate)]
+
+
+def validate_compensation(samples, allowed=1.0):
+    plt.figure()
+    for name, sample in samples.con1.analog.items():
+        plt.plot(sample, label=name)
+    plt.legend()
+    plt.show()
+    for name, sample in samples.con1.analog.items():
+        integrated = np.abs(np.trapz(sample))
+        assert (
+            integrated < allowed
+        ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"
+
+
+def validate_durations(sample, expected_durations, steps):
+    durations = np.diff(np.where(np.abs(np.diff(sample)))[0])[:steps]
+    try:
+        assert all(
+            durations == expected_durations
+        ), f"durations: {durations}, expected: {expected_durations}"
+    except:
+        raise Exception(f"durations: {durations}, expected: {expected_durations}")
+
+
+def validate_keep_levels(sample, expected):
+    correlate_expected = np.dot(expected, expected)
+    correlated = np.correlate(sample, expected, mode="valid")
+    assert np.isclose(
+        np.max(correlated), correlate_expected
+    ), f"failed with {correlate_expected=} and {np.max(correlated)=}"

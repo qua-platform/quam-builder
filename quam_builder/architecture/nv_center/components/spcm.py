@@ -1,12 +1,12 @@
 from quam.core import quam_dataclass
-from quam.components.channels import InSingleChannel
+from quam.components.channels import InOutSingleChannel
 
 
 __all__ = ["SPCM"]
 
 
 @quam_dataclass
-class SPCM(InSingleChannel):
+class SPCM(InOutSingleChannel):
     """
     QUAM component for a readout.
     """

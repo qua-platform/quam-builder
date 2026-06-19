@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Union, List, Literal
 from dataclasses import field
 from qm.qua import align, wait
 
@@ -6,6 +6,14 @@ from quam.core import quam_dataclass
 from quam.components.quantum_components import QubitPair
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
+)
+from quam_builder.architecture.superconducting.components.cross_resonance import (
+    CrossResonanceIQ,
+    CrossResonanceMW,
+)
+from quam_builder.architecture.superconducting.components.zz_drive import (
+    ZZDriveIQ,
+    ZZDriveMW,
 )
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
@@ -38,7 +46,12 @@ class FluxTunableTransmonPair(QubitPair):
     id: Union[int, str]
     qubit_control: FluxTunableTransmon = None
     qubit_target: FluxTunableTransmon = None
+    moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
+    # Cross-resonance / ZZ drive (microwave 2Q gate). Optional so existing flux-tunable
+    # states (CZ-via-coupler) are unaffected; populated only when a CR drive is wired.
+    cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     detuning: Optional[float] = None
     confusion: Optional[List[List[float]]] = None
@@ -53,6 +66,10 @@ class FluxTunableTransmonPair(QubitPair):
 
         if self.coupler:
             channels += [self.coupler.name]
+        if self.cross_resonance:
+            channels += [self.cross_resonance.name]
+        if self.zz_drive:
+            channels += [self.zz_drive.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
@@ -73,6 +90,10 @@ class FluxTunableTransmonPair(QubitPair):
 
         if self.coupler:
             channels += [self.coupler.name]
+        if self.cross_resonance:
+            channels += [self.cross_resonance.name]
+        if self.zz_drive:
+            channels += [self.zz_drive.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
