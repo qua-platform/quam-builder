@@ -11,8 +11,8 @@ the function signature and name as operation metadata and dispatches to
 `component.macros[operation_name]` at runtime.
 """
 
+from quam.components.quantum_components import QuantumComponent, Qubit, QubitPair
 from quam.core import OperationsRegistry
-from quam.components.quantum_components import Qubit, QubitPair, QuantumComponent
 
 __all__ = [
     "operations_registry",
@@ -36,6 +36,7 @@ __all__ = [
     "exchange",
     "cnot",
     "cz",
+    "crot",
     "swap",
     "iswap",
 ]
@@ -125,7 +126,7 @@ def z_neg90(component: Qubit, **kwargs):
 
 
 @operations_registry.register_operation
-def I(component: Qubit, **kwargs):
+def I(component: Qubit, **kwargs):  # noqa: E743
     """Dispatch to component.macros['I']."""
 
 
@@ -137,6 +138,11 @@ def cnot(component: QubitPair, **kwargs):
 @operations_registry.register_operation
 def cz(component: QubitPair, **kwargs):
     """Dispatch to component.macros['cz']."""
+
+
+@operations_registry.register_operation
+def crot(component: QubitPair, **kwargs):
+    """Dispatch to component.macros['crot']."""
 
 
 @operations_registry.register_operation
