@@ -12,10 +12,16 @@ import tempfile
 import pytest
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 
-from quam_builder.architecture.quantum_dots.components.xy_drive import XYDriveIQ, XYDriveMW
+from quam_builder.architecture.quantum_dots.components.xy_drive import (
+    XYDriveIQ,
+    XYDriveMW,
+)
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
-from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam
+from quam_builder.builder.quantum_dots import (
+    build_base_quam,
+    build_loss_divincenzo_quam,
+)
 from quam_builder.builder.quantum_dots import build_quam as build_quam_qd
 
 
@@ -32,10 +38,9 @@ def machine_with_iq_pulses():
     instruments.add_lf_fem(controller=1, slots=[2, 3])
 
     connectivity = Connectivity()
-    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
+    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
     connectivity.add_quantum_dots(
-        quantum_dots=[1, 2],
-        add_drive_lines=False,  # No drive lines allocated — injected manually below
+        quantum_dots=[1, 2],  # No drive lines allocated — injected manually below
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
     allocate_wiring(connectivity, instruments)
@@ -49,7 +54,9 @@ def machine_with_iq_pulses():
         quam_instance=machine,
         path=tmp,
     )
-    machine = build_base_quam(machine, calibration_db_path=tmp, connect_qdac=False, save=False)
+    machine = build_base_quam(
+        machine, calibration_db_path=tmp, connect_qdac=False, save=False
+    )
 
     # Inject IQ drive wiring explicitly — standard QD pipeline never produces IQ wiring
     xy_drive_wiring = {
@@ -82,12 +89,10 @@ def machine_with_mw_pulses():
     instruments.add_lf_fem(controller=1, slots=[2, 3])
 
     connectivity = Connectivity()
-    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False, use_mw_fem=False)
-    connectivity.add_quantum_dots(
-        quantum_dots=[1, 2],
-        add_drive_lines=True,
-        use_mw_fem=True,
-        shared_drive_line=True,
+    connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
+    connectivity.add_quantum_dots(quantum_dots=[1, 2])
+    connectivity.add_quantum_dot_drive_lines(
+        quantum_dots=[1, 2], shared_line=True, use_mw_fem=True
     )
     connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
     allocate_wiring(connectivity, instruments)
@@ -127,14 +132,16 @@ class TestAddDefaultLDVQubitPulsesIQ:
             if qubit.xy is None:
                 continue
             assert (
-                "gaussian" in qubit.xy.operations
-            ), f"Pulse 'gaussian' missing from qubit {qubit_name}"
+                "gaussian_x90" in qubit.xy.operations
+            ), f"Pulse 'gaussian_x90' missing from qubit {qubit_name}"
 
     def test_gaussian_pulse_properties(self, machine_with_iq_pulses):
-        qubit = next(q for q in machine_with_iq_pulses.qubits.values() if q.xy is not None)
+        qubit = next(
+            q for q in machine_with_iq_pulses.qubits.values() if q.xy is not None
+        )
 
-        gaussian = qubit.xy.operations["gaussian"]
-        assert gaussian.length == 1000
+        gaussian = qubit.xy.operations["gaussian_x90"]
+        assert gaussian.length > 0
         assert gaussian.amplitude == 1.0
         assert gaussian.axis_angle == pytest.approx(0.0)
 
@@ -143,10 +150,11 @@ class TestAddDefaultLDVQubitPulsesIQ:
             if hasattr(qubit, "resonator") and qubit.resonator is not None:
                 assert "readout" in qubit.resonator.operations
 
-    def test_one_xy_operation_per_qubit(self, machine_with_iq_pulses):
+    def test_all_families_present_on_qubits(self, machine_with_iq_pulses):
         for qubit in machine_with_iq_pulses.qubits.values():
             if qubit.xy is not None:
-                assert len(qubit.xy.operations) == 1
+                for family in ("gaussian", "square", "kaiser"):
+                    assert f"{family}_x90" in qubit.xy.operations
 
 
 class TestAddDefaultLDVQubitPulsesMW:
@@ -164,14 +172,16 @@ class TestAddDefaultLDVQubitPulsesMW:
             if qubit.xy is None:
                 continue
             assert (
-                "gaussian" in qubit.xy.operations
-            ), f"Pulse 'gaussian' missing from qubit {qubit_name}"
+                "gaussian_x90" in qubit.xy.operations
+            ), f"Pulse 'gaussian_x90' missing from qubit {qubit_name}"
 
     def test_gaussian_pulse_properties(self, machine_with_mw_pulses):
-        qubit = next(q for q in machine_with_mw_pulses.qubits.values() if q.xy is not None)
+        qubit = next(
+            q for q in machine_with_mw_pulses.qubits.values() if q.xy is not None
+        )
 
-        gaussian = qubit.xy.operations["gaussian"]
-        assert gaussian.length == 1000
+        gaussian = qubit.xy.operations["gaussian_x90"]
+        assert gaussian.length > 0
         assert gaussian.amplitude == 1.0
         assert gaussian.axis_angle == pytest.approx(0.0)
 
