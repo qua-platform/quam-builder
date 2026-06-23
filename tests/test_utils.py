@@ -49,7 +49,9 @@ def _log_mismatch(path_list: list[str], reason: str, n1_context: Any, n2_context
         print(f"Node 2: {_format_value_as_code(n2_context, 0)}")
 
 
-def compare_ast_nodes(node1: Any, node2: Any, current_path: list[str] | None = None) -> bool:
+def compare_ast_nodes(
+    node1: Any, node2: Any, current_path: list[str] | None = None
+) -> bool:
     """Recursively compares two QUA AST elements for structural equality.
 
     Compares nodes, their attributes (which can be other nodes, expressions,
@@ -178,12 +180,14 @@ def compare_ast_nodes(node1: Any, node2: Any, current_path: list[str] | None = N
 
                 d_item1 = (
                     val_item1.__dict__
-                    if not isinstance(val_item1, dict) and hasattr(val_item1, "__dict__")
+                    if not isinstance(val_item1, dict)
+                    and hasattr(val_item1, "__dict__")
                     else val_item1
                 )
                 d_item2 = (
                     val_item2.__dict__
-                    if not isinstance(val_item2, dict) and hasattr(val_item2, "__dict__")
+                    if not isinstance(val_item2, dict)
+                    and hasattr(val_item2, "__dict__")
                     else val_item2
                 )
 
@@ -268,7 +272,10 @@ def _format_value_as_code(value: Any, indent_level: int) -> str:
             return "[]"
         # Format list elements, each on a new line if the list is not empty
         elements_str = ",\\n".join(
-            [f"{next_indent_str}{_format_value_as_code(elem, indent_level + 1)}" for elem in value]
+            [
+                f"{next_indent_str}{_format_value_as_code(elem, indent_level + 1)}"
+                for elem in value
+            ]
         )
         return f"[\\n{elements_str}\\n{indent_str}]"
 
