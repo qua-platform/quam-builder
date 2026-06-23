@@ -93,7 +93,11 @@ class TestAddPorts:
 
         machine.wiring = {
             "qubits": {
-                "q1": {WiringLineType.DRIVE.value: DummyRef({"opx_output": "#/ports/con1/1"})}
+                "q1": {
+                    WiringLineType.DRIVE.value: DummyRef(
+                        {"opx_output": "#/ports/con1/1"}
+                    )
+                }
             }
         }
 
@@ -119,13 +123,17 @@ class TestAddQPU:
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q1/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {"opx_output": "#/ports/mw_outputs/con1/1/1"},
+                    WiringLineType.DRIVE.value: {
+                        "opx_output": "#/ports/mw_outputs/con1/1/1"
+                    },
                 },
                 "q2": {
                     WiringLineType.PLUNGER_GATE.value: {
                         "opx_output": "#/wiring/qubits/q2/p/opx_output"
                     },
-                    WiringLineType.DRIVE.value: {"opx_output": "#/ports/mw_outputs/con1/1/2"},
+                    WiringLineType.DRIVE.value: {
+                        "opx_output": "#/ports/mw_outputs/con1/1/2"
+                    },
                 },
             }
         }
@@ -169,11 +177,10 @@ class TestAddPulses:
         instruments.add_lf_fem(controller=1, slots=[2, 3])
 
         connectivity = Connectivity()
-        connectivity.add_quantum_dots(
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
             quantum_dots=[1, 2],
-            add_drive_lines=True,
-            use_mw_fem=True,
-            shared_drive_line=True,
+            shared_line=True,
         )
         connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
         allocate_wiring(connectivity, instruments)
@@ -187,7 +194,9 @@ class TestAddPulses:
             quam_instance=machine,
             path=tmp,
         )
-        machine = build_base_quam(machine, calibration_db_path=tmp, connect_qdac=False, save=False)
+        machine = build_base_quam(
+            machine, calibration_db_path=tmp, connect_qdac=False, save=False
+        )
         machine = build_loss_divincenzo_quam(
             machine,
             implicit_mapping=True,
@@ -201,15 +210,17 @@ class TestAddPulses:
         for qubit in built_machine.qubits.values():
             if qubit.xy is not None:
                 assert len(qubit.xy.operations) > 0
-                assert "gaussian" in qubit.xy.operations
+                assert "gaussian_x90" in qubit.xy.operations
 
     def test_wire_machine_macros_handles_empty_machine(self):
-        from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+        from quam_builder.architecture.quantum_dots.macro_engine import (
+            wire_machine_macros,
+        )
 
         machine = LossDiVincenzoQuam()
         machine.qubits = {}
         machine.qubit_pairs = {}
-        wire_machine_macros(machine, strict=False)
+        wire_machine_macros(machine)
 
 
 class TestBuildQuam:
@@ -240,7 +251,9 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_base_quam"
+            ) as mock_base,
             patch(
                 "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
             ) as mock_ld,
@@ -257,7 +270,9 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_base_quam"
+            ) as mock_base,
             patch(
                 "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
             ) as mock_ld,
@@ -274,7 +289,9 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_base_quam"
+            ) as mock_base,
             patch(
                 "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
             ) as mock_ld,
@@ -290,7 +307,9 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_base_quam"
+            ) as mock_base,
             patch(
                 "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
             ) as mock_ld,
@@ -311,7 +330,7 @@ class TestCalibrationPathResolver:
     def test_resolves_none_to_state_parent(self, tmp_path):
         machine = LossDiVincenzoQuam()
         serializer = MagicMock()
-        serializer._get_state_path.return_value = tmp_path / "state.json"
+        serializer._get_state_path.return_value = tmp_path / "state_old.json"
         machine.get_serialiser = lambda: serializer
         resolved = _resolve_calibration_db_path(machine, None)
         assert resolved == tmp_path
@@ -319,7 +338,7 @@ class TestCalibrationPathResolver:
     def test_resolves_string_to_path(self):
         machine = LossDiVincenzoQuam()
         serializer = MagicMock()
-        serializer._get_state_path.return_value = Path("/tmp/state.json")
+        serializer._get_state_path.return_value = Path("/tmp/state_old.json")
         machine.get_serialiser = lambda: serializer
         resolved = _resolve_calibration_db_path(machine, "/tmp/calibration")
         assert resolved == Path("/tmp/calibration")

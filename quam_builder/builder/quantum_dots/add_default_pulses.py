@@ -4,16 +4,17 @@
     This module is superseded by the macro-engine pulse wiring system.
     Use ``wire_machine_macros()`` from
     ``quam_builder.architecture.quantum_dots.macro_engine`` instead.
-    Pulse defaults are now registered via ``component_pulse_catalog`` and
+    Pulse defaults are now registered via ``pulse_catalog`` and
     applied automatically during ``wire_machine_macros()``.
 """
 
 import warnings
-from typing import Any, Literal
+from typing import Any, Literal, Union
 import numpy as np
-from quam.components.pulses import GaussianPulse, SquareReadoutPulse, SquarePulse
+from quam.components.pulses import GaussianPulse, SquareReadoutPulse, DragPulse, SquarePulse
 from quam.components.channels import SingleChannel
 from qualang_tools.addons.calibration.calibrations import unit
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.components import ANY_READOUT_RESONATOR, VoltageGate
 from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
@@ -38,9 +39,9 @@ def add_default_ldv_qubit_pulses(qubit: LDQubit) -> None:
     )
     # ESR/MW drive pulses (if xy exists)
     if hasattr(qubit, "xy") and qubit.xy is not None:
-        pulse_length = 1000  # ns
-        pulse_amp = 0.2
-        sigma = pulse_length / 6
+        pulse_length = DEFAULTS.xy_pulse.length
+        pulse_amp = DEFAULTS.xy_pulse.amplitude
+        sigma = pulse_length * DEFAULTS.xy_pulse.sigma_ratio
 
         # SingleChannel (XYDriveSingle) uses real-valued waveforms only.
         # IQ/MW channels use axis_angle for hardware IQ mixing.
@@ -114,13 +115,11 @@ def add_default_resonator_pulses(resonator: ANY_READOUT_RESONATOR) -> None:
         DeprecationWarning,
         stacklevel=2,
     )
-    readout_length = 2000  # ns
-    readout_amp = 0.1
     if isinstance(resonator, ANY_READOUT_RESONATOR):
         resonator.operations["readout"] = SquareReadoutPulse(
             id="readout",
-            length=readout_length,
-            amplitude=readout_amp,
+            length=DEFAULTS.readout.length,
+            amplitude=DEFAULTS.readout.amplitude,
         )
 
 

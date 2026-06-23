@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
 from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
@@ -342,8 +343,8 @@ class TestStage2Build:
         # Verify qubit pair is created
         assert "q1_q2" in result.qubit_pairs
         pair = result.qubit_pairs["q1_q2"]
-        assert pair.qubit_control.id == "virtual_dot_1"
-        assert pair.qubit_target.id == "virtual_dot_2"
+        assert pair.qubit_control.id == "q1"
+        assert pair.qubit_target.id == "q2"
 
     def test_compensation_matrix_preserved(self):
         """Stage 2 should preserve compensation matrix from Stage 1."""
@@ -359,7 +360,9 @@ class TestStage2Build:
         machine = builder1.build()
 
         # Get original matrix
-        original_matrix = [row[:] for row in machine.virtual_gate_sets["main_qpu"].layers[0].matrix]
+        original_matrix = [
+            row[:] for row in machine.virtual_gate_sets["main_qpu"].layers[0].matrix
+        ]
 
         # Run Stage 2
         builder2 = _LDQubitBuilder(machine)
@@ -532,8 +535,10 @@ class TestStage2WiringBehaviours:
         sensor = machine.sensor_dots["virtual_sensor_1"]
         assert sensor.readout_resonator.sticky is None
 
-    def test_readout_resonator_intermediate_frequency_zero(self):
-        """Readout resonator intermediate_frequency should default to 0."""
+    def test_readout_resonator_intermediate_frequency_from_defaults(self, monkeypatch):
+        """Readout resonator intermediate_frequency should use QD defaults."""
+        default_readout_frequency = 123e6
+        monkeypatch.setattr(DEFAULTS.readout, "frequency", default_readout_frequency)
         machine = BaseQuamQD()
         machine.wiring = {
             "readout": {
@@ -550,7 +555,11 @@ class TestStage2WiringBehaviours:
         machine = builder.build()
 
         sensor = machine.sensor_dots["virtual_sensor_1"]
-        assert sensor.readout_resonator.intermediate_frequency == 0
+        assert (
+            sensor.readout_resonator.intermediate_frequency
+            == DEFAULTS.readout.frequency
+        )
+        assert sensor.readout_resonator.frequency_bare == DEFAULTS.readout.frequency
 
 
 class TestDriveTypeDetection:
@@ -715,3 +724,73 @@ class TestHighLevelAPI:
         assert isinstance(result, LossDiVincenzoQuam)
         assert "q1" in result.qubits
         assert "virtual_dot_1" in result.quantum_dots
+
+
+class TestMWFEMUpconverterResolution:
+    """Regression tests for upconverter_frequency resolution (quam 0.5).
+
+    When XYDriveMW.LO_frequency is the reference '#./upconverter_frequency',
+    the builder must resolve it via the port object in machine.ports rather
+    than relying on the QuAM reference chain (which may not be available
+    during construction).
+    """
+
+    def test_larmor_frequency_set_from_mw_port(self):
+        """build_loss_divincenzo_quam should resolve LO from the MW port
+        and set larmor_frequency = LO + IF without warnings."""
+        import shutil
+        import tempfile
+        import warnings
+
+        from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
+
+        from quam_builder.builder.qop_connectivity import build_quam_wiring
+
+        instruments = Instruments()
+        instruments.add_mw_fem(controller=1, slots=[1])
+        instruments.add_lf_fem(controller=1, slots=[2, 3])
+
+        connectivity = Connectivity()
+        connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
+        connectivity.add_quantum_dots(quantum_dots=[1, 2])
+        connectivity.add_quantum_dot_drive_lines(
+            quantum_dots=[1, 2], shared_line=True, use_mw_fem=True
+        )
+        connectivity.add_quantum_dot_pairs(quantum_dot_pairs=[(1, 2)])
+        allocate_wiring(connectivity, instruments)
+
+        tmp = tempfile.mkdtemp()
+        try:
+            machine = BaseQuamQD()
+            machine = build_quam_wiring(
+                connectivity, "127.0.0.1", "test", machine, path=tmp
+            )
+            machine = build_base_quam(
+                machine, calibration_db_path=tmp, connect_qdac=False, save=False
+            )
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                result = build_loss_divincenzo_quam(
+                    machine,
+                    qubit_pair_sensor_map={"q1_q2": ["sensor_1"]},
+                    save=False,
+                )
+
+            upconv_warnings = [
+                w for w in caught if "upconverter_frequency" in str(w.message)
+            ]
+            assert (
+                upconv_warnings == []
+            ), f"Unexpected upconverter_frequency warnings: {upconv_warnings}"
+
+            for qubit in result.qubits.values():
+                if qubit.xy is not None:
+                    lo = qubit.xy.LO_frequency
+                    assert isinstance(lo, (int, float))
+                    assert isinstance(qubit.xy.intermediate_frequency, (int, float))
+                    assert qubit.larmor_frequency == pytest.approx(
+                        lo + qubit.xy.intermediate_frequency
+                    )
+        finally:
+            shutil.rmtree(tmp)
