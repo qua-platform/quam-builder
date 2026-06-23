@@ -5,6 +5,16 @@ This module provides components and tools for building quantum dot-based quantum
 """
 
 from .components import *
+from .defaults import (
+    DEFAULTS,
+    ExchangeDefaults,
+    FrequencyDefaults,
+    MiscDefaults,
+    QDDefaults,
+    ReadoutDefaults,
+    StateMacroDefaults,
+    XYPulseDefaults,
+)
 from .examples import *
 from .macro_engine import *
 from .operations import *
@@ -13,6 +23,14 @@ from .qubit import *
 from .qubit_pair import *
 
 __all__ = [
+    "DEFAULTS",
+    "ExchangeDefaults",
+    "FrequencyDefaults",
+    "MiscDefaults",
+    "QDDefaults",
+    "ReadoutDefaults",
+    "StateMacroDefaults",
+    "XYPulseDefaults",
     *components.__all__,
     *examples.__all__,
     *macro_engine.__all__,

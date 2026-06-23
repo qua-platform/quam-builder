@@ -45,16 +45,16 @@ class TestQuantumDotPairProperties:
 class TestDetuningAxis:
     def test_detuning_axis_name_set(self, qd_machine):
         pair = qd_machine.quantum_dot_pairs["dot1_dot2_pair"]
-        assert pair.detuning_axis_name == "dot1_dot2_epsilon"
+        assert pair.detuning_axis_name == "dot1_dot2_pair_epsilon"
 
     def test_detuning_axis_in_virtual_gate_set(self, qd_machine):
         vgs = qd_machine.virtual_gate_sets["main_qpu"]
-        assert "dot1_dot2_epsilon" in vgs.valid_channel_names
+        assert "dot1_dot2_pair_epsilon" in vgs.valid_channel_names
 
     def test_two_detuning_axes_coexist(self, qd_machine):
         vgs = qd_machine.virtual_gate_sets["main_qpu"]
-        assert "dot1_dot2_epsilon" in vgs.valid_channel_names
-        assert "dot3_dot4_epsilon" in vgs.valid_channel_names
+        assert "dot1_dot2_pair_epsilon" in vgs.valid_channel_names
+        assert "dot3_dot4_pair_epsilon" in vgs.valid_channel_names
 
 
 class TestDetuningControl:
@@ -103,17 +103,17 @@ class TestQuantumDotPairVoltagePoints:
 class TestQuantumDotPairCatalog:
     """Verify QuantumDotPair receives state macros after wire_machine_macros()."""
 
-    def test_has_initialize_macro(self, qd_machine, reset_catalog):
+    def test_has_initialize_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "initialize" in pair.macros, f"{pair.id} missing 'initialize' macro"
 
-    def test_has_measure_macro(self, qd_machine, reset_catalog):
+    def test_has_measure_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "measure" in pair.macros, f"{pair.id} missing 'measure' macro"
 
-    def test_has_empty_macro(self, qd_machine, reset_catalog):
+    def test_has_empty_macro(self, qd_machine):
         wire_machine_macros(qd_machine)
         for pair in qd_machine.quantum_dot_pairs.values():
             assert "empty" in pair.macros, f"{pair.id} missing 'empty' macro"
