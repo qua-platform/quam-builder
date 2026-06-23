@@ -14,9 +14,8 @@ Covers every pattern exercised by the example:
 All objects are real — no mocks or stubs.
 """
 
-from typing import Tuple
-
 import pytest
+
 from qm import qua
 from quam.components import pulses
 from quam.components.channels import StickyChannelAddon
@@ -26,15 +25,12 @@ from quam.components.ports import (
 )
 from quam.core import quam_dataclass
 from quam.core.macro.quam_macro import QuamMacro
-
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
     XYDriveSingle,
 )
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-
 
 # -----------------------------------------------------------------------
 # Helpers — mirror rabi_chevron.py sections 1-3
@@ -49,7 +45,9 @@ def _make_gate(port: int, gate_id: str) -> VoltageGate:
     )
 
 
-def create_rabi_machine() -> Tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutResonatorSingle]:
+def create_rabi_machine() -> (
+    tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutResonatorSingle]
+):
     """Set up a minimal machine that mirrors the rabi_chevron example."""
     machine = LossDiVincenzoQuam()
 
@@ -73,7 +71,9 @@ def create_rabi_machine() -> Tuple[LossDiVincenzoQuam, XYDriveSingle, ReadoutRes
         opx_output=LFFEMAnalogOutputPort("con1", 2, port_id=5, output_mode="direct"),
     )
     # Add the pulses that were previously added by XYDriveSingle.__post_init__
-    xy_drive.operations["gaussian"] = pulses.GaussianPulse(length=100, amplitude=0.2, sigma=40)
+    xy_drive.operations["gaussian_x90"] = pulses.GaussianPulse(
+        length=100, amplitude=0.2, sigma=40
+    )
     xy_drive.operations["pi"] = pulses.SquarePulse(length=104, amplitude=0.2)
     xy_drive.operations["pi_half"] = pulses.SquarePulse(length=52, amplitude=0.2)
     xy_drive.operations["drive"] = pulses.GaussianPulse(
@@ -126,7 +126,7 @@ class DriveMacro(QuamMacro):
         try:
             parent_qubit = self.parent.parent
             pulse = parent_qubit.xy.operations[self.pulse_name]
-            return pulse.length * 1e-9
+            return pulse.length * 4e-9
         except Exception:
             return None
 
@@ -153,7 +153,7 @@ class MeasureMacro(QuamMacro):
                 "virtual_sensor_1"
             ].readout_resonator
             pulse = resonator.operations[self.pulse_name]
-            return (64 * 4 + pulse.length) * 1e-9
+            return (64 + pulse.length) * 4e-9
         except Exception:
             return None
 
@@ -189,8 +189,12 @@ def rabi_setup():
     qubit = machine.qubits["Q1"]
 
     qubit.add_point(point_name="init", voltages={"virtual_dot_1": 0.05}, duration=500)
-    qubit.add_point(point_name="operate", voltages={"virtual_dot_1": 0.15}, duration=2000)
-    qubit.add_point(point_name="readout", voltages={"virtual_dot_1": -0.05}, duration=2000)
+    qubit.add_point(
+        point_name="operate", voltages={"virtual_dot_1": 0.15}, duration=2000
+    )
+    qubit.add_point(
+        point_name="readout", voltages={"virtual_dot_1": -0.05}, duration=2000
+    )
 
     qubit.macros["drive"] = DriveMacro(pulse_name="drive")
     qubit.macros["measure"] = MeasureMacro(pulse_name="readout")
@@ -241,7 +245,7 @@ class TestQubitRegistration:
         assert qubit.xy is not None
         assert qubit.xy.id == "Q1_xy"
         assert "drive" in qubit.xy.operations
-        assert "gaussian" in qubit.xy.operations
+        assert "gaussian_x90" in qubit.xy.operations
 
     def test_qubit_has_quantum_dot(self, rabi_setup):
         _, qubit = rabi_setup

@@ -62,19 +62,17 @@ def test_virtual_gate_set_resolve_single_layer_square(gate_set):
     source_vector = np.array([0.5, 0.2])
     expected = np.linalg.inv(np.asarray(matrix)) @ source_vector
 
-    resolved = gate_set.resolve_voltages({"Vx": source_vector[0], "Vy": source_vector[1]})
+    resolved = gate_set.resolve_voltages(
+        {"Vx": source_vector[0], "Vy": source_vector[1]}
+    )
 
     assert np.isclose(resolved["P1"], expected[0])
     assert np.isclose(resolved["P2"], expected[1])
 
 
 def test_virtual_gate_set_resolve_stacked_layers_square(gate_set):
-    gate_set.add_layer(
-        source_gates=["V_mid"], target_gates=["P1"], matrix=[[2.0]]
-    )
-    gate_set.add_layer(
-        source_gates=["V_top"], target_gates=["V_mid"], matrix=[[0.5]]
-    )
+    gate_set.add_layer(source_gates=["V_mid"], target_gates=["P1"], matrix=[[2.0]])
+    gate_set.add_layer(source_gates=["V_top"], target_gates=["V_mid"], matrix=[[0.5]])
 
     resolved = gate_set.resolve_voltages({"V_top": 1.2})
 
@@ -83,9 +81,7 @@ def test_virtual_gate_set_resolve_stacked_layers_square(gate_set):
 
 
 def test_virtual_gate_set_unknown_channel_rejected(gate_set):
-    gate_set.add_layer(
-        source_gates=["Vx"], target_gates=["P1"], matrix=[[1.0]]
-    )
+    gate_set.add_layer(source_gates=["Vx"], target_gates=["P1"], matrix=[[1.0]])
 
     with pytest.raises(ValueError):
         gate_set.resolve_voltages({"Vx": 0.2, "unknown": 0.1})
@@ -113,7 +109,9 @@ def test_add_to_layer_matches_direct_matrix_sources_only():
     vgs_direct.allow_rectangular_matrices = True
     vgs_direct.add_layer(source_all, target_all, matrix_full)
 
-    vgs_incremental = VirtualGateSet(id="incremental_sources", channels=channels_incremental)
+    vgs_incremental = VirtualGateSet(
+        id="incremental_sources", channels=channels_incremental
+    )
     vgs_incremental.allow_rectangular_matrices = True
     vgs_incremental.add_layer(source_all[:2], target_all, matrix_full[:2])
     vgs_incremental.add_to_layer(
@@ -152,7 +150,9 @@ def test_add_to_layer_adds_targets_and_sources():
     vgs_direct.allow_rectangular_matrices = True
     vgs_direct.add_layer(source_all, target_all, matrix_full)
 
-    vgs_incremental = VirtualGateSet(id="incremental_targets", channels=channels_incremental)
+    vgs_incremental = VirtualGateSet(
+        id="incremental_targets", channels=channels_incremental
+    )
     vgs_incremental.allow_rectangular_matrices = True
     vgs_incremental.add_layer(
         source_all[:2],
@@ -176,7 +176,11 @@ def test_add_to_layer_adds_targets_and_sources():
     resolved_incremental = vgs_incremental.resolve_voltages(sample_voltages)
     np.testing.assert_allclose(
         [resolved_direct["P1"], resolved_direct["P2"], resolved_direct["P3"]],
-        [resolved_incremental["P1"], resolved_incremental["P2"], resolved_incremental["P3"]],
+        [
+            resolved_incremental["P1"],
+            resolved_incremental["P2"],
+            resolved_incremental["P3"],
+        ],
     )
 
 
