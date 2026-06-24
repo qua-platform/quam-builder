@@ -65,14 +65,28 @@ def create_octave_port(channel: AnyInstrumentChannel) -> (str, str):
     return key, reference
 
 
-def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
+def create_mw_fem_port(
+    channel: AnyInstrumentChannel, channels: List[AnyInstrumentChannel]
+) -> (str, str):
     """Generates a key/JSON reference pair from which a QUAM port can be created for a mw-fem channel.
+
+    A single MW-FEM output on a line is keyed ``opx_output``. When a line carries
+    two MW-FEM outputs of the same io_type (dual MW-FEM drive feeding an external
+    mixer), the lower port is keyed ``opx_output`` (IF envelope) and the higher
+    ``opx_output_LO`` (constant LO tone) -- mirroring the I/Q disambiguation in
+    :func:`create_lf_opx_plus_port`.
 
     Args:
         channel (AnyInstrumentChannel): The instrument channel for which the reference is created.
+        channels (List[AnyInstrumentChannel]): All channels on the same line, used
+            to disambiguate the IF/LO ports of a dual MW-FEM drive.
 
     Returns:
         (str, str): A tuple containing the key and the JSON reference.
+
+    Raises:
+        NotImplementedError: If more than two MW-FEM channels of the same type
+            are present on the line.
     """
     reference = PORTS_BASE_JSON_PATH
     reference += f"/mw_{channel.io_type}s"
@@ -80,7 +94,19 @@ def create_mw_fem_port(channel: AnyInstrumentChannel) -> (str, str):
     reference += f"/{channel.slot}"
     reference += f"/{channel.port}"
 
-    key = f"opx_{channel.io_type}"
+    channels_with_same_type = get_objects_with_same_type(channel, channels)
+    if len(channels_with_same_type) == 1:
+        key = f"opx_{channel.io_type}"
+    elif len(channels_with_same_type) == 2:
+        if channel.port == min(c.port for c in channels_with_same_type):
+            key = f"opx_{channel.io_type}"
+        else:
+            key = f"opx_{channel.io_type}_LO"
+    else:
+        raise NotImplementedError(
+            f"Can't handle when MW-FEM channel number is not 1 or 2, "
+            f"got {len(channels_with_same_type)}"
+        )
 
     return key, reference
 

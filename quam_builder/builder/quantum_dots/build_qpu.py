@@ -14,11 +14,13 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import warnings
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam.components import MWChannel
 from quam_builder.architecture.superconducting.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
 )
 from quam_builder.architecture.quantum_dots.components.xy_drive import (
+    XYDriveDualMW,
     XYDriveSingle,
 )
 from quam_builder.architecture.quantum_dots.components import (
@@ -380,6 +382,15 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                     xy = XYDriveMW(
                         id=f"{qubit_name}_xy",
                         opx_output=f"{wiring_path}/opx_output",
+                    )
+                elif xy_type == "DualMW":
+                    xy = XYDriveDualMW(
+                        id=f"{qubit_name}_xy",
+                        opx_output=f"{wiring_path}/opx_output",
+                        opx_output_LO=MWChannel(
+                            id=f"{qubit_name}_xy_lo",
+                            opx_output=f"{wiring_path}/opx_output_LO",
+                        ),
                     )
                 elif xy_type == "Single":
                     xy = XYDriveSingle(
