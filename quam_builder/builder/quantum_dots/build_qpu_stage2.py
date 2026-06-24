@@ -253,6 +253,37 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
                 qubit_name,
             )
 
+    def _set_dual_mw_lo_frequency(self, qubit_name: str) -> None:
+        """Set the constant-LO-tone frequency for a dual MW-FEM drive.
+
+        Only applies to ``XYDriveDualMW`` (detected via its ``opx_output_LO``
+        attribute). The LO tone is the external mixer's LO; combined with the
+        IF port it yields ``RF = larmor_frequency``. The frequency is written
+        once onto the LO output port's upconverter ("set & forget"), here at
+        build time because the port reference only resolves once the XY drive
+        is attached to the machine (after ``register_qubit``).
+        """
+        qubit = self.machine.qubits[qubit_name]
+        xy = getattr(qubit, "xy", None)
+        lo_channel = getattr(xy, "opx_output_LO", None)
+        if lo_channel is None:
+            return
+
+        lo_frequency = getattr(xy, "default_LO_frequency", None)
+        if lo_frequency is None:
+            return
+
+        port = getattr(lo_channel, "opx_output", None)
+        if hasattr(port, "upconverter_frequency"):
+            if port.upconverter_frequency is None:
+                port.upconverter_frequency = float(lo_frequency)
+        else:
+            logger.warning(
+                "Could not resolve LO output port for %s; set the dual-MW LO "
+                "frequency manually.",
+                qubit_name,
+            )
+
     def _resolve_lo_from_wiring(self, qubit_id: str):
         """Read the LO/upconverter frequency directly from the wiring port.
 
@@ -352,6 +383,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
 
             if xy is not None:
                 self._set_initial_larmor_frequency(qubit_name, qubit_id)
+                self._set_dual_mw_lo_frequency(qubit_name)
 
             logger.info(
                 f"Registered qubit {qubit_name} → quantum_dot {quantum_dot_id} "

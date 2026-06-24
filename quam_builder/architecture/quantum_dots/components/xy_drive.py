@@ -4,6 +4,7 @@ from typing import ClassVar, Dict, Optional
 from quam.core import quam_dataclass
 from quam.components import MWChannel, pulses
 from quam.components.channels import IQChannel, MWChannel, SingleChannel
+from qm.qua import align
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
@@ -50,7 +51,7 @@ class XYDriveBase:
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
 
 
-__all__ = ["XYDriveBase", "XYDriveSingle", "XYDriveIQ", "XYDriveMW"]
+__all__ = ["XYDriveBase", "XYDriveSingle", "XYDriveIQ", "XYDriveMW", "XYDriveDualMW"]
 
 
 @quam_dataclass
@@ -195,3 +196,43 @@ class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""
         self.operations[name] = pulse
+
+@quam_dataclass
+class XYDriveDualMW(XYDriveMW, XYDriveBase):
+    """
+    Combine 2 MW FEM ports using an external mixer to be able to reach frequencies of up to 21GHz. 
+
+    This subclass will be designated to the IF. The LO will be a MWChannel held as an attribute of this class. 
+    The idea is that we set the LO & forget it. That way, any subsequent play function (via the macro) will use this 
+    play command, which plays both a constant LO tone and an enveloped IF to the external mixer. 
+    """
+    opx_output_LO: MWChannel
+    default_LO_frequency = 10e9
+
+    def __post_init__(self): 
+        self.opx_output_LO.intermediate_frequency = 0
+
+        # How and what do we define the length to be here? Open to ideas
+        if "cw" not in self.opx_output_LO.operations: 
+            self.opx_output_LO.operations["cw"] = pulses.SquarePulse(amplitude = 0.1, length = 1000)
+    
+    @property
+    def upconverter_frequency(self):
+        """Returns the up-converter/LO frequency in Hz."""
+        return self.opx_output.upconverter_frequency + self.opx_output_LO.upconverter_frequency
+
+    def play(
+        self,
+        pulse_name: str,
+        **kwargs,
+    ):
+        duration = kwargs.get("duration")
+        if duration is None:
+            lo_duration = self.operations[pulse_name].length // 4
+        else:
+            lo_duration = duration
+
+        align(self.name, self.opx_output_LO.name)
+        self.opx_output_LO.play("cw", duration=lo_duration)
+        super().play(pulse_name, **kwargs)
+        align(self.name, self.opx_output_LO.name)

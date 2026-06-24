@@ -12,16 +12,17 @@ This module provides helper functions for:
 # pylint: disable=undefined-all-variable
 
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from quam.components import StickyChannelAddon, pulses
+from quam.components import MWChannel, StickyChannelAddon, pulses
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
     VoltageGate,
 )
 from quam_builder.architecture.quantum_dots.components.xy_drive import (
+    XYDriveDualMW,
     XYDriveIQ,
     XYDriveMW,
     XYDriveSingle,
@@ -31,6 +32,7 @@ from quam_builder.builder.qop_connectivity.get_digital_outputs import (
     get_digital_outputs,
 )
 from quam_builder.builder.qop_connectivity.channel_ports import (
+    dual_mw_out_channel_ports,
     iq_out_channel_ports,
     mw_out_channel_ports,
 )
@@ -206,6 +208,35 @@ def _make_resonator(
     )
 
 
+# MW-FEM output pairs (port numbers within one FEM) that share an up-converter
+# and are forced into the same band. A dual-MW drive's IF and LO must be free to
+# sit in different bands, so they must not land on the same coupled pair.
+_MW_FEM_COUPLED_OUTPUT_PAIRS = ((2, 3), (4, 5), (6, 7))
+
+
+def _validate_dual_mw_band_coupling(qubit_id: str, ports: Mapping[str, Any]) -> None:
+    """Reject a dual-MW drive whose IF and LO land on coupled MW-FEM outputs."""
+
+    def parse(ref: Any) -> Optional[Tuple[str, int]]:
+        ref = str(ref)
+        if "mw_outputs" not in ref:
+            return None
+        con_slot, _, port = ref.rstrip("/").rpartition("/")
+        return (con_slot, int(port)) if port.isdigit() else None
+
+    if_ref = parse(ports.get("opx_output", ""))
+    lo_ref = parse(ports.get("opx_output_LO", ""))
+    if if_ref is None or lo_ref is None or if_ref[0] != lo_ref[0]:
+        return
+    if {if_ref[1], lo_ref[1]} in [set(p) for p in _MW_FEM_COUPLED_OUTPUT_PAIRS]:
+        raise ValueError(
+            f"Qubit {qubit_id} dual-MW drive puts IF (port {if_ref[1]}) and LO "
+            f"(port {lo_ref[1]}) on coupled MW-FEM outputs, which are forced into "
+            f"the same band. Move one tone to a non-coupled output "
+            f"(coupled pairs: {_MW_FEM_COUPLED_OUTPUT_PAIRS})."
+        )
+
+
 def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
     """Validate qubit drive port configuration and determine drive type.
 
@@ -232,6 +263,7 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
     """
     has_iq = all(key in ports for key in iq_out_channel_ports)
     has_mw = all(key in ports for key in mw_out_channel_ports)
+    has_dual_mw = all(key in ports for key in dual_mw_out_channel_ports)
 
     if has_iq and has_mw:
         raise ValueError(
@@ -245,6 +277,9 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
         # actual port object rather than a string reference.
         ref_str = str(ref)
         if "mw_outputs" in ref_str or "MWFEM" in type(ref).__name__:
+            if has_dual_mw:
+                _validate_dual_mw_band_coupling(qubit_id, ports)
+                return "DualMW"
             return "MW"
         # Check the raw/unresolved value if available (QuAM dict wrapper)
         raw_ref = None
@@ -253,6 +288,9 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
         elif hasattr(ports, "get_unreferenced_value"):
             raw_ref = str(ports.get_unreferenced_value("opx_output"))
         if raw_ref and "mw_outputs" in raw_ref:
+            if has_dual_mw:
+                _validate_dual_mw_band_coupling(qubit_id, ports)
+                return "DualMW"
             return "MW"
         # TODO: When qualang_tools supports LF-FEM IQ allocation for drive
         # lines (two outputs + frequency converter), the IQ path above will
@@ -447,6 +485,15 @@ def _create_xy_drive_from_wiring(
             id=drive_id,
             opx_output=f"{wiring_path}/opx_output",
         )
+    if drive_type == "DualMW":
+        return XYDriveDualMW(
+            id=drive_id,
+            opx_output=f"{wiring_path}/opx_output",
+            opx_output_LO=MWChannel(
+                id=f"{drive_id}_lo",
+                opx_output=f"{wiring_path}/opx_output_LO",
+            ),
+        )
     if drive_type == "Single":
         return XYDriveSingle(
             id=drive_id,
@@ -455,7 +502,8 @@ def _create_xy_drive_from_wiring(
         )
 
     raise ValueError(
-        f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'."
+        f"Unknown drive type: {drive_type}. "
+        f"Expected 'IQ', 'MW', 'DualMW', or 'Single'."
     )
 
 

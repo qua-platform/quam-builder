@@ -155,7 +155,7 @@ def get_channel_port(
         if channel.instrument_id == "octave":
             key, reference = create_octave_port(channel)
         elif channel.instrument_id == "mw-fem":
-            key, reference = create_mw_fem_port(channel)
+            key, reference = create_mw_fem_port(channel, channels)
         elif channel.instrument_id in ["lf-fem", "opx+"]:
             key, reference = create_lf_opx_plus_port(channel, channels)
         else:
