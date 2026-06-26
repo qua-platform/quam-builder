@@ -362,8 +362,8 @@ class BaseQuam(QuamRoot):
     def initialize_qpu(self, isolation: bool = False, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points.
 
-        The TWPA pumps require calling :meth:`twpa_keepalive` each
-        shot-loop iteration to keep them on.
+        The TWPA pumps require calling :meth:`twpa_keepalive` once per
+        inner-most-loop iteration to keep them on.
 
         Args:
         isolation : bool, optional
@@ -374,9 +374,10 @@ class BaseQuam(QuamRoot):
             twpa.initialize(isolation=isolation)
 
     def twpa_keepalive(self, qubits=None, isolation: bool = False) -> None:
-        """Align the TWPA pumps with the given qubits to keep them on through a shot loop.
+        """Align the TWPA pumps with the given qubits to keep them on across a loop.
 
-        Call once per shot-loop iteration so the sticky pumps stay in the program timeline.
+        Call once per iteration of the inner-most loop around your pulse operations,
+        so the sticky pumps stay in the program timeline.
 
         Args:
             qubits (Union[Qubit, Iterable[Qubit]], optional): Qubit(s) whose channels the

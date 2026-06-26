@@ -130,8 +130,8 @@ class FluxTunableQuam(BaseQuam):
         """Initialize the QPU with the calibrated TWPA pumping points and
            with the specified flux point and target
 
-        The TWPA pumps require calling :meth:`twpa_keepalive` each
-        shot-loop iteration to keep them on.
+        The TWPA pumps require calling :meth:`twpa_keepalive` once per
+        inner-most-loop iteration to keep them on.
 
         Args:
             flux_point (str): The flux point to set. Default is 'joint'.
