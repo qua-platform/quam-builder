@@ -79,7 +79,10 @@ class QuantumDot(VoltageMacroMixin):
 
     def get_offset(self):
         v = getattr(self.physical_channel, "offset_parameter", None)
-        return float(v()) if callable(v) else 0.0  # pylint: disable=not-callable
+        if callable(v):
+            return 0.0
+        else:
+            return float(v)
 
     def set_offset(self, value: float):
         if self.physical_channel.offset_parameter is not None:
