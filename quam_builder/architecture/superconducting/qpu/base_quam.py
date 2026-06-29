@@ -6,9 +6,10 @@ import logging
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import declare_stream, declare, fixed
+from qm.qua import declare_stream, declare, fixed, align
 
 from quam.components import FrequencyConverter
+from quam.components.quantum_components import Qubit
 from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
@@ -51,6 +52,7 @@ class BaseQuam(QuamRoot):
         thermalization_time: Return longest thermalization time.
         declare_qua_variables: Declare necessary QUA variables for qubits.
         initialize_qpu: Initialize the QPU with specified settings.
+        twpa_keepalive: Align the TWPA pumps with the given qubits to keep them on.
     """
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
@@ -360,6 +362,9 @@ class BaseQuam(QuamRoot):
     def initialize_qpu(self, isolation: bool = False, **kwargs):
         """Initialize the QPU with the calibrated TWPA pumping points.
 
+        The TWPA pumps require calling :meth:`twpa_keepalive` once per
+        inner-most-loop iteration to keep them on.
+
         Args:
         isolation : bool, optional
             If True, also configure and play the isolation tone. Use when the TWPA
@@ -367,3 +372,37 @@ class BaseQuam(QuamRoot):
         """
         for twpa in self.twpas.values():
             twpa.initialize(isolation=isolation)
+
+    def twpa_keepalive(self, qubits=None, isolation: bool = False) -> None:
+        """Align the TWPA pumps with the given qubits to keep them on across a loop.
+
+        Call once per iteration of the inner-most loop around your pulse operations,
+        so the sticky pumps stay in the program timeline.
+
+        Args:
+            qubits (Union[Qubit, Iterable[Qubit]], optional): Qubit(s) whose channels the
+                pumps are aligned with. Defaults to ``self.active_qubits``.
+            isolation (bool, optional): If True, also keep the isolation tone alive.
+                Default False.
+        """
+        if qubits is None:
+            qubits = self.active_qubits
+        elif isinstance(qubits, Qubit):
+            qubits = [qubits]
+        else:
+            qubits = list(qubits)
+
+        twpa_elements = []
+        for twpa in self.twpas.values():
+            if not twpa.initialization:
+                continue
+            if twpa.pump is not None:
+                twpa_elements.append(twpa.pump.name)
+            if isolation and twpa.isolation is not None:
+                twpa_elements.append(twpa.isolation.name)
+
+        if not twpa_elements:
+            return
+
+        qubit_channels = [ch.name for q in qubits for ch in q.channels.values()]
+        align(*twpa_elements, *qubit_channels)
