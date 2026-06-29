@@ -16,7 +16,6 @@ from quam_builder.architecture.superconducting.qubit.fixed_frequency_transmon im
     FixedFrequencyTransmon,
 )
 
-
 __all__ = ["FixedFrequencyTransmonPair"]
 
 

@@ -115,10 +115,7 @@ def create_lf_opx_plus_port(
         key = f"opx_{channel.io_type}"
     elif len(channels_with_same_type) == 2:
         if channel.port == min(
-            [
-                channel_with_same_type.port
-                for channel_with_same_type in channels_with_same_type
-            ]
+            channel_with_same_type.port for channel_with_same_type in channels_with_same_type
         ):
             key = f"opx_{channel.io_type}_I"
         else:

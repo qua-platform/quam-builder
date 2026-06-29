@@ -8,7 +8,6 @@ These macros implement two-qubit gates like CNOT, CZ, SWAP, and iSWAP.
 
 from quam.components.macro import QubitPairMacro
 
-
 __all__ = [
     "TWO_QUBIT_MACROS",
     "Initialize2QMacro",

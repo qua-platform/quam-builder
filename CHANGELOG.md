@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - `add_default_transmon_pair_macros` now passes `flux_pulse_qubit="const"` (was `flux_pulse_control="const"`) to `CZGate`, matching the field rename introduced in v0.4.0 and aligning with the `"const"` pulse added to every `FluxTunableTransmon` Z line by `add_default_transmon_pulses`.
+- Applied black formatting across the entire repo.
 
 ## [0.4.0] - 2026-05-26
 

@@ -294,7 +294,7 @@ class VirtualDCSet(QuantumComponent):
         self._current_levels.update(all_voltages)
         return virtualization_layer
 
-    def add_to_layer(
+    def add_to_layer(  # pylint: disable=too-many-statements
         self,
         layer_id: str,
         source_gates: List[str],

@@ -32,7 +32,6 @@ from quam_builder.architecture.quantum_dots.qubit_pair import (
     LDQubitPair,
 )
 
-
 __all__ = ["LossDiVincenzoQuam"]
 
 

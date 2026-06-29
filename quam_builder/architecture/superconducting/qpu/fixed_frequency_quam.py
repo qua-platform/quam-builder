@@ -9,7 +9,6 @@ from quam_builder.architecture.superconducting.qubit_pair import (
 )
 from quam_builder.architecture.superconducting.qpu.base_quam import BaseQuam
 
-
 __all__ = ["FixedFrequencyQuam", "FixedFrequencyTransmon", "FixedFrequencyTransmonPair"]
 
 

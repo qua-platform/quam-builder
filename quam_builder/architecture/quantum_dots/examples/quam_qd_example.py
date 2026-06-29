@@ -58,7 +58,6 @@ from quam_builder.architecture.quantum_dots.components.readout_transport import 
 from quam_builder.architecture.quantum_dots.components.reservoir import DrainSingle
 from qm.qua import *
 
-
 # Instantiate Quam
 machine = BaseQuamQD()
 lf_fem = 6

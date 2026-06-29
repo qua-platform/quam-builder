@@ -35,7 +35,6 @@ from quam_builder.tools.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
 
-
 # ============================================================================
 # Configuration Parameters
 # ============================================================================

@@ -26,7 +26,6 @@ from quam_builder.architecture.quantum_dots.components import XYDriveMW
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 from qm.qua import *
 
-
 machine = LossDiVincenzoQuam.load()
 
 lf_fem = 6

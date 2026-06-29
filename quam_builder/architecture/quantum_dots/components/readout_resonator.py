@@ -11,7 +11,6 @@ from quam_builder.tools.power_tools import (
     get_output_power_iq_channel,
 )
 
-
 __all__ = [
     "ReadoutResonatorBase",
     "ReadoutResonatorIQ",

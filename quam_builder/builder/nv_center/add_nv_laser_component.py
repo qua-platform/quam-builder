@@ -15,9 +15,7 @@ from quam_builder.builder.qop_connectivity.get_digital_outputs import (
 u = unit(coerce_to_integer=True)
 
 
-def add_nv_laser_component(
-    nv_center: AnyNVCenter, wiring_path: str, ports: Dict[str, str]
-):
+def add_nv_laser_component(nv_center: AnyNVCenter, wiring_path: str, ports: Dict[str, str]):
     """Adds a laser component to a nv_center qubit based on the provided wiring path and ports.
 
     Args:

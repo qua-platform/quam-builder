@@ -3,7 +3,6 @@
 from quam.core import quam_dataclass
 from quam.components.channels import InSingleChannel, InOutSingleChannel, InMWChannel, InIQChannel
 
-
 __all__ = ["ReadoutTransportBase", "ReadoutTransportSingle", "ReadoutTransportSingleIO"]
 
 
@@ -15,6 +14,7 @@ class ReadoutTransportBase:  # pylint: disable=too-few-public-methods
 
     pass
 
+
 @quam_dataclass
 class ReadoutTransportSingle(
     InSingleChannel, ReadoutTransportBase
@@ -24,6 +24,7 @@ class ReadoutTransportSingle(
     """
 
     pass
+
 
 @quam_dataclass
 class ReadoutTransportSingleIO(
