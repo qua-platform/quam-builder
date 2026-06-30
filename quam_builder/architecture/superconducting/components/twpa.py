@@ -1,6 +1,7 @@
 from quam.core import quam_dataclass
 from quam import QuamComponent
-from typing import Union, ClassVar
+from typing import Union, Optional, Any
+from qm.qua._scope_management.scopes_manager import scopes_manager
 from .xy_drive import XYDriveMW, XYDriveIQ
 
 __all__ = ["TWPA"]
@@ -49,9 +50,9 @@ class TWPA(QuamComponent):
         Qubits whose readout signals are amplified by this TWPA.
     initialization : bool
         If True, use this TWPA in the QUA program (e.g. call initialize). Default True.
-    _initialized_ids : ClassVar[set]
-        Class-level set of initialized instance ids to ensure pump is initialized
-        only once per program run. Not serialized.
+    _initialized_prog_scope : Any, optional
+        Runtime-only reference to the active QUA program scope in which this TWPA
+        was initialized. Not serialized.
     """
 
     id: Union[int, str]
@@ -74,7 +75,7 @@ class TWPA(QuamComponent):
     qubits: list = None
 
     initialization: bool = True
-    _initialized_ids: ClassVar[set] = set()
+    _initialized_prog_scope: Optional[Any] = None
 
     @property
     def name(self):
@@ -86,11 +87,11 @@ class TWPA(QuamComponent):
         Set the TWPA pump (and optionally isolation) to the calibrated tones for the QUA program.
 
         Has no effect if :attr:`initialization` is False. Each instance is initialized
-        at most once per program run; further calls return immediately. Sets the pump
-        frequency from :attr:`pump_frequency` and :attr:`pump_amplitude`, then plays
-        the pump operation. If ``isolation`` is True and this TWPA has isolation
-        channels, also sets and plays the isolation tone from :attr:`isolation_frequency`
-        and :attr:`isolation_amplitude`.
+        at most once per active ``program()`` block; further calls in the same block
+        return immediately. Sets the pump frequency from :attr:`pump_frequency` and
+        :attr:`pump_amplitude`, then plays the pump operation. If ``isolation`` is
+        True and this TWPA has isolation channels, also sets and plays the isolation
+        tone from :attr:`isolation_frequency` and :attr:`isolation_amplitude`.
 
         Parameters
         ----------
@@ -100,18 +101,18 @@ class TWPA(QuamComponent):
 
         Notes
         -----
-        Initialization state is tracked in :attr:`_initialized_ids`, so the pump is
-        turned on onl
+        Initialization state is tracked in :attr:`_initialized_prog_scope` keyed to the
+        active QUA program scope object, so the pump is turned on only once per program
+        compilation while each new ``program()`` block re-initializes.
         """
         # dont use twpa for the QUA program if initialization is set to False
         if not self.initialization:
             return
-        # Initialize TWPA pump only when it hasn't been initialized yet
-        # This won't be serialized since it's stored in a class-level set
-        obj_id = id(self)
-        # Check initialization state using object ID (memory address)
-        if obj_id in self._initialized_ids:
+
+        current_program_scope = scopes_manager.program_scope
+        if self._initialized_prog_scope is current_program_scope:
             return
+        self._initialized_prog_scope = current_program_scope
 
         if self.pump_frequency is not None:
             self.pump.update_frequency(int(self.pump_frequency - self.pump.LO_frequency))
@@ -129,7 +130,3 @@ class TWPA(QuamComponent):
                 self.isolation.play("pump", amplitude_scale=self.isolation_amplitude)
             else:
                 self.isolation.play("pump")
-
-        # Store object ID externally (won't be serialized)
-        # guarantee initializing twpa pump only once per QUA program execution
-        self._initialized_ids.add(obj_id)
