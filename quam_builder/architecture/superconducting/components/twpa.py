@@ -76,6 +76,7 @@ class TWPA(QuamComponent):
 
     initialization: bool = True
     _initialized_prog_scope: Optional[Any] = None
+    _skip_attrs = ["_initialized_prog_scope"]
 
     @property
     def name(self):
