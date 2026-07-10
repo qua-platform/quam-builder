@@ -240,6 +240,8 @@ class BaseTransmon(Qubit):
             simulate (bool): If True, the qubit reset is skipped for simulation purposes. Default is False.
             log_callable (optional): Logger instance to log warnings. If None, a default logger is used.
             **kwargs: Additional keyword arguments passed to the active reset methods.
+                For ``reset_type="active"``, ``max_attempts=0`` selects a single-shot
+                active reset (one measure-and-conditional-pi cycle, no retry loop).
 
         Returns:
             None
@@ -280,46 +282,57 @@ class BaseTransmon(Qubit):
         """
         Perform an active reset of the qubit.
 
-        This function performs an active reset of the qubit by repeatedly measuring the qubit state and applying a pi pulse
-        until the qubit is in the ground state or the maximum number of attempts is reached.
+        Measures the qubit state and applies a conditional pi pulse. When
+        ``max_attempts > 0``, this measure-and-pulse cycle is repeated in a
+        ``while_`` loop until the qubit is in the ground state or the attempt
+        limit is reached. When ``max_attempts`` is ``0``, only a single
+        measure-and-conditional-pi cycle is emitted (no ``while_`` loop), which
+        avoids the extra QUA complexity of iterative active reset.
 
         Args:
-            save_qua_var (Optional[StreamType]): The QUA variable to save the number of attempts to.
+            save_qua_var (Optional[StreamType]): The QUA variable to save the number of
+                attempts to. Ignored when ``max_attempts`` is ``0`` (no attempt counter
+                is declared).
             pi_pulse_name (str): The name of the pi pulse to use for the reset. Default is "x180".
             readout_pulse_name (str): The name of the readout pulse to use for measuring the qubit state. Default is "readout".
-            max_attempts (int): The maximum number of attempts to reset the qubit. Default is 15.
+            max_attempts (int): Maximum number of reset attempts. Default is 15.
+                Use ``0`` for a single-shot active reset with no retry loop.
 
         Returns:
             None
 
-        The function measures the qubit state using the specified readout pulse, applies a pi pulse if the qubit is not in the ground state,
-        and repeats this process until the qubit is in the ground state or the maximum number of attempts is reached.
-        If `save_qua_var` is provided, the number of attempts is saved to this variable.
+        The function measures the qubit state using the specified readout pulse and
+        applies a pi pulse if the qubit is not in the ground state. For
+        ``max_attempts > 0``, this process is repeated until the qubit is in the
+        ground state or the maximum number of attempts is reached. If
+        ``save_qua_var`` is provided and ``max_attempts > 0``, the number of
+        attempts is saved to this variable.
         """
         pulse = self.resonator.operations[readout_pulse_name]
 
         I = declare(fixed)
         Q = declare(fixed)
         state = declare(bool)
-        attempts = declare(int, value=1)
-        assign(attempts, 1)
         self.align()
-        self.resonator.measure("readout", qua_vars=(I, Q))
+        self.resonator.measure(readout_pulse_name, qua_vars=(I, Q))
         assign(state, I > pulse.threshold)
         wait(self.resonator.depletion_time // 2, self.resonator.name)
         self.xy.play(pi_pulse_name, condition=state)
-        with while_((I > pulse.rus_exit_threshold) & (attempts < max_attempts)):
-            self.xy.align(self.resonator.name)
-            self.resonator.measure("readout", qua_vars=(I, Q))
-            assign(state, I > pulse.threshold)
-            wait(self.resonator.depletion_time // 2, self.resonator.name)
-            self.xy.play(pi_pulse_name, condition=state)
-            self.xy.align(self.resonator.name)
-            assign(attempts, attempts + 1)
+        if max_attempts > 0:
+            attempts = declare(int, value=1)
+            assign(attempts, 1)
+            with while_((I > pulse.rus_exit_threshold) & (attempts < max_attempts)):
+                self.xy.align(self.resonator.name)
+                self.resonator.measure(readout_pulse_name, qua_vars=(I, Q))
+                assign(state, I > pulse.threshold)
+                wait(self.resonator.depletion_time // 2, self.resonator.name)
+                self.xy.play(pi_pulse_name, condition=state)
+                self.xy.align(self.resonator.name)
+                assign(attempts, attempts + 1)
+            if save_qua_var is not None:
+                save(attempts, save_qua_var)
         wait(500, self.xy.name)
         self.xy.align(self.resonator.name)
-        if save_qua_var is not None:
-            save(attempts, save_qua_var)
 
     def reset_qubit_active_gef(
         self,

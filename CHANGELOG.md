@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Added
 
+- `BaseTransmon.reset_qubit_active` now treats `max_attempts=0` as a single-shot active reset: one measure-and-conditional-pi cycle with no `while_` retry loop (`save_qua_var` is ignored in that mode). `ResetMacro.inferred_duration` uses one cycle when `max_attempts` is `0`.
 - Added `BaseQuam.twpa_keepalive()` to keep sticky TWPA pumps on across a real-time loop (#123).
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument.

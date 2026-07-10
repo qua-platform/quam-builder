@@ -52,7 +52,7 @@ All single-qubit macros operate on any `BaseTransmon` subtype (`FixedFrequencyTr
 | Macro | Default key | Description |
 |---|---|---|
 | `MeasureMacro` | `"measure"` | Plays a readout pulse and performs I/Q integration with threshold-based state discrimination. Default pulse: `"readout"`. |
-| `ResetMacro` | `"reset"` | Resets a qubit via thermalization, active (measure-and-pulse), or active GEF. Default: active reset using `"x180"` and `"readout"`. |
+| `ResetMacro` | `"reset"` | Resets a qubit via thermalization, active (measure-and-pulse), or active GEF. Default: active reset using `"x180"` and `"readout"`. For active reset, `max_attempts` caps the retry loop; `max_attempts=0` is a single-shot measure-and-conditional-pi (no retry loop). |
 | `VirtualZMacro` | `"rz"` | Applies a frame rotation on the XY drive channel (instantaneous, no hardware pulse). |
 | `DelayMacro` | `"delay"` | Inserts a wait across all qubit channels for the specified duration. |
 | `IdMacro` | `"id"` | Aligns all qubit channels (identity operation). |
