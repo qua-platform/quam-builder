@@ -607,3 +607,175 @@ class ErfSquarePulse(Pulse):
         return _apply_phase_and_detuning_to_real_envelope(
             env, self.phase, self.detuning, self.sample_rate
         )
+
+
+@quam_dataclass
+class SmoothedFlatTopGaussianPulse(Pulse):
+    """Flat top with Gaussian rise and fall, centered in its element.
+
+    Unlike ``quam_builder.common.pulses.FlatTopGaussianPulse``, which derives the rise
+    and fall from ``length - flat_length``, the transition time is given explicitly by
+    ``smoothing_length``. Whatever is left over is zero padding, split evenly on both
+    sides so the pulse stays centered -- shifting it within its element would change the
+    timing of any two-qubit gate calibrated against it.
+
+    Args:
+        amplitude (float): Amplitude in volts.
+        flat_length (int): Length of the flat top, in samples.
+        smoothing_length (int): Total rise + fall time, in samples. Must be even.
+        padding_length (int): Extra samples included in the total length. Default 0.
+        sample_rate (float): Samples per second. Default 1e9.
+        axis_angle (float, optional): IQ axis angle in radians. None for a single
+            channel, such as a flux line.
+        length (int): Total sample count. Inferred from
+            ``flat_length + smoothing_length + padding_length``, rounded up to a
+            multiple of 4.
+    """
+
+    amplitude: float
+    flat_length: int
+    smoothing_length: int = 0
+    padding_length: int = 0
+    sample_rate: float = 1e9
+    axis_angle: float = None
+    length: int = "#./inferred_length"  # pyright: ignore
+
+    @property
+    def inferred_length(self) -> int:
+        raw = self.flat_length + self.smoothing_length + self.padding_length
+        return int(np.ceil(raw / 4) * 4)
+
+    def waveform_function(self):
+        from qualang_tools.config.waveform_tools import flattop_gaussian_waveform
+
+        if self.smoothing_length % 2 != 0:
+            raise ValueError(
+                "SmoothedFlatTopGaussianPulse.smoothing_length must be a multiple of 2"
+            )
+
+        waveform = flattop_gaussian_waveform(
+            amplitude=self.amplitude,
+            flat_length=self.flat_length,
+            rise_fall_length=self.smoothing_length // 2,
+            return_part="all",
+            sampling_rate=self.sample_rate,
+        )
+
+        zero_pad_len = self.length - len(waveform)
+        left_pad = zero_pad_len // 2
+        right_pad = zero_pad_len - left_pad
+        waveform = np.concatenate((np.zeros(left_pad), waveform, np.zeros(right_pad)))
+
+        if self.axis_angle is not None:
+            waveform = waveform * np.exp(1j * self.axis_angle)
+
+        return waveform
+
+
+@quam_dataclass
+class SmoothedCosineBipolarPulse(Pulse):
+    """Net-zero cosine bipolar pulse, centered in its element.
+
+    Unlike :class:`CosineBipolarPulse`, which splits ``length - flat_length`` evenly
+    into rise, switch and fall, the transition time is given explicitly by
+    ``smoothing_length`` and split 1:2:1 between them. Whatever is left over is zero
+    padding, split evenly on both sides so the pulse stays centered.
+
+    The positive and negative flat regions are equal length, so the pulse integrates to
+    zero.
+
+    Args:
+        amplitude (float): Peak amplitude in volts.
+        flat_length (int): Total flat region length, in samples. Must be even; it is
+            split equally between the positive and negative lobes.
+        smoothing_length (int): Total length of the rise, switch and fall segments, in
+            samples. Default 0, which gives abrupt transitions.
+        padding_length (int): Extra samples included in the total length. Default 0.
+        axis_angle (float, optional): IQ axis angle in radians. None for a single
+            channel, such as a flux line.
+        length (int): Total sample count. Inferred from
+            ``flat_length + smoothing_length + padding_length``, rounded up to a
+            multiple of 4.
+    """
+
+    amplitude: float
+    flat_length: int
+    smoothing_length: int = 0
+    padding_length: int = 0
+    axis_angle: float = None
+    length: int = "#./inferred_length"  # pyright: ignore
+
+    @property
+    def inferred_length(self) -> int:
+        raw = self.flat_length + self.smoothing_length + self.padding_length
+        return int(np.ceil(raw / 4) * 4)
+
+    def waveform_function(self):
+        def halfcos(n: int):
+            if n <= 0:
+                return np.array([])
+            t = np.arange(n) / n
+            return 0.5 * (1 - np.cos(np.pi * t))
+
+        def cos_switch(n: int):
+            """Endpoint-exclusive cosine from +1 to -1 with zero discrete sum.
+
+            Midpoint sampling keeps it antisymmetric, so the switch segment contributes
+            no area and the pulse stays net-zero.
+            """
+            if n <= 0:
+                return np.array([])
+            k = np.arange(n, dtype=float)
+            theta = (k + 0.5) * np.pi / n
+            return np.cos(theta)
+
+        L = int(self.length)
+        F = int(self.flat_length)
+        S = int(self.smoothing_length)
+
+        if F > L:
+            raise ValueError(
+                f"SmoothedCosineBipolarPulse.flat_length={F} cannot exceed total length={L}."
+            )
+        if F % 2 != 0:
+            raise ValueError(
+                f"SmoothedCosineBipolarPulse.flat_length={F} must be even to split "
+                "equally into + and - halves."
+            )
+        if L - (S + F) < 0:
+            raise ValueError(
+                f"SmoothedCosineBipolarPulse.smoothing_length + flat_length = {S + F} "
+                f"exceeds total length={L}."
+            )
+
+        if S == 0:
+            rise_len = switch_len = fall_len = 0
+        else:
+            base = S // 4
+            extra = S % 4
+            rise_len = base + (1 if extra in (2, 3) else 0)
+            switch_len = 2 * base + (1 if extra in (1, 3) else 0)
+            fall_len = base + (1 if extra in (2, 3) else 0)
+
+        A = float(self.amplitude)
+
+        zero_pad_len = L - (S + F)
+        left_pad = zero_pad_len // 2
+        right_pad = zero_pad_len - left_pad
+
+        p = np.concatenate(
+            [
+                np.zeros(left_pad),
+                A * halfcos(rise_len),
+                A * np.ones(F // 2),
+                A * cos_switch(switch_len),
+                -A * np.ones(F // 2),
+                -A * halfcos(fall_len)[::-1],
+                np.zeros(right_pad),
+            ]
+        )
+
+        if self.axis_angle is not None:
+            p = p * np.exp(1j * self.axis_angle)
+
+        return p.tolist()
