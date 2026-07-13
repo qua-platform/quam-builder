@@ -13,11 +13,25 @@ class CrossResonanceBase:
         target_qubit_LO_frequency (float): the coupler flux bias for which the interaction is off.
         target_qubit_IF_frequency (float): the coupler flux bias for which the interaction is ON.
         bell_state_fidelity (float): an arbitrary coupler flux bias.
+        drive_amplitude_scaling (float): scaling applied to the CR drive amplitude.
+        drive_phase (float): phase of the CR drive, in cycles.
+        cancel_amplitude_scaling (float): scaling applied to the cancellation tone amplitude.
+        cancel_phase (float): phase of the cancellation tone, in cycles.
+        qc_correction_phase (float): ZI correction applied to the control qubit, in cycles.
+        qt_correction_phase (float): IZ correction applied to the target qubit, in cycles.
     """
 
     target_qubit_LO_frequency: float = None
     target_qubit_IF_frequency: float = None
     bell_state_fidelity: float = None
+
+    # Calibration parameters read by CRGate.apply().
+    drive_amplitude_scaling: float = 1.0
+    drive_phase: float = 0.0
+    cancel_amplitude_scaling: float = 1.0
+    cancel_phase: float = 0.0
+    qc_correction_phase: float = 0.0
+    qt_correction_phase: float = 0.0
 
 
 @quam_dataclass

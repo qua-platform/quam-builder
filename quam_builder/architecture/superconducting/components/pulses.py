@@ -502,3 +502,108 @@ class SNZPulse(Pulse):
             p = p * np.exp(1j * self.axis_angle)
 
         return p.tolist()
+
+
+def _ceiling_with_epsilon(value: float) -> float:
+    """Match quil-rs `ceiling_with_epsilon` (waveform/templates.rs).
+
+    Subtracts a small term before ``ceil`` so values that sit just above an integer
+    through floating-point drift still map down to that integer.
+    """
+    eps = float(np.finfo(float).eps)
+    truncated = value - (value * 10.0 * eps)
+    return float(np.ceil(truncated))
+
+
+def _apply_phase_and_detuning_to_real_envelope(
+    envelope: np.ndarray,
+    phase: float,
+    detuning: float,
+    sample_rate: float,
+) -> np.ndarray:
+    """Match quil-rs `apply_phase_and_detuning_impl` for real envelopes (I only)."""
+    n = np.arange(len(envelope), dtype=np.float64)
+    rot = np.exp(2j * np.pi * (detuning * n / sample_rate + phase))
+    return envelope.astype(np.float64, copy=False) * rot
+
+
+_erf_vec = np.vectorize(math.erf, otypes=[float])
+
+
+@quam_dataclass
+class ErfSquarePulse(Pulse):
+    """Error-function (erf) edges with a flat top, matching Quil ``ErfSquare``.
+
+    Semantics follow `rigetti/quil-rs` ``ErfSquare`` in ``waveform/templates.rs``.
+
+    The envelope is ``0.5 * (erf((t - t1)/sigma) - erf((t - t2)/sigma))`` with
+    ``t1 = risetime/4``, ``t2 = duration - risetime/4`` (``fwhm = risetime/2``,
+    ``sigma = fwhm / (4*sqrt(ln 2))``), scaled by ``amplitude``. Sample count is
+    ``ceil_with_epsilon(duration * sample_rate)`` where
+    ``duration = (flat_length + risetime_samples) / sample_rate``.
+
+    ``sample_rate`` is carried on the pulse rather than read from the channel, so a
+    channel that does not run at 1 GS/s must set it explicitly.
+
+    Args:
+        amplitude (float): Peak envelope scale (Quil ``scale``).
+        flat_length (int): Plateau length in samples, between the two erf shoulders.
+        risetime_samples (int): Quil ``risetime`` in samples at ``sample_rate``.
+        sample_rate (float): Samples per second. Default 1e9.
+        phase (float): Phase offset in cycles. Default 0.
+        detuning (float): Frequency offset in Hz. Default 0.
+        positive_polarity (bool): If False, the envelope is negated before modulation.
+        post_zero_padding_length (int): Zero padding added after the pulse, in samples.
+        length (int): Total sample count. Inferred from
+            ``flat_length + risetime_samples + post_zero_padding_length``, rounded up to
+            a multiple of 4.
+    """
+
+    amplitude: float
+    flat_length: int
+    risetime_samples: int
+    sample_rate: float = 1e9
+    phase: float = 0.0
+    detuning: float = 0.0
+    positive_polarity: bool = True
+    post_zero_padding_length: int = 0
+    length: int = "#./inferred_length"  # pyright: ignore
+
+    @property
+    def inferred_length(self) -> int:
+        raw = self.flat_length + self.risetime_samples + self.post_zero_padding_length
+        return int(np.ceil(raw / 4) * 4)
+
+    def waveform_function(self):
+        if self.risetime_samples <= 0:
+            raise ValueError("ErfSquarePulse.risetime_samples must be positive")
+        if self.flat_length < 0:
+            raise ValueError("ErfSquarePulse.flat_length must be non-negative")
+
+        duration_s = (self.flat_length + self.risetime_samples) / self.sample_rate
+        risetime_s = self.risetime_samples / self.sample_rate
+
+        n_samples = int(_ceiling_with_epsilon(duration_s * self.sample_rate))
+        t = np.arange(n_samples, dtype=np.float64) / self.sample_rate
+
+        fwhm = 0.5 * risetime_s
+        t1 = fwhm
+        t2 = duration_s - fwhm
+        sigma = 0.5 * fwhm / (2.0 * math.log(2.0)) ** 0.5
+
+        env = 0.5 * (_erf_vec((t - t1) / sigma) - _erf_vec((t - t2) / sigma))
+        if not self.positive_polarity:
+            env = -env
+        env = self.amplitude * env
+
+        zero_pad_len = self.length - len(env)
+        left_pad = zero_pad_len // 2
+        right_pad = zero_pad_len - left_pad
+        env = np.concatenate((np.zeros(left_pad), env, np.zeros(right_pad)))
+
+        if self.phase == 0.0 and self.detuning == 0.0:
+            return env
+
+        return _apply_phase_and_detuning_to_real_envelope(
+            env, self.phase, self.detuning, self.sample_rate
+        )

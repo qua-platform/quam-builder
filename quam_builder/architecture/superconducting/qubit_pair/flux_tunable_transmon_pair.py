@@ -10,6 +10,14 @@ from quam_builder.architecture.superconducting.components.tunable_coupler import
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
 )
+from quam_builder.architecture.superconducting.components.cross_resonance import (
+    CrossResonanceIQ,
+    CrossResonanceMW,
+)
+from quam_builder.architecture.superconducting.components.zz_drive import (
+    ZZDriveIQ,
+    ZZDriveMW,
+)
 
 __all__ = ["FluxTunableTransmonPair"]
 
@@ -29,6 +37,11 @@ class FluxTunableTransmonPair(QubitPair):
         detuning (Optional[float]): Flux amplitude required to bring the qubits to the same energy in V
         confusion (list): The readout confusion matrix.
         mutual_flux_bias (List[float]): The mutual flux bias values for the control and target qubits. Default is [0, 0].
+        cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross-resonance
+            drive, or None if the pair is not wired for CR. A flux-tunable pair can carry both a
+            flux-activated CZ and a CR gate; `CRGate` reads its calibration parameters.
+        zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ (siZZle) drive, or None if the
+            pair is not wired for it. `StarkInducedCZGate` drives it.
         extras (Dict[str, Any]): Additional attributes for the transmon pair.
 
     Methods:
@@ -46,6 +59,8 @@ class FluxTunableTransmonPair(QubitPair):
     detuning: Optional[float] = None
     confusion: Optional[List[List[float]]] = None
     mutual_flux_bias: List[float] = field(default_factory=lambda: [0, 0])
+    cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
     extras: Dict[str, Any] = field(default_factory=dict)
 
     def align(self):
