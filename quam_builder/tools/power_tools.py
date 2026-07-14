@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+
 from qualang_tools.units import unit
 from quam.components import IQChannel
 from quam.components.channels import MWChannel
@@ -13,7 +14,7 @@ __all__ = [
     "calculate_voltage_scaling_factor",
 ]
 
-ALLOWED_FULL_SCALE_POWER_DBm = list(range(-11, 17, 3))
+ALLOWED_FULL_SCALE_POWER_DBm = list(range(-11, 19, 1))
 
 
 def _snap_full_scale_power_dbm(power_dbm: float) -> int:
