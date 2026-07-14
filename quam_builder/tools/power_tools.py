@@ -13,6 +13,15 @@ __all__ = [
     "calculate_voltage_scaling_factor",
 ]
 
+ALLOWED_FULL_SCALE_POWER_DBm = list(range(-11, 17, 3))
+
+
+def _snap_full_scale_power_dbm(power_dbm: float) -> int:
+    """Snap to the nearest allowed full-scale power in 3 dB steps."""
+    if power_dbm in ALLOWED_FULL_SCALE_POWER_DBm:
+        return power_dbm
+    return min(ALLOWED_FULL_SCALE_POWER_DBm, key=lambda value: abs(value - power_dbm))
+
 
 def set_output_power_mw_channel(
     channel: MWChannel,
@@ -34,9 +43,10 @@ def set_output_power_mw_channel(
         max_amplitude (Optional[float]):
 
     """
-    allowed_full_scale_power_in_dbm_values = np.arange(-11, 17, 3)
+    allowed_full_scale_power_in_dbm_values = ALLOWED_FULL_SCALE_POWER_DBm
 
     if full_scale_power_dbm is not None:
+        full_scale_power_dbm = _snap_full_scale_power_dbm(full_scale_power_dbm)
         if full_scale_power_dbm < -20 or full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
             raise ValueError(
                 f"Expected full_scale_power_dbm to be > -20 in QOP3.2.0, or "
@@ -55,7 +65,7 @@ def set_output_power_mw_channel(
         raise ValueError(f"Expected `power_in_dbm` to be <10 dBm, got {power_in_dbm}")
 
     # use a temporary variable for node.record_state_updates
-    temp_full_scale_power_dbm = channel.opx_output.full_scale_power_dbm
+    temp_full_scale_power_dbm = _snap_full_scale_power_dbm(channel.opx_output.full_scale_power_dbm)
 
     while (
         calculate_voltage_scaling_factor(
