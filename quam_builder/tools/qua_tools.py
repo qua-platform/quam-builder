@@ -4,7 +4,6 @@ from qm.qua import declare, assign
 
 from typing import Any
 
-
 # --- Type Aliases ---
 VoltageLevelType = Scalar[float]
 DurationType = Scalar[int]
@@ -43,8 +42,7 @@ def validate_duration(duration: Optional[DurationType], param_name: str):
             raise TypeError(f"{param_name} ({duration_int}ns) must be non-negative.")
         if duration_int % CLOCK_CYCLE_NS != 0:
             raise TypeError(
-                f"{param_name} ({duration_int}ns) must be a multiple of "
-                f"{CLOCK_CYCLE_NS}ns."
+                f"{param_name} ({duration_int}ns) must be a multiple of " f"{CLOCK_CYCLE_NS}ns."
             )
         if 0 < duration_int < MIN_PULSE_DURATION_NS:
             raise TypeError(

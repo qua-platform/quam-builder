@@ -1,7 +1,6 @@
 from quam.core import quam_dataclass
 from quam.components.channels import InOutSingleChannel
 
-
 __all__ = ["SPCM"]
 
 

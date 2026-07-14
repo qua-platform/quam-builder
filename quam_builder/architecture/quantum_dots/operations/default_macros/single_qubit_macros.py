@@ -9,7 +9,6 @@ as well as the identity operation.
 
 from quam.components.macro import QubitMacro
 
-
 __all__ = [
     "SINGLE_QUBIT_MACROS",
     # state macros

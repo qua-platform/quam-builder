@@ -11,18 +11,15 @@ class CrossResonanceBase:
 
     Attributes:
         target_qubit_RF_frequency (float): target qubit's frequency.
+        drive_amplitude_scaling (float): amplitude scaling for the CR drive pulse.
+        drive_phase (float): phase for the CR drive pulse.
+        cancel_amplitude_scaling (float): amplitude scaling for the cancel pulse.
+        cancel_phase (float): phase for the cancel pulse.
+        qc_correction_phase (float): ZI frame correction on the control qubit.
+        qt_correction_phase (float): IZ frame correction on the target qubit.
     """
 
     target_qubit_RF_frequency: float = None
-    drive_amplitude_scaling: float = 1.0
-    drive_phase: float = 0.0
-    cancel_amplitude_scaling: float = 1.0
-    cancel_phase: float = 0.0
-
-    qc_correction_phase: float = 0.0
-    qt_correction_phase: float = 0.0
-
-    # --- CR gate-level parameters (read by the CRGate macro; defaults = identity) ---
     drive_amplitude_scaling: float = 1.0
     drive_phase: float = 0.0
     cancel_amplitude_scaling: float = 1.0

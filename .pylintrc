@@ -33,3 +33,7 @@ reports=no
 [FORMAT]
 # Optional — set your preferred line length
 max-line-length=120
+
+
+[DESIGN]
+max-parents=15

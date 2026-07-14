@@ -56,6 +56,11 @@ def example_1_two_stage_workflow():
     print("EXAMPLE 1: Two-Stage Workflow")
     print("=" * 80)
 
+    machine_stage1 = example_1_stage_1()
+    example_1_stage_2(machine_stage1)
+
+
+def example_1_stage_1():
     # ============================================================================
     # STAGE 1: Create connectivity WITHOUT drive lines (dot-layer only)
     # ============================================================================
@@ -67,7 +72,9 @@ def example_1_two_stage_workflow():
 
     # Add sensor dots (voltage gates + resonator lines)
     # Using convenience method that adds both voltage gates and resonator lines
-    connectivity_stage1.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+    connectivity_stage1.add_sensor_dots(
+        sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+    )
 
     # Add quantum dots with plunger gates ONLY (no drive lines)
     # Note: add_drive_lines=False is the default, so we're only adding plunger gates
@@ -89,6 +96,7 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in allocate_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -106,6 +114,7 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in build_quam_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -124,9 +133,14 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in build_base_quam: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
+    return machine_stage1
+
+
+def example_1_stage_2(machine_stage1):
     # ============================================================================
     # STAGE 2: Recreate connectivity WITH drive lines, then build full QUAM
     # ============================================================================
@@ -145,7 +159,9 @@ def example_1_two_stage_workflow():
 
     # Add the same dot-layer components as Stage 1
     connectivity_stage2.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
-    connectivity_stage2.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+    connectivity_stage2.add_sensor_dots(
+        sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+    )
     connectivity_stage2.add_quantum_dot_pairs(quantum_dot_pairs=quantum_dot_pairs)
 
     # Add quantum dots WITH drive lines this time
@@ -165,6 +181,7 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in allocate_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -181,6 +198,7 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in build_quam_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -198,6 +216,7 @@ def example_1_two_stage_workflow():
     except Exception as e:
         print(f"✗ Error in build_loss_divincenzo_quam: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -228,7 +247,9 @@ def example_2_combined_workflow():
     connectivity_combined.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
     # Add sensor dots
-    connectivity_combined.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+    connectivity_combined.add_sensor_dots(
+        sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+    )
 
     # Add quantum dots WITH drive lines in a single call
     connectivity_combined.add_quantum_dots(
@@ -249,6 +270,7 @@ def example_2_combined_workflow():
     except Exception as e:
         print(f"✗ Error in allocate_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -266,6 +288,7 @@ def example_2_combined_workflow():
     except Exception as e:
         print(f"✗ Error in build_quam_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -283,6 +306,7 @@ def example_2_combined_workflow():
     except Exception as e:
         print(f"✗ Error in build_quam: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -305,6 +329,11 @@ def example_3_incremental_drive_lines():
     instruments_stage3.add_mw_fem(controller=1, slots=[1])
     instruments_stage3.add_lf_fem(controller=1, slots=[2, 3])
 
+    machine_stage3 = example_3_stage_1(instruments_stage3)
+    example_3_stage_2(instruments_stage3, machine_stage3)
+
+
+def example_3_stage_1(instruments_stage3):
     # ============================================================================
     # STAGE 1: Create connectivity WITHOUT drive lines (dot-layer only)
     # ============================================================================
@@ -315,7 +344,9 @@ def example_3_incremental_drive_lines():
     connectivity_stage3.add_voltage_gate_lines(voltage_gates=global_gates, name="rb")
 
     # Add sensor dots (voltage gates + resonator lines)
-    connectivity_stage3.add_sensor_dots(sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False)
+    connectivity_stage3.add_sensor_dots(
+        sensor_dots=sensor_dots, shared_resonator_line=False, use_mw_fem=False
+    )
 
     # Add quantum dots with plunger gates ONLY (no drive lines)
     connectivity_stage3.add_quantum_dots(quantum_dots=quantum_dots, add_drive_lines=False)
@@ -331,6 +362,7 @@ def example_3_incremental_drive_lines():
     except Exception as e:
         print(f"✗ Error in allocate_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -348,6 +380,7 @@ def example_3_incremental_drive_lines():
     except Exception as e:
         print(f"✗ Error in build_quam_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -363,16 +396,23 @@ def example_3_incremental_drive_lines():
     except Exception as e:
         print(f"✗ Error in build_base_quam: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
+    return machine_stage3
+
+
+def example_3_stage_2(instruments_stage3, machine_stage3):
     # ============================================================================
     # STAGE 2: Add ONLY drive lines to the same connectivity, reuse same instruments
     # ============================================================================
     print("\n" + "=" * 80)
     print("--- STAGE 2: Adding ONLY drive lines to existing connectivity ---")
     print("=" * 80)
-    print("Note: Using the SAME instruments instance and adding drive lines to the SAME connectivity object")
+    print(
+        "Note: Using the SAME instruments instance and adding drive lines to the SAME connectivity object"
+    )
 
     # Add ONLY drive lines to the existing connectivity
     # The dot-layer components (gates, sensors, pairs) are already there from Stage 1
@@ -394,6 +434,7 @@ def example_3_incremental_drive_lines():
         print(f"✗ Error in allocate_wiring: {e}")
         print("  → This might fail if there aren't enough available channels after Stage 1")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -410,6 +451,7 @@ def example_3_incremental_drive_lines():
     except Exception as e:
         print(f"✗ Error in build_quam_wiring: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -424,10 +466,13 @@ def example_3_incremental_drive_lines():
         )
         print("✓ Stage 3 LossDiVincenzoQuam build successful")
         print("  → Machine now has both quantum dots AND qubits with drive lines")
-        print("  → Successfully reused same instruments instance and added drive lines incrementally")
+        print(
+            "  → Successfully reused same instruments instance and added drive lines incrementally"
+        )
     except Exception as e:
         print(f"✗ Error in build_loss_divincenzo_quam: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 

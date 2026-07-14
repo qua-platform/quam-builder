@@ -12,7 +12,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 from quam.components import QuantumComponent
 
-from quam_builder.architecture.quantum_dots.macros.default_macros import DEFAULT_MACROS
+from quam_builder.tools.macros.default_macros import DEFAULT_MACROS
 
 __all__ = ["MacroDispatchMixin"]
 

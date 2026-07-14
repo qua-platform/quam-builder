@@ -4,7 +4,6 @@ from enum import Enum
 
 from qualang_tools.wirer.connectivity import wiring_spec
 
-
 # Extend WiringLineType with quantum-dot specific entries when missing in the installed
 # qualang_tools version. This keeps the tests compatible with older releases.
 _existing_members = {member.name: member.value for member in wiring_spec.WiringLineType}

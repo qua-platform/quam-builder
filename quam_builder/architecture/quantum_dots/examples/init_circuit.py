@@ -35,7 +35,6 @@ from quam_builder.tools.macros import AlignMacro, WaitMacro, MeasureMacro
 
 from quam_qd_generator_example import machine
 
-
 # ============================================================================
 # Configuration Parameters
 # ============================================================================
@@ -116,13 +115,13 @@ def configure_qubit_pair_for_reset(qubit_pair, config):
     )
 
     # X180 pulse configuration
-    qubit_pair.qubit_target.xy_channel.operations["x180"] = pulses.SquarePulse(**x180_params)
+    qubit_pair.qubit_target.xy.operations["x180"] = pulses.SquarePulse(**x180_params)
     qubit_pair.qubit_target.macros["x180"] = PulseMacro(
-        pulse=qubit_pair.qubit_target.xy_channel.operations["x180"].get_reference()
+        pulse=qubit_pair.qubit_target.xy.operations["x180"].get_reference()
     )
-    qubit_pair.qubit_control.xy_channel.operations["x180"] = pulses.SquarePulse(**x180_params)
+    qubit_pair.qubit_control.xy.operations["x180"] = pulses.SquarePulse(**x180_params)
     qubit_pair.qubit_control.macros["x180"] = PulseMacro(
-        pulse=qubit_pair.qubit_control.xy_channel.operations["x180"].get_reference()
+        pulse=qubit_pair.qubit_control.xy.operations["x180"].get_reference()
     )
 
     # Build Complete Configuration Using Fluent API Chain

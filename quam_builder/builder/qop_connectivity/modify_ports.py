@@ -1,0 +1,364 @@
+"""Add and remove ports from any QUAM machine with a ports container.
+
+Wraps ``FEMPortsContainer`` and ``OPXPlusPortsContainer`` methods into typed
+helpers that work across all modalities (superconducting, quantum dots,
+NV centers).
+
+Example::
+
+    from quam_builder.builder.qop_connectivity.modify_ports import (
+        add_mw_port,
+        remove_mw_port,
+    )
+
+    port = add_mw_port(machine, con=1, slot=2, port=1, type="output", band=1)
+    remove_mw_port(machine, con=1, slot=2, port=1, type="output")
+"""
+
+from typing import Literal, Optional, Protocol, Union
+
+from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
+from quam.components.ports.base_ports import BasePort
+
+__all__ = [
+    "add_analog_port",
+    "add_digital_port",
+    "add_mw_port",
+    "add_port",
+    "remove_analog_port",
+    "remove_digital_port",
+    "remove_mw_port",
+    "remove_port",
+]
+
+_PortsContainer = Union[FEMPortsContainer, OPXPlusPortsContainer]
+_PortDirection = Literal["input", "output"]
+
+_FEM_PORT_TYPES = ("mw_output", "mw_input", "analog_output", "analog_input", "digital_output")
+_OPXPLUS_PORT_TYPES = ("analog_output", "analog_input", "digital_output", "digital_input")
+
+
+class _HasPorts(Protocol):
+    ports: Union[FEMPortsContainer, OPXPlusPortsContainer]
+
+
+def _normalize_con(con: Union[str, int]) -> Union[str, int]:
+    if isinstance(con, int):
+        return f"con{con}"
+    return con
+
+
+def _resolve_port_type(category: str, type: _PortDirection) -> str:
+    if type not in ("input", "output"):
+        raise ValueError("type must be 'input' or 'output'")
+    return f"{category}_{type}"
+
+
+def _get_ports_container(machine: _HasPorts) -> _PortsContainer:
+    ports = getattr(machine, "ports", None)
+    if ports is None:
+        raise TypeError(f"{type(machine).__name__} does not have a 'ports' attribute")
+    if not isinstance(ports, (FEMPortsContainer, OPXPlusPortsContainer)):
+        raise TypeError(
+            f"Expected FEMPortsContainer or OPXPlusPortsContainer, " f"got {type(ports).__name__}"
+        )
+    return ports
+
+
+def _sanitize_fem_mw_kwargs(port_type: str, kwargs: dict) -> dict:
+    """Drop kwargs that ``FEMPortsContainer`` already passes explicitly."""
+    sanitized = dict(kwargs)
+    if port_type == "mw_output":
+        sanitized.pop("band", None)
+        sanitized.pop("upconverter_frequency", None)
+    elif port_type == "mw_input":
+        sanitized.pop("band", None)
+        sanitized.pop("downconverter_frequency", None)
+    return sanitized
+
+
+def _add_fem_port(
+    container: FEMPortsContainer,
+    port_type: str,
+    controller_id: Union[str, int],
+    fem_id: int,
+    port_id: int,
+    **kwargs,
+) -> BasePort:
+    if port_type == "mw_output":
+        return container.get_mw_output(
+            controller_id,
+            fem_id,
+            port_id,
+            create=True,
+            **_sanitize_fem_mw_kwargs(port_type, kwargs),
+        )
+    elif port_type == "mw_input":
+        return container.get_mw_input(
+            controller_id,
+            fem_id,
+            port_id,
+            create=True,
+            **_sanitize_fem_mw_kwargs(port_type, kwargs),
+        )
+    elif port_type == "analog_output":
+        return container.get_analog_output(controller_id, fem_id, port_id, create=True, **kwargs)
+    elif port_type == "analog_input":
+        return container.get_analog_input(controller_id, fem_id, port_id, create=True, **kwargs)
+    elif port_type == "digital_output":
+        return container.get_digital_output(controller_id, fem_id, port_id, create=True, **kwargs)
+    else:
+        raise ValueError(
+            f"Unsupported FEM port type '{port_type}'. Expected one of: {_FEM_PORT_TYPES}"
+        )
+
+
+def _add_opxplus_port(
+    container: OPXPlusPortsContainer,
+    port_type: str,
+    controller_id: Union[str, int],
+    port_id: int,
+    **kwargs,
+) -> BasePort:
+    if port_type == "analog_output":
+        return container.get_analog_output(controller_id, port_id, create=True, **kwargs)
+    elif port_type == "analog_input":
+        return container.get_analog_input(controller_id, port_id, create=True, **kwargs)
+    elif port_type == "digital_output":
+        return container.get_digital_output(controller_id, port_id, create=True, **kwargs)
+    elif port_type == "digital_input":
+        return container.get_digital_input(controller_id, port_id, create=True, **kwargs)
+    else:
+        raise ValueError(
+            f"Unsupported OPX+ port type '{port_type}'. Expected one of: {_OPXPLUS_PORT_TYPES}"
+        )
+
+
+def _remove_fem_port(
+    container: FEMPortsContainer,
+    port_type: str,
+    controller_id: Union[str, int],
+    fem_id: int,
+    port_id: int,
+) -> BasePort:
+    if port_type == "mw_output":
+        return container.mw_outputs[controller_id][fem_id].pop(port_id)
+    elif port_type == "mw_input":
+        return container.mw_inputs[controller_id][fem_id].pop(port_id)
+    elif port_type == "analog_output":
+        return container.analog_outputs[controller_id][fem_id].pop(port_id)
+    elif port_type == "analog_input":
+        return container.analog_inputs[controller_id][fem_id].pop(port_id)
+    elif port_type == "digital_output":
+        return container.digital_outputs[controller_id][fem_id].pop(port_id)
+    else:
+        raise ValueError(
+            f"Unsupported FEM port type '{port_type}'. Expected one of: {_FEM_PORT_TYPES}"
+        )
+
+
+def _remove_opxplus_port(
+    container: OPXPlusPortsContainer,
+    port_type: str,
+    controller_id: Union[str, int],
+    port_id: int,
+) -> BasePort:
+    if port_type == "analog_output":
+        return container.analog_outputs[controller_id].pop(port_id)
+    elif port_type == "analog_input":
+        return container.analog_inputs[controller_id].pop(port_id)
+    elif port_type == "digital_output":
+        return container.digital_outputs[controller_id].pop(port_id)
+    elif port_type == "digital_input":
+        return container.digital_inputs[controller_id].pop(port_id)
+    else:
+        raise ValueError(
+            f"Unsupported OPX+ port type '{port_type}'. Expected one of: {_OPXPLUS_PORT_TYPES}"
+        )
+
+
+def add_port(
+    machine: _HasPorts,
+    port_type: str,
+    controller_id: Union[str, int],
+    fem_id: Optional[int] = None,
+    port_id: Optional[int] = None,
+    **kwargs,
+) -> BasePort:
+    """Create a port and register it in the machine's ports container.
+
+    For FEM-based machines, ``fem_id`` and ``port_id`` are both required.
+    For OPX+-based machines, only ``port_id`` is required.
+
+    FEM port types: ("mw_output", "mw_input", "analog_output", "analog_input", "digital_output")
+    OPX+ port types: ("analog_output", "analog_input", "digital_output", "digital_input")
+
+    Args:
+        machine: A QUAM machine with a ``ports`` attribute (``FEMPortsContainer``
+            or ``OPXPlusPortsContainer``).
+        port_type: Port kind e.g. ``"mw_output"``, ``"analog_input"``.
+        controller_id: Controller identifier (e.g. ``"con1"``).
+        fem_id: FEM slot number. Required for FEM containers.
+        port_id: Port number on the FEM or controller.
+        **kwargs: Forwarded to the port constructor (e.g. ``band=1``).
+
+    Returns:
+        The newly created (or already existing) port.
+
+    Raises:
+        TypeError: If ``machine`` has no supported ports container.
+        ValueError: If required identifiers are missing or ``port_type``
+            is not recognised by the container.
+    """
+    container = _get_ports_container(machine)
+
+    if isinstance(container, FEMPortsContainer):
+        if fem_id is None or port_id is None:
+            raise ValueError("FEM ports require both fem_id and port_id")
+        return _add_fem_port(container, port_type, controller_id, fem_id, port_id, **kwargs)
+    else:
+        if port_id is None:
+            raise ValueError("OPX+ ports require port_id")
+        return _add_opxplus_port(container, port_type, controller_id, port_id, **kwargs)
+
+
+def remove_port(
+    machine: _HasPorts,
+    port_type: str,
+    controller_id: Union[str, int],
+    fem_id: Optional[int] = None,
+    port_id: Optional[int] = None,
+) -> BasePort:
+    """Remove a port from the machine's ports container.
+
+    FEM port types: ("mw_output", "mw_input", "analog_output", "analog_input", "digital_output")
+    OPX+ port types: ("analog_output", "analog_input", "digital_output", "digital_input")
+
+    Args:
+        machine: A QUAM machine with a ``ports`` attribute.
+        port_type: Port kind e.g. ``"mw_output"``, ``"analog_input"``.
+        controller_id: Controller identifier.
+        fem_id: FEM slot number. Required for FEM containers.
+        port_id: Port number.
+
+    Returns:
+        The removed port.
+
+    Raises:
+        TypeError: If ``machine`` has no supported ports container.
+        KeyError: If the specified port does not exist.
+        ValueError: If required identifiers are missing or ``port_type``
+            is not recognised by the container.
+    """
+    container = _get_ports_container(machine)
+
+    if isinstance(container, FEMPortsContainer):
+        if fem_id is None or port_id is None:
+            raise ValueError("FEM ports require both fem_id and port_id")
+        removed = _remove_fem_port(container, port_type, controller_id, fem_id, port_id)
+    else:
+        if port_id is None:
+            raise ValueError("OPX+ ports require port_id")
+        removed = _remove_opxplus_port(container, port_type, controller_id, port_id)
+
+    removed.parent = None
+    return removed
+
+
+def add_mw_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    slot: int,
+    port: int,
+    *,
+    type: _PortDirection,
+    **kwargs,
+) -> BasePort:
+    """Create an MW-FEM port."""
+    port_type = _resolve_port_type("mw", type)
+    return add_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port, **kwargs)
+
+
+def remove_mw_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    slot: int,
+    port: int,
+    *,
+    type: _PortDirection,
+) -> BasePort:
+    """Remove an MW-FEM port."""
+    port_type = _resolve_port_type("mw", type)
+    return remove_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port)
+
+
+def add_analog_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    port: int,
+    *,
+    type: _PortDirection,
+    slot: Optional[int] = None,
+    **kwargs,
+) -> BasePort:
+    """Create an analog port.
+
+    For FEM machines, ``slot`` is required. For OPX+ machines, omit ``slot``.
+    """
+    port_type = _resolve_port_type("analog", type)
+    return add_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port, **kwargs)
+
+
+def remove_analog_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    port: int,
+    *,
+    type: _PortDirection,
+    slot: Optional[int] = None,
+) -> BasePort:
+    """Remove an analog port.
+
+    For FEM machines, ``slot`` is required. For OPX+ machines, omit ``slot``.
+    """
+    port_type = _resolve_port_type("analog", type)
+    return remove_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port)
+
+
+def add_digital_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    port: int,
+    *,
+    type: _PortDirection,
+    slot: Optional[int] = None,
+    **kwargs,
+) -> BasePort:
+    """Create a digital port.
+
+    For FEM machines, only ``type="output"`` is supported and ``slot`` is
+    required. For OPX+ machines, omit ``slot``.
+    """
+    if type == "input" and isinstance(_get_ports_container(machine), FEMPortsContainer):
+        raise ValueError("FEM containers only support digital output ports")
+    port_type = _resolve_port_type("digital", type)
+    return add_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port, **kwargs)
+
+
+def remove_digital_port(
+    machine: _HasPorts,
+    con: Union[str, int],
+    port: int,
+    *,
+    type: _PortDirection,
+    slot: Optional[int] = None,
+) -> BasePort:
+    """Remove a digital port.
+
+    For FEM machines, only ``type="output"`` is supported and ``slot`` is
+    required. For OPX+ machines, omit ``slot``.
+    """
+    if type == "input" and isinstance(_get_ports_container(machine), FEMPortsContainer):
+        raise ValueError("FEM containers only support digital output ports")
+    port_type = _resolve_port_type("digital", type)
+    return remove_port(machine, port_type, _normalize_con(con), fem_id=slot, port_id=port)

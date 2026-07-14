@@ -1,7 +1,6 @@
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 from qualang_tools.wirer.wirer.channel_specs import lf_fem_spec
 
-
 SENSOR_DOTS = [1, 2, 3]
 QUANTUM_DOTS = [1, 2, 3]
 QUANTUM_DOT_PAIRS = list(zip(QUANTUM_DOTS, QUANTUM_DOTS[1:]))
@@ -70,7 +69,9 @@ def case_2_resonator_plus_sensor_gate() -> None:
         shared_line=False,
         constraints=S1_RESONATOR_CONSTRAINTS,
     )
-    connectivity.add_sensor_dot_voltage_gate_lines([SENSOR_DOTS[0]], constraints=SENSOR_GATE_CONSTRAINTS)
+    connectivity.add_sensor_dot_voltage_gate_lines(
+        [SENSOR_DOTS[0]], constraints=SENSOR_GATE_CONSTRAINTS
+    )
     _run_allocation(connectivity, "resonator + sensor gate voltage line")
 
 
@@ -103,7 +104,9 @@ def case_4_add_quantum_dot_plungers() -> None:
         constraints=S2TO3_RESONATOR_CONSTRAINTS,
     )
     connectivity.add_sensor_dot_voltage_gate_lines(SENSOR_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
-    connectivity.add_quantum_dot_voltage_gate_lines(QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
+    connectivity.add_quantum_dot_voltage_gate_lines(
+        QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS
+    )
     _run_allocation(connectivity, "add quantum dot plunger gates")
 
 
@@ -120,7 +123,9 @@ def case_5_add_barriers_unconstrained() -> None:
         constraints=S2TO3_RESONATOR_CONSTRAINTS,
     )
     connectivity.add_sensor_dot_voltage_gate_lines(SENSOR_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
-    connectivity.add_quantum_dot_voltage_gate_lines(QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
+    connectivity.add_quantum_dot_voltage_gate_lines(
+        QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS
+    )
     connectivity.add_quantum_dot_pairs(QUANTUM_DOT_PAIRS)
     _run_allocation(connectivity, "add barrier gates (unconstrained)")
 
@@ -138,7 +143,9 @@ def case_6_add_barriers_constrained_unused_slot() -> None:
         constraints=S2TO3_RESONATOR_CONSTRAINTS,
     )
     connectivity.add_sensor_dot_voltage_gate_lines(SENSOR_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
-    connectivity.add_quantum_dot_voltage_gate_lines(QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS)
+    connectivity.add_quantum_dot_voltage_gate_lines(
+        QUANTUM_DOTS, constraints=SENSOR_GATE_CONSTRAINTS
+    )
     connectivity.add_quantum_dot_pairs([QUANTUM_DOT_PAIRS[0]], constraints=BAR_PAIR_1_CONSTRAINTS)
     connectivity.add_quantum_dot_pairs([QUANTUM_DOT_PAIRS[1]], constraints=BAR_PAIR_2_CONSTRAINTS)
     _run_allocation(connectivity, "add barrier gates (constrained to free slot)")

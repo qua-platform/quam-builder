@@ -25,9 +25,7 @@ def add_nv_spcm_component(
     time_of_flight: int = 32  # 4ns above default so that it appears in state.json
 
     signal_threshold: float = 800 / 4096  # The signal threshold in volts
-    signal_polarity: Literal["above", "below"] = (
-        "below"  # The polarity of the signal threshold
-    )
+    signal_polarity: Literal["above", "below"] = "below"  # The polarity of the signal threshold
     derivative_threshold: float = 300 / 4096  # The derivative threshold in volts/ns
     derivative_polarity: Literal["above", "below"] = (
         "below"  # The polarity of the derivative threshold
@@ -52,6 +50,4 @@ def add_nv_spcm_component(
         setattr(nv_center, name, spcm)
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

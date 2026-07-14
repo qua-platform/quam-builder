@@ -6,9 +6,10 @@ import logging
 from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
 from qm.qua.type_hints import QuaVariable, StreamType
-from qm.qua import declare_stream, declare, fixed
+from qm.qua import declare_stream, declare, fixed, align
 
 from quam.components import FrequencyConverter
+from quam.components.quantum_components import Qubit
 from quam.core import QuamRoot, quam_dataclass
 from quam.components.octave import Octave
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
@@ -39,7 +40,7 @@ class BaseQuam(QuamRoot):
         ports (Union[FEMPortsContainer, OPXPlusPortsContainer]): The ports container.
         # _data_handler (ClassVar[DataHandler]): The data handler. # Unused
         qmm (Optional[QuantumMachinesManager]): The Quantum Machines Manager.
-
+        extras (dict): Additional attributes for the QUAM.
     Methods:
         get_serialiser: Get the serialiser for the QuamRoot class.
         get_octave_config: Return the Octave configuration.
@@ -51,6 +52,7 @@ class BaseQuam(QuamRoot):
         thermalization_time: Return longest thermalization time.
         declare_qua_variables: Declare necessary QUA variables for qubits.
         initialize_qpu: Initialize the QPU with specified settings.
+        twpa_keepalive: Align the TWPA pumps with the given qubits to keep them on.
     """
 
     octaves: Dict[str, Octave] = field(default_factory=dict)
@@ -64,11 +66,12 @@ class BaseQuam(QuamRoot):
 
     active_qubit_names: List[str] = field(default_factory=list)
     active_qubit_pair_names: List[str] = field(default_factory=list)
-    active_twpa_names: List[str] = field(default_factory=list)
 
     ports: Optional[Union[FEMPortsContainer, OPXPlusPortsContainer]] = None
 
     qmm: ClassVar[Optional[QuantumMachinesManager]] = None
+
+    extras: dict = field(default_factory=dict)
 
     @classmethod
     def get_serialiser(cls) -> JSONSerialiser:
@@ -76,9 +79,7 @@ class BaseQuam(QuamRoot):
 
         This method can be overridden by subclasses to provide a custom serialiser.
         """
-        return JSONSerialiser(
-            content_mapping={"wiring": "wiring.json", "network": "wiring.json"}
-        )
+        return JSONSerialiser(content_mapping={"wiring": "wiring.json", "network": "wiring.json"})
 
     def get_octave_config(self) -> Optional[QmOctaveConfig]:
         """Return the Octave configuration."""
@@ -291,9 +292,7 @@ class BaseQuam(QuamRoot):
                 f"Failed to initialize {qmm_class.__name__} with provided settings: {e}"
             ) from e
         except Exception as e:
-            raise ConnectionError(
-                f"Failed to connect to Quantum Machines Manager: {e}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to Quantum Machines Manager: {e}") from e
 
     def calibrate_octave_ports(self, QM: QuantumMachine) -> None:
         """Calibrate the Octave ports for all the active qubits.
@@ -307,9 +306,7 @@ class BaseQuam(QuamRoot):
             try:
                 self.qubits[name].calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {name}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {name}. Skipping calibration.")
 
     @property
     def active_qubits(self) -> List[AnyTransmon]:
@@ -362,6 +359,50 @@ class BaseQuam(QuamRoot):
         Q_st = [declare_stream() for _ in range(num_IQ_pairs)]
         return I, I_st, Q, Q_st, n, n_st
 
-    def initialize_qpu(self, **kwargs):
-        """Initialize the QPU with the specified settings."""
-        pass
+    def initialize_qpu(self, isolation: bool = False, **kwargs):
+        """Initialize the QPU with the calibrated TWPA pumping points.
+
+        The TWPA pumps require calling :meth:`twpa_keepalive` once per
+        inner-most-loop iteration to keep them on.
+
+        Args:
+        isolation : bool, optional
+            If True, also configure and play the isolation tone. Use when the TWPA
+            has isolation and you want it active. Default False.
+        """
+        for twpa in self.twpas.values():
+            twpa.initialize(isolation=isolation)
+
+    def twpa_keepalive(self, qubits=None, isolation: bool = False) -> None:
+        """Align the TWPA pumps with the given qubits to keep them on across a loop.
+
+        Call once per iteration of the inner-most loop around your pulse operations,
+        so the sticky pumps stay in the program timeline.
+
+        Args:
+            qubits (Union[Qubit, Iterable[Qubit]], optional): Qubit(s) whose channels the
+                pumps are aligned with. Defaults to ``self.active_qubits``.
+            isolation (bool, optional): If True, also keep the isolation tone alive.
+                Default False.
+        """
+        if qubits is None:
+            qubits = self.active_qubits
+        elif isinstance(qubits, Qubit):
+            qubits = [qubits]
+        else:
+            qubits = list(qubits)
+
+        twpa_elements = []
+        for twpa in self.twpas.values():
+            if not twpa.initialization:
+                continue
+            if twpa.pump is not None:
+                twpa_elements.append(twpa.pump.name)
+            if isolation and twpa.isolation is not None:
+                twpa_elements.append(twpa.isolation.name)
+
+        if not twpa_elements:
+            return
+
+        qubit_channels = [ch.name for q in qubits for ch in q.channels.values()]
+        align(*twpa_elements, *qubit_channels)

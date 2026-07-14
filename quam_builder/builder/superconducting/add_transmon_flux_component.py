@@ -24,6 +24,4 @@ def add_transmon_flux_component(
     if "opx_output" in ports:
         transmon.z = FluxLine(opx_output=f"{wiring_path}/opx_output")
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

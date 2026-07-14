@@ -270,9 +270,14 @@ class SequenceMacro(QuamMacro):
 
             if previous_element is not None and self.align_elements:
 
-                if isinstance(previous_element, (Qubit, QubitPair)) and not isinstance(new_element, (Qubit, QubitPair)):
+                if isinstance(previous_element, (Qubit, QubitPair)) and not isinstance(
+                    new_element, (Qubit, QubitPair)
+                ):
                     previous_element.align()
-                elif isinstance(previous_element, (Qubit, QubitPair)) and previous_element==new_element:
+                elif (
+                    isinstance(previous_element, (Qubit, QubitPair))
+                    and previous_element == new_element
+                ):
                     previous_element.align()
                 elif isinstance(previous_element, (Qubit)) and isinstance(new_element, (Qubit)):
                     previous_element.align(new_element)

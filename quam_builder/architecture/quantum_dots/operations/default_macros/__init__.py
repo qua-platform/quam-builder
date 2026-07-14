@@ -10,9 +10,9 @@ quantum dot components, organized by operation type:
 The default_macros dictionary provides a unified collection of all
 available macros for easy registration with quantum dot components.
 """
+
 from .single_qubit_macros import *
 from .two_qubit_macros import *
-
 
 __all__ = [
     *single_qubit_macros.__all__,

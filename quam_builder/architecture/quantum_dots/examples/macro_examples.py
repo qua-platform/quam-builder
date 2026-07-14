@@ -23,10 +23,7 @@ Key Features:
 from quam.core import quam_dataclass
 from qm import qua
 
-from quam_builder.architecture.quantum_dots.components import (
-    VoltagePointMacroMixin,
-)
-
+from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 
 # ============================================================================
 # Example Component Setup
@@ -34,12 +31,12 @@ from quam_builder.architecture.quantum_dots.components import (
 
 
 @quam_dataclass
-class ExampleQuantumDot(VoltagePointMacroMixin):
+class ExampleQuantumDot(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     """
     Example quantum dot component demonstrating macro functionality.
 
     In practice, this would be a QuantumDot, QuantumDotPair, LDQubit, or
-    LDQubitPair component that inherits from VoltagePointMacroMixin.
+    LDQubitPair component that inherits from VoltageMacroMixin.
     """
 
     id: str
@@ -51,7 +48,7 @@ class ExampleQuantumDot(VoltagePointMacroMixin):
         return self._voltage_sequence
 
     def __post_init__(self):
-        # Initialize VoltagePointMacroMixin
+        # Initialize VoltageMacroMixin
         super().__post_init__()
 
 
@@ -60,7 +57,7 @@ class ExampleQuantumDot(VoltagePointMacroMixin):
 # ============================================================================
 
 
-def example_01_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_01_fluent_api(quantum_dot: VoltageMacroMixin) -> None:
     """
     Modern fluent API with method chaining.
 
@@ -90,7 +87,7 @@ def example_01_fluent_api(quantum_dot: VoltagePointMacroMixin) -> None:
 # ============================================================================
 
 
-def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_02_method_calling(quantum_dot: VoltageMacroMixin) -> None:
     """
     Calling macros as methods using __getattr__ magic.
 
@@ -135,7 +132,7 @@ def example_02_method_calling(quantum_dot: VoltagePointMacroMixin) -> None:
 # ============================================================================
 
 
-def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_03_parameter_overrides(quantum_dot: VoltageMacroMixin) -> None:
     """
     Runtime parameter overrides for macro customization.
 
@@ -170,7 +167,7 @@ def example_03_parameter_overrides(quantum_dot: VoltagePointMacroMixin) -> None:
 # ============================================================================
 
 
-def example_04_nested_sequences(quantum_dot: VoltagePointMacroMixin) -> None:
+def example_04_nested_sequences(quantum_dot: VoltageMacroMixin) -> None:
     """
     Creating nested sequences by composing sequence macros.
 
@@ -218,8 +215,8 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     - Complex sequences like dynamical decoupling with voltage modulation
 
     Prerequisites:
-    - The qubit must inherit from both VoltagePointMacroMixin and have pulse capabilities
-    - Example: LDQubit has both voltage_sequence (for points) and xy_channel (for pulses)
+    - The qubit must inherit from both VoltageMacroMixin and have pulse capabilities
+    - Example: LDQubit has both voltage_sequence (for points) and xy (for pulses)
     """
     from quam.components.macro.qubit_macros import PulseMacro
 
@@ -232,7 +229,7 @@ def example_05_mixed_pulse_and_point_sequence(qubit) -> None:
     )
 
     # === STAGE 2: Define Pulse Macros ===
-    # These drive microwave transitions (assuming pulses are already added to xy_channel)
+    # These drive microwave transitions (assuming pulses are already added to xy)
     # Note: Pulses must be added first via qubit.add_xy_pulse(name, pulse_obj)
 
     x180_macro = PulseMacro(pulse="x180")
@@ -331,14 +328,14 @@ def example_06_operations_registry(machine) -> None:
 
     for q in [qubit, qubit2]:
         # Add pulse operations
-        q.xy_channel.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
-        q.macros["x180"] = PulseMacro(pulse=q.xy_channel.operations["x180"].get_reference())
+        q.xy.operations["x180"] = pulses.SquarePulse(amplitude=0.2, length=100)
+        q.macros["x180"] = PulseMacro(pulse=q.xy.operations["x180"].get_reference())
 
-        q.xy_channel.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        q.macros["y90"] = PulseMacro(pulse=q.xy_channel.operations["y90"].get_reference())
+        q.xy.operations["y90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+        q.macros["y90"] = PulseMacro(pulse=q.xy.operations["y90"].get_reference())
 
-        q.xy_channel.operations["x90"] = pulses.SquarePulse(amplitude=0.1, length=100)
-        q.macros["x90"] = PulseMacro(pulse=q.xy_channel.operations["x90"].get_reference())
+        q.xy.operations["x90"] = pulses.SquarePulse(amplitude=0.1, length=100)
+        q.macros["x90"] = PulseMacro(pulse=q.xy.operations["x90"].get_reference())
 
         # Add voltage point macros using fluent API
         (
@@ -355,7 +352,7 @@ def example_06_operations_registry(machine) -> None:
         q.with_sequence("rabi", ["init", "x180", "readout"])
 
     @operations_registry.register_operation
-    def sweetspot(component: VoltagePointMacroMixin, **kwargs):
+    def sweetspot(component: VoltageMacroMixin, **kwargs):
         pass
 
     # === EXAMPLE 1: Using gate-level operations (RECOMMENDED) ===

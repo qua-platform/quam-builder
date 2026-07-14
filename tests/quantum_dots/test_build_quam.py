@@ -172,12 +172,12 @@ class TestAddPulses:
 
         # Create mock qubits
         qubit1 = MagicMock()
-        qubit1.xy_channel = MagicMock()
-        qubit1.xy_channel.operations = {}
+        qubit1.xy = MagicMock()
+        qubit1.xy.operations = {}
 
         qubit2 = MagicMock()
-        qubit2.xy_channel = MagicMock()
-        qubit2.xy_channel.operations = {}
+        qubit2.xy = MagicMock()
+        qubit2.xy.operations = {}
 
         machine.qubits = {"Q1": qubit1, "Q2": qubit2}
         machine.qubit_pairs = {}
@@ -186,8 +186,8 @@ class TestAddPulses:
         add_pulses(machine)
 
         # Verify the helper ran without error (mocks don't accumulate real pulses)
-        assert isinstance(qubit1.xy_channel.operations, dict)
-        assert isinstance(qubit2.xy_channel.operations, dict)
+        assert isinstance(qubit1.xy.operations, dict)
+        assert isinstance(qubit2.xy.operations, dict)
 
     def test_add_pulses_to_qubit_pairs(self):
         """Test that pulses are added to qubit pairs."""

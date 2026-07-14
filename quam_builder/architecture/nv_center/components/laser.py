@@ -3,7 +3,6 @@ from typing import Optional
 from quam.core import QuamComponent, quam_dataclass
 from quam.components.channels import Channel, SingleChannel
 
-
 __all__ = ["LaserControl", "LaserLFAnalog", "LaserLFDigital"]
 
 

@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, Any
+from dataclasses import field
 
 from quam.components.channels import InOutIQChannel, InOutMWChannel
 from quam.core import quam_dataclass
@@ -40,6 +41,8 @@ class ReadoutResonatorBase:
     gef_centers: list = None
     gef_confusion_matrix: list = None
     GEF_frequency_shift: float = None
+
+    extras: Dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
     def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):

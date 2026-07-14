@@ -8,9 +8,7 @@ from quam_builder.architecture.quantum_dots.components import (
     QuantumDotPair,
 )
 from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.components.mixin import (
-    VoltageMacroMixin,
-)
+from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 from quam_builder.architecture.quantum_dots.operations import TWO_QUBIT_MACROS
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
@@ -21,7 +19,7 @@ __all__ = ["LDQubitPair"]
 
 
 @quam_dataclass
-class LDQubitPair(VoltagePointMacroMixin, QubitPair):
+class LDQubitPair(VoltageMacroMixin, QubitPair):
     """
     Class representing a Loss-DiVincenzo Qubit Pair.
     Internally, a QuantumDotPair will be instantiated.

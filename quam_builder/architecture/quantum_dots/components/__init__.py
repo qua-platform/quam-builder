@@ -11,9 +11,10 @@ from . import readout_resonator
 from . import barrier_gate
 from . import quantum_dot_pair
 from . import xy_drive
-from . import mixin
 from . import mixins
 from . import qpu
+from . import readout_transport
+from . import reservoir
 
 from .voltage_gate import *
 from .virtual_gate_set import *
@@ -26,8 +27,10 @@ from .sensor_dot import *
 from .barrier_gate import *
 from .quantum_dot_pair import *
 from .xy_drive import *
+from .readout_transport import *
+from .reservoir import *
 
-from .mixin import *
+from .mixins import *
 from .qpu import *
 
 __all__ = [
@@ -42,6 +45,8 @@ __all__ = [
     *barrier_gate.__all__,
     *quantum_dot_pair.__all__,
     *xy_drive.__all__,
-    *mixin.__all__,
+    *mixins.__all__,
     *qpu.__all__,
+    *readout_transport.__all__,
+    *reservoir.__all__,
 ]

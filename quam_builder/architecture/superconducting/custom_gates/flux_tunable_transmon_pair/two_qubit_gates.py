@@ -1,4 +1,4 @@
-from typing import Any, Literal, Union
+from typing import Any, Union
 from dataclasses import field
 
 import numpy as np
@@ -8,6 +8,10 @@ from quam.components.macro import QubitPairMacro
 from quam.components.pulses import Pulse
 from quam.core import quam_dataclass
 from quam.utils.qua_types import ScalarInt
+
+from quam_builder.architecture.superconducting.custom_gates.flux_tunable_transmon_pair.utils import (
+    get_pulse,
+)
 
 __all__ = ["CZGate"]
 
@@ -31,15 +35,17 @@ class CZGate(QubitPairMacro):
     flux‑tunable transmon pair (optionally mediated by a tunable coupler).
 
     The CZGate coordinates:
-    1. A Z/flux pulse applied to the control qubit.
+    1. A Z/flux pulse applied to the "moving" qubit of the pair, selected by
+       ``qubit_pair.moving_qubit`` (``"control"`` or ``"target"``).
     2. (Optionally) a simultaneous flux pulse on a tunable coupler.
     3. Frame (virtual Z) phase corrections on control and target qubits.
     4. A final alignment between the involved elements.
 
     Attributes
     ----------
-    flux_pulse_control : Union[Pulse, str]
-         Pulse (or its name) applied on the control qubit Z (flux) line to enact the interaction.
+    flux_pulse_qubit : Union[Pulse, str]
+         Pulse (or its name) applied on the moving qubit's Z (flux) line to enact the
+         interaction. The moving qubit is selected by ``qubit_pair.moving_qubit``.
     coupler_flux_pulse : Pulse | None
          Optional pulse applied to the tunable coupler during the gate (None for fixed coupler).
     phase_shift_control : float
@@ -52,8 +58,8 @@ class CZGate(QubitPairMacro):
          Collection of gate fidelity (e.g. fidelity["RB"]=xx, fidelity["XEB"]=xx).
     extras: Dict[str, Any]
          Additional attributes for the CZGate.
-    duration_control: ScalarInt
-         Optional duration override for the control qubit flux pulse.
+    duration_qubit: ScalarInt
+         Optional duration override for the moving qubit flux pulse.
 
     Spectator Qubits
     ----------------
@@ -69,7 +75,7 @@ class CZGate(QubitPairMacro):
       qubit instances that will be controlled during the gate.
     - ``spectator_qubits_control``: Dictionary mapping the same qubit names (str) to Pulse objects.
       These pulses are applied to the spectator qubits' Z (flux) lines simultaneously with the
-      control qubit flux pulse.
+      moving qubit flux pulse.
     - ``spectator_qubits_phase_shift``: Dictionary mapping qubit names (str) to phase shift values
       (float, in units of 2π). These frame rotations are applied to the spectator qubits after
       the flux pulses, similar to phase_shift_control and phase_shift_target.
@@ -91,7 +97,7 @@ class CZGate(QubitPairMacro):
         "q2": {
             "id": "cz_spectator_pulse_qD2",
             "length": 44,
-            "__class__": "quam.components.pulses.FlatTopGaussianPulse",
+            "__class__": "quam_builder.common.pulses.FlatTopGaussianPulse",
             "amplitude": 0.05
         }
     }
@@ -101,8 +107,8 @@ class CZGate(QubitPairMacro):
     }
 
     # When apply() is called, spectator qubits will:
-    # 1. Be aligned with control and target qubits
-    # 2. Have their flux pulses played in parallel with the control qubit pulse
+    # 1. Be aligned with all qubit and coupler channels
+    # 2. Have their flux pulses played in parallel with the moving qubit flux pulse
     # 3. Receive phase corrections after the gate
     cz_gate.apply()
     ```
@@ -119,23 +125,23 @@ class CZGate(QubitPairMacro):
 
     Properties
     ----------
-    flux_pulse_control_label : str
-         Resolved (final) label of the control qubit flux pulse (name extraction via get_pulse_name).
+    flux_pulse_qubit_label : str
+         Resolved (final) label of the moving qubit flux pulse (name extraction via get_pulse_name).
     coupler_flux_pulse_label : str
          Resolved (final) label of the coupler pulse (if provided).
 
     Methods
     -------
-    apply(*, amplitude_scale_control=None, amplitude_scale_coupler=None,
-            duration_control=None, phase_shift_control=None, phase_shift_target=None, **kwargs) -> None
+    apply(*, amplitude_scale_qubit=None, amplitude_scale_coupler=None,
+            duration_qubit=None, phase_shift_control=None, phase_shift_target=None, **kwargs) -> None
          Execute the CZ gate sequence.
          Parameters:
-              amplitude_scale_control : float | None
-                    Scalar multiplier for the control qubit flux pulse amplitude (passed through to play()).
+              amplitude_scale_qubit : float | None
+                    Scalar multiplier for the moving qubit flux pulse amplitude (passed through to play()).
               amplitude_scale_coupler : float | None
                     Scalar multiplier for the coupler pulse amplitude (only used if coupler_flux_pulse is set).
-              duration_control : int | None
-                    Optional duration override for the control qubit flux pulse.
+              duration_qubit : int | None
+                    Optional duration override for the moving qubit flux pulse.
               phase_shift_control : float | None
                     Per‑call override for control qubit frame rotation (2π units). If None, falls back
                     to phase_shift_control attribute (when significant).
@@ -146,14 +152,14 @@ class CZGate(QubitPairMacro):
                     Ignored auxiliary keyword arguments (accepted for interface compatibility).
 
          Behavior:
-              - Aligns all qubits (including spectator qubits) before playing to ensure simultaneous start.
-              - Plays control qubit flux pulse (with optional amplitude scaling and duration override).
+              - Aligns all qubits (including the coupler and spectator qubits) before playing to ensure simultaneous start.
+              - Plays the moving qubit's flux pulse (with optional amplitude scaling and duration override).
               - Plays spectator qubit flux pulses in parallel.
               - Optionally plays coupler pulse in parallel.
               - Aligns all resources.
               - Applies virtual Z frame rotations (overrides take precedence; negligible defaults skipped).
               - Applies spectator qubit phase shifts if configured.
-              - Performs a final align to ensure deterministic end-of-gate synchronization.
+              - Performs a final align (including the coupler) to ensure deterministic end-of-gate synchronization.
 
     Usage Notes
     -----------
@@ -176,15 +182,17 @@ class CZGate(QubitPairMacro):
 
     fidelity: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
-    duration_control: ScalarInt = None
-
-    moving_qubit: Literal["control", "target"] = "control"
+    duration_qubit: ScalarInt = None
 
     @property
     def flux_pulse_qubit_label(self) -> str:
-        qubit = self.qubit_control if self.qubit_pair.moving_qubit == "control" else self.qubit_target
+        qubit = (
+            self.qubit_control if self.qubit_pair.moving_qubit == "control" else self.qubit_target
+        )
         pulse = (
-            qubit.get_pulse(self.flux_pulse_qubit) if isinstance(self.flux_pulse_qubit, str) else self.flux_pulse_qubit
+            qubit.get_pulse(self.flux_pulse_qubit)
+            if isinstance(self.flux_pulse_qubit, str)
+            else self.flux_pulse_qubit
         )
         return get_pulse_name(pulse)
 
@@ -218,21 +226,31 @@ class CZGate(QubitPairMacro):
                 spectator_pulse_names[qubit_name] = get_pulse_name(pulse)
 
         # Align all qubits (including coupler and spectator qubits) before playing to ensure simultaneous start
-        all_qubits = [self.qubit_pair.qubit_control, self.qubit_pair.qubit_target] + spectator_qubits_list
+        all_qubits = [
+            self.qubit_pair.qubit_control,
+            self.qubit_pair.qubit_target,
+        ] + spectator_qubits_list
         channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
         if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
             channel_names.add(self.qubit_pair.coupler.name)
         align(*channel_names)
 
         # Spectator qubit flux pulses
-        for qubit_name, spectator_qubit in zip(self.spectator_qubits.keys(), spectator_qubits_list):
-            if qubit_name in spectator_pulse_names:
-                spectator_qubit.z.play(spectator_pulse_names[qubit_name])
+        for qubit_name, pulse_name in spectator_pulse_names.items():
+            if qubit_name in self.spectator_qubits:
+                self.spectator_qubits[qubit_name].z.play(pulse_name)
 
         # Moving qubit flux
-        moving_qubit = self.qubit_pair.qubit_control if self.qubit_pair.moving_qubit == "control" else self.qubit_pair.qubit_target
-        fixed_qubit = self.qubit_pair.qubit_target if self.qubit_pair.moving_qubit == "control" else self.qubit_pair.qubit_control
-        moving_qubit.z.play(self.flux_pulse_qubit_label, amplitude_scale=amplitude_scale_qubit, duration=duration_qubit)
+        moving_qubit = (
+            self.qubit_pair.qubit_control
+            if self.qubit_pair.moving_qubit == "control"
+            else self.qubit_pair.qubit_target
+        )
+        moving_qubit.z.play(
+            self.flux_pulse_qubit_label,
+            amplitude_scale=amplitude_scale_qubit,
+            duration=duration_qubit,
+        )
 
         # Coupler flux
         if self.coupler_flux_pulse is not None:
@@ -260,8 +278,33 @@ class CZGate(QubitPairMacro):
             if qubit_name in self.spectator_qubits and np.abs(phase_shift) > 1e-6:
                 self.spectator_qubits[qubit_name].xy.frame_rotation_2pi(phase_shift)
 
-        # Final alignment
+        # Final alignment (includes coupler if present)
         final_channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
         if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
             final_channel_names.add(self.qubit_pair.coupler.name)
         align(*final_channel_names)
+
+    @property
+    def inferred_duration(self) -> float:
+        moving_qubit = (
+            self.qubit_pair.qubit_control
+            if self.qubit_pair.moving_qubit == "control"
+            else self.qubit_pair.qubit_target
+        )
+        max_length_samples = get_pulse(self.flux_pulse_qubit_label, moving_qubit).length
+
+        for qubit_name, pulse in self.spectator_qubits_control.items():
+            if qubit_name in self.spectator_qubits:
+                spectator_qubit = self.spectator_qubits[qubit_name]
+                max_length_samples = max(
+                    max_length_samples,
+                    get_pulse(pulse, spectator_qubit).length,
+                )
+
+        if self.coupler_flux_pulse is not None:
+            max_length_samples = max(
+                max_length_samples,
+                get_pulse(self.coupler_flux_pulse_label, self.coupler).length,
+            )
+
+        return max_length_samples * 1e-9

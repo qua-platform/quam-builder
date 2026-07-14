@@ -7,7 +7,7 @@ from quam_builder.tools.voltage_sequence.voltage_sequence import VoltageSequence
 from .quantum_dot import QuantumDot
 from .sensor_dot import SensorDot
 from .barrier_gate import BarrierGate
-from .mixin import VoltageMacroMixin
+from .mixins import VoltageMacroMixin
 from .voltage_gate import VoltageGate
 
 if TYPE_CHECKING:

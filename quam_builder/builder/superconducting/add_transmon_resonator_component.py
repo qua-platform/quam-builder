@@ -58,9 +58,7 @@ def add_transmon_resonator_component(
         RF_input_resonator.channel = transmon.resonator.get_reference()
         if RF_output_resonator != RF_input_resonator:
             # If there are separate up/down-converters, link their LOs by reference
-            RF_input_resonator.LO_frequency = (
-                f"{RF_output_resonator.get_reference()}/LO_frequency"
-            )
+            RF_input_resonator.LO_frequency = f"{RF_output_resonator.get_reference()}/LO_frequency"
 
     elif all(key in ports for key in mw_in_out_channel_ports):
         transmon.resonator = ReadoutResonatorMW(
@@ -76,6 +74,4 @@ def add_transmon_resonator_component(
         )
 
     else:
-        raise ValueError(
-            f"Unimplemented mapping of port keys to channel for ports: {ports}"
-        )
+        raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

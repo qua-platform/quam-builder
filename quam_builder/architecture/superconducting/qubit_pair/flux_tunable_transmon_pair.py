@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Union, List, Literal
+from typing import Dict, Any, Literal, Optional, Union, List
 from dataclasses import field
 from qm.qua import align, wait
 
@@ -31,7 +31,11 @@ class FluxTunableTransmonPair(QubitPair):
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         qubit_control (FluxTunableTransmon): The control qubit of the pair.
         qubit_target (FluxTunableTransmon): The target qubit of the pair.
+        moving_qubit (Literal["control", "target"]): Which qubit carries the flux pulse during
+            two-qubit gates such as CZ. Defaults to "control" for backwards compatibility.
         coupler (Optional[TunableCoupler]): The tunable coupler component.
+        cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross resonance component.
+        zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         detuning (Optional[float]): Flux amplitude required to bring the qubits to the same energy in V
         confusion (list): The readout confusion matrix.
         mutual_flux_bias (List[float]): The mutual flux bias values for the control and target qubits. Default is [0, 0].
@@ -48,8 +52,6 @@ class FluxTunableTransmonPair(QubitPair):
     qubit_target: FluxTunableTransmon = None
     moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
-    # Cross-resonance / ZZ drive (microwave 2Q gate). Optional so existing flux-tunable
-    # states (CZ-via-coupler) are unaffected; populated only when a CR drive is wired.
     cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
