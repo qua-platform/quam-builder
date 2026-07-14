@@ -26,6 +26,7 @@ from quam_builder.builder.quantum_dots.build_utils import (
     _normalize_element_type,
     _parse_qubit_pair_ids,
     _validate_line_type,
+    _is_plunger_line_type,
 )
 from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
 
@@ -153,7 +154,7 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                 _validate_line_type("qubits", line_type)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
 
-                if line_type == WiringLineType.PLUNGER_GATE.value:
+                if _is_plunger_line_type(line_type):
                     # Extract QDAC channel if present
                     qdac_channel = _extract_qdac_channel(line_wiring)
 

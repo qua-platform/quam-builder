@@ -42,6 +42,7 @@ from quam_builder.builder.quantum_dots.build_utils import (
     _sorted_items,
     _validate_drive_ports,
     _validate_line_type,
+    _is_plunger_line_type,
 )
 
 logger = logging.getLogger(__name__)
@@ -243,7 +244,7 @@ class _QpuBuilder:  # pylint: disable=too-few-public-methods
                 if line_type == WiringLineType.DRIVE.value:
                     drive_type = _validate_drive_ports(qubit_id, ports)
                     self.assembly.qubit_id_to_xy_info[qubit_id] = (drive_type, wiring_path, ports)
-                elif line_type == WiringLineType.PLUNGER_GATE.value:
+                elif _is_plunger_line_type(line_type):
                     plunger_gate = _make_voltage_gate(f"plunger_{qubit_index}", wiring_path)
                     self.assembly.plunger_channels.append(plunger_gate)
                     self.assembly.plunger_id_to_channel[plunger_gate.id] = plunger_gate

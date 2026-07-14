@@ -47,9 +47,21 @@ _ELEMENT_TYPE_ALIASES = {
 
 _ALLOWED_LINE_TYPES = {
     "readout": {WiringLineType.SENSOR_GATE.value, WiringLineType.RF_RESONATOR.value},
-    "qubits": {WiringLineType.DRIVE.value, WiringLineType.PLUNGER_GATE.value},
+    "qubits": {
+        WiringLineType.DRIVE.value,
+        WiringLineType.PLUNGER_GATE.value,
+        WiringLineType.TWPA_PUMP.value,
+    },
     "qubit_pairs": {WiringLineType.BARRIER_GATE.value},
 }
+
+
+def _is_plunger_line_type(line_type: str) -> bool:
+    """Return True when the wiring line type represents a quantum-dot plunger gate."""
+    return line_type in {
+        WiringLineType.PLUNGER_GATE.value,
+        WiringLineType.TWPA_PUMP.value,
+    }
 
 
 def _natural_sort_key(value: str) -> Tuple[Any, ...]:

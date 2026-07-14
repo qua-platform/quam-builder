@@ -7,6 +7,7 @@ from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 
 from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.quantum_dots.qpu.base_quam_qd import BaseQuamQD
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
 AnyQuam = Union[AnyQuamSC, AnyQuamNV]
@@ -32,10 +33,12 @@ def build_quam_wiring(
     machine = quam_instance
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
-    machine.wiring = create_wiring(connectivity)
+    if isinstance(quam_instance, BaseQuamQD):
+        # QD setups use plunger gates (WiringLineType value "p"); avoid TWPA remapping.
+        machine.wiring = create_wiring(connectivity, use_legacy=True)
+    else:
+        machine.wiring = create_wiring(connectivity)
     machine.save(path=path)
-    return machine
-
     return machine
 
 

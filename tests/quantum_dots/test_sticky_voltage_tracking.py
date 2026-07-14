@@ -53,7 +53,7 @@ def simple_machine():
     machine.register_channel_elements(
         plunger_channels=[p1],
         barrier_channels=[],
-        sensor_channels_resonators=[],
+        sensor_resonator_mappings={},
     )
 
     return machine
