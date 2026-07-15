@@ -1,7 +1,8 @@
 from typing import Dict, Union
-from quam_builder.architecture.superconducting.components.cross_resonance import (
-    CrossResonanceIQ,
-    CrossResonanceMW,
+
+from quam_builder.architecture.superconducting.components.cross_resonance_drive import (
+    CrossResonanceDriveIQ,
+    CrossResonanceDriveMW,
 )
 from quam_builder.architecture.superconducting.components.zz_drive import (
     ZZDriveIQ,
@@ -50,10 +51,10 @@ def add_transmon_pair_cross_resonance_component(
     wiring_path: str,
     ports: Dict[str, str],
 ):
-    """Adds a cross resonance component to a transmon qubit pair based on the provided wiring path and ports.
+    """Adds a cross-resonance drive component to a transmon qubit pair based on the provided wiring path and ports.
 
     Args:
-        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the cross resonance component will be added.
+        transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the cross-resonance drive component will be added.
         wiring_path (str): The path to the wiring configuration.
         ports (Dict[str, str]): A dictionary mapping port names to their respective configurations.
 
@@ -65,7 +66,7 @@ def add_transmon_pair_cross_resonance_component(
     qubit_pair_name = f"{qubit_control_name}_{qubit_target_name}"
     cross_resonance_name = f"cr_{qubit_pair_name}"
     if "opx_output_I" in ports.keys() and "opx_output_Q" in ports.keys():
-        transmon_pair.cross_resonance = CrossResonanceIQ(
+        transmon_pair.cross_resonance = CrossResonanceDriveIQ(
             id=cross_resonance_name,
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
@@ -76,7 +77,7 @@ def add_transmon_pair_cross_resonance_component(
         )
 
     elif "opx_output" in ports.keys():
-        transmon_pair.cross_resonance = CrossResonanceMW(
+        transmon_pair.cross_resonance = CrossResonanceDriveMW(
             id=cross_resonance_name, opx_output=f"{wiring_path}/opx_output"
         )
 

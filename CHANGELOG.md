@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 - Macro class for the CR and CZ gate on fixed frequency transmons: `CRGate` and `StarkInducedCZGate`.
 - QPU class `FixedFrequencyZZDriveQuam` and associated `FixedFrequencyZZDriveTransmon`, `ZZDriveIQ`, and `ZZDriveMW`.
-- Architecture components for cross-resonance gates: `xy_detuned_drive`, extended `CrossResonanceBase` parameters, and detuned-drive builder wiring.
+- Architecture components for cross-resonance gates: `xy_detuned_drive`, `CrossResonanceDrive` channel parameters, CR gate macro parameters on `CRGate`, and detuned-drive builder wiring.
 - Added `BaseQuam.twpa_keepalive()` to keep sticky TWPA pumps on across a real-time loop (#123).
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument.

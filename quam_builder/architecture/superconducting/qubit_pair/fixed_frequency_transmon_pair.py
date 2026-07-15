@@ -4,9 +4,9 @@ from typing import Any, Dict, Optional, Union
 from quam.components.channels import IQChannel, MWChannel
 from quam.components.quantum_components import QubitPair
 from quam.core import quam_dataclass
-from quam_builder.architecture.superconducting.components.cross_resonance import (
-    CrossResonanceIQ,
-    CrossResonanceMW,
+from quam_builder.architecture.superconducting.components.cross_resonance_drive import (
+    CrossResonanceDriveIQ,
+    CrossResonanceDriveMW,
 )
 from quam_builder.architecture.superconducting.components.zz_drive import (
     ZZDriveIQ,
@@ -26,7 +26,7 @@ class FixedFrequencyTransmonPair(QubitPair):
             Can be a string, or an integer in which case it will add `Channel._default_label`.
         qubit_control (Union[AnyFixedFrequencyTransmon]): The control qubit of the pair.
         qubit_target (Union[AnyFixedFrequencyTransmon]): The target qubit of the pair.
-        cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross resonance component.
+        cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
         zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         xy_detuned (Union[MWChannel, IQChannel]): The detuned xy drive component.
         confusion (list): The readout confusion matrix.
@@ -37,7 +37,7 @@ class FixedFrequencyTransmonPair(QubitPair):
     qubit_control: AnyFixedFrequencyTransmon = None
     qubit_target: AnyFixedFrequencyTransmon = None
 
-    cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    cross_resonance: Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     confusion: list = None

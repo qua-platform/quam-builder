@@ -70,9 +70,34 @@ class _QubitPairCrossDriveHelpers:
 # ============================================================================
 @quam_dataclass
 class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
-    # Gate-level parameters (composite CR, stored under macros)
-    qc_correction_phase: Optional[float] = None  # ZI correction
-    qt_correction_phase: Optional[float] = None  # IZ correction
+    """
+    Cross-resonance two-qubit gate macro.
+
+    Gate-level parameters are stored on the macro (see ``CZGate`` in
+    ``flux_tunable_transmon_pair.two_qubit_gates`` for the same pattern).
+
+    Attributes
+    ----------
+    drive_amplitude_scaling : float
+        Default amplitude scaling for the CR drive pulse.
+    drive_phase : float
+        Default phase for the CR drive pulse (units of 2π).
+    cancel_amplitude_scaling : float
+        Default amplitude scaling for the cancel pulse.
+    cancel_phase : float
+        Default phase for the cancel pulse (units of 2π).
+    qc_correction_phase : float
+        ZI frame correction on the control qubit (units of 2π).
+    qt_correction_phase : float
+        IZ frame correction on the target qubit (units of 2π).
+    """
+
+    drive_amplitude_scaling: float = 1.0
+    drive_phase: float = 0.0
+    cancel_amplitude_scaling: float = 1.0
+    cancel_phase: float = 0.0
+    qc_correction_phase: float = 0.0
+    qt_correction_phase: float = 0.0
 
     # ---- Public API ----
     def apply(
@@ -87,31 +112,30 @@ class CRGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
         qc_correction_phase: Optional[float | qua_T] = None,
         qt_correction_phase: Optional[float | qua_T] = None,
     ) -> None:
-        # Relative to the stored CrossResonance component parameters
         if cr_drive_amp_scaling is None:
-            cr_drive_amp_scaling = self._cr.drive_amplitude_scaling
+            cr_drive_amp_scaling = self.drive_amplitude_scaling
         else:
-            cr_drive_amp_scaling = cr_drive_amp_scaling * self._cr.drive_amplitude_scaling
+            cr_drive_amp_scaling = cr_drive_amp_scaling * self.drive_amplitude_scaling
         if cr_drive_phase is None:
-            cr_drive_phase = self._cr.drive_phase
+            cr_drive_phase = self.drive_phase
         else:
-            cr_drive_phase = cr_drive_phase + self._cr.drive_phase
+            cr_drive_phase = cr_drive_phase + self.drive_phase
         if cr_cancel_amp_scaling is None:
-            cr_cancel_amp_scaling = self._cr.cancel_amplitude_scaling
+            cr_cancel_amp_scaling = self.cancel_amplitude_scaling
         else:
-            cr_cancel_amp_scaling = cr_cancel_amp_scaling * self._cr.cancel_amplitude_scaling
+            cr_cancel_amp_scaling = cr_cancel_amp_scaling * self.cancel_amplitude_scaling
         if cr_cancel_phase is None:
-            cr_cancel_phase = self._cr.cancel_phase
+            cr_cancel_phase = self.cancel_phase
         else:
-            cr_cancel_phase = cr_cancel_phase + self._cr.cancel_phase
+            cr_cancel_phase = cr_cancel_phase + self.cancel_phase
         if qc_correction_phase is None:
-            qc_correction_phase = self._cr.qc_correction_phase
+            qc_correction_phase = self.qc_correction_phase
         else:
-            qc_correction_phase = qc_correction_phase + self._cr.qc_correction_phase
+            qc_correction_phase = qc_correction_phase + self.qc_correction_phase
         if qt_correction_phase is None:
-            qt_correction_phase = self._cr.qt_correction_phase
+            qt_correction_phase = self.qt_correction_phase
         else:
-            qt_correction_phase = qt_correction_phase + self._cr.qt_correction_phase
+            qt_correction_phase = qt_correction_phase + self.qt_correction_phase
 
         params = self._merge_params(
             dict(
@@ -375,7 +399,7 @@ class StarkInducedCZGate(_QubitPairCrossDriveHelpers, QubitPairMacro):
     # hardware elem
     @property
     def _zz(self):
-        return self.qubit_pair.zz_drive
+        return self.qubit_pair.zz
 
     # ---- Sequence-specific helpers ----
     def _zz_shift_relative_phase(self, phi: Optional[Union[float, qua_T, _tuple, _list]]) -> None:

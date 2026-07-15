@@ -1,15 +1,15 @@
-from typing import Dict, Any, Literal, Optional, Union, List
 from dataclasses import field
-from qm.qua import align, wait
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from quam.core import quam_dataclass
+from qm.qua import align, wait
 from quam.components.quantum_components import QubitPair
+from quam.core import quam_dataclass
+from quam_builder.architecture.superconducting.components.cross_resonance_drive import (
+    CrossResonanceDriveIQ,
+    CrossResonanceDriveMW,
+)
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
-)
-from quam_builder.architecture.superconducting.components.cross_resonance import (
-    CrossResonanceIQ,
-    CrossResonanceMW,
 )
 from quam_builder.architecture.superconducting.components.zz_drive import (
     ZZDriveIQ,
@@ -34,7 +34,7 @@ class FluxTunableTransmonPair(QubitPair):
         moving_qubit (Literal["control", "target"]): Which qubit carries the flux pulse during
             two-qubit gates such as CZ. Defaults to "control" for backwards compatibility.
         coupler (Optional[TunableCoupler]): The tunable coupler component.
-        cross_resonance (Optional[Union[CrossResonanceMW, CrossResonanceIQ]]): The cross resonance component.
+        cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
         zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         detuning (Optional[float]): Flux amplitude required to bring the qubits to the same energy in V
         confusion (list): The readout confusion matrix.
@@ -52,7 +52,7 @@ class FluxTunableTransmonPair(QubitPair):
     qubit_target: FluxTunableTransmon = None
     moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
-    cross_resonance: Optional[Union[CrossResonanceMW, CrossResonanceIQ]] = None
+    cross_resonance: Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]] = None
     zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     detuning: Optional[float] = None
