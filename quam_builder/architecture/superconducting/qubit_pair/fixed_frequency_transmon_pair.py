@@ -27,7 +27,7 @@ class FixedFrequencyTransmonPair(QubitPair):
         qubit_control (Union[AnyFixedFrequencyTransmon]): The control qubit of the pair.
         qubit_target (Union[AnyFixedFrequencyTransmon]): The target qubit of the pair.
         cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
-        zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
+        zz (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         xy_detuned (Union[MWChannel, IQChannel]): The detuned xy drive component.
         confusion (list): The readout confusion matrix.
         extras (Dict[str, Any]): Additional attributes for the transmon pair.
@@ -38,7 +38,7 @@ class FixedFrequencyTransmonPair(QubitPair):
     qubit_target: AnyFixedFrequencyTransmon = None
 
     cross_resonance: Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]] = None
-    zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
+    zz: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     confusion: list = None
 

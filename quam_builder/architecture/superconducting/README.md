@@ -36,7 +36,7 @@ Defines the auxiliary hardware components and control elements associated with q
 
 Defines structures representing pairs of interacting qubits, holding parameters relevant to their joint operations (e.g., two-qubit gates).
 
-- **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `zz_drive` or `cross_resonance`.
+- **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `zz` or `cross_resonance`.
 - **`FluxTunableTransmonPair`**: Represents a pair of interacting flux-tunable transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `coupler` or `mutual_flux_bias` for instance.
 
 ## 5. Custom Gate Macros (`architecture/superconducting/custom_gates/`)

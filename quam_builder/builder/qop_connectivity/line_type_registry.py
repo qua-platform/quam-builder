@@ -9,15 +9,14 @@ from enum import Enum
 from typing import Dict, Type, Union
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-
-from quam_builder.builder.qop_connectivity.wiring_strategy import WiringStrategy
 from quam_builder.builder.qop_connectivity.concrete_strategies import (
-    QubitWiringStrategy,
-    QubitPairWiringStrategy,
     GlobalElementWiringStrategy,
+    QubitPairWiringStrategy,
+    QubitWiringStrategy,
     ReadoutWiringStrategy,
     TwpaWiringStrategy,
 )
+from quam_builder.builder.qop_connectivity.wiring_strategy import WiringStrategy
 
 
 class ElementCategory(Enum):
@@ -73,7 +72,7 @@ class LineTypeRegistry:
         pair_lines = [
             WiringLineType.COUPLER,
             WiringLineType.CROSS_RESONANCE,
-            WiringLineType.ZZ_DRIVE,
+            WiringLineType.ZZ,
             WiringLineType.BARRIER_GATE,
         ]
         for line_type in pair_lines:
@@ -113,9 +112,7 @@ class LineTypeRegistry:
             ElementCategory.TWPA: TwpaWiringStrategy,
         }
 
-    def register(
-        self, line_type: Union[WiringLineType, WiringLineType], category: ElementCategory
-    ) -> None:
+    def register(self, line_type: Union[WiringLineType, WiringLineType], category: ElementCategory) -> None:
         """Register a line type to category mapping.
 
         Args:
@@ -140,9 +137,7 @@ class LineTypeRegistry:
         # Look up by string value for compatibility
         key = line_type.value if hasattr(line_type, "value") else line_type
         if key not in self._mappings:
-            raise ValueError(
-                f"Unknown line type: {line_type}. " f"Please register it using registry.register()"
-            )
+            raise ValueError(f"Unknown line type: {line_type}. Please register it using registry.register()")
         return self._mappings[key]
 
     def get_strategy_class(self, category: ElementCategory) -> Type[WiringStrategy]:
@@ -159,14 +154,11 @@ class LineTypeRegistry:
         """
         if category not in self._strategy_map:
             raise KeyError(
-                f"No strategy registered for category: {category}. "
-                f"Use register_custom_strategy() to add one."
+                f"No strategy registered for category: {category}. Use register_custom_strategy() to add one."
             )
         return self._strategy_map[category]
 
-    def register_custom_strategy(
-        self, category: ElementCategory, strategy_class: Type[WiringStrategy]
-    ) -> None:
+    def register_custom_strategy(self, category: ElementCategory, strategy_class: Type[WiringStrategy]) -> None:
         """Register a custom strategy for a category.
 
         This allows extending the system with custom wiring strategies.

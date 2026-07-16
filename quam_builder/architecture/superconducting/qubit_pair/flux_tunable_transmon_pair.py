@@ -35,7 +35,7 @@ class FluxTunableTransmonPair(QubitPair):
             two-qubit gates such as CZ. Defaults to "control" for backwards compatibility.
         coupler (Optional[TunableCoupler]): The tunable coupler component.
         cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
-        zz_drive (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
+        zz (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         detuning (Optional[float]): Flux amplitude required to bring the qubits to the same energy in V
         confusion (list): The readout confusion matrix.
         mutual_flux_bias (List[float]): The mutual flux bias values for the control and target qubits. Default is [0, 0].
@@ -53,7 +53,7 @@ class FluxTunableTransmonPair(QubitPair):
     moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
     cross_resonance: Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]] = None
-    zz_drive: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
+    zz: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     detuning: Optional[float] = None
     confusion: Optional[List[List[float]]] = None
@@ -70,8 +70,8 @@ class FluxTunableTransmonPair(QubitPair):
             channels += [self.coupler.name]
         if self.cross_resonance:
             channels += [self.cross_resonance.name]
-        if self.zz_drive:
-            channels += [self.zz_drive.name]
+        if self.zz:
+            channels += [self.zz.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
@@ -94,8 +94,8 @@ class FluxTunableTransmonPair(QubitPair):
             channels += [self.coupler.name]
         if self.cross_resonance:
             channels += [self.cross_resonance.name]
-        if self.zz_drive:
-            channels += [self.zz_drive.name]
+        if self.zz:
+            channels += [self.zz.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
