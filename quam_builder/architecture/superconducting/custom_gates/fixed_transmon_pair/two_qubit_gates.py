@@ -36,8 +36,7 @@ class _QubitPairCrossResonanceDriveHelpers:
 
     @staticmethod
     def _shift_frame(elem, phi: Optional[float | qua_T]) -> None:
-        if phi:
-            elem.frame_rotation_2pi(phi)
+        elem.frame_rotation_2pi(phi)
 
     def get_all_cr_with_qt(self, active_qubit_pairs_only: bool = True) -> list:
         if active_qubit_pairs_only:
@@ -110,18 +109,23 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
         add_drive_phase: Optional[float | qua_T] = None,
         cancel_amp_scaling: Optional[float | qua_T] = None,
         add_cancel_phase: Optional[float | qua_T] = None,
-        add_qc_frame_correction_2pi: Optional[float | qua_T] = 0.0,
-        add_qt_frame_correction_2pi: Optional[float | qua_T] = 0.0,
+        add_qc_frame_correction_2pi: Optional[float | qua_T] = None,
+        add_qt_frame_correction_2pi: Optional[float | qua_T] = None,
     ) -> None:
-        cr_type = cr_type if cr_type else self.cr_type
+        cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
         wf_type = wf_type if (wf_type and wf_type != "default") else self.wf_type
 
         # remove redundant values only for phase
-        if add_drive_phase == 0.0:
+        if isinstance(add_drive_phase, float) and add_drive_phase == 0.0:
             add_drive_phase = None
-        if add_cancel_phase == 0.0:
+        if isinstance(add_cancel_phase, float) and add_cancel_phase == 0.0:
             add_cancel_phase = None
 
+        # convert frame_correction_2pi to float
+        if add_qc_frame_correction_2pi is None:
+            add_qc_frame_correction_2pi = 0.0
+        if add_qt_frame_correction_2pi is None:
+            add_qt_frame_correction_2pi = 0.0
         qc_frame_correction_2pi = self.qc_frame_correction_2pi + add_qc_frame_correction_2pi
         qt_frame_correction_2pi = self.qt_frame_correction_2pi + add_qt_frame_correction_2pi
 
@@ -133,8 +137,10 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
         }
 
         # apply dynamic phase update
-        self._shift_frame(self.cr, add_drive_phase)
-        self._shift_frame(self.qt.xy, add_cancel_phase)
+        if add_drive_phase is not None:
+            self._shift_frame(self.cr, add_drive_phase)
+        if add_cancel_phase is not None:
+            self._shift_frame(self.qt.xy, add_cancel_phase)
         self._align_cr()
 
         if cr_type == "direct":
@@ -147,9 +153,9 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
             self._direct_cancel_echo(**pulse_kwargs)
 
         # remove dynamic phase update
-        if add_drive_phase:
+        if add_drive_phase is not None:
             self._shift_frame(self.cr, -add_drive_phase)
-        if add_cancel_phase:
+        if add_cancel_phase is not None:
             self._shift_frame(self.qt.xy, -add_cancel_phase)
 
         # apply static phase correction
@@ -184,7 +190,6 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
         self._align_cr()
 
         self.qc.xy.play("x180")
-        self._align_cr()
 
     def _direct_cancel(
         self,
@@ -198,7 +203,6 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
 
         self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
         self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles)
-        self._align_cr()
 
     def _direct_cancel_echo(
         self,
@@ -222,7 +226,6 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
         self._align_cr()
 
         self.qc.xy.play("x180")
-        self._align_cr()
 
 
 # ============================================================================
