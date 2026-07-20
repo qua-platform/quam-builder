@@ -9,7 +9,7 @@ dependencies = [
     "qualang-tools @ git+https://github.com/qua-platform/py-qua-tools.git@main",
     "quam>=0.4.0",
     "qm-qua>=1.2.2",
-    "xarray>=2024.7.0",
+    "xarray>=2023.12.0",
     "qcodes-contrib-drivers>=0.22.0",
     "qm-saas>=1.1.7",
 ]
