@@ -46,14 +46,15 @@ class _QubitPairCrossResonanceDriveHelpers:
 
         cr_list = []
         for qubit_pair in valid_qubit_pairs:
-            if qubit_pair.qubit_target == self.qt:
+            if qubit_pair.qubit_target.name == self.qt.name:
                 cr_list.append(qubit_pair.cross_resonance)
         return cr_list
 
-    def _apply_qubit_frame_correction(self, qubit: Qubit, phi: Optional[float | qua_T]) -> None:
-        self._shift_frame(qubit.xy, phi)
+    def virtual_z_2pi(self, qubit: Qubit, phi: Optional[float | qua_T]) -> None:
+        # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
+        self._shift_frame(qubit.xy, -phi)
         for cr in self.get_all_cr_with_qt():
-            self._shift_frame(cr, phi)
+            self._shift_frame(cr, -phi)
 
     def _align_cr(self) -> None:
         align(*self.cr_elems)
@@ -67,6 +68,10 @@ class _QubitPairCrossResonanceDriveHelpers:
         *,
         sign: int = 1,
     ) -> None:
+        # if sign is something else without amp_scale, assign sign to amp_scale
+        if sign != 1 and amp_scale is None:
+            amp_scale = 1
+
         if amp_scale is None and duration is None:
             elem.play(wf_type)
         elif amp_scale is None:
@@ -159,8 +164,8 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
             self._shift_frame(self.qt.xy, -add_cancel_phase)
 
         # apply static phase correction
-        self._apply_qubit_frame_correction(self.qc, qc_frame_correction_2pi)
-        self._apply_qubit_frame_correction(self.qt, qt_frame_correction_2pi)
+        self.qc.xy.frame_rotation_2pi(qc_frame_correction_2pi)
+        self.qt.xy.frame_rotation_2pi(qt_frame_correction_2pi)
         self._align_cr()
 
     def _direct(
