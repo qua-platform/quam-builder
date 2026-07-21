@@ -26,6 +26,8 @@ from quam_builder.architecture.quantum_dots.components.gate_set import (
     GateSet,
     VoltageTuningPoint,
 )
+from quam.components import pulses
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 
 from .sequence_state_tracker import (
     SequenceStateTracker,
@@ -140,6 +142,7 @@ class VoltageSequence:
         self._channel_max_voltage: Dict[str, float] = {}
 
         for ch_name, channel_obj in self.gate_set.channels.items():
+            self._ensure_default_pulse(channel_obj)
             opx_voltage_limit = (
                 2.5
                 if hasattr(channel_obj.opx_output, "output_mode")
@@ -158,6 +161,28 @@ class VoltageSequence:
         self._batched_voltages = None
         self._prog_id = None
         self.limit_play_commands: bool = limit_play_commands
+
+    def _ensure_default_pulse(self, channel_obj: SingleChannel) -> None:
+        """Attach the default step pulse to a channel if it's missing.
+
+        Channels can be added to a GateSet after construction (e.g. VirtualGateSet
+        built via BaseQuamQD.create_virtual_gate_set starts with channels={} and
+        fills it in afterward), so GateSet.__post_init__ may run before the real
+        channels exist. Doing this here instead -- at VoltageSequence construction,
+        which only happens once the gate set is fully populated -- is order-independent.
+        """
+        if DEFAULT_PULSE_NAME in channel_obj.operations:
+            return
+        if (
+            hasattr(channel_obj.opx_output, "output_mode")
+            and channel_obj.opx_output.output_mode == "amplified"
+        ):
+            amplitude = DEFAULTS.voltage_pulse.amplified_amplitude
+        else:
+            amplitude = DEFAULTS.voltage_pulse.direct_amplitude
+        channel_obj.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
+            amplitude=amplitude, length=MIN_PULSE_DURATION_NS
+        )
 
     def _check_for_new_program(self, update_prog_id: bool = False) -> bool:
         current_program_scope = id(scopes_manager.program_scope)
