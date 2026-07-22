@@ -2,6 +2,7 @@
 
 # Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
 
+**Implementation note:** `VoltageSequence` and related helpers are implemented in [`quam_builder.tools.voltage_sequence`](../../../tools/voltage_sequence/). The [`architecture/quantum_dots/voltage_sequence/`](./) package re-exports them for backward-compatible imports (e.g. `from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence`).
 
 ## 1. Introduction
 
@@ -281,7 +282,7 @@ A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate`
 
 - `adjust_for_attenuation` (bool, default `False`): When `True`, pulse amplitudes sent to the OPX are scaled to account for each channel’s `attenuation` (dB). Compensation pulse limits also respect the effective voltage at the sample.
 
-- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details.
+- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=False, limit_play_commands=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details.
 
 - While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
 
@@ -342,6 +343,7 @@ voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)  # P1 driven to 0.0 (om
 | `track_integrated_voltage` | `False` | Track ∫V·dt per physical channel for `apply_compensation_pulse()`. |
 | `keep_levels` | `True` | Hold last voltage for omitted physical/virtual gate names (recommended). |
 | `enforce_qua_calcs` | `False` | If `True`, promote per-channel `current_level` to a QUA `fixed` variable at init so level tracking stays correct when targets are QUA expressions. |
+| `limit_play_commands` | `False` | If `True` and the gate set has an `influence_map`, only physical channels affected by the gates you change receive `play`/`ramp` commands (reduces redundant pulses on coupled gates). Set via `BaseQuamQD.limit_play_commands` or `GateSet.new_sequence(...)`. |
 
 ```python
 with program() as prog:
@@ -349,6 +351,7 @@ with program() as prog:
         track_integrated_voltage=True,  # enable compensation pulses
         keep_levels=True,               # default; hold omitted gates
         enforce_qua_calcs=False,
+        limit_play_commands=False,
     )
 ```
 
@@ -736,3 +739,86 @@ with program() as prog:
 - **`meas`** — Sets `ch3=-0.12` only; `ch1`, `ch2`, `V1`, `V2` keep their previous tracked values, then layers resolve to updated physical targets. To return `ch1`/`ch2` to zero here, include them explicitly or call `ramp_to_zero()`.
 
 All targets are **absolute** sticky levels, not deltas. Enable `track_integrated_voltage=True` only when you need `apply_compensation_pulse()` on AC-coupled lines.
+
+## 9. Exchange-only qubits: detuning axis
+
+For **exchange-only** or similar layouts, experiments often tune **inter-dot detuning** ε rather than individual plunger voltages. The package provides a dedicated virtual axis on **`QuantumDotPair`**:
+
+```python
+# After registering the pair on the machine (see quam_qd_example.py)
+pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+
+# Matrix shape: 1 row × 2 columns — maps ε onto the two dot virtual gates
+# Example: ε = V_dot1 - V_dot2  →  [[1, -1]]
+pair.define_detuning_axis(
+    matrix=[[1, -1]],
+    detuning_axis_name="dot1_dot2_pair_epsilon",
+    set_dc_virtual_axis=True,  # mirror layer onto VirtualDCSet for Python-side DAC
+)
+```
+
+**Physics:** a detuning ε (in volts or arbitrary units) maps to plunger contributions via the matrix row. For `[[1, -1]]`, increasing ε raises dot 1 and lowers dot 2 symmetrically — the natural axis for exchange oscillations.
+
+**In QUA:**
+
+```python
+with program() as prog:
+    pair.step_to_detuning(0.05, duration=1000)   # step ε = 50 mV
+    pair.ramp_to_detuning(0.0, ramp_duration=40, duration=500)
+    pair.add_point("exchange_point", voltages={pair.detuning_axis_name: 0.12})
+    pair.step_to_point("exchange_point")
+```
+
+`LDQubitPair` delegates voltage macros through the same detuning axis name. Two-qubit gates (`cz`, balanced `BalancedDCz2QMacro`) step along this axis during exchange.
+
+## 10. VirtualDCSet (external DC instruments)
+
+**`VirtualGateSet`** drives voltages through **QUA sticky pulses** on OPX outputs. **`VirtualDCSet`** applies the same layer mathematics in **Python** via each channel's **`offset_parameter`** (e.g. a QCoDeS QDAC channel):
+
+| | `VirtualGateSet` | `VirtualDCSet` |
+|--|------------------|----------------|
+| Control surface | QUA `VoltageSequence` | `set_voltages()`, `go_to_point()` |
+| Typical use | Real-time sequences | Slow bias updates, idle tuning |
+| Layer API | `add_layer()` | `add_to_layer()` (same matrix semantics) |
+
+`define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis.
+
+Example: [`virtual_dc_set_example.py`](../examples/virtual_dc_set_example.py).
+
+## 11. Practical timing limits
+
+Consolidated constraints when mixing voltage sequences, XY drives, and readout.
+
+### OPX clock and units
+
+- **1 clock cycle = 4 ns.** QUA `wait(n, *elements)` takes **cycles**; voltage macro `duration` / `ramp_duration` arguments are in **nanoseconds**.
+- Convert: `wait_cycles = duration_ns // 4` (or `duration_ns >> 2`). Examples use both conventions — check the API you are calling.
+
+### Sample grid (multiples of 4 ns)
+
+- Pulse **`length`** on OPX waveforms must be a **multiple of 4 ns** (`Scalable*Pulse` docstrings in [`components/pulses.py`](../components/pulses.py)).
+- **`ramp_duration`** in `ramp_to_voltages` / `ramp_to_point` must also be a multiple of 4 ns when specified explicitly.
+
+### QUA variables
+
+- Voltage targets and durations can be QUA variables for dynamic sweeps.
+- Set **`enforce_qua_calcs=True`** on `new_sequence()` when targets are QUA expressions so per-channel level trackers promote to QUA `fixed` variables and stay consistent across branches.
+- On **`BaseQuamQD`**, `enforce_qua_calcs` defaults to match `track_integrated_voltage`.
+- When using QUA variable **`ramp_duration`**, ensure hold **`duration`** is long enough for the ramp to complete (the implementation prints guidance at compile time).
+
+### Common causes of timing gaps or overlap
+
+| Symptom | Likely cause | Mitigation |
+|---------|--------------|------------|
+| XY pulse starts before voltage settle | Parallel elements | `qua.align(xy, plunger)` after state macros |
+| Readout fires during ramp | Missing align | `MeasurePSBPairMacro` aligns gates; add manual `align` for custom paths |
+| Wrong DC integral on AC lines | Untracked hold during XY/readout | Enable `track_integrated_voltage`; implement `inferred_duration` on custom macros |
+| Redundant pulses on coupled gates | Full gate set played every step | `limit_play_commands=True` with `influence_map` |
+
+### `limit_play_commands`
+
+When **`limit_play_commands=True`**, only physical channels in the **`influence_map`** closure of changed gate names receive `play`/`ramp` commands. Unchanged coupled gates are skipped even though `resolve_voltages()` computed their targets. Useful on highly cross-coupled virtual gate sets; default is `False`.
+
+### Loop hygiene
+
+End inner QUA loops with **`ramp_to_zero()`** (and **`apply_compensation_pulse()`** when tracking integrated voltage) so level trackers and compensation state reset between iterations. See [§4 — QUA loops](#important-behavior-level-holding-and-zeroing-semantics).
