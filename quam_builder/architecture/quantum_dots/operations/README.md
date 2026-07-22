@@ -272,6 +272,8 @@ State and readout behaviour for dots and pairs is implemented in [`default_macro
 
 `MeasurePSBPairMacro.inferred_duration` = `buffer_duration` + sensor readout pulse length — used for integrated-voltage tracking when enabled.
 
+Setup guide: [components/README.md](../components/README.md).
+
 ## Voltage-balanced macros
 
 For **AC-coupled** gate lines, default state macros can leave a non-zero net integrated voltage. Register **`VoltageBalancedMacroCatalog`** (priority 200) to replace state macros with zero-integral variants:
