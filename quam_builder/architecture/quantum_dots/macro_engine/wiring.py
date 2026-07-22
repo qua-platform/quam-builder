@@ -15,7 +15,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Iterable
 
-from qm.qua._dsl import amplitude
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
@@ -29,7 +28,7 @@ from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
 from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
     make_readout_pulse,
     make_xy_pulse_factories,
-    _make_baseband_pulse,
+    make_baseband_pulse,
 )
 from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
 
@@ -272,11 +271,11 @@ class PulseWirer:
                 if DEFAULT_PULSE_NAME not in operations:
                     output_mode = getattr(physical_channel.opx_output, "output_mode", None)
                     if output_mode is None:
-                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(0.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
                     elif output_mode == "direct":
-                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(0.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
                     elif output_mode == "amplified":
-                        operations[DEFAULT_PULSE_NAME] = _make_baseband_pulse(1.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(1.25)
                     else:
                         raise ValueError("Unknown output mode '{}'".format(output_mode))
 
