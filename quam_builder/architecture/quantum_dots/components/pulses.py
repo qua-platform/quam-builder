@@ -41,13 +41,14 @@ class ScalableGaussianPulse(GaussianPulse):
     sigma: float = None
     sigma_ratio: float = DEFAULTS.xy_pulse.sigma_ratio
 
-    def __post_init__(self):
-        super().__post_init__()
-        if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
-            self.sigma = self.length * self.sigma_ratio
+    # TODO removed to avoid quam warnings
+    # def __post_init__(self):
+    #     super().__post_init__()
+    #     if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
+    #         self.sigma = self.length * self.sigma_ratio
 
     def waveform_function(self):
-        sigma = self.length * self.sigma_ratio
+        self.sigma = sigma = self.length * self.sigma_ratio
         t = np.arange(self.length, dtype=int)
         center = (self.length - 1) / 2
         waveform = self.amplitude * np.exp(-((t - center) ** 2) / (2 * sigma**2))
@@ -158,13 +159,14 @@ class ScalableHermitePulse(Pulse):
     hermite_coeff: float = 0.5
     axis_angle: float = None
 
-    def __post_init__(self):
-        super().__post_init__()
-        if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
-            self.sigma = self.length * self.sigma_ratio
+    # TODO removed to avoid quam warnings
+    # def __post_init__(self):
+    #     super().__post_init__()
+    #     if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
+    #         self.sigma = self.length * self.sigma_ratio
 
     def waveform_function(self):
-        sigma = self.length * self.sigma_ratio
+        self.sigma = sigma = self.length * self.sigma_ratio
         t = np.arange(self.length, dtype=float)
         center = (self.length - 1) / 2.0
         x = (t - center) / sigma
@@ -207,13 +209,14 @@ class ScalableDragPulse(Pulse):
     drag_coefficient: float = 0.5
     axis_angle: float = None
 
-    def __post_init__(self):
-        super().__post_init__()
-        if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
-            self.sigma = self.length * self.sigma_ratio
+    # TODO removed to avoid quam warnings
+    # def __post_init__(self):
+    #     super().__post_init__()
+    #     if not isinstance(self.length, str) and not isinstance(self.sigma_ratio, str):
+    #         self.sigma = self.length * self.sigma_ratio
 
     def waveform_function(self):
-        sigma = self.length * self.sigma_ratio
+        self.sigma = sigma = self.length * self.sigma_ratio
         t = np.arange(self.length, dtype=float)
         center = (self.length - 1) / 2.0
         x = (t - center) / sigma

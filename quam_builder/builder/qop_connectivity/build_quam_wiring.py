@@ -43,10 +43,9 @@ def build_quam_wiring(
     machine = quam_instance
     add_ports_container(connectivity, machine)
     add_name_and_ip(machine, host_ip, cluster_name, port)
-    if dac_config is not None:
-        setter = getattr(machine, "set_dac_config", None)
-        if callable(setter):
-            setter(dac_config)
+    setter = getattr(machine, "set_dac_config", None)
+    if callable(setter):
+        setter(dac_config)
     machine.wiring = create_wiring(connectivity)
     machine.save(path)
     return machine

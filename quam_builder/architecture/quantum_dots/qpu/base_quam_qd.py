@@ -975,7 +975,7 @@ class BaseQuamQD(QuamRoot):
         ``{"main": config}``.
         """
         if not config:
-            self.dac_config = {}
+            self.dac_config = {"qdac": None}
             return
         if "driver_module" in config:
             self.dac_config = {"main": dict(config)}
