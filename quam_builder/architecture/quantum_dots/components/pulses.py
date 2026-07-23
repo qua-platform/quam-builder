@@ -49,7 +49,7 @@ class ScalableGaussianPulse(GaussianPulse):
 
     def waveform_function(self):
         sigma = self.length * self.sigma_ratio
-        if ~isinstance(self.sigma, str):
+        if not isinstance(self.get_raw_value("sigma"), str):
             self.sigma = sigma
         t = np.arange(self.length, dtype=int)
         center = (self.length - 1) / 2
@@ -169,7 +169,7 @@ class ScalableHermitePulse(Pulse):
 
     def waveform_function(self):
         sigma = self.length * self.sigma_ratio
-        if ~isinstance(self.sigma, str):
+        if not isinstance(self.get_raw_value("sigma"), str):
             self.sigma = sigma
         t = np.arange(self.length, dtype=float)
         center = (self.length - 1) / 2.0
@@ -221,7 +221,7 @@ class ScalableDragPulse(Pulse):
 
     def waveform_function(self):
         sigma = self.length * self.sigma_ratio
-        if ~isinstance(self.sigma, str):
+        if not isinstance(self.get_raw_value("sigma"), str):
             self.sigma = sigma
         t = np.arange(self.length, dtype=float)
         center = (self.length - 1) / 2.0
