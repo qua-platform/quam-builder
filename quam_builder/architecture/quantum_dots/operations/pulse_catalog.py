@@ -13,7 +13,7 @@ from typing import Optional
 
 import numpy as np
 from quam.components.channels import SingleChannel
-from quam.components.pulses import SquareReadoutPulse
+from quam.components.pulses import SquareReadoutPulse, SquarePulse
 
 from quam_builder.architecture.quantum_dots.components.pulses import (
     ScalableDragPulse,
@@ -27,6 +27,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
     TwoQubitMacroName,
 )
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
 
 __all__ = [
     "PULSE_FAMILIES",
@@ -171,4 +172,19 @@ def make_readout_pulse(dot_pair_name: Optional[str] = None) -> SquareReadoutPuls
         id="readout" if dot_pair_name is None else f"readout_{dot_pair_name}",
         length=DEFAULTS.readout.length,
         amplitude=DEFAULTS.readout.amplitude,
+    )
+
+def make_baseband_pulse(amplitude: float):
+    """Build default baseband pulse for all voltage gates connected to the OPX.
+
+    Args:
+        amplitude: The baseband pulse amplitude in Volt.
+
+    Returns:
+        ``SquarePulse`` with id ``DEFAULT_PULSE_NAME``, length MIN_PULSE_DURATION_NS ns, and specified amplitude.
+    """
+    return SquarePulse(
+        id=DEFAULT_PULSE_NAME,
+        length=MIN_PULSE_DURATION_NS,
+        amplitude=amplitude,
     )

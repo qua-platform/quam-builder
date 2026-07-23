@@ -28,7 +28,9 @@ from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
 from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
     make_readout_pulse,
     make_xy_pulse_factories,
+    make_baseband_pulse,
 )
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
 
 __all__ = [
     "wire_machine_macros",
@@ -208,12 +210,17 @@ class PulseWirer:
         Args:
             machine: Target machine whose channels receive default pulses.
         """
-        self._wire_xy_pulses(machine)
+        self._wire_baseband_pulses(machine)
         self._wire_readout_pulses(machine)
+        self._wire_xy_pulses(machine)
 
     @staticmethod
     def _wire_xy_pulses(machine: object) -> None:
         qubits = getattr(machine, "qubits", None)
+
+        if not isinstance(qubits, Mapping):
+            return
+
         for qubit in qubits.values():
             if qubit.xy is None:
                 continue
@@ -230,15 +237,16 @@ class PulseWirer:
         if sensor_dots is not None:
             sensor_to_qdpair_mapping = {s : [] for s in list(sensor_dots.keys())}
             quantum_dot_pairs = getattr(machine, "quantum_dot_pairs", None)
-            if quantum_dot_pairs is not None: 
-                for qd_pair_name, qd_pair in quantum_dot_pairs.items(): 
+            if quantum_dot_pairs is not None:
+                for qd_pair_name, qd_pair in quantum_dot_pairs.items():
                     sensors_for_qdp = [sen.name for sen in qd_pair.sensor_dots]
-                    for s in sensor_dots.keys(): 
-                        if s in sensors_for_qdp: 
+                    for s in sensor_dots.keys():
+                        if s in sensors_for_qdp:
                             sensor_to_qdpair_mapping[s].append(qd_pair_name)
 
         if not isinstance(sensor_dots, Mapping):
             return
+
         for sensor_dot in sensor_dots.values():
             resonator = getattr(sensor_dot, "readout_resonator", None)
             if resonator is None:
@@ -248,11 +256,33 @@ class PulseWirer:
                 continue
             if "readout" not in operations:
                 operations["readout"] = make_readout_pulse()
-            for qd_pair_name in sensor_to_qdpair_mapping[sensor_dot.name]: 
+            for qd_pair_name in sensor_to_qdpair_mapping[sensor_dot.name]:
                 op_name = f"readout_{qd_pair_name}"
-                if op_name not in operations: 
+                if op_name not in operations:
                     operations[op_name] = make_readout_pulse(qd_pair_name)
 
+    @staticmethod
+    def _wire_baseband_pulses(machine: object) -> None:
+        physical_channels = getattr(machine, "physical_channels", None)
+
+        if not isinstance(physical_channels, Mapping):
+            return
+
+        for physical_channel in physical_channels.values():
+            if physical_channel.opx_output is not None:
+                operations = getattr(physical_channel, "operations", None)
+                if operations is None:
+                    continue
+                if DEFAULT_PULSE_NAME not in operations:
+                    output_mode = getattr(physical_channel.opx_output, "output_mode", None)
+                    if output_mode is None:
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
+                    elif output_mode == "direct":
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
+                    elif output_mode == "amplified":
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(1.25)
+                    else:
+                        raise ValueError("Unknown output mode '{}'".format(output_mode))
 
 # ---------------------------------------------------------------------------
 # Top-level entry point
