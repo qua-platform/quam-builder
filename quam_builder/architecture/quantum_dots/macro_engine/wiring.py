@@ -210,12 +210,17 @@ class PulseWirer:
         Args:
             machine: Target machine whose channels receive default pulses.
         """
-        self._wire_xy_pulses(machine)
+        self._wire_baseband_pulses(machine)
         self._wire_readout_pulses(machine)
+        self._wire_xy_pulses(machine)
 
     @staticmethod
     def _wire_xy_pulses(machine: object) -> None:
         qubits = getattr(machine, "qubits", None)
+
+        if not isinstance(qubits, Mapping):
+            return
+
         for qubit in qubits.values():
             if qubit.xy is None:
                 continue
