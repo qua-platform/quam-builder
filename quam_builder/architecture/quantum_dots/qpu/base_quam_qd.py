@@ -874,11 +874,11 @@ class BaseQuamQD(QuamRoot):
         except:
             raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
 
-    def connect(self, skip_dacs: bool=False, reset_voltages: bool = False, timeout: Optional[float] = None) -> QuantumMachinesManager:
+    def connect(self, skip_dacs: bool=True, reset_voltages: bool = False, timeout: Optional[float] = None) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
         Args:
-            skip_dacs (bool): Whether to connect to the registered DACs.
+            skip_dacs (bool): Whether to connect to the registered DACs. Default is True.
             reset_voltages (bool): Whether to reset the voltages of each of the channels to the last-applied voltage, saved in the Quam state.
             skip_dacs (bool): Whether to connect to the registered DACs.
             timeout: Timeout in seconds for gRPC API calls including program compilation.
