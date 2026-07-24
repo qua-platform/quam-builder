@@ -46,7 +46,6 @@ from quam_builder.architecture.quantum_dots.components import VoltageGate, QdacS
 from quam_builder.architecture.superconducting.qpu import AnyQuam
 
 
-
 def _to_plain_mapping(obj: Any, max_depth: int = 6) -> Any:
     """Recursively unwrap QUAM wiring containers into plain dict/list structures."""
     if max_depth <= 0:
@@ -59,8 +58,7 @@ def _to_plain_mapping(obj: Any, max_depth: int = 6) -> Any:
         return type(obj)(_to_plain_mapping(x, max_depth - 1) for x in obj)
     if hasattr(obj, "get_unreferenced_value") and hasattr(obj, "keys"):
         return {
-            k: _to_plain_mapping(obj.get_unreferenced_value(k), max_depth - 1)
-            for k in obj.keys()
+            k: _to_plain_mapping(obj.get_unreferenced_value(k), max_depth - 1) for k in obj.keys()
         }
     return obj
 
@@ -125,7 +123,8 @@ def _dac_mapping_from_wiring(machine: BaseQuamQD) -> dict[str, dict[str, Any]]:
             if entry:
                 result[f"plunger_{_extract_qubit_number(qubit_id)}"] = entry
 
-    barrier_counter = 0
+    # 1 to match assembly.barrier_counter in QPUAssembly under quam_builder/builder/quantum_dots/build_qpu.py
+    barrier_counter = 1
     for _pair_id, wiring_by_line_type in normalized.get("qubit_pairs", {}).items():
         for line_type, ports in wiring_by_line_type.items():
             if line_type != WiringLineType.BARRIER_GATE.value:
@@ -337,9 +336,7 @@ def build_quam(
     instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
     save: bool = True,
     path: Optional[Union[Path, str]] = None,
-) -> (
-    LossDiVincenzoQuam
-):  # pylint: disable=too-many-arguments,too-many-positional-arguments
+) -> LossDiVincenzoQuam:  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Build complete QuAM configuration using two-stage process.
 
     This is a convenience wrapper that executes both stages:
@@ -471,6 +468,7 @@ def add_ports(machine: AnyQuamQD) -> None:
                         ):
                             created_port.upsampling_mode = "pulse"
 
+
 def add_qpu(machine: AnyQuamQD, qubit_pair_sensor_map: Optional[dict] = None) -> None:
     """Build and register QPU elements from wiring specifications.
 
@@ -533,9 +531,7 @@ def add_octaves(
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "octaves" in references.get_unreferenced_value(reference):
-                        octave_name = references.get_unreferenced_value(
-                            reference
-                        ).split("/")[2]
+                        octave_name = references.get_unreferenced_value(reference).split("/")[2]
                         octave = Octave(
                             name=octave_name,
                             calibration_db_path=str(calibration_db_path),
@@ -563,9 +559,7 @@ def add_external_mixers(machine: AnyQuamQD) -> AnyQuamQD:
             for line_type, references in wiring_by_line_type.items():
                 for reference in references:
                     if "mixers" in references.get_unreferenced_value(reference):
-                        mixer_name = references.get_unreferenced_value(reference).split(
-                            "/"
-                        )[2]
+                        mixer_name = references.get_unreferenced_value(reference).split("/")[2]
                         ldv_qubit_channel = {
                             WiringLineType.DRIVE.value: "xy",
                             WiringLineType.RESONATOR.value: "resonator",
