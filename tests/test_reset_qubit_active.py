@@ -1,3 +1,5 @@
+import pytest
+
 from quam.components.channels import IQChannel
 from quam.components.pulses import SquarePulse, SquareReadoutPulse
 
@@ -34,26 +36,23 @@ def _transmon_with_reset_pulses() -> FixedFrequencyTransmon:
     return transmon
 
 
-def test_reset_macro_inferred_duration_max_attempts_zero():
-    """max_attempts=0 is single-shot; duration matches one measure+pulse cycle."""
+def test_reset_macro_inferred_duration_max_attempts_one():
+    """max_attempts=1 is single-shot; duration matches one measure+pulse cycle."""
     transmon = _transmon_with_reset_pulses()
     one_cycle_s = (40 + 2000) * 1e-9
 
-    reset_zero = ResetMacro(
-        reset_type="active",
-        pi_pulse="x180",
-        readout_pulse="readout",
-        max_attempts=0,
-    )
     reset_one = ResetMacro(
         reset_type="active",
         pi_pulse="x180",
         readout_pulse="readout",
         max_attempts=1,
     )
-    transmon.macros["reset_zero"] = reset_zero
     transmon.macros["reset_one"] = reset_one
 
-    assert reset_zero.inferred_duration == one_cycle_s
-    assert reset_zero.inferred_duration == reset_one.inferred_duration
-    assert reset_zero.inferred_duration != 0.0
+    assert reset_one.inferred_duration == one_cycle_s
+
+
+@pytest.mark.parametrize("max_attempts", [0, -1, 1.0, "1", True])
+def test_reset_qubit_active_rejects_non_positive_or_non_integer_max_attempts(max_attempts):
+    with pytest.raises(ValueError, match="strictly positive integer"):
+        ResetMacro(max_attempts=max_attempts)

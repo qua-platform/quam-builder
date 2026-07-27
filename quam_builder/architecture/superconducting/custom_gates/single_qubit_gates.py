@@ -60,7 +60,7 @@ class ResetMacro(QubitMacro):
     Macro for resetting a qubit.
 
     For ``reset_type="active"``, ``max_attempts`` is forwarded to
-    :meth:`~BaseTransmon.reset_qubit_active`. Use ``max_attempts=0`` for a
+    :meth:`~BaseTransmon.reset_qubit_active`. Use ``max_attempts=1`` for a
     single-shot active reset (one measure-and-conditional-pi cycle, no retry
     loop).
     """
@@ -70,6 +70,10 @@ class ResetMacro(QubitMacro):
     readout_pulse: Union[ReadoutPulse, str] = "readout"
     pi_12_pulse: Optional[Union[Pulse, str]] = None
     max_attempts: int = 5
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.max_attempts, int) or self.max_attempts < 1:
+            raise ValueError("max_attempts must be a strictly positive integer")
 
     def apply(self, **kwargs) -> None:
 
@@ -103,14 +107,14 @@ class ResetMacro(QubitMacro):
         This property is used to get the duration of the reset macro (in seconds).
         We provide here a worst case estimate of the duration for the case where the reset is active.
         For the case where the reset is thermalize, we return the thermalization time of the qubit.
-        When ``max_attempts`` is ``0`` (single-shot active reset), the estimate uses one
+        When ``max_attempts`` is ``1`` (single-shot active reset), the estimate uses one
         measure-and-pulse cycle.
         """
         if self.reset_type == "active":
             pi_pulse_duration = get_pulse(self.pi_pulse, self.qubit).length
             readout_pulse_duration = get_pulse(self.readout_pulse, self.qubit).length
             return (
-                (pi_pulse_duration + readout_pulse_duration) * max(self.max_attempts, 1) * 1e-9
+                (pi_pulse_duration + readout_pulse_duration) * self.max_attempts * 1e-9
             )  # convert to seconds
         elif self.reset_type == "thermalize":
             return self.qubit.thermalization_time * 1e-9  # convert to seconds
