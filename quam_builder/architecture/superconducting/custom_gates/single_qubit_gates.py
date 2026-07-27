@@ -72,7 +72,11 @@ class ResetMacro(QubitMacro):
     max_attempts: int = 5
 
     def __post_init__(self) -> None:
-        if not isinstance(self.max_attempts, int) or self.max_attempts < 1:
+        if (
+            not isinstance(self.max_attempts, int)
+            or isinstance(self.max_attempts, bool)
+            or self.max_attempts < 1
+        ):
             raise ValueError("max_attempts must be a strictly positive integer")
 
     def apply(self, **kwargs) -> None:
