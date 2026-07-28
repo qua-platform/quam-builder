@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument.
 
+### Changed
+
+- **BREAKING:** Active-reset `max_attempts` must be a strictly positive, non-boolean integer. `max_attempts=1` selects a single-shot measure-and-conditional-pi reset with no `while_` retry loop; values greater than one permit retries, and `max_attempts=0` is invalid.
+
 ### Fixed
 
 - Fixed TWPA pump initialization being skipped in subsequent QUA programs due to process-global deduplication state ([#122](https://github.com/qua-platform/quam-builder/issues/122)).
