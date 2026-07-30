@@ -141,6 +141,10 @@ class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
             self, power_in_dbm, gain, max_amplitude, Z, operation
         )
 
+    def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
+        """Add or update a pulse in the drive operations"""
+        self.operations[name] = pulse
+
 
 @quam_dataclass
 class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
