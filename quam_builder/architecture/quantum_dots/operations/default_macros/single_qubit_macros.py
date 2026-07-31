@@ -44,12 +44,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from qm.qua import wait
 from quam.components.macro import QubitMacro
-from quam.components.quantum_components.qubit import qua
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-from virtual_qpu import pulse
 
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     EmptyStateMacro,
@@ -64,7 +61,6 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     VoltagePointName,
 )
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
-from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, is_qua_type
 
 __all__ = [
     "SINGLE_QUBIT_MACROS",
