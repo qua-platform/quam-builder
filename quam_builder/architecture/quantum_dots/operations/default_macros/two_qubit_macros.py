@@ -18,8 +18,6 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     InitializeStateMacro,
     MeasurePSBPairMacro,
     _owner_component,
-    _resolve_default_point_duration_ns,
-    _step_to_target,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
