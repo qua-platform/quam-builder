@@ -5,7 +5,12 @@ from quam.components.channels import InSingleChannel, InOutSingleChannel
 from typing import Union
 
 
-__all__ = ["ReadoutTransportBase", "ReadoutTransportSingle", "ReadoutTransportSingleIO", "ANY_READOUT_TRANSPORT"]
+__all__ = [
+    "ReadoutTransportBase",
+    "ReadoutTransportSingle",
+    "ReadoutTransportSingleIO",
+    "ANY_READOUT_TRANSPORT",
+]
 
 
 @quam_dataclass
@@ -16,6 +21,7 @@ class ReadoutTransportBase:  # pylint: disable=too-few-public-methods
 
     pass
 
+
 @quam_dataclass
 class ReadoutTransportSingle(
     InSingleChannel, ReadoutTransportBase
@@ -25,6 +31,7 @@ class ReadoutTransportSingle(
     """
 
     pass
+
 
 @quam_dataclass
 class ReadoutTransportSingleIO(
@@ -39,4 +46,7 @@ class ReadoutTransportSingleIO(
 
     pass
 
-ANY_READOUT_TRANSPORT = Union[ReadoutTransportBase, ReadoutTransportSingle, ReadoutTransportSingleIO]
+
+ANY_READOUT_TRANSPORT = Union[
+    ReadoutTransportBase, ReadoutTransportSingle, ReadoutTransportSingleIO
+]

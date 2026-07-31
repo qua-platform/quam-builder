@@ -1,8 +1,7 @@
-from typing import ClassVar, Dict, Optional
-
+from typing import ClassVar, Optional
 
 from quam.core import quam_dataclass
-from quam.components import MWChannel, pulses
+from quam.components import pulses
 from quam.components.channels import IQChannel, MWChannel, SingleChannel
 
 from quam_builder.tools.power_tools import (
@@ -13,6 +12,8 @@ from quam_builder.tools.power_tools import (
     get_output_power_iq_channel,
 )
 
+__all__ = ["XYDriveBase", "XYDriveSingle", "XYDriveIQ", "XYDriveMW"]
+
 
 @quam_dataclass
 class XYDriveBase:
@@ -22,21 +23,8 @@ class XYDriveBase:
 
     IF_LIMIT: ClassVar[float] = 400e6
 
-    def validate_intermediate_frequency(self) -> None:
-        """Raise ValueError if |IF| exceeds the OPX +-400 MHz band."""
-        if_freq = self.intermediate_frequency  # pylint: disable=no-member
-        if abs(if_freq) > self.IF_LIMIT:
-            name = getattr(self, "name", self.__class__.__name__)
-            raise ValueError(
-                f"Intermediate frequency {if_freq / 1e6:.2f} MHz exceeds "
-                f"\u00b1{self.IF_LIMIT / 1e6:.0f} MHz on '{name}'. "
-                f"Adjust LO_frequency or larmor_frequency."
-            )
-
     @staticmethod
-    def calculate_voltage_scaling_factor(
-        fixed_power_dBm: float, target_power_dBm: float
-    ):
+    def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: float):
         """
         Calculate the voltage scaling factor required to scale fixed power to target power.
 
@@ -48,9 +36,6 @@ class XYDriveBase:
         float: The voltage scaling factor.
         """
         return calculate_voltage_scaling_factor(fixed_power_dBm, target_power_dBm)
-
-
-__all__ = ["XYDriveBase", "XYDriveSingle", "XYDriveIQ", "XYDriveMW"]
 
 
 @quam_dataclass
@@ -71,6 +56,17 @@ class XYDriveSingle(SingleChannel, XYDriveBase):
     def intermediate_frequency(self, val):
         self.RF_frequency = val
 
+    def validate_intermediate_frequency(self) -> None:
+        """Raise ValueError if |IF| exceeds the OPX +-400 MHz band."""
+        if_freq = self.intermediate_frequency  # pylint: disable=no-member
+        if abs(if_freq) > self.IF_LIMIT:
+            name = getattr(self, "name", self.__class__.__name__)
+            raise ValueError(
+                f"Intermediate frequency {if_freq / 1e6:.2f} MHz exceeds "
+                f"\u00b1{self.IF_LIMIT / 1e6:.0f} MHz on '{name}'. "
+                f"Adjust LO_frequency or larmor_frequency."
+            )
+
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""
         self.operations[name] = pulse
@@ -89,6 +85,17 @@ class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     def upconverter_frequency(self):
         """Returns the up-converter/LO frequency in Hz."""
         return self.LO_frequency
+
+    def validate_intermediate_frequency(self) -> None:
+        """Raise ValueError if |IF| exceeds the OPX +-400 MHz band."""
+        if_freq = self.intermediate_frequency  # pylint: disable=no-member
+        if abs(if_freq) > self.IF_LIMIT:
+            name = getattr(self, "name", self.__class__.__name__)
+            raise ValueError(
+                f"Intermediate frequency {if_freq / 1e6:.2f} MHz exceeds "
+                f"\u00b1{self.IF_LIMIT / 1e6:.0f} MHz on '{name}'. "
+                f"Adjust LO_frequency or larmor_frequency."
+            )
 
     def get_output_power(self, operation, Z=50) -> float:
         """
@@ -137,9 +144,7 @@ class XYDriveIQ(IQChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
             ValueError: If `gain` or `amplitude` is outside their valid ranges.
 
         """
-        return set_output_power_iq_channel(
-            self, power_in_dbm, gain, max_amplitude, Z, operation
-        )
+        return set_output_power_iq_channel(self, power_in_dbm, gain, max_amplitude, Z, operation)
 
     def add_pulse(self, name: str, pulse: pulses.Pulse) -> None:
         """Add or update a pulse in the drive operations"""
@@ -157,6 +162,17 @@ class XYDriveMW(MWChannel, XYDriveBase):  # pylint: disable=too-many-ancestors
     def upconverter_frequency(self):
         """Returns the up-converter/LO frequency in Hz."""
         return self.opx_output.upconverter_frequency
+
+    def validate_intermediate_frequency(self) -> None:
+        """Raise ValueError if |IF| exceeds the OPX +-400 MHz band."""
+        if_freq = self.intermediate_frequency  # pylint: disable=no-member
+        if abs(if_freq) > self.IF_LIMIT:
+            name = getattr(self, "name", self.__class__.__name__)
+            raise ValueError(
+                f"Intermediate frequency {if_freq / 1e6:.2f} MHz exceeds "
+                f"\u00b1{self.IF_LIMIT / 1e6:.0f} MHz on '{name}'. "
+                f"Adjust LO_frequency or larmor_frequency."
+            )
 
     def get_output_power(self, operation, Z=50) -> float:
         """

@@ -84,9 +84,7 @@ class VoltageControlMixin(QuantumComponent):
                 f"Valid channel names: {list(valid_channel_names)}"
             )
 
-    def go_to_voltages(
-        self, voltages: Dict[str, VoltageLevelType], duration: DurationType
-    ) -> None:
+    def go_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType) -> None:
         """Agnostic function to set voltage in a sequence.simultaneous block.
 
         Whether it is a step or a ramp should be determined by the context manager.
@@ -152,9 +150,7 @@ class VoltageControlMixin(QuantumComponent):
                 alignment is already managed externally.
         """
         self.voltage_sequence.step_to_voltages(
-            voltages={
-                ch_name: 0.0 for ch_name in self.voltage_sequence.gate_set.channels
-            },
+            voltages={ch_name: 0.0 for ch_name in self.voltage_sequence.gate_set.channels},
             duration=duration,
             ensure_align=ensure_align,
         )
