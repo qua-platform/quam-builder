@@ -46,8 +46,6 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     barrier_gate: BarrierGate = None
     dot_coupling: float = 0.0
 
-    detuning_axis_name: str = ""
-
     def __post_init__(self):
         super().__post_init__()
         # if isinstance(self.quantum_dots[0], str):
@@ -62,7 +60,6 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         # if self.quantum_dots[0].voltage_sequence is not self.quantum_dots[1].voltage_sequence:
         #     raise ValueError("Quantum Dots not part of same VoltageSequence")
 
-        self.detuning_axis_name = f"{self.id}_epsilon"
 
     @property
     def physical_channel(self) -> VoltageGate:
@@ -89,16 +86,11 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     def define_detuning_axis(
         self,
         matrix: List[List[float]],
-        detuning_axis_name: str = None,
         set_dc_virtual_axis: bool = True,
     ) -> None:
 
-        # If no name is given, ensure that it is the default
-        if detuning_axis_name is None:
-            detuning_axis_name = self.detuning_axis_name
-
-        # Ensure that the detuning axis name held in object is consistent
-        self.detuning_axis_name = detuning_axis_name
+        # The detuning axis name is its own ID (e.g. "virtual_dot_1_virtual_dot_2_pair")
+        detuning_axis_name = self.id
 
         virtual_gate_set = self.gate_set
 

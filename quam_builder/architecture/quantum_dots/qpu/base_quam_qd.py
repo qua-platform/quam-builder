@@ -265,6 +265,14 @@ class BaseQuamQD(QuamRoot):
                 and ch.offset_parameter is not None
             ):
                 ch.offset_parameter(ch.current_external_voltage)
+        for gate_set_id in self.virtual_gate_sets.keys(): 
+            virtual_dc_set = self.virtual_dc_sets.get(gate_set_id, None)
+            if virtual_dc_set is None: 
+                self.create_virtual_dc_set(
+                    gate_set_id = gate_set_id
+                )
+            else:
+                virtual_dc_set.all_current_voltages
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
@@ -504,14 +512,13 @@ class BaseQuamQD(QuamRoot):
 
         Calls :meth:`QuantumDotPair.define_detuning_axis` with ``matrix=[[1.0, -1.0]]``
         and ``set_dc_virtual_axis=False`` (same defaults as test/example scripts).
-        Skips if ``pair.detuning_axis_name`` is already a channel on ``gate_set``.
+        Skips if ``pair.id`` is already a channel on ``gate_set``.
         Refreshes the cached :class:`VoltageSequence` for that gate set afterward.
         """
-        if pair.detuning_axis_name in getattr(gate_set, "valid_channel_names", []):
+        if pair.id in getattr(gate_set, "valid_channel_names", []):
             return
         pair.define_detuning_axis(
             matrix=[[1.0, -1.0]],
-            detuning_axis_name=pair.detuning_axis_name,
             set_dc_virtual_axis=False,
         )
         self.reset_voltage_sequence(gate_set.id)
@@ -715,12 +722,6 @@ class BaseQuamQD(QuamRoot):
             name: ch.get_reference() for name, ch in vgs.channels.items()
         }
 
-        virtual_names = list(vgs.layers[0].source_gates)
-        physical_names = list(vgs.layers[0].target_gates)
-        gate_set_matrix = [
-            row[:] for row in vgs.layers[0].matrix
-        ]  # Copy to avoid any mutability issues, just incase
-
         allow_rectangular_matrices = vgs.allow_rectangular_matrices
 
         self.virtual_dc_sets[gate_set_id] = VirtualDCSet(
@@ -728,12 +729,14 @@ class BaseQuamQD(QuamRoot):
             channels=channel_mapping,
             allow_rectangular_matrices=allow_rectangular_matrices,
         )
-        self.virtual_dc_sets[gate_set_id].add_to_layer(
-            layer_id="compensation_layer",
-            source_gates=virtual_names,
-            target_gates=physical_names,
-            matrix=gate_set_matrix,
-        )
+
+        for layer in vgs.layers:
+            self.virtual_dc_sets[gate_set_id].add_to_layer(
+                layer_id=layer.id,
+                source_gates=list(layer.source_gates),
+                target_gates=list(layer.target_gates),
+                matrix=[row[:] for row in layer.matrix],
+            )
         if matrix:
             self.virtual_dc_sets[gate_set_id].layers[0].matrix = matrix
 
