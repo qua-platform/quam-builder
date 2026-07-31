@@ -70,7 +70,9 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
 
     @property
     def gate_set(self) -> VirtualGateSet:
-        return self.quantum_dots[0].machine._get_virtual_gate_set(self.quantum_dots[0].physical_channel)
+        return self.quantum_dots[0].machine._get_virtual_gate_set(
+            self.quantum_dots[0].physical_channel
+        )
 
     @property
     def voltage_sequence(self) -> VoltageSequence:

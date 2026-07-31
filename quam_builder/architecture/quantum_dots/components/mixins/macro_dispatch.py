@@ -101,6 +101,4 @@ class MacroDispatchMixin(QuantumComponent):
             if callable(macro):
                 return macro
             return macro.apply
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute or macro '{name}'"
-        )
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute or macro '{name}'")

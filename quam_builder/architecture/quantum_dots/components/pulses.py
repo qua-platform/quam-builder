@@ -121,9 +121,7 @@ class ScalableKaiserPulse(Pulse):
     def waveform_function(self):
         n = np.arange(self.length, dtype=float)
         center = (self.length - 1) / 2.0
-        arg = self.beta * np.sqrt(
-           1.0 - ((n - center) / center) ** 2
-        )
+        arg = self.beta * np.sqrt(1.0 - ((n - center) / center) ** 2)
         window = i0(arg) / i0(self.beta)
         window = window / np.max(window)
         waveform = self.amplitude * window

@@ -8,6 +8,7 @@ import numpy as np
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
+from quam.utils import string_reference
 
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
@@ -16,9 +17,9 @@ from qm import logger
 from qm import QuantumMachine
 from qm.qua import wait, frame_rotation_2pi
 
-from quam_builder.architecture.quantum_dots.components import XYDriveBase
+from quam_builder.architecture.quantum_dots.components import XYDriveIQ, XYDriveMW, XYDriveSingle
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -59,7 +60,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     grid_location: str = None
 
     quantum_dot: QuantumDot
-    xy: XYDriveBase = None
+    xy: Union[XYDriveIQ, XYDriveMW, XYDriveSingle] = None
     preferred_readout_quantum_dot: Optional[str] = None
 
     larmor_frequency: float = None
@@ -87,15 +88,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         if self.T1 is not None:
             return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
         else:
-            return (
-                int(
-                    self.thermalization_time_factor
-                    * DEFAULTS.qubit.fallback_t1
-                    * 1e9
-                    / 4
-                )
-                * 4
-            )
+            return int(self.thermalization_time_factor * DEFAULTS.qubit.fallback_t1 * 1e9 / 4) * 4
 
     @property
     def voltage_sequence(self):
@@ -119,9 +112,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         self,
         QM: QuantumMachine,
         calibrate_drive: bool = True,
-    ) -> Tuple[
-        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
-    ]:
+    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (EDSR and possible resonator) linked to this qubit for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
 
@@ -188,17 +179,12 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
 
     def idle(self, duration: int) -> None:
-        wait(
-            duration,
-            self.physical_channel.name, self.xy.name
-        )
+        wait(duration, self.physical_channel.name, self.xy.name)
 
     def _validate_readout_quantum_dot(self, qd_name):
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
         if qd_name not in self.machine.quantum_dots:
-            raise ValueError(
-                f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. "
-            )
+            raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
         qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
         if qd_pair is None:
             raise ValueError(
@@ -206,8 +192,14 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
             )
 
     def __setattr__(self, name, value):
-        if name == "preferred_readout_quantum_dot" and value is not None:
-            if hasattr(self, "quantum_dot") and not isinstance(self.quantum_dot, str):
+        if (
+            name == "preferred_readout_quantum_dot"
+            and value is not None
+            and self.get_root() is not None
+        ):
+            if hasattr(self, "quantum_dot") and not string_reference.is_reference(
+                self.get_raw_value("quantum_dot")
+            ):
                 self._validate_readout_quantum_dot(value)
         # if name == "larmor_frequency" and value is not None:
         #     if hasattr(self, "xy") and self.xy is not None:
