@@ -49,9 +49,7 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
         self._add_readout_threshold(quantum_dot_pair_id, threshold)
         self._add_readout_projector(quantum_dot_pair_id, projector)
 
-    def _add_readout_threshold(
-        self, quantum_dot_pair_id: str, threshold: float
-    ) -> None:
+    def _add_readout_threshold(self, quantum_dot_pair_id: str, threshold: float) -> None:
         self.readout_thresholds[quantum_dot_pair_id] = threshold
 
     def _add_readout_projector(
@@ -61,9 +59,7 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
             projector = asdict(projector)
         self.readout_projectors[quantum_dot_pair_id] = projector
 
-    def _readout_params(
-        self, quantum_dot_pair_id: str
-    ) -> Union[float, dict[str, float]]:
+    def _readout_params(self, quantum_dot_pair_id: str) -> Union[float, dict[str, float]]:
         return (
             self.readout_thresholds[quantum_dot_pair_id],
             self.readout_projectors[quantum_dot_pair_id],
@@ -76,9 +72,7 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
         self,
         QM: QuantumMachine,
         calibrate_resonator: bool = True,
-    ) -> Tuple[
-        Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]
-    ]:
+    ) -> Tuple[Union[None, MixerCalibrationResults], Union[None, MixerCalibrationResults]]:
         """Calibrate the Octave channels (EDSR and possible resonator) linked to this qubit for the LO frequency, intermediate
         frequency and Octave gain as defined in the state.
         Args:
@@ -115,9 +109,7 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
         if ro is None:
             return None
         if not isinstance(ro, ReadoutResonatorBase):
-            raise TypeError(
-                "The associated readout mechanism is not a ReadoutResonatorBase."
-            )
+            raise TypeError("The associated readout mechanism is not a ReadoutResonatorBase.")
         return ro
 
     @readout_resonator.setter
@@ -132,9 +124,7 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
         if ro is None:
             return None
         if not isinstance(ro, ReadoutTransportBase):
-            raise TypeError(
-                "The associated readout mechanism is not a ReadoutTransportBase."
-            )
+            raise TypeError("The associated readout mechanism is not a ReadoutTransportBase.")
         return ro
 
     @readout_transport.setter
