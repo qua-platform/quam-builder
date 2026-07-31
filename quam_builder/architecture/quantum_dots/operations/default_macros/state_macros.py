@@ -13,7 +13,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
-from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType
 
 __all__ = [
     "InitializeStateMacro",
