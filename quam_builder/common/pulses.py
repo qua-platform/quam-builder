@@ -1,7 +1,7 @@
 import numpy as np
 
 from quam.core import quam_dataclass
-from quam.components.pulses import Pulse
+from quam.components.pulses import Pulse, ReadoutPulse
 
 __all__ = [
     "GaussianPulse",
@@ -232,3 +232,89 @@ class GaussianFilteredSquarePulse(Pulse):
         if self.axis_angle is not None:
             env = env * np.exp(1j * self.axis_angle)
         return env
+
+
+@quam_dataclass
+class DrachmaReadoutPulse(ReadoutPulse):
+    """DRACHMA readout scheme, as described in Jerger et al.,
+    "Dispersive Qubit Readout with Intrinsic Resonator Reset" (arXiv:2406.04891).
+
+    The pulse is built from the analytic trial function a_T(t) = sin^3(pi t / Tp)
+    and inverted through the state-dependent resonator response, following
+    Eqs. (6)-(7) of the paper:
+
+        a_in(t) = [ prod_j (kappa/2 + i*chi_j + d/dt) ] a_T(t) / kappa^(N/2)
+
+    where chi_j are the dispersive shifts of each computational state relative
+    to the drive carrier and kappa is the resonator linewidth. For N=2 states
+    this is just a second-order differential operator acting on a_T(t), so we
+    apply it directly in the time domain -- no FFT/deconvolution required.
+
+    IMPORTANT: detuning_ground_hz / detuning_excited_hz are defined relative
+    to the drive carrier, which the paper places halfway between the
+    ground- and excited-state resonator frequencies (detuning_{0,1} = +-chi
+    in the paper's notation, where chi is the dispersive shift).
+
+    Sampling convention: one waveform sample = 1 ns, so resonator_kappa_hz
+    and detuning_*_hz are given in Hz and converted internally (via a
+    factor of 1e-9) to the per-sample units used by kappa/2pi, chi/2pi in
+    the paper (e.g. kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
+    """
+
+    amplitude_integral_v_ns: float
+    resonator_kappa_hz: float  # kappa/(2*pi), Hz
+    detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
+    detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
+
+    def _trial_function(self):
+        """sin^3(pi t / Tp), sampled so BOTH endpoints are exactly zero.
+        (Needed because the smoothness condition requires a_T and its first
+        N-1 derivatives to vanish at t=0 and t=Tp; np.arange(length)/length
+        never actually reaches the second boundary.)"""
+        theta = np.pi * np.arange(self.length) / (self.length - 1)
+        return np.sin(theta) ** 3
+
+    def _differential_operator_coeffs(self):
+        """Coefficients of the polynomial in D = d/dt for
+        prod_j (kappa/2 + i*detuning_j + D). coeffs[k] multiplies the k-th
+        time derivative of a_T(t)."""
+        kappa = 2 * np.pi * self.resonator_kappa_hz * 1e-9
+        detunings = [
+            2 * np.pi * self.detuning_ground_hz * 1e-9,
+            2 * np.pi * self.detuning_excited_hz * 1e-9,
+        ]
+
+        coeffs = np.array([1.0 + 0.0j])
+        for detuning in detunings:
+            factor = np.array([kappa / 2 + 1j * detuning, 1.0 + 0.0j])  # [D^0, D^1]
+            coeffs = np.convolve(coeffs, factor)
+        return coeffs, len(detunings)
+
+    def _time_derivatives(self, signal, max_order, dt=1.0):
+        """[signal, d(signal)/dt, d^2(signal)/dt^2, ...] via centered finite
+        differences, one sample = dt (ns)."""
+        derivatives = [signal]
+        current = signal
+        for _ in range(max_order):
+            current = np.gradient(current, dt)
+            derivatives.append(current)
+        return derivatives
+
+    def waveform_function(self):
+        """Constructs a_in(t) per Eq. (7), applied as a direct time-domain
+        differential operator on a_T(t) = sin^3(pi t / Tp)."""
+        norm = self.amplitude_integral_v_ns
+        kappa = 2 * np.pi * self.resonator_kappa_hz * 1e-9
+        a_T = self._trial_function()
+        coeffs, n_states = self._differential_operator_coeffs()
+
+        derivatives = self._time_derivatives(a_T, max_order=len(coeffs) - 1)
+
+        a_in = np.zeros_like(a_T, dtype=complex)
+        for k, c_k in enumerate(coeffs):
+            a_in += c_k * derivatives[k]
+        a_in /= kappa ** (n_states / 2)
+
+        a_in = norm * a_in / np.sum(np.abs(a_in))  # normalize to desired amplitude
+
+        return a_in
