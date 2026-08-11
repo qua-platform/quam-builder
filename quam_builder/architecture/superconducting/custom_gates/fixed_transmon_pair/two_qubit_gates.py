@@ -1,19 +1,17 @@
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional
 
 from qm.qua import *
-from qm.qua._expressions import QuaExpression, QuaVariable
+from qm.qua._expressions import ScalarOfAnyType, VectorOfAnyType
 from quam.components.macro import QubitPairMacro
 from quam.components.quantum_components import Qubit
 from quam.core import quam_dataclass
 
 __all__ = ["CRGate", "StarkInducedCZGate"]
 
-qua_T = Union[QuaVariable, QuaExpression]
-_tuple = Tuple[Union[float, qua_T]]
-_list = List[Union[float, qua_T]]
+AmplitudeScale = ScalarOfAnyType | VectorOfAnyType
 
 
-class _QubitPairCrossResonanceDriveHelpers:
+class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
     @property
     def qc(self):
         return self.qubit_pair.qubit_control
@@ -35,7 +33,7 @@ class _QubitPairCrossResonanceDriveHelpers:
         return f"{prefix}_{wf_type}_{pair_name}"
 
     @staticmethod
-    def _shift_frame(elem, phi: Optional[float | qua_T]) -> None:
+    def _shift_frame(elem, phi: Optional[ScalarOfAnyType]) -> None:
         elem.frame_rotation_2pi(phi)
 
     def get_all_cr_with_qt(self, active_qubit_pairs_only: bool = True) -> list:
@@ -50,7 +48,7 @@ class _QubitPairCrossResonanceDriveHelpers:
                 cr_list.append(qubit_pair.cross_resonance)
         return cr_list
 
-    def virtual_z_2pi(self, qubit: Qubit, phi: Optional[float | qua_T]) -> None:
+    def virtual_z_2pi(self, qubit: Qubit, phi: Optional[ScalarOfAnyType]) -> None:
         # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
         self._shift_frame(qubit.xy, -phi)
         for cr in self.get_all_cr_with_qt():
@@ -58,41 +56,54 @@ class _QubitPairCrossResonanceDriveHelpers:
 
     def _align_cr(self) -> None:
         align(*self.cr_elems)
+        # self.qc.align()
+        # self.qt.align()
+
+    @staticmethod
+    def _scaled_amplitude(amp_scale: Optional[AmplitudeScale], sign: int):
+        """Apply echo sign to scalar or DRAG ``amplitude_scale`` lists."""
+        if amp_scale is None:
+            amp_scale = 1
+        if isinstance(amp_scale, (list, tuple)):
+            if len(amp_scale) == 4:
+                return [sign * amp_scale[0], sign * amp_scale[1], sign * amp_scale[2], sign * amp_scale[3]]
+        return sign * amp_scale
 
     @staticmethod
     def _play_pulse(
         elem,
         wf_type: str,
-        amp_scale: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        duration: Optional[Union[int, float, qua_T]] = None,
+        amp_scale: Optional[AmplitudeScale] = None,
+        duration: Optional[ScalarOfAnyType] = None,
         *,
         sign: int = 1,
     ) -> None:
-        # if sign is something else without amp_scale, assign sign to amp_scale
-        if sign != 1 and amp_scale is None:
-            amp_scale = 1
+        scaled_amp: AmplitudeScale | None = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(amp_scale, sign)
 
-        if amp_scale is None and duration is None:
+        if scaled_amp is None and duration is None:
             elem.play(wf_type)
-        elif amp_scale is None:
+        elif scaled_amp is None:
             elem.play(wf_type, duration=duration)
         elif duration is None:
-            elem.play(wf_type, amplitude_scale=sign * amp_scale)
+            elem.play(wf_type, amplitude_scale=scaled_amp)
         else:
-            elem.play(wf_type, amplitude_scale=sign * amp_scale, duration=duration)
+            elem.play(wf_type, amplitude_scale=scaled_amp, duration=duration)
 
-    def get_cr_operation(self, wf_type: Optional[str] = None):
-        if not wf_type or wf_type == "default":
-            wf_type = self.wf_type
+    def _apply_qc_correction(self, phi: Optional[ScalarOfAnyType]) -> None:
+        if phi is not None:
+            self.qc.xy.frame_rotation_2pi(phi)
 
-        return self.qubit_pair.cross_resonance.operations[wf_type]
+    def _apply_qt_correction(self, phi: Optional[ScalarOfAnyType]) -> None:
+        if phi is not None:
+            self.qt.xy.frame_rotation_2pi(phi)
+            self._shift_frame(self.cr, phi)
 
 
 # ============================================================================
 # Cross-Resonance (CR) Gate
 # ============================================================================
 @quam_dataclass
-class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
+class CRGate(_QubitPairCrossResonanceDriveHelpers):
     """
     Cross-resonance two-qubit gate macro.
 
@@ -105,17 +116,23 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
     qc_frame_correction_2pi: float = 0.0
     qt_frame_correction_2pi: float = 0.0
 
+    def get_cr_operation(self, wf_type: Optional[str] = None):
+        if not wf_type or wf_type == "default":
+            wf_type = self.wf_type
+
+        return self.qubit_pair.cross_resonance.operations[wf_type]
+
     def apply(
         self,
         cr_type: Optional[Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]] = None,
         wf_type: Optional[str] = None,
-        duration_clock_cycles: Optional[int | qua_T] = None,
-        drive_amp_scaling: Optional[float | qua_T] = None,
-        add_drive_phase: Optional[float | qua_T] = None,
-        cancel_amp_scaling: Optional[float | qua_T] = None,
-        add_cancel_phase: Optional[float | qua_T] = None,
-        add_qc_frame_correction_2pi: Optional[float | qua_T] = None,
-        add_qt_frame_correction_2pi: Optional[float | qua_T] = None,
+        duration_clock_cycles: Optional[ScalarOfAnyType] = None,
+        drive_amp_scaling: Optional[ScalarOfAnyType] = None,
+        add_drive_phase: Optional[ScalarOfAnyType] = None,
+        cancel_amp_scaling: Optional[ScalarOfAnyType] = None,
+        add_cancel_phase: Optional[ScalarOfAnyType] = None,
+        add_qc_frame_correction_2pi: Optional[ScalarOfAnyType] = None,
+        add_qt_frame_correction_2pi: Optional[ScalarOfAnyType] = None,
     ) -> None:
         cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
         wf_type = wf_type if (wf_type and wf_type != "default") else self.wf_type
@@ -232,12 +249,28 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
 
         self.qc.xy.play("x180")
 
+    @property
+    def inferred_duration(self) -> int:
+        return self.get_cr_duration(with_echo=True)
+
+    def get_cr_duration(self, with_echo: bool = False) -> int:
+        cr_duration = self.cr.operations[self.wf_type].length
+        if self.cr_type in ["direct", "direct+cancel"]:
+            return cr_duration
+        elif self.cr_type in ["direct+echo", "direct+cancel+echo"]:
+            if with_echo:
+                return 2 * (cr_duration + self.qc.xy.operations["x180"].length)
+            else:
+                return 2 * cr_duration
+        else:
+            raise ValueError(f"Invalid CR type: {self.cr_type}")
+
 
 # ============================================================================
 # Stark-Induced CZ Gate
 # ============================================================================
 @quam_dataclass
-class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
+class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
     qc_correction_phase: Optional[float] = None
     qt_correction_phase: Optional[float] = None
 
@@ -248,12 +281,12 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers, QubitPairMacro):
     def apply(
         self,
         wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
-        zz_duration_clock_cycles: Optional[Union[float, qua_T]] = None,
-        zz_control_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        zz_target_amp_scaling: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        zz_relative_phase: Optional[Union[float, qua_T, _tuple, _list]] = None,
-        qc_correction_phase: Optional[Union[float, qua_T]] = None,
-        qt_correction_phase: Optional[Union[float, qua_T]] = None,
+        zz_duration_clock_cycles: Optional[ScalarOfAnyType] = None,
+        zz_control_amp_scaling: Optional[AmplitudeScale] = None,
+        zz_target_amp_scaling: Optional[AmplitudeScale] = None,
+        zz_relative_phase: Optional[AmplitudeScale] = None,
+        qc_correction_phase: Optional[ScalarOfAnyType] = None,
+        qt_correction_phase: Optional[ScalarOfAnyType] = None,
     ) -> None:
         qc_corr = qc_correction_phase if qc_correction_phase else self.qc_correction_phase
         qt_corr = qt_correction_phase if qt_correction_phase else self.qt_correction_phase
