@@ -1,15 +1,15 @@
-from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
-from quam_builder.architecture.superconducting.components.xy_drive import XYDriveMW, XYDriveIQ
-
+from quam.core import quam_dataclass
+from quam_builder.architecture.superconducting.components.xy_drive import XYDriveIQ, XYDriveMW
 
 __all__ = ["XYDetunedDriveIQ", "XYDetunedDriveMW"]
+
 
 @quam_dataclass
 class XYDetunedDriveBase:
     xy_RF_frequency: float = None
     xy_intermediate_frequency: float = None
-    detuning: float = None
+    detuning: int = None
 
 
 @quam_dataclass

@@ -15,6 +15,7 @@ import re
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 from numpy import ceil, sqrt
+
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import StickyChannelAddon
 from quam.components.pulses import SquareReadoutPulse
@@ -54,14 +55,6 @@ _ALLOWED_LINE_TYPES = {
     },
     "qubit_pairs": {WiringLineType.BARRIER_GATE.value},
 }
-
-
-def _is_plunger_line_type(line_type: str) -> bool:
-    """Return True when the wiring line type represents a quantum-dot plunger gate."""
-    return line_type in {
-        WiringLineType.PLUNGER_GATE.value,
-        WiringLineType.TWPA_PUMP.value,
-    }
 
 
 def _natural_sort_key(value: str) -> Tuple[Any, ...]:
@@ -129,8 +122,7 @@ def _validate_line_type(element_type: str, line_type: str) -> None:
     allowed = _ALLOWED_LINE_TYPES.get(element_type)
     if allowed is not None and line_type not in allowed:
         raise ValueError(
-            f"Unsupported line type '{line_type}' for element type '{element_type}'. "
-            f"Allowed: {sorted(allowed)}"
+            f"Unsupported line type '{line_type}' for element type '{element_type}'. Allowed: {sorted(allowed)}"
         )
 
 
@@ -228,9 +220,7 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
     has_mw = all(key in ports for key in mw_out_channel_ports)
 
     if has_iq and has_mw:
-        raise ValueError(
-            f"Qubit {qubit_id} wiring is ambiguous: matches both IQ and MW drive ports"
-        )
+        raise ValueError(f"Qubit {qubit_id} wiring is ambiguous: matches both IQ and MW drive ports")
     if not has_iq and not has_mw:
         raise ValueError(
             f"Qubit {qubit_id} wiring is incomplete: missing IQ ports {iq_out_channel_ports} "
@@ -281,9 +271,7 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     elif "_" in qubit_pair_id:
         control, target = qubit_pair_id.split("_", 1)
     else:
-        raise ValueError(
-            f"Qubit pair id '{qubit_pair_id}' is invalid: expected '-' or '_' delimiter"
-        )
+        raise ValueError(f"Qubit pair id '{qubit_pair_id}' is invalid: expected '-' or '_' delimiter")
 
     def _ensure_q_prefix(qubit_token: str) -> str:
         return qubit_token if qubit_token.startswith("q") else f"q{qubit_token}"
@@ -305,9 +293,7 @@ def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
     return wiring_dict.get("qdac_channel")
 
 
-def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, qdac_channel: int | None = None
-) -> VoltageGate:
+def _make_voltage_gate_with_qdac(gate_id: str, wiring_path: str, qdac_channel: int | None = None) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:

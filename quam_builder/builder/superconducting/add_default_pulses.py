@@ -28,7 +28,7 @@ def add_DragGaussian_pulses(
     length: int,
     sigma: int,
     alpha: float,
-    detuning: float,
+    detuning: int,
     anharmonicity: float = None,
     subtracted: bool = True,
     digital_marker: str = None,
@@ -129,7 +129,7 @@ def add_DragCosine_pulses(
     amplitude: float,
     length: int,
     alpha: float,
-    detuning: float,
+    detuning: int,
     anharmonicity: float = None,
     digital_marker: str = None,
 ):
