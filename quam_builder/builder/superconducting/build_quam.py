@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from numpy import ceil, sqrt
 
+from qualang_tools.wirer.connectivity.element import parse_qubit_pair_id
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
 from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
@@ -118,8 +119,7 @@ def add_transmons(machine: AnyQuam):
         elif element_type == "qubit_pairs":
             machine.active_qubit_pair_names = []
             for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
-                qc, qt = qubit_pair_id.split("-")
-                qt = f"q{qt}"
+                qc, qt = parse_qubit_pair_id(qubit_pair_id)
                 transmon_pair = machine.qubit_pair_type(
                     id=qubit_pair_id,
                     qubit_control=f"#/qubits/{qc}",
