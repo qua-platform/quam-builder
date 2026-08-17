@@ -261,7 +261,7 @@ class DrachmaReadoutPulse(ReadoutPulse):
     the paper (e.g. kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
     """
 
-    amplitude_integral_v_ns: float
+    amplitude: float  # NOT a peak amplitude, determines the area under the graph similar to square pulse amplitude
     resonator_kappa_hz: float  # kappa/(2*pi), Hz
     detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
     detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
@@ -303,7 +303,7 @@ class DrachmaReadoutPulse(ReadoutPulse):
     def waveform_function(self):
         """Constructs a_in(t) per Eq. (7), applied as a direct time-domain
         differential operator on a_T(t) = sin^3(pi t / Tp)."""
-        norm = self.amplitude_integral_v_ns
+        norm = self.amplitude * self.length
         kappa = 2 * np.pi * self.resonator_kappa_hz * 1e-9
         a_T = self._trial_function()
         coeffs, n_states = self._differential_operator_coeffs()
