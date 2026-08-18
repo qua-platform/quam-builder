@@ -8,6 +8,7 @@ __all__ = [
     "FlatTopGaussianPulse",
     "FlatTopCosinePulse",
     "GaussianFilteredSquarePulse",
+    "DrachmaReadoutPulse",
 ]
 
 
@@ -255,16 +256,21 @@ class DrachmaReadoutPulse(ReadoutPulse):
     ground- and excited-state resonator frequencies (detuning_{0,1} = +-chi
     in the paper's notation, where chi is the dispersive shift).
 
-    Sampling convention: one waveform sample = 1 ns, so resonator_kappa_hz
-    and detuning_*_hz are given in Hz and converted internally (via a
-    factor of 1e-9) to the per-sample units used by kappa/2pi, chi/2pi in
-    the paper (e.g. kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
+    resonator_kappa_hz and detuning_*_hz are given in Hz and converted
+    internally (via a factor of 1/sample_rate) to the per-sample units used
+    by kappa/2pi, chi/2pi in the paper (e.g. for sample_rate = 1e9 Sa/s,
+    kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
+
+    Args:
+        sample_rate (float): Sample rate in Hz used to convert resonator_kappa_hz
+            and detuning_*_hz to per-sample units (default 1e9, i.e. 1 sample = 1 ns).
     """
 
     amplitude: float  # NOT a peak amplitude, determines the area under the graph similar to square pulse amplitude
     resonator_kappa_hz: float  # kappa/(2*pi), Hz
     detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
     detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
+    sample_rate: float = 1e9
 
     def _trial_function(self):
         """sin^3(pi t / Tp), sampled so BOTH endpoints are exactly zero.
@@ -278,10 +284,10 @@ class DrachmaReadoutPulse(ReadoutPulse):
         """Coefficients of the polynomial in D = d/dt for
         prod_j (kappa/2 + i*detuning_j + D). coeffs[k] multiplies the k-th
         time derivative of a_T(t)."""
-        kappa = 2 * np.pi * self.resonator_kappa_hz * 1e-9
+        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
         detunings = [
-            2 * np.pi * self.detuning_ground_hz * 1e-9,
-            2 * np.pi * self.detuning_excited_hz * 1e-9,
+            2 * np.pi * self.detuning_ground_hz / self.sample_rate,
+            2 * np.pi * self.detuning_excited_hz / self.sample_rate,
         ]
 
         coeffs = np.array([1.0 + 0.0j])
@@ -303,8 +309,23 @@ class DrachmaReadoutPulse(ReadoutPulse):
     def waveform_function(self):
         """Constructs a_in(t) per Eq. (7), applied as a direct time-domain
         differential operator on a_T(t) = sin^3(pi t / Tp)."""
+        if self.length < 2:
+            raise ValueError(
+                "DrachmaReadoutPulse.length must be at least 2 samples "
+                f"(got {self.length}); the trial function is undefined for length == 1."
+            )
+        if self.resonator_kappa_hz <= 0:
+            raise ValueError(
+                "DrachmaReadoutPulse.resonator_kappa_hz must be positive "
+                f"(got {self.resonator_kappa_hz})"
+            )
+        if self.sample_rate <= 0:
+            raise ValueError(
+                f"DrachmaReadoutPulse.sample_rate must be positive (got {self.sample_rate})"
+            )
+
         norm = self.amplitude * self.length
-        kappa = 2 * np.pi * self.resonator_kappa_hz * 1e-9
+        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
         a_T = self._trial_function()
         coeffs, n_states = self._differential_operator_coeffs()
 
@@ -315,6 +336,12 @@ class DrachmaReadoutPulse(ReadoutPulse):
             a_in += c_k * derivatives[k]
         a_in /= kappa ** (n_states / 2)
 
-        a_in = norm * a_in / np.sum(np.abs(a_in))  # normalize to desired amplitude
+        a_in_sum = np.sum(np.abs(a_in))
+        if a_in_sum == 0:
+            raise ValueError(
+                "DrachmaReadoutPulse waveform_function produced an all-zero waveform "
+                "before normalization; cannot normalize to the requested amplitude."
+            )
+        a_in = norm * a_in / a_in_sum  # normalize to desired amplitude
 
         return a_in
