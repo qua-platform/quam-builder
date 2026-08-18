@@ -236,6 +236,8 @@ class BalancedHeraldedInitializeMacro(BalancedInitializeMacro):
             target_state = _default_target_state(owner)
         if target_state is None:
             target_state = 0
+        vs = owner.voltage_sequence
+        gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
         loop_start_n, loop_start_bool = 0, True
 
         n_count = qua.declare(int)
@@ -260,6 +262,7 @@ class BalancedHeraldedInitializeMacro(BalancedInitializeMacro):
             qua.assign(n_count, n_count + 1)
             qubit = owner.machine.qubits[qubit_name]
             with qua.if_(cond):
+                qua.align(*gates, qubit.xy.name, owner.sensor_dots[0].readout_resonator.id)
                 qubit.apply(operation)
 
         if return_n_loops: 
