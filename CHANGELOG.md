@@ -6,22 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-19
+
 ### Added
 
 - Added `BaseQuam.twpa_keepalive()` to keep sticky TWPA pumps on across a real-time loop (#123).
-- Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
-- Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument.
+- Added default single-qubit gate macros for transmons (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) (#101).
+- Added `DrachmaReadoutPulse` readout scheme (#140).
+- Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
+- Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument (#121).
 
 ### Changed
 
-- **BREAKING:** Active-reset `max_attempts` must be a strictly positive, non-boolean integer. `max_attempts=1` selects a single-shot measure-and-conditional-pi reset with no `while_` retry loop; values greater than one permit retries, and `max_attempts=0` is invalid.
+- **BREAKING:** Active-reset `max_attempts` must be a strictly positive, non-boolean integer. `max_attempts=1` selects a single-shot measure-and-conditional-pi reset with no `while_` retry loop; values greater than one permit retries, and `max_attempts=0` is invalid (#138).
 
 ### Fixed
 
-- Fixed TWPA pump initialization being skipped in subsequent QUA programs due to process-global deduplication state ([#122](https://github.com/qua-platform/quam-builder/issues/122)).
-- Restored `AnyQuamQD` type alias (`Union[BaseQuamQD, LossDiVincenzoQuam]`) in `architecture.quantum_dots.qpu`, fixing imports used by `qualibration-libs`.
+- Fixed TWPA pump initialization being skipped in subsequent QUA programs due to process-global deduplication state ([#122](https://github.com/qua-platform/quam-builder/issues/122)) (#137).
+- Restored `AnyQuamQD` type alias (`Union[BaseQuamQD, LossDiVincenzoQuam]`) in `architecture.quantum_dots.qpu`. Required by `qualibration-libs` (`qualibration_libs/parameters/experiment.py`) (#142).
 - `add_default_transmon_pair_macros` now passes `flux_pulse_qubit="const"` (was `flux_pulse_control="const"`) to `CZGate`, matching the field rename introduced in v0.4.0 and aligning with the `"const"` pulse added to every `FluxTunableTransmon` Z line by `add_default_transmon_pulses`.
-- Applied black formatting across the entire repo.
+- Applied black formatting across the entire repo (#128).
 
 ## [0.4.0] - 2026-05-26
 
@@ -108,7 +112,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.5.0
 [0.4.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.4.0
 [0.3.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.3.0
 [0.2.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.2.0
