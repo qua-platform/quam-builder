@@ -104,6 +104,7 @@ class VoltageSequence:
         track_integrated_voltage: bool = True,
         keep_levels: bool = True,
         enforce_qua_calcs: bool = False,
+        limit_play_commands: bool = True,
     ):
         """
         Initializes the VoltageSequence.
@@ -137,6 +138,7 @@ class VoltageSequence:
 
         self._batched_voltages = None
         self._prog_id = None
+        self.limit_play_commands: bool = limit_play_commands
 
     def _initialise_attenuation_qua_vars(self) -> None:
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
@@ -335,12 +337,23 @@ class VoltageSequence:
                     "Ensure hold `duration` is sufficient."
                 )
 
+        changed_gates = set(target_voltages_dict.keys())
+
         if self._keep_levels:
             target_voltages_dict = self._keep_levels_tracker.update_voltage_dict_with_current(
                 target_voltages_dict
             )
 
         full_target_voltages_dict = self.gate_set.resolve_voltages(target_voltages_dict)
+        # For virtual gate sets:
+        if hasattr(self.gate_set, "influence_map") and self.limit_play_commands:
+            affected = set()
+            for gate in changed_gates:
+                affected = affected | self.gate_set.influence_map.get(gate, {gate})
+            full_target_voltages_dict = {
+                ch: v for ch, v in full_target_voltages_dict.items() if ch in affected
+            }
+
         if ensure_align:
             # this align is need for general use, as "step_to_voltages" adds math that can offset pulses in time
             # ensure_align allows to overwrite this, (currently only set to False inside apply_compensation_pulse)
@@ -372,7 +385,12 @@ class VoltageSequence:
                     ramp_duration,
                 )
 
-            if ramp_duration is None or (
+            if not is_qua_type(delta_v) and delta_v == 0.0:
+                # Skip the play command if the delta_v is zero. Also no need to update tracker.
+                # Integrated voltage is already tracked above.
+                continue
+
+            elif ramp_duration is None or (
                 not is_qua_type(ramp_duration) and int(float(str(ramp_duration))) == 0
             ):
                 self._play_step_on_channel(channel_obj, delta_v, duration)
@@ -384,6 +402,17 @@ class VoltageSequence:
                     duration,
                 )
             tracker.current_level = target_voltage
+        if (
+            self._track_integrated_voltage
+            and hasattr(self.gate_set, "influence_map")
+            and self.limit_play_commands
+        ):
+            for ch_name in self.gate_set.channels:
+                if ch_name not in affected:
+                    tracker = self.state_trackers[ch_name]
+                    tracker.update_integrated_voltage(
+                        tracker.current_level, duration, ramp_duration
+                    )
 
     def step_to_voltages(self, voltages: Dict[str, VoltageLevelType], duration: DurationType):
         """
