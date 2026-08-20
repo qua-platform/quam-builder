@@ -1,3 +1,4 @@
+> This document is the detailed guide for Quantum Dot Operations and Macros. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
 # Quantum Dots Operations and Macro Defaults
 
 This folder contains the default operations and catalog-based macro wiring system for quantum-dot QuAM components.
@@ -9,7 +10,7 @@ Core modules:
 
 - [`names.py`](./names.py): canonical string names (voltage points and macro names) as `StrEnum`s.
 - [`default_macros/`](./default_macros): built-in macro classes and default per-component macro maps.
-- [`macro_catalog.py`](./macro_catalog.py): `MacroCatalog` protocol, `MacroRegistry`, and built-in catalogs (`UtilityMacroCatalog`, `DefaultMacroCatalog`, `TypeOverrideCatalog`).
+- [`macro_catalog.py`](./macro_catalog.py): `MacroCatalog` protocol, `MacroRegistry`, and built-in catalogs (`UtilityMacroCatalog`, `DefaultMacroCatalog`, `VoltageBalancedMacroCatalog`, `TypeOverrideCatalog`).
 - [`pulse_catalog.py`](./pulse_catalog.py): helper builders for the default pulse materialization pass (`LDQubit` XY pulses, `SensorDot` readout).
 - [`../macro_engine/wiring.py`](../macro_engine/wiring.py): runtime wiring API (`wire_machine_macros`) that materializes macro and pulse defaults and applies overrides.
 - [`default_operations.py`](./default_operations.py): operation signatures exposed through `OperationsRegistry`.
@@ -231,7 +232,8 @@ qubit.xy.operations[qubit.macros["xy_drive"].reference_pulse_name]
 | Parameter | Where it lives | Affects |
 |-----------|---------------|---------|
 | Pi-pulse amplitude | `qubit.xy.operations["gaussian_x180"].amplitude` | All XY gates |
-| Pulse envelope | `qubit.xy.operations["gaussian_x90"]` (length, sigma) | All XY gates |
+| Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
+| Pulse length / shape | `qubit.xy.operations["gaussian_x90"]` (`length`, `sigma_ratio`, …) | All XY gates in that family |
 | Drive frequency | `qubit.xy.intermediate_frequency` | All XY gates |
 | Reference angle | `qubit.macros["xy_drive"].reference_angle` | Scale factor (default: pi) |
 | Voltage points | `qubit.add_point("initialize", {...})` | State macros |
@@ -247,6 +249,76 @@ Five pulse families (Gaussian, Square, Kaiser, Hermite, DRAG) are loaded per qub
 ### Readout Pulse
 
 `SquareReadoutPulse` named `"readout"` on each sensor dot resonator (length 2000 ns, amplitude 1.0).
+
+## Readout macros
+
+State and readout behaviour for dots and pairs is implemented in [`default_macros/state_macros.py`](default_macros/state_macros.py).
+
+| Macro | Component | Role |
+|-------|-----------|------|
+| **`SensorDotMeasureMacro`** | `SensorDot` | Plays readout pulse; with `quantum_dot_pair_id`, applies stored projector/threshold and returns a QUA boolean. |
+| **`MeasurePSBPairMacro`** | `QuantumDotPair`, `LDQubitPair` | Steps to `"measure"` voltage point (optional `buffer_duration`), aligns gates with resonator, delegates to sensor macro. |
+| **`QPUMeasureMacro`** | `QPU` | Broadcasts measure to active qubits/pairs/dots. |
+| **`InitializeStateMacro`**, **`EmptyStateMacro`**, **`ExchangeStateMacro`** | Many types | Voltage-point state transitions (ramp/step). |
+
+### Calibrating readout macros
+
+| Parameter | Macro | Notes |
+|-----------|-------|-------|
+| Measure voltage point | `MeasurePSBPairMacro.point` | Named point or explicit voltage dict |
+| Pre-readout buffer | `MeasurePSBPairMacro.buffer_duration` | Hold at measure point before RF pulse (ns) |
+| Threshold / projector | `SensorDot.readout_thresholds`, `readout_projectors` | Per pair; set via `_add_readout_params` |
+| Pulse name | `SensorDotMeasureMacro.pulse_name` | Default `"readout"`; pair-specific `"readout_{pair_id}"` if registered |
+
+`MeasurePSBPairMacro.inferred_duration` = `buffer_duration` + sensor readout pulse length — used for integrated-voltage tracking when enabled.
+
+Setup guide: [components/README.md](../components/README.md).
+
+## Voltage-balanced macros
+
+For **AC-coupled** gate lines, default state macros can leave a non-zero net integrated voltage. Register **`VoltageBalancedMacroCatalog`** (priority 200) to replace state macros with zero-integral variants:
+
+```python
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import VoltageBalancedMacroCatalog
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
+wire_machine_macros(machine, catalogs=[VoltageBalancedMacroCatalog()])
+```
+
+**Conventions** (see [`voltage_balanced_macros/state_macros.py`](voltage_balanced_macros/state_macros.py)):
+
+- **`initialize`** point is 0 V on every channel (rest state, not travelled to).
+- **`empty`** and **`measure`** points store **positive-polarity** targets; negative segments are derived at runtime.
+- Macros start and end at 0 V with zero net ∫V·dt per channel.
+
+Notable classes: `BalancedInitializeMacro`, `BalancedEmptyMacro`, `BalancedMeasurePSBPairMacro`, `BalancedDCz2QMacro`, `TwoStageBalancedInitializeMacro`.
+
+Examples: [`voltage_balanced_macros_example.py`](../examples/voltage_balanced_macros_example.py), [`dcz_macro_example.py`](../examples/dcz_macro_example.py), [`qm_example.py`](../examples/qm_example.py).
+
+## Two-qubit macros
+
+Default registrations on **`LDQubitPair`**:
+
+| Name | Default class | Status |
+|------|---------------|--------|
+| `cz` | `CZMacro` | Exchange-style CZ; requires calibrated `"exchange"` / detuning points |
+| `crot` | `CROTMacro` | Controlled rotation via virtual-Z on both qubits |
+| `cnot`, `swap`, `iswap` | Placeholder macros | Raise at runtime until you supply lab overrides |
+
+Override with `TypeOverrideCatalog`, instance overrides, or an external catalog. Detuning-based **`BalancedDCz2QMacro`** (balanced catalog) is demonstrated in [`dcz_macro_example.py`](../examples/dcz_macro_example.py).
+
+## OperationsRegistry
+
+[`default_operations.py`](default_operations.py) exposes a typed **`operations_registry`** for protocol-style code that dispatches by operation name:
+
+```python
+from quam_builder.architecture.quantum_dots.operations.default_operations import operations_registry
+
+operations_registry.x180(q1)
+operations_registry.measure(pair)
+```
+
+Each registered function is a stub; runtime dispatch goes to `component.macros[name]`. Prefer **`q.x180()`** when the component type is known; use the registry when writing generic algorithms over `QuantumComponent` / `Qubit` / `QubitPair`.
 
 ## External Macro Package Pattern
 
@@ -292,3 +364,5 @@ This keeps custom defaults out of `quam-builder` itself.
 - [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring and configuration.
 - [`../examples/full_workflow_example.py`](../examples/full_workflow_example.py): complete end-to-end workflow.
 - [`../examples/external_macro_package_example.py`](../examples/external_macro_package_example.py): external catalog package pattern.
+- [`../examples/voltage_balanced_macros_example.py`](../examples/voltage_balanced_macros_example.py): balanced state macros + cloud simulation.
+- [`../examples/dcz_macro_example.py`](../examples/dcz_macro_example.py): detuning-based CZ with balanced catalog.
