@@ -1,14 +1,14 @@
 from typing import Optional
 
-from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
+from quam.core import quam_dataclass
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
-    set_output_power_mw_channel,
+    get_output_power_iq_channel,
     get_output_power_mw_channel,
     set_output_power_iq_channel,
-    get_output_power_iq_channel,
+    set_output_power_mw_channel,
 )
 
 __all__ = ["XYDriveIQ", "XYDriveMW"]
@@ -127,7 +127,7 @@ class XYDriveMW(MWChannel, XYDriveBase):
         """
         Sets the power level in dBm for a specified operation, increasing the full-scale power
         in 3 dB steps if necessary until it covers the target power level, then scaling the
-        given operation’s amplitude to match exactly the target power level.
+        given operation's amplitude to match exactly the target power level.
 
         Parameters:
             power_in_dbm (float): The target power level in dBm for the operation.
@@ -135,6 +135,4 @@ class XYDriveMW(MWChannel, XYDriveBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(
-            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
-        )
+        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)

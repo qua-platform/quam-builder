@@ -1,9 +1,10 @@
 import math
 import warnings
+
 import numpy as np
 
-from quam.core import quam_dataclass
 from quam.components.pulses import Pulse
+from quam.core import quam_dataclass
 
 __all__ = [
     "DragGaussianPulse",
@@ -51,7 +52,7 @@ class DragGaussianPulse(Pulse):
     sigma: float
     alpha: float
     anharmonicity: float
-    detuning: float = 0.0
+    detuning: int = 0.0
     subtracted: bool = True
 
     def __post_init__(self) -> None:
@@ -114,7 +115,7 @@ class DragCosinePulse(Pulse):
     amplitude: float
     alpha: float
     anharmonicity: float
-    detuning: float = 0.0
+    detuning: int = 0.0
 
     def __post_init__(self) -> None:
         return super().__post_init__()
@@ -158,8 +159,7 @@ class FlatTopBlackmanPulse(Pulse):
         rise_fall_length = (self.length - self.flat_length) // 2
         if self.flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                "FlatTopBlackmanPulse requires (length - flat_length) to be even "
-                f"({self.length=} {self.flat_length=})"
+                f"FlatTopBlackmanPulse requires (length - flat_length) to be even ({self.length=} {self.flat_length=})"
             )
 
         wf = flattop_blackman_waveform(
@@ -224,8 +224,7 @@ class FlatTopTanhPulse(Pulse):
         rise_fall_length = (self.length - self.flat_length) // 2
         if self.flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                "FlatTopTanhPulse requires (length - flat_length) to be even "
-                f"({self.length=} {self.flat_length=})"
+                f"FlatTopTanhPulse requires (length - flat_length) to be even ({self.length=} {self.flat_length=})"
             )
 
         wf = flattop_tanh_waveform(
@@ -283,10 +282,7 @@ class CosineBipolarPulse(Pulse):
         if F > L:
             raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
-            raise ValueError(
-                f"CosineBipolarPulse.flat_length={F} must be even to split equally "
-                "into + and - halves."
-            )
+            raise ValueError(f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves.")
 
         remaining = L - F
         if remaining == 0:
@@ -366,17 +362,13 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
         if self.pulse_length % 2 != 0:
             raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative")
         if self.gaussian_filter_frequency_mhz <= 0:
             raise ValueError(
                 "GaussianFilteredSymmetricBipolarPulse.gaussian_filter_frequency_mhz must be positive (MHz)"
             )
         if self.sample_rate <= 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)")
 
         if self.amplitude == 0:
             return np.zeros(self.length, dtype=np.float64)

@@ -16,7 +16,7 @@ from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
 )
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-
+from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
 from quam_builder.builder.quantum_dots.build_utils import (
     _build_virtual_mapping,
     _extract_qdac_channel,
@@ -27,7 +27,6 @@ from quam_builder.builder.quantum_dots.build_utils import (
     _parse_qubit_pair_ids,
     _validate_line_type,
 )
-from quam_builder.builder.quantum_dots.build_qpu import QpuAssembly
 
 __all__ = ["_BaseQpuBuilder"]
 
@@ -130,9 +129,7 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                 if line_type == WiringLineType.SENSOR_GATE.value:
                     # Extract QDAC channel if present
                     qdac_channel = _extract_qdac_channel(line_wiring)
-                    sensor_channel = _make_voltage_gate_with_qdac(
-                        sensor_gate_id, wiring_path, qdac_channel
-                    )
+                    sensor_channel = _make_voltage_gate_with_qdac(sensor_gate_id, wiring_path, qdac_channel)
                 elif line_type == WiringLineType.RF_RESONATOR.value:
                     resonator = _make_resonator(sensor_gate_id, wiring_path, resonator_cls)
 
