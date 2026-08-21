@@ -312,11 +312,18 @@ class BaseQuamQD(QuamRoot):
         ]
         return virtual_name
 
-    def reset_voltage_sequence(self, gate_set_id) -> None:
+    def reset_voltage_sequence(self, gate_set_id: str, track_integrated_voltage: Optional[bool] = None) -> None:
+        """
+        Refresh the voltage sequence of a particular gate-set. 
+        Particularly useful for ensuring that the Quam machine is ready to track the integrated voltage, as it is off by default.
+        """
+        if track_integrated_voltage is None: 
+            track_integrated_voltage = self.track_integrated_voltage
+
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
             gate_set_id
         ].new_sequence(
-            track_integrated_voltage=self.track_integrated_voltage,
+            track_integrated_voltage=track_integrated_voltage,
             enforce_qua_calcs=self.track_integrated_voltage,
             limit_play_commands=self.limit_play_commands
         )
