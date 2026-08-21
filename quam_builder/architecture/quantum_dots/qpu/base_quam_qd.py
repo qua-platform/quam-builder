@@ -324,7 +324,7 @@ class BaseQuamQD(QuamRoot):
             gate_set_id
         ].new_sequence(
             track_integrated_voltage=track_integrated_voltage,
-            enforce_qua_calcs=self.track_integrated_voltage,
+            enforce_qua_calcs=track_integrated_voltage,
             limit_play_commands=self.limit_play_commands
         )
         return
