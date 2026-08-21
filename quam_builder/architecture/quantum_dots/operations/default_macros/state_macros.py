@@ -410,8 +410,7 @@ class MeasurePSBPairMacro(QuamMacro):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
         buf = self.buffer_duration if buffer_duration is None else buffer_duration
-        _step_to_target(owner, self.point, duration=buf)
-
+    
         if not owner.sensor_dots:
             raise ValueError(
                 f"QuantumDotPair '{owner.id}' has no sensor dots for readout."
@@ -426,6 +425,7 @@ class MeasurePSBPairMacro(QuamMacro):
                 gate_names = [ch.name for ch in gate_set.channels.values()]
 
         qua.align(sensor_dot.readout_resonator.name, *gate_names)
+        _step_to_target(owner, self.point, duration=buf)
 
         return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
             quantum_dot_pair_id=owner.id,
