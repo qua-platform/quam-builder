@@ -1,11 +1,19 @@
-from typing import Dict, Any, Literal, Optional, Union, List
 from dataclasses import field
-from qm.qua import align, wait
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from quam.core import quam_dataclass
+from qm.qua import align, wait
 from quam.components.quantum_components import QubitPair
+from quam.core import quam_dataclass
+from quam_builder.architecture.superconducting.components.cross_resonance_drive import (
+    CrossResonanceDriveIQ,
+    CrossResonanceDriveMW,
+)
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
+)
+from quam_builder.architecture.superconducting.components.zz_drive import (
+    ZZDriveIQ,
+    ZZDriveMW,
 )
 from quam_builder.architecture.superconducting.qubit.flux_tunable_transmon import (
     FluxTunableTransmon,
@@ -26,6 +34,8 @@ class FluxTunableTransmonPair(QubitPair):
         moving_qubit (Literal["control", "target"]): Which qubit carries the flux pulse during
             two-qubit gates such as CZ. Defaults to "control" for backwards compatibility.
         coupler (Optional[TunableCoupler]): The tunable coupler component.
+        cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
+        zz (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
         detuning (Optional[float]): Flux amplitude required to bring the qubits to the same energy in V
         confusion (list): The readout confusion matrix.
         mutual_flux_bias (List[float]): The mutual flux bias values for the control and target qubits. Default is [0, 0].
@@ -42,6 +52,8 @@ class FluxTunableTransmonPair(QubitPair):
     qubit_target: FluxTunableTransmon = None
     moving_qubit: Literal["control", "target"] = "control"
     coupler: Optional[TunableCoupler] = None
+    cross_resonance: Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]] = None
+    zz: Optional[Union[ZZDriveMW, ZZDriveIQ]] = None
 
     detuning: Optional[float] = None
     confusion: Optional[List[List[float]]] = None
@@ -56,6 +68,10 @@ class FluxTunableTransmonPair(QubitPair):
 
         if self.coupler:
             channels += [self.coupler.name]
+        if self.cross_resonance:
+            channels += [self.cross_resonance.name]
+        if self.zz:
+            channels += [self.zz.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
@@ -76,6 +92,10 @@ class FluxTunableTransmonPair(QubitPair):
 
         if self.coupler:
             channels += [self.coupler.name]
+        if self.cross_resonance:
+            channels += [self.cross_resonance.name]
+        if self.zz:
+            channels += [self.zz.name]
 
         # TODO We should not have a hardcoded macro dependency here
         if "CZ" in self.macros and hasattr(self.macros["CZ"], "compensations"):
