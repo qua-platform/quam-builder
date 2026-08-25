@@ -336,12 +336,19 @@ class BaseQuamQD(QuamRoot):
         if isinstance(global_channels, VoltageGate):
             global_channels = [global_channels]
         for ch in global_channels:
-            virtual_name = self._get_virtual_name(ch)
-            global_gate = GlobalGate(
-                id=virtual_name,
-                physical_channel=ch.get_reference(),
-            )
-            self.global_gates[virtual_name] = global_gate
+            if ch.opx_output is not None:
+                virtual_name = self._get_virtual_name(ch)
+                global_gate = GlobalGate(
+                    id=virtual_name,
+                    physical_channel=ch.get_reference(),
+                )
+                self.global_gates[virtual_name] = global_gate
+            else:
+                global_gate = GlobalGate(
+                    id=ch.name,
+                    physical_channel=ch,
+                )
+                self.global_gates[ch.name] = global_gate
 
     def register_channel_elements(
         self,
@@ -370,18 +377,22 @@ class BaseQuamQD(QuamRoot):
         """
         if isinstance(plunger_channels, Channel):
             plunger_channels = [plunger_channels]
+
         for ch in plunger_channels:
-            virtual_name = self._get_virtual_name(ch)
-            quantum_dot = QuantumDot(
-                id=virtual_name,  # Should now be the same as the virtual gate name
-                physical_channel=ch.get_reference(),
-            )
-            self.quantum_dots[virtual_name] = quantum_dot
+            if ch.opx_output is not None:
+                virtual_name = self._get_virtual_name(ch)
+                quantum_dot = QuantumDot(
+                    id=virtual_name,  # Should now be the same as the virtual gate name
+                    physical_channel=ch.get_reference(),
+                )
+                self.quantum_dots[virtual_name] = quantum_dot
+            else:
+                raise NotImplementedError(f"{ch.name} doesn't have an opx channel attached which is currently not supported.")
 
     def register_sensor_dots(
-        self,
-        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
-        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
+            self,
+            sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+            sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
     ) -> None:
         """
         Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
@@ -393,12 +404,19 @@ class BaseQuamQD(QuamRoot):
                 Dictionary where keys are sensor channels and values are their associated transport reservoir objects.
         """
         for ch, res in sensor_resonator_mappings.items():
-            virtual_name = self._get_virtual_name(ch)
-            sensor_dot = SensorDot(
-                id=virtual_name,
-                physical_channel=ch.get_reference(),
-            )
-            self.sensor_dots[virtual_name] = sensor_dot
+            if ch.opx_output is not None:
+                virtual_name = self._get_virtual_name(ch)
+                sensor_dot = SensorDot(
+                    id=virtual_name,
+                    physical_channel=ch.get_reference(),
+                )
+                self.sensor_dots[virtual_name] = sensor_dot
+            else:
+                sensor_dot = SensorDot(
+                    id=ch.name,
+                    physical_channel=ch,
+                )
+                self.sensor_dots[ch.name] = sensor_dot
             sensor_dot.physical_channel.readout = res
 
         if sensor_drain_mappings is not None:
@@ -408,22 +426,37 @@ class BaseQuamQD(QuamRoot):
                     sensor_dot = self.sensor_dots[virtual_name]
                     # Set the reservoir to the drain, which should already have the readout element attached
                     sensor_dot.readout_reservoir = drain
-                else:
-                    sensor_dot = SensorDot(
-                        id=virtual_name,
-                        physical_channel=ch.get_reference(),
-                    )
+                elif ch.name in self.sensor_dots:
+                    sensor_dot = self.sensor_dots[ch.name]
+                    # Set the reservoir to the drain, which should already have the readout element attached
                     sensor_dot.readout_reservoir = drain
-                    self.sensor_dots[virtual_name] = sensor_dot
+                else:
+                    if ch.opx_output is not None:
+                        sensor_dot = SensorDot(
+                            id=virtual_name,
+                            physical_channel=ch.get_reference(),
+                        )
+                        sensor_dot.readout_reservoir = drain
+                        self.sensor_dots[virtual_name] = sensor_dot
+                    else:
+                        sensor_dot = SensorDot(
+                            id=ch.name,
+                            physical_channel=ch,
+                        )
+                        sensor_dot.readout_reservoir = drain
+                        self.sensor_dots[ch.name] = sensor_dot
 
     def register_barrier_gates(self, barrier_channels: List[Channel]) -> None:
         for ch in barrier_channels:
-            virtual_name = self._get_virtual_name(ch)
-            barrier_gate = BarrierGate(
-                id=virtual_name,
-                physical_channel=ch.get_reference(),
-            )
-            self.barrier_gates[virtual_name] = barrier_gate
+            if ch.opx_output is not None:
+                virtual_name = self._get_virtual_name(ch)
+                barrier_gate = BarrierGate(
+                    id=virtual_name,
+                    physical_channel=ch.get_reference(),
+                )
+                self.barrier_gates[virtual_name] = barrier_gate
+            else:
+                raise NotImplementedError(f"{ch.name} doesn't have an opx channel attached which is currently not supported.")
 
     def wire_voltage_gate_qdac(
         self,
