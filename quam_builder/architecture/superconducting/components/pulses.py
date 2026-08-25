@@ -282,7 +282,9 @@ class CosineBipolarPulse(Pulse):
         if F > L:
             raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
-            raise ValueError(f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves.")
+            raise ValueError(
+                f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves."
+            )
 
         remaining = L - F
         if remaining == 0:
@@ -362,13 +364,17 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
         if self.pulse_length % 2 != 0:
             raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
-            raise ValueError("GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative")
+            raise ValueError(
+                "GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative"
+            )
         if self.gaussian_filter_frequency_mhz <= 0:
             raise ValueError(
                 "GaussianFilteredSymmetricBipolarPulse.gaussian_filter_frequency_mhz must be positive (MHz)"
             )
         if self.sample_rate <= 0:
-            raise ValueError("GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)")
+            raise ValueError(
+                "GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)"
+            )
 
         if self.amplitude == 0:
             return np.zeros(self.length, dtype=np.float64)

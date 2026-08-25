@@ -154,4 +154,6 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
             full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
             max_amplitude (Optional[float]):
         """
-        return set_output_power_mw_channel(self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude)
+        return set_output_power_mw_channel(
+            self, power_in_dbm, operation, full_scale_power_dbm, max_amplitude
+        )

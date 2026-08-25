@@ -3,7 +3,10 @@ from typing import Dict, ClassVar, Type, Union
 
 from quam.core import quam_dataclass
 
-from quam_builder.architecture.superconducting.qubit import FixedFrequencyTransmon, FixedFrequencyZZDriveTransmon
+from quam_builder.architecture.superconducting.qubit import (
+    FixedFrequencyTransmon,
+    FixedFrequencyZZDriveTransmon,
+)
 from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
 )
@@ -57,9 +60,7 @@ class FixedFrequencyZZDriveQuam(FixedFrequencyQuam):
     """
 
     qubit_type: ClassVar[Type[FixedFrequencyZZDriveTransmon]] = FixedFrequencyZZDriveTransmon
-    qubit_pair_type: ClassVar[Type[FixedFrequencyTransmonPair]] = (
-        FixedFrequencyTransmonPair
-    )
+    qubit_pair_type: ClassVar[Type[FixedFrequencyTransmonPair]] = FixedFrequencyTransmonPair
 
     qubits: Dict[str, FixedFrequencyZZDriveTransmon] = field(default_factory=dict)
     qubit_pairs: Dict[str, FixedFrequencyTransmonPair] = field(default_factory=dict)

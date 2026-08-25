@@ -153,7 +153,9 @@ class BaseQuam(QuamRoot):
             ValueError: If `qmm_settings` is not present in network configuration.
         """
         if "qmm_settings" not in self.network:
-            raise ValueError("qmm_settings is required for custom QMM but is not specified in network configuration")
+            raise ValueError(
+                "qmm_settings is required for custom QMM but is not specified in network configuration"
+            )
 
         settings = dict(self.network["qmm_settings"])
         logger.debug("Using custom qmm_settings for connection")
@@ -187,7 +189,9 @@ class BaseQuam(QuamRoot):
         # If flag is True, require qmm_class to be present
         if use_custom_qmm is True:
             if "qmm_class" not in self.network:
-                raise ValueError("use_custom_qmm is True but qmm_class is not specified in network configuration")
+                raise ValueError(
+                    "use_custom_qmm is True but qmm_class is not specified in network configuration"
+                )
 
         # If flag is undefined, check if qmm_class exists
         # If no qmm_class, use default QMM
@@ -220,7 +224,9 @@ class BaseQuam(QuamRoot):
         except ImportError as e:
             raise ImportError(f"Failed to import module '{module_path}': {e}") from e
         except AttributeError as e:
-            raise AttributeError(f"Class '{class_name}' not found in module '{module_path}': {e}") from e
+            raise AttributeError(
+                f"Class '{class_name}' not found in module '{module_path}': {e}"
+            ) from e
 
     def connect(self) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with credentials from network config.
@@ -255,7 +261,9 @@ class BaseQuam(QuamRoot):
         """
         # Validate network configuration exists
         if not self.network:
-            raise ValueError("Network configuration is missing. Please set the 'network' attribute.")
+            raise ValueError(
+                "Network configuration is missing. Please set the 'network' attribute."
+            )
 
         # Resolve QMM class and prepare connection settings
         try:
@@ -276,7 +284,9 @@ class BaseQuam(QuamRoot):
             return self.qmm
 
         except TypeError as e:
-            raise ConnectionError(f"Failed to initialize {qmm_class.__name__} with provided settings: {e}") from e
+            raise ConnectionError(
+                f"Failed to initialize {qmm_class.__name__} with provided settings: {e}"
+            ) from e
         except Exception as e:
             raise ConnectionError(f"Failed to connect to Quantum Machines Manager: {e}") from e
 
