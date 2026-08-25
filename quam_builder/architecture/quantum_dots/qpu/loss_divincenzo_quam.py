@@ -105,9 +105,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
 
         return instance
 
-    def get_component(
-        self, name: str
-    ) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
+    def get_component(self, name: str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
         """
         Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
 
@@ -197,9 +195,7 @@ class LossDiVincenzoQuam(BaseQuamQD):
             try:
                 qubit.calibrate_octave(QM)
             except NoCalibrationElements:
-                print(
-                    f"No calibration elements found for {qubit.id}. Skipping calibration."
-                )
+                print(f"No calibration elements found for {qubit.id}. Skipping calibration.")
 
     @property
     def active_qubits(self) -> List[AnySpinQubit]:

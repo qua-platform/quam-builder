@@ -268,7 +268,7 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
 def _build_virtual_mapping(
     prefix: str, channels: Sequence[VoltageGate]
 ) -> Tuple[Dict[str, VoltageGate], Dict[str, str]]:
-    """Build bidirectional mapping between virtual names and physical channels.
+    """Build bidirectional mapping between virtual names and physical channels, only if an OPX channel is attached.
 
     Args:
         prefix: Prefix for virtual channel names (e.g., 'virtual_dot').
@@ -281,9 +281,10 @@ def _build_virtual_mapping(
     physical_to_virtual: Dict[str, str] = {}
 
     for index, channel in enumerate(channels, start=1):
-        virtual_name = f"{prefix}_{index}"
-        virtual_to_channel[virtual_name] = channel
-        physical_to_virtual[channel.id] = virtual_name
+        if channel.opx_output is not None:
+            virtual_name = f"{prefix}_{index}"
+            virtual_to_channel[virtual_name] = channel
+            physical_to_virtual[channel.id] = virtual_name
 
     return virtual_to_channel, physical_to_virtual
 
