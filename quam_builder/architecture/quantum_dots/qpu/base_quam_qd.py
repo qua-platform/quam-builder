@@ -136,9 +136,7 @@ class BaseQuamQD(QuamRoot):
 
         valid = {e.value for e in DrivePulseName}
         if family not in valid:
-            raise ValueError(
-                f"Unknown pulse family '{family}'. Choose from: {sorted(valid)}"
-            )
+            raise ValueError(f"Unknown pulse family '{family}'. Choose from: {sorted(valid)}")
         self.pulse_family = family
         for qubit in getattr(self, "qubits", {}).values():
             for macro in getattr(qubit, "macros", {}).values():
@@ -163,14 +161,14 @@ class BaseQuamQD(QuamRoot):
         if gate_set_id not in self.voltage_sequences:
             gate_set = self.virtual_gate_sets[gate_set_id]
             seq = gate_set.new_sequence(
-                track_integrated_voltage=self.track_integrated_voltage, enforce_qua_calcs=self.track_integrated_voltage, limit_play_commands=self.limit_play_commands
+                track_integrated_voltage=self.track_integrated_voltage,
+                enforce_qua_calcs=self.track_integrated_voltage,
+                limit_play_commands=self.limit_play_commands,
             )
 
             for qd_id, qd in self.quantum_dots.items():
                 try:
-                    qd_gate_set_name = self._get_virtual_gate_set(
-                        qd.physical_channel
-                    ).id
+                    qd_gate_set_name = self._get_virtual_gate_set(qd.physical_channel).id
                     if qd_gate_set_name == gate_set.id:
                         seq.state_trackers[qd.id].current_level = qd.current_voltage
                 except (AttributeError, ValueError, KeyError):
@@ -185,9 +183,7 @@ class BaseQuamQD(QuamRoot):
             seq = self.get_voltage_sequence(gate_set_id)
             seq.declare_qua_variables()
 
-    def get_component(
-        self, name: str
-    ) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
+    def get_component(self, name: str) -> Union[AnySpinQubit, QuantumDot, SensorDot, BarrierGate]:
         """
         Retrieve a component object by name from qubits, qubit_pairs, quantum_dots, quantum_dot_pairs, sensor_dots, or barrier_gates
 
@@ -249,9 +245,7 @@ class BaseQuamQD(QuamRoot):
         for ch in self.physical_channels.values():
             dac_name = getattr(ch.dac_spec, "dac_name", "main")
             if dac_name not in dac_instances:
-                print(
-                    f"WARNING: {ch.id} references {dac_name}, but no config found. Skipping"
-                )
+                print(f"WARNING: {ch.id} references {dac_name}, but no config found. Skipping")
                 continue
             dac_info = dac_instances[dac_name]
             dac_channel = getattr(dac_info["driver"], dac_info["channel_method"])(
@@ -265,9 +259,9 @@ class BaseQuamQD(QuamRoot):
                 and ch.offset_parameter is not None
             ):
                 ch.offset_parameter(ch.current_external_voltage)
-        for gate_set_id in self.virtual_gate_sets.keys(): 
+        for gate_set_id in self.virtual_gate_sets.keys():
             virtual_dc_set = self.virtual_dc_sets.get(gate_set_id, None)
-            if virtual_dc_set is None: 
+            if virtual_dc_set is None:
                 self.create_virtual_dc_set(
                     gate_set_id = gate_set_id
                 )
@@ -303,21 +297,17 @@ class BaseQuamQD(QuamRoot):
                 break  # Found it, exit loop
 
         if physical_name is None:
-            raise ValueError(
-                f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}"
-            )
+            raise ValueError(f"Channel {channel.id} not associated with VirtualGateSet {vgs_name}")
 
-        virtual_name = vgs.layers[0].source_gates[
-            vgs.layers[0].target_gates.index(physical_name)
-        ]
+        virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
     def reset_voltage_sequence(self, gate_set_id: str, track_integrated_voltage: Optional[bool] = None) -> None:
         """
-        Refresh the voltage sequence of a particular gate-set. 
+        Refresh the voltage sequence of a particular gate-set.
         Particularly useful for ensuring that the Quam machine is ready to track the integrated voltage, as it is off by default.
         """
-        if track_integrated_voltage is None: 
+        if track_integrated_voltage is None:
             track_integrated_voltage = self.track_integrated_voltage
 
         self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
@@ -424,6 +414,10 @@ class BaseQuamQD(QuamRoot):
                 virtual_name = self._get_virtual_name(ch)
                 if virtual_name in self.sensor_dots:
                     sensor_dot = self.sensor_dots[virtual_name]
+                    # Set the reservoir to the drain, which should already have the readout element attached
+                    sensor_dot.readout_reservoir = drain
+                elif ch.name in self.sensor_dots:
+                    sensor_dot = self.sensor_dots[ch.name]
                     # Set the reservoir to the drain, which should already have the readout element attached
                     sensor_dot.readout_reservoir = drain
                 elif ch.name in self.sensor_dots:
@@ -579,31 +573,23 @@ class BaseQuamQD(QuamRoot):
         """
 
         if len(quantum_dot_ids) != 2:
-            raise ValueError(
-                f"Must be 2 QuantumDot objects. Received {len(quantum_dot_ids)}"
-            )
+            raise ValueError(f"Must be 2 QuantumDot objects. Received {len(quantum_dot_ids)}")
 
         qd_names = quantum_dot_ids
         name_check = self.find_quantum_dot_pair(qd_names[0], qd_names[1])
         if name_check is not None:
-            raise ValueError(
-                f"Quantum Dot Pairing already exists with name {name_check}"
-            )
+            raise ValueError(f"Quantum Dot Pairing already exists with name {name_check}")
 
         for name in qd_names:
             if name not in self.quantum_dots:
-                raise ValueError(
-                    f"Quantum Dot {name} not registered. Please register first"
-                )
+                raise ValueError(f"Quantum Dot {name} not registered. Please register first")
         if id is None:
             id = f"{qd_names[0]}_{qd_names[1]}"
 
         sensor_names = sensor_dot_ids
         for name in sensor_names:
             if name not in self.sensor_dots:
-                raise ValueError(
-                    f"Sensor Dot {name} not registered. Please register first"
-                )
+                raise ValueError(f"Sensor Dot {name} not registered. Please register first")
 
         if barrier_gate_id is not None:
             barrier_name = barrier_gate_id
@@ -682,9 +668,7 @@ class BaseQuamQD(QuamRoot):
                 gate_name = self.qubits[gate_name].quantum_dot.id
             processed_voltages[gate_name] = voltage
 
-        return self.virtual_gate_sets[gate_set_id].add_point(
-            name, processed_voltages, duration
-        )
+        return self.virtual_gate_sets[gate_set_id].add_point(name, processed_voltages, duration)
 
     def create_virtual_gate_set(
         self,
@@ -758,9 +742,7 @@ class BaseQuamQD(QuamRoot):
             )
         vgs = self.virtual_gate_sets[gate_set_id]
 
-        channel_mapping = {
-            name: ch.get_reference() for name, ch in vgs.channels.items()
-        }
+        channel_mapping = {name: ch.get_reference() for name, ch in vgs.channels.items()}
 
         allow_rectangular_matrices = vgs.allow_rectangular_matrices
 
@@ -826,9 +808,7 @@ class BaseQuamQD(QuamRoot):
                     full_matrix_i = source_index[virtual_name]
 
                     # Replace the matrix elemeent
-                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][
-                        subspace_j
-                    ]
+                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][subspace_j]
             return full_matrix
 
         if target == "opx" or target == "both":
@@ -857,9 +837,7 @@ class BaseQuamQD(QuamRoot):
             virtual_gate_set_name is not None
             and virtual_gate_set_name not in self.virtual_gate_sets
         ):
-            raise ValueError(
-                f"No such VirtualGateSet. Received {virtual_gate_set_name}"
-            )
+            raise ValueError(f"No such VirtualGateSet. Received {virtual_gate_set_name}")
         if virtual_gate_set_name is None:
             virtual_gate_set_name = next(iter(self.virtual_gate_sets.keys()))
 
@@ -880,14 +858,14 @@ class BaseQuamQD(QuamRoot):
         If default_to_zero = True, then all the unnamed qubit values will be defaulted to zero.
         If default_to_zero = False, then unnamed qubits will be kept at their last tracked level.
         """
-        if gate_set_name is not None and gate_set_name not in list(
-            self.virtual_gate_sets.keys()
-        ):
+        if gate_set_name is not None and gate_set_name not in list(self.virtual_gate_sets.keys()):
             raise ValueError("Gate Set not found in Quam")
         if gate_set_name is None:
             gate_set_name = list(self.virtual_gate_sets.keys())[0]
         new_sequence = self.virtual_gate_sets[gate_set_name].new_sequence(
-            track_integrated_voltage=self.track_integrated_voltage, enforce_qua_calcs=self.track_integrated_voltage, limit_play_commands=self.limit_play_commands
+            track_integrated_voltage=self.track_integrated_voltage,
+            enforce_qua_calcs=self.track_integrated_voltage,
+            limit_play_commands=self.limit_play_commands,
         )
 
         actual_voltages = {}
@@ -917,7 +895,9 @@ class BaseQuamQD(QuamRoot):
         except:
             raise RuntimeError(f"Failed to initialise qubit {qubit_name}")
 
-    def connect(self, skip_dacs: bool=True, reset_voltages: bool = False, timeout: Optional[float] = None) -> QuantumMachinesManager:
+    def connect(
+        self, skip_dacs: bool = True, reset_voltages: bool = False, timeout: Optional[float] = None
+    ) -> QuantumMachinesManager:
         """Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
 
         Args:
@@ -994,15 +974,10 @@ class BaseQuamQD(QuamRoot):
         # Ensure that all the current_external_voltage values in VoltageGates are synchronised to the actual value, right before serialisation. This
         # ensures that the right value is saved.
         for ch in self.physical_channels.values():
-            if (
-                hasattr(ch, "current_external_voltage")
-                and ch.offset_parameter is not None
-            ):
+            if hasattr(ch, "current_external_voltage") and ch.offset_parameter is not None:
                 ch.current_external_voltage = float(ch.offset_parameter())
 
-        d = super().to_dict(
-            follow_references=follow_references, include_defaults=include_defaults
-        )
+        d = super().to_dict(follow_references=follow_references, include_defaults=include_defaults)
 
         # We treat the voltage_sequences as a runtime helper, and not as a Quam component. That way, it does not get serialised.
         # All the relevant information about the sequence (points, macros) are stored on the QuantumDot/Qubit level and/or the VirtualGateSet level.
@@ -1047,7 +1022,7 @@ class BaseQuamQD(QuamRoot):
             instance.voltage_sequences[gate_set_id] = vgs.new_sequence(
                 track_integrated_voltage=instance.track_integrated_voltage,
                 enforce_qua_calcs=instance.track_integrated_voltage,
-                limit_play_commands=instance.limit_play_commands
+                limit_play_commands=instance.limit_play_commands,
             )
 
         # We can also update the state_tracker here to hold the value held by QuantumDot.current_voltage.
