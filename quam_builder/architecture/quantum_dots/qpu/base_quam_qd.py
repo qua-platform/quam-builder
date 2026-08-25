@@ -77,6 +77,8 @@ class BaseQuamQD(QuamRoot):
         get_serialiser: Get the serialiser for the QuamRoot class, which is the JSONSerialiser.
         get_octave_config: Return the Octave configuration.
         connect: Open a Quantum Machine Manager with the credentials ("host" and "cluster_name") as defined in the network file.
+        connect_to_external_source: Open configured DAC drivers and bind channel offset parameters.
+        disconnect_from_external_source: Close DAC drivers and clear runtime DAC bindings.
         calibrate_octave_ports: Calibrate the Octave ports for all the active qubits.
         declare_qua_variables: Macro to declare the necessary QUA variables for all qubits.
         initialize_qpu: Initialize the QPU with the specified settings.
@@ -206,6 +208,20 @@ class BaseQuamQD(QuamRoot):
 
         raise ValueError(f"Element {name} not found in Quam")
 
+    @staticmethod
+    def _require_closeable_dac_driver(
+        driver: Any,
+        *,
+        dac_name: str,
+        driver_class_name: Optional[str] = None,
+    ) -> None:
+        """Raise if ``driver`` does not expose a callable ``close`` method."""
+        if not callable(getattr(driver, "close", None)):
+            label = driver_class_name or type(driver).__name__
+            raise TypeError(
+                f"DAC driver {label!r} for {dac_name!r} must implement a callable .close() method"
+            )
+
     def connect_to_external_source(
         self,
         reset_voltages: bool = False,
@@ -227,6 +243,9 @@ class BaseQuamQD(QuamRoot):
             "accessor": "dc_constant_V",
             "is_qdac": true
         }
+
+        Constructed drivers are required to implement a callable ``.close()`` method.
+        Use :meth:`disconnect_from_external_source` to close connections when finished.
         """
         if not self.dac_config:
             raise ValueError(
@@ -235,19 +254,32 @@ class BaseQuamQD(QuamRoot):
 
         dac_instances = self.dacs
         for dac_name, config in self.dac_config.items():
+            if not config:
+                continue
             module = importlib.import_module(config["driver_module"])
             dac_class = getattr(module, config["driver_class"])
             if dac_name in dac_instances:
-                dac_instances[dac_name]["driver"].close()
+                old_driver = dac_instances[dac_name]["driver"]
+                self._require_closeable_dac_driver(old_driver, dac_name=dac_name)
+                old_driver.close()
+            driver = dac_class(dac_name, **config["connection"])
+            self._require_closeable_dac_driver(
+                driver,
+                dac_name=dac_name,
+                driver_class_name=config["driver_class"],
+            )
             dac_instances[dac_name] = {
-                "driver": dac_class(dac_name, **config["connection"]),
+                "driver": driver,
                 "channel_method": config["channel_method"],
                 "accessor": config["accessor"],
                 "is_qdac": config.get("is_qdac", False),
             }
 
         for ch in self.physical_channels.values():
-            dac_name = getattr(ch.dac_spec, "dac_name", "main")
+            dac_spec = getattr(ch, "dac_spec", None)
+            if dac_spec is None:
+                continue
+            dac_name = getattr(dac_spec, "dac_name", "main")
             if dac_name not in dac_instances:
                 print(
                     f"WARNING: {ch.id} references {dac_name}, but no config found. Skipping"
@@ -255,7 +287,7 @@ class BaseQuamQD(QuamRoot):
                 continue
             dac_info = dac_instances[dac_name]
             dac_channel = getattr(dac_info["driver"], dac_info["channel_method"])(
-                ch.dac_spec.output_port
+                dac_spec.output_port
             )
             ch.offset_parameter = getattr(dac_channel, dac_info["accessor"])
 
@@ -273,6 +305,21 @@ class BaseQuamQD(QuamRoot):
                 )
             else:
                 virtual_dc_set.all_current_voltages
+
+    def disconnect_from_external_source(self) -> None:
+        """Close ethernet/USB (or equivalent) connections for all connected DAC drivers.
+
+        Calls ``.close()`` on every driver in :attr:`dacs`. Does not modify QUAM
+        configuration (``dac_config``, ``dac_spec``, ``offset_parameter``, etc.) and
+        does not remove entries from :attr:`dacs`. Drivers must implement a callable
+        ``.close()`` method.
+        """
+        for dac_name, info in list(self.dacs.items()):
+            driver = info.get("driver")
+            if driver is None:
+                continue
+            self._require_closeable_dac_driver(driver, dac_name=dac_name)
+            driver.close()
 
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
