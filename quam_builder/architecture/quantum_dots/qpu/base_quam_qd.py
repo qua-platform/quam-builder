@@ -262,9 +262,7 @@ class BaseQuamQD(QuamRoot):
         for gate_set_id in self.virtual_gate_sets.keys():
             virtual_dc_set = self.virtual_dc_sets.get(gate_set_id, None)
             if virtual_dc_set is None:
-                self.create_virtual_dc_set(
-                    gate_set_id = gate_set_id
-                )
+                self.create_virtual_dc_set(gate_set_id=gate_set_id)
             else:
                 virtual_dc_set.all_current_voltages
 
@@ -302,7 +300,9 @@ class BaseQuamQD(QuamRoot):
         virtual_name = vgs.layers[0].source_gates[vgs.layers[0].target_gates.index(physical_name)]
         return virtual_name
 
-    def reset_voltage_sequence(self, gate_set_id: str, track_integrated_voltage: Optional[bool] = None) -> None:
+    def reset_voltage_sequence(
+        self, gate_set_id: str, track_integrated_voltage: Optional[bool] = None
+    ) -> None:
         """
         Refresh the voltage sequence of a particular gate-set.
         Particularly useful for ensuring that the Quam machine is ready to track the integrated voltage, as it is off by default.
@@ -310,12 +310,10 @@ class BaseQuamQD(QuamRoot):
         if track_integrated_voltage is None:
             track_integrated_voltage = self.track_integrated_voltage
 
-        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[
-            gate_set_id
-        ].new_sequence(
+        self.voltage_sequences[gate_set_id] = self.virtual_gate_sets[gate_set_id].new_sequence(
             track_integrated_voltage=track_integrated_voltage,
             enforce_qua_calcs=track_integrated_voltage,
-            limit_play_commands=self.limit_play_commands
+            limit_play_commands=self.limit_play_commands,
         )
         return
 
@@ -377,12 +375,14 @@ class BaseQuamQD(QuamRoot):
                 )
                 self.quantum_dots[virtual_name] = quantum_dot
             else:
-                raise NotImplementedError(f"{ch.name} doesn't have an opx channel attached which is currently not supported.")
+                raise NotImplementedError(
+                    f"{ch.name} doesn't have an opx channel attached which is currently not supported."
+                )
 
     def register_sensor_dots(
-            self,
-            sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
-            sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
+        self,
+        sensor_resonator_mappings: Dict[Channel, ReadoutResonatorBase],
+        sensor_drain_mappings: Dict[Channel, DrainSingle] = None,
     ) -> None:
         """
         Creates SensorDot objects from a dictionary mapping sensor channels to their readout channels.
@@ -450,7 +450,9 @@ class BaseQuamQD(QuamRoot):
                 )
                 self.barrier_gates[virtual_name] = barrier_gate
             else:
-                raise NotImplementedError(f"{ch.name} doesn't have an opx channel attached which is currently not supported.")
+                raise NotImplementedError(
+                    f"{ch.name} doesn't have an opx channel attached which is currently not supported."
+                )
 
     def wire_voltage_gate_qdac(
         self,
