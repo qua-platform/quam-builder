@@ -295,7 +295,7 @@ Setup guide: [components/README.md](../components/README.md).
 
 ## Voltage-balanced macros
 
-For **AC-coupled** gate lines, default state macros can leave a non-zero net integrated voltage. Register **`VoltageBalancedMacroCatalog`** (priority 200) to replace state macros with zero-integral variants:
+For **AC-coupled** gate lines, default state macros can leave a non-zero net integrated voltage. Register **`VoltageBalancedMacroCatalog`** to replace state macros with zero-integral variants:
 
 ```python
 from quam_builder.architecture.quantum_dots.operations.macro_catalog import VoltageBalancedMacroCatalog
