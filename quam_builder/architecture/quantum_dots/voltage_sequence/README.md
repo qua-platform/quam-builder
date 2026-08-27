@@ -11,6 +11,7 @@
 3. Inside `program()`: `seq = gate_set.new_sequence()` then `seq.step_to_point(...)`.
 4. Default **`keep_levels=True`**: omitted gates keep their last value.
 
+Hands-on (no hardware): [voltage sequence lab](../../../../tutorials/voltage_sequence.ipynb). 
 Full copy-paste workflow: [§8 Full End to End Example](#8-full-end-to-end-example).
 
 ## 1. Introduction

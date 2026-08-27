@@ -153,7 +153,7 @@ Override patterns (single macro, type-level, TOML profile): [operations/README.m
 
 ### Read next
 
-1. **Voltage sequences** — sticky DC, named points, `keep_levels`: [voltage_sequence/README.md](voltage_sequence/README.md).
+1. **Voltage sequences** — [voltage sequence lab](../../../tutorials/voltage_sequence.ipynb) (sticky DC, named point, `keep_levels`), then the [full guide](voltage_sequence/README.md).
 2. **Macros and overrides** — [operations/README.md](operations/README.md) and the [macro customization tutorial](../../../tutorials/macro_customization.ipynb).
 3. **Readout and XY hardware** — [components/README.md](components/README.md) and [qpu/README.md](qpu/README.md).
 
