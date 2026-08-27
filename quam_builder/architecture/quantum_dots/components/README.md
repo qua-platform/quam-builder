@@ -40,7 +40,7 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
    }
    ```
 
-4. **Measure in QUA** — `pair.measure()` (via **`MeasurePSBPairMacro`**) steps to the `"measure"` voltage point, aligns gates with the resonator, and calls **`SensorDotMeasureMacro`** for state assignment.
+4. **Measure in QUA** — `pair.measure()` (via **`MeasurePSBPairMacro`** see [operations/default_macros/state_macros.py](../operations/default_macros/state_macros.py)) steps to the `"measure"` voltage point, aligns gates with the resonator, and calls **`SensorDotMeasureMacro`** for state assignment.
 
 Example end-to-end: [`rabi_chevron.py`](../examples/rabi_chevron.py).
 
@@ -93,7 +93,9 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 ## DAC integration
 
-**`DacSpec`** and **`QdacSpec`** on **`VoltageGate`** attach metadata for external DAC channels (e.g. QDAC-II trigger routing). The gate's **`offset_parameter`** can point at a QCoDeS driver for Python-side offsets while the OPX plays sticky pulses. See [`dac_spec.py`](dac_spec.py) and [`virtual_dc_set_example.py`](../examples/virtual_dc_set_example.py) for combined OPX + external-DC setups.
+**`DacSpec`** and **`QdacSpec`** on **`VoltageGate`** attach metadata for external DAC channels (e.g. QDAC-II trigger routing). The gate's **`offset_parameter`** can point at a instrument driver for Python-side offsets while the OPX plays sticky pulses. See [`dac_spec.py`](dac_spec.py) and [`virtual_dc_set_example.py`](../examples/virtual_dc_set_example.py) for combined OPX + external-DC setups.
+
+**`QdacSpec`** exposes more of the Qdac-II specific functionality but is subclassing **`DacSpec`**
 
 ## Related components (brief)
 

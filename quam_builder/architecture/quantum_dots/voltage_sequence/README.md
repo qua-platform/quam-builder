@@ -750,9 +750,9 @@ with program() as prog:
 
 All targets are **absolute** sticky levels, not deltas. Enable `track_integrated_voltage=True` only when you need `apply_compensation_pulse()` on AC-coupled lines.
 
-## 9. Exchange-only qubits: detuning axis
+## 9. Detuning axis
 
-For **exchange-only** or similar layouts, experiments often tune **inter-dot detuning** ε rather than individual plunger voltages. The package provides a dedicated virtual axis on **`QuantumDotPair`**:
+Experiments often tune **inter-dot detuning** ε rather than individual plunger voltages. The package provides a dedicated virtual axis on **`QuantumDotPair`**:
 
 ```python
 # After registering the pair on the machine (see quam_qd_example.py)

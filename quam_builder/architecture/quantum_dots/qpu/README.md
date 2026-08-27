@@ -1,4 +1,4 @@
-> This document is the detailed guide for Loss DiVincenzo and spin-qubit quam. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
+> This document is the detailed guide for quantum dot and loss divincenzo quam. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
 
 # Loss DiVincenzo and spin-qubit QuAM
 
