@@ -166,7 +166,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 - This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
 
   ```python
-  my_gate_set.add_point(name="idle", voltages={"channel_P1": 0.1, "channel_P2": -0.05}, duration=1000)
+  my_gate_set.add_point(name="idle", voltages={"channel_p1": 0.1, "channel_p2": -0.05}, duration=1000)
   ```
 
 - Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
@@ -282,7 +282,7 @@ A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate`
 
 - `adjust_for_attenuation` (bool, default `False`): When `True`, pulse amplitudes sent to the OPX are scaled to account for each channel’s `attenuation` (dB). Compensation pulse limits also respect the effective voltage at the sample.
 
-- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=False, limit_play_commands=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details.
+- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=True, limit_play_commands=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details. Direct `GateSet.new_sequence()` defaults `enforce_qua_calcs` to `True`. Machine helpers such as `BaseQuamQD.get_voltage_sequence()` instead pass `enforce_qua_calcs=self.track_integrated_voltage`.
 
 - While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
 
@@ -342,7 +342,7 @@ voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)  # P1 driven to 0.0 (om
 |-----------|---------|-------------|
 | `track_integrated_voltage` | `False` | Track ∫V·dt per physical channel for `apply_compensation_pulse()`. |
 | `keep_levels` | `True` | Hold last voltage for omitted physical/virtual gate names (recommended). |
-| `enforce_qua_calcs` | `False` | If `True`, promote per-channel `current_level` to a QUA `fixed` variable at init so level tracking stays correct when targets are QUA expressions. |
+| `enforce_qua_calcs` | `True` | If `True`, promote per-channel `current_level` to a QUA `fixed` variable at init so level tracking stays correct when targets are QUA expressions. This is the `GateSet.new_sequence()` default. `BaseQuamQD.get_voltage_sequence()` (and similar helpers) set it to `track_integrated_voltage` instead. |
 | `limit_play_commands` | `False` | If `True` and the gate set has an `influence_map`, only physical channels affected by the gates you change receive `play`/`ramp` commands (reduces redundant pulses on coupled gates). Set via `BaseQuamQD.limit_play_commands` or `GateSet.new_sequence(...)`. |
 
 ```python
@@ -350,7 +350,7 @@ with program() as prog:
     voltage_seq = my_gate_set.new_sequence(
         track_integrated_voltage=True,  # enable compensation pulses
         keep_levels=True,               # default; hold omitted gates
-        enforce_qua_calcs=False,
+        enforce_qua_calcs=True,          # GateSet.new_sequence default
         limit_play_commands=False,
     )
 ```
@@ -802,8 +802,8 @@ Consolidated constraints when mixing voltage sequences, XY drives, and readout.
 ### QUA variables
 
 - Voltage targets and durations can be QUA variables for dynamic sweeps.
-- Set **`enforce_qua_calcs=True`** on `new_sequence()` when targets are QUA expressions so per-channel level trackers promote to QUA `fixed` variables and stay consistent across branches.
-- On **`BaseQuamQD`**, `enforce_qua_calcs` defaults to match `track_integrated_voltage`.
+- Set **`enforce_qua_calcs=True`** on `new_sequence()` when targets are QUA expressions so per-channel level trackers promote to QUA `fixed` variables and stay consistent across branches. This is already the default on **`GateSet.new_sequence()`**.
+- On **`BaseQuamQD`**, machine helpers (`get_voltage_sequence()` and similar) set `enforce_qua_calcs` to match `track_integrated_voltage`. Direct `gate_set.new_sequence()` does not.
 - When using QUA variable **`ramp_duration`**, ensure hold **`duration`** is long enough for the ramp to complete (the implementation prints guidance at compile time).
 
 ### Common causes of timing gaps or overlap

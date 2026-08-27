@@ -34,11 +34,10 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
 3. **Discrimination** — store threshold and projector per pair:
 
    ```python
-   sensor._add_readout_params(
-       quantum_dot_pair_id="dot1_dot2_pair",
-       threshold=0.12,
-       projector={"wI": 1.0, "wQ": 0.0, "offset": 0.0},
-   )
+   sensor.readout_thresholds["dot1_dot2_pair"] = 0.12
+   sensor.readout_projectors["dot1_dot2_pair"] = {
+       "wI": 1.0, "wQ": 0.0, "offset": 0.0,
+   }
    ```
 
 4. **Measure in QUA** — `pair.measure()` (via **`MeasurePSBPairMacro`**) steps to the `"measure"` voltage point, aligns gates with the resonator, and calls **`SensorDotMeasureMacro`** for state assignment.

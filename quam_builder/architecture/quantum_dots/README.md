@@ -19,23 +19,31 @@ This package replaces that with a **serialized QuAM machine**: named voltage poi
 
 ```python
 # Manual delta pulses; easy to lose track of absolute levels with sticky elements
-play("half_max_square", "plunger_1", amplitude_scale=0.12)
-wait(1000, "plunger_1")
-play("half_max_square", "plunger_2", amplitude_scale=-0.05)
-# Separate XY pulse block, timing left to the user
-play("gaussian_x180", "q1_xy", amplitude_scale=0.8)
+with program() as prog:
+    play("half_max_square", "plunger_1", amplitude_scale=0.12)
+    wait(1000, "plunger_1")
+    play("half_max_square", "plunger_2", amplitude_scale=-0.05)
+    # Separate XY pulse block, timing left to the user
+    play("gaussian_x180", "q1_xy", amplitude_scale=0.8)
 ```
 
 **After (QuAM + macros):**
 
 ```python
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+
+machine = build_tutorial_machine() 
+q1 = machine.qubits["q1"]
+
 with program() as prog:
-    seq = machine.virtual_gate_sets["dots"].new_sequence()
-    q1 = machine.qubits["q1"]
-    q1.initialize()          # ramp to named "initialize" voltage point
-    q1.x180()                # XY macro: virtual-Z + voltage point + pulse
-    q1.measure()             # step to "measure" point + sensor readout
+    q1.initialize()          
+    q1.x180()                
+    q1.measure()             
 ```
+
+Macros use the machine voltage sequence internally.
 
 See [Start here](#start-here) for the full build workflow.
 
@@ -204,8 +212,8 @@ Scripts live under [`examples/`](examples/). **Start with the shared machine bui
 
 | Script | What it demonstrates |
 |--------|----------------------|
-| [`tutorial_machine.py`](examples/tutorial_machine.py) | **`build_tutorial_machine()`** — minimal `LossDiVincenzoQuam` (dots, pair, qubits, virtual gate set, voltage points for state macros). Intended as the shared machine for tutorials; does not call `wire_machine_macros` (callers wire macros themselves). |
-| [`default_macro_defaults_example.py`](examples/default_macro_defaults_example.py) | Wire defaults only, parameterize built-in macros/pulses, run QUA using `initialize` / `x180`. |
+| [`tutorial_machine.py`](examples/tutorial_machine.py) | **`build_tutorial_machine()`** — minimal `LossDiVincenzoQuam` (dots, pair, qubits, virtual gate set, voltage points for state macros). Comes pre-wired with default macros and pulses via `build_quam`; the tutorial notebook re-calls `wire_machine_macros` for customization. |
+| [`macro_defaults_example.py`](examples/macro_defaults_example.py) | Wire defaults only, parameterize built-in macros/pulses, run QUA using `initialize` / `x180`. |
 | [`full_workflow_example.py`](examples/full_workflow_example.py) | Builder + `wire_machine_macros`, pulse/macro overrides, Kaiser pulse-family swap (end-to-end spin workflow). |
 | [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py) | **Builder-first** generator path for a dot + LD qubit machine. |
 | [`quam_qd_example.py`](examples/quam_qd_example.py) | **Manual assembly** of `BaseQuamQD`: virtual gate set, detuning axes, cross-compensation. |

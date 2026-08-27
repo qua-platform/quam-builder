@@ -8,7 +8,7 @@ For DC gates, virtual gates, and `VoltageSequence`, see the parent [quantum-dot 
 
 ## `BaseQuamQD` machine settings
 
-These fields on **`BaseQuamQD`** (and inherited by **`LossDiVincenzoQuam`**) propagate into every `GateSet.new_sequence()` call:
+These fields on **`BaseQuamQD`** (and inherited by **`LossDiVincenzoQuam`**) are machine-level settings. `track_integrated_voltage` and `limit_play_commands` are passed into sequences created by `get_voltage_sequence()` (and similar machine helpers). Direct `gate_set.new_sequence()` uses `GateSet` defaults instead (`enforce_qua_calcs=True`; `track_integrated_voltage` / `limit_play_commands` default `False`):
 
 | Field | Default | Purpose |
 |-------|---------|---------|
@@ -53,7 +53,7 @@ A Loss DiVincenzo qubit ties a **`QuantumDot`** (plunger / voltage sequence) to 
 
 ## `LDQubitPair` ([`../qubit_pair/ld_qubit_pair.py`](../qubit_pair/ld_qubit_pair.py))
 
-Pairs two **`LDQubit`** instances for two-qubit primitives; default two-qubit macros (`cnot`, `cz`, …) are registered the same way as for `LDQubit`, with placeholders until you supply calibration overrides (see [operations/README.md](../operations/README.md)).
+Pairs two **`LDQubit`** instances for two-qubit primitives; default two-qubit macros are registered the same way as for `LDQubit`. `cz` (`CZMacro`) and `crot` (`CROTMacro`) are implemented; `cnot`, `swap`, and `iswap` are placeholders until you supply calibration overrides (see [operations/README.md](../operations/README.md)).
 
 ## XY drive components ([`../components/xy_drive.py`](../components/xy_drive.py))
 

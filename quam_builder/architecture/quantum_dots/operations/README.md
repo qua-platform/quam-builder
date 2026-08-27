@@ -42,9 +42,9 @@ Resolution order: catalogs are merged low-to-high priority. Higher priority wins
 
 Canonical names are centralized in [`names.py`](./names.py) as `StrEnum`s:
 
-- `VoltagePointName`: `initialize`, `measure`, `empty`, `exchange`
+- `VoltagePointName`: `initialize`, `measure`, `empty`, `exchange`, `CZ`
 - `SingleQubitMacroName`: state macros + gate macros (`xy_drive`, `x`, `y`, `z`, `x180`, `x90`, ...)
-- `TwoQubitMacroName`: state macros + gate macros (`cnot`, `cz`, `swap`, `iswap`)
+- `TwoQubitMacroName`: state macros + gate macros (`cnot`, `cz`, `crot`, `swap`, `iswap`)
 - `DrivePulseName`: `gaussian`, `square`, `kaiser`, `hermite`, `drag`
 
 Since these are `StrEnum`s, `SingleQubitMacroName.X_180` already behaves like `"x180"`.
@@ -74,7 +74,7 @@ Canonical chain: `x`/`y` delegate to `xy_drive` with phase offsets; fixed-angle 
 ### `LDQubitPair`
 
 - State macros: `initialize`, `measure`, `empty`, `exchange`
-- Two-qubit gates: `cnot`, `cz`, `swap`, `iswap` (placeholders until user-supplied)
+- Two-qubit gates: `cz` (`CZMacro`, exchange-style), `crot` (`CROTMacro`); `cnot`, `swap`, `iswap` are placeholders until user-supplied
 
 ## Wire Machine API
 
@@ -267,10 +267,10 @@ State and readout behaviour for dots and pairs is implemented in [`default_macro
 |-----------|-------|-------|
 | Measure voltage point | `MeasurePSBPairMacro.point` | Named point or explicit voltage dict |
 | Pre-readout buffer | `MeasurePSBPairMacro.buffer_duration` | Hold at measure point before RF pulse (ns) |
-| Threshold / projector | `SensorDot.readout_thresholds`, `readout_projectors` | Per pair; set via `_add_readout_params` |
+| Threshold / projector | `SensorDot.readout_thresholds`, `readout_projectors` | Per pair; assign the dict fields directly |
 | Pulse name | `SensorDotMeasureMacro.pulse_name` | Default `"readout"`; pair-specific `"readout_{pair_id}"` if registered |
 
-`MeasurePSBPairMacro.inferred_duration` = `buffer_duration` + sensor readout pulse length — used for integrated-voltage tracking when enabled.
+`MeasurePSBPairMacro.inferred_duration` returns **seconds**: `(buffer_duration_ns * 1e-9) + sensor_macro.inferred_duration`. The public contract for custom macros is also seconds (see [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract)).
 
 Setup guide: [components/README.md](../components/README.md).
 
