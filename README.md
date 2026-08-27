@@ -2,13 +2,13 @@
 
 This repository contains the `quam-builder`, a Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP).
 
-The current version implements superconducting qubits and single NV centers. Future versions will include other qubit types.
+The current version implements superconducting qubits, single NV centers, and quantum-dot / spin-qubit processors.
 
 ## Overview
 
 The `quam-builder` simplifies the process of generating complex QUAM configurations by providing:
 
-1.  **Modular Architecture Definitions:** Defines Python classes representing various components of a superconducting or NV center quantum processor (QPUs, qubits, readout resonators, drive lines, flux lines, couplers, laser, spcm, etc.).
+1.  **Modular Architecture Definitions:** Defines Python classes representing various components of a superconducting, NV-center, or quantum-dot / spin-qubit processor (QPUs, qubits, readout resonators, drive lines, flux lines, couplers, laser, spcm, voltage gates, etc.).
 
 2.  **QOP Wiring Generation:** Functionality to automatically generate the `wiring` section of the QUAM configuration, mapping logical quantum elements to physical QOP controller ports (analog and digital).
 
@@ -40,7 +40,9 @@ Note that several tools can be found in `quam_builder/tools`:
   - [power_tools](./quam_builder/tools/power_tools.py): Functions to precisely set and retrieve the output power (in dBm) for specific operations on `MWChannel` (`set_output_power_mw_channel`, `get_output_power_mw_channel`) and `IQChannel` (`set_output_power_iq_channel`, `get_output_power_iq_channel`) components defined in QUAM. Handles adjustments to full-scale power or gain/amplitude to achieve target power levels using helpers like `calculate_voltage_scaling_factor`.
 
 
-Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md) or [architecture/nv_center/README.md](./quam_builder/architecture/nv_center/README.md) and in the docstrings of the components.
+Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md), [architecture/nv_center/README.md](./quam_builder/architecture/nv_center/README.md), or [architecture/quantum_dots/README.md](./quam_builder/architecture/quantum_dots/README.md) and in the docstrings of the components.
+
+Quantum-dot and spin-qubit components live under `quam_builder.architecture.quantum_dots` (voltage sequences, macros, `LossDiVincenzoQuam`). Start at that hub.
 
 ### 2. QUAM Construction (`quam_builder.builder`)
 
