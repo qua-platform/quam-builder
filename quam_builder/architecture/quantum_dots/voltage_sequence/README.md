@@ -4,6 +4,15 @@
 
 **Implementation note:** `VoltageSequence` and related helpers are implemented in [`quam_builder.tools.voltage_sequence`](../../../tools/voltage_sequence/). The [`architecture/quantum_dots/voltage_sequence/`](./) package re-exports them for backward-compatible imports (e.g. `from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence`).
 
+**If you only need sticky DC:**
+
+1. Create sticky **`VoltageGate`** channels with a `"half_max_square"` operation.
+2. Group them in a **`GateSet`** and call `add_point(...)` for named working points.
+3. Inside `program()`: `seq = gate_set.new_sequence()` then `seq.step_to_point(...)`.
+4. Default **`keep_levels=True`**: omitted gates keep their last value.
+
+Full copy-paste workflow: [§8 Full End to End Example](#8-full-end-to-end-example).
+
 ## 1. Introduction
 
 This document first introduces the **GateSet** component with the **VoltageSequence** tool, a python framework for generating QUA sequences to group control of DC gate voltages, particularly useful for spin qubit experiments.
@@ -57,7 +66,7 @@ The `VirtualGateSet` framework provides the necessary tools to implement these a
 
 `VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each physical channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
 
-By default, `GateSet.new_sequence()` creates a sequence with **`keep_levels=True`**: physical and virtual gate names that you omit in a call keep their last set value (see [§4](#important-behavior-level-holding-and-zeroing-semantics)). Pass `keep_levels=False` only when you want omitted gates to be treated as 0 V on every call.
+By default, `GateSet.new_sequence()` creates a sequence with **`keep_levels=True`**: physical and virtual gate names that you omit in a call keep their last set value (see [level holding and zeroing](#important-behavior-level-holding-and-zeroing-semantics)). Pass `keep_levels=False` only when you want omitted gates to be treated as 0 V on every call.
 
 #### 2.1.4 VirtualGateSet
 
@@ -177,7 +186,7 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   my_virtual_gate_set.add_point(name="idle", voltages={"v_FineTune1": 0.1, "v_Coarse2": -0.05}, duration=1000)
   ```
 
-- With the default `keep_levels=True`, gates you omit in a call keep their last value (physical or virtual). To force 0 V on a gate, pass it explicitly (e.g. `"v_FineTune2": 0.0`) or use `new_sequence(keep_levels=False)`. See [§4](#important-behavior-level-holding-and-zeroing-semantics) and [§6.1](#61-virtual-gates-and-keeplevels).
+- With the default `keep_levels=True`, gates you omit in a call keep their last value (physical or virtual). To force 0 V on a gate, pass it explicitly (e.g. `"v_FineTune2": 0.0`) or use `new_sequence(keep_levels=False)`. See [level holding and zeroing](#important-behavior-level-holding-and-zeroing-semantics) and [§6.1](#61-virtual-gates-and-keeplevels).
 
 #### 5.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
 
@@ -282,7 +291,7 @@ A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate`
 
 - `adjust_for_attenuation` (bool, default `False`): When `True`, pulse amplitudes sent to the OPX are scaled to account for each channel’s `attenuation` (dB). Compensation pulse limits also respect the effective voltage at the sample.
 
-- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=True, limit_play_commands=False)`: Creates `VoltageSequence` instances. See [§4](#creating-a-voltagesequence) for parameter details. Direct `GateSet.new_sequence()` defaults `enforce_qua_calcs` to `True`. Machine helpers such as `BaseQuamQD.get_voltage_sequence()` instead pass `enforce_qua_calcs=self.track_integrated_voltage`.
+- `new_sequence(track_integrated_voltage=False, keep_levels=True, enforce_qua_calcs=True, limit_play_commands=False)`: Creates `VoltageSequence` instances. See [Creating a VoltageSequence](#creating-a-voltagesequence) for parameter details. Direct `GateSet.new_sequence()` defaults `enforce_qua_calcs` to `True`. Machine helpers such as `BaseQuamQD.get_voltage_sequence()` instead pass `enforce_qua_calcs=self.track_integrated_voltage`.
 
 - While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
 
@@ -821,4 +830,4 @@ When **`limit_play_commands=True`**, only physical channels in the **`influence_
 
 ### Loop hygiene
 
-End inner QUA loops with **`ramp_to_zero()`** (and **`apply_compensation_pulse()`** when tracking integrated voltage) so level trackers and compensation state reset between iterations. See [§4 — QUA loops](#important-behavior-level-holding-and-zeroing-semantics).
+End inner QUA loops with **`ramp_to_zero()`** (or **`apply_compensation_pulse()`** when tracking integrated voltage) so level trackers and compensation state reset between iterations. See [QUA loops](#important-behavior-level-holding-and-zeroing-semantics).

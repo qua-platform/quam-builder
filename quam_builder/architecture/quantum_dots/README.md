@@ -47,6 +47,23 @@ Macros use the machine voltage sequence internally.
 
 See [Start here](#start-here) for the full build workflow.
 
+## Mental model
+
+Two machine roots:
+
+| Root | Use when |
+|------|----------|
+| **`BaseQuamQD`** | Calibrating **dots and gates** without a full spin abstraction. |
+| **`LossDiVincenzoQuam`** | Running **ESR/EDSR and two-qubit** experiments on the same dot connectivity. |
+
+
+Four objects you will use in almost every program:
+
+- **`VoltageGate`** — sticky DC channel (`half_max_square`).
+- **`GateSet` / `VoltageSequence`** — named points and absolute level tracking in QUA.
+- **Macro** — `qubit.initialize()` / `qubit.x180()` / `qubit.measure()` after `wire_machine_macros`.
+- **Qubit** — `LDQubit` wrapping a `QuantumDot` plus optional XY drive.
+
 ## What you get
 
 - **Voltage sequencing** — `GateSet` / `VoltageSequence` with absolute level tracking (`keep_levels`) and optional integrated-voltage compensation for AC-coupled lines.
@@ -96,14 +113,21 @@ Pair this with [`quam_builder.builder.qop_connectivity`](../../builder/qop_conne
 
 ### 2. Understand the machine layout
 
-After building (or loading a saved machine), the usual roots are:
+`build_tutorial_machine()` produces a live `LossDiVincenzoQuam` with gate set id `"main_qpu"`. Dots and qubits delegate voltage moves through **`VoltageSequence`** on that gate set:
 
-| Root type | Use when |
-|-----------|----------|
-| **`BaseQuamQD`** | Calibrating **dots and gates** (plungers, barriers, sensors) without a full spin abstraction. |
-| **`LossDiVincenzoQuam`** | Running **ESR/EDSR and two-qubit** experiments on top of the same dot connectivity. |
-
-Key groupings: `virtual_gate_sets`, `voltage_sequences`, `quantum_dots`, `qubit_pairs`, `qubits` (spin stack only). Dots and qubits delegate voltage moves through **`VoltageSequence`** on the relevant gate set.
+```mermaid
+flowchart TD
+  machine[LossDiVincenzoQuam]
+  machine --> vgs["virtual_gate_sets main_qpu"]
+  machine --> dots["quantum_dots virtual_dot_1 virtual_dot_2"]
+  machine --> sensors["sensor_dots virtual_sensor_1"]
+  machine --> qubits["qubits q1 q2"]
+  machine --> pairs["qubit_pairs q1_q2"]
+  qubits --> dots
+  qubits --> xy["xy drive"]
+  pairs --> qubits
+  dots --> vgs
+```
 
 Details: [`qpu/README.md`](qpu/README.md).
 
@@ -127,41 +151,11 @@ Typical flow: build machine → `wire_machine_macros(machine)` (often already do
 
 Override patterns (single macro, type-level, TOML profile): [operations/README.md](operations/README.md).
 
-## Component inventory
+### Read next
 
-**Machine root**
-
-- **`QPU`** — Top-level quantum processing unit component.
-
-**Voltage and gate control**
-
-- **`VoltageGate`** — Baseband channel with `offset_parameter` and `attenuation` (extends `SingleChannel`) for OPX control plus optional external DC drivers.
-- **`GateSet`**, **`VirtualGateSet`**, **`VirtualizationLayer`** — Group channels, named tuning points, and layered virtual-to-physical maps. Math and workflows: [voltage_sequence/README.md](voltage_sequence/README.md).
-- **`GlobalGate`** — `VoltageGate` not tied to a `GateSet` (e.g. global back gate).
-- **`VirtualDCSet`** — Python-side virtualization of external DC instruments (`offset_parameter`); shares layer concepts with `VirtualGateSet` but is not used in `VoltageSequence`. See [voltage_sequence/README.md](voltage_sequence/README.md#10-virtualdcset-external-dc-instruments).
-- **`VoltageSequence`** — QUA sequence helper for a `GateSet` / `VirtualGateSet` (level tracking, optional integrated-voltage compensation). See [voltage_sequence/README.md](voltage_sequence/README.md).
-
-**Readout and transport**
-
-- **`ReadoutResonator`**, **`ReadoutTransport`**, **`Reservoir`** — Resonator and transport/reservoir constructs for readout. Setup workflows: [components/README.md](components/README.md).
-
-**Dot topology and coupling**
-
-- **`QuantumDot`** — Single dot, tied to a `VoltageGate` or `VirtualGate` and the machine’s `VirtualGateSet`.
-- **`QuantumDotPair`** — Two dots plus shared barrier control.
-- **`SensorDot`** — Sensor dot for SET-style readout.
-
-**Hardware helpers**
-
-- **`DacSpec`**, **`QdacSpec`** — DAC channel metadata on `VoltageGate` ([`dac_spec.py`](components/dac_spec.py)).
-
-**Pulses**
-
-- **`pulses.py`** — Scalable pulse envelopes (Gaussian, Kaiser, Hermite, DRAG, …); default factories registered with macros in `operations/`. See [components/README.md](components/README.md).
-
-**Spin qubits (Loss DiVincenzo)**
-
-- **`LossDiVincenzoQuam`**, **`LDQubit`**, **`LDQubitPair`**, **XY drives** — See [`qpu/README.md`](qpu/README.md).
+1. **Voltage sequences** — sticky DC, named points, `keep_levels`: [voltage_sequence/README.md](voltage_sequence/README.md).
+2. **Macros and overrides** — [operations/README.md](operations/README.md) and the [macro customization tutorial](../../../tutorials/macro_customization.ipynb).
+3. **Readout and XY hardware** — [components/README.md](components/README.md) and [qpu/README.md](qpu/README.md).
 
 ## Voltage sequencing and virtualization
 
@@ -231,6 +225,14 @@ Scripts live under [`examples/`](examples/). **Start with the shared machine bui
 | [`qm_example.py`](examples/qm_example.py) | Full QM workflow with balanced macro catalog. |
 
 **More scripts** in [`examples/`](examples/) (`mwe_sensor_resonator_same_port.py`, etc.) — read each file's module docstring for scope and prerequisites.
+
+## Component inventory
+
+- **Machine / dots:** `QPU`, `QuantumDot`, `QuantumDotPair`, `SensorDot` — [components/README.md](components/README.md)
+- **Gates / sequences:** `VoltageGate`, `GateSet`, `VirtualGateSet`, `VoltageSequence`, `GlobalGate`, `VirtualDCSet` — [voltage_sequence/README.md](voltage_sequence/README.md)
+- **Readout:** `ReadoutResonator`, `ReadoutTransport`, `Reservoir` — [components/README.md](components/README.md)
+- **Pulses / DAC:** `pulses.py`, `DacSpec` / `QdacSpec` — [components/README.md](components/README.md), [`dac_spec.py`](components/dac_spec.py)
+- **Spin qubits:** `LossDiVincenzoQuam`, `LDQubit`, `LDQubitPair`, XY drives — [qpu/README.md](qpu/README.md)
 
 ## Import cheat sheet
 

@@ -65,6 +65,8 @@ All three concrete drive types inherit **`XYDriveBase`** and are composed on **`
 | **`XYDriveIQ`** | `IQChannel` | **LF-FEM / OPX+ + Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
 | **`XYDriveMW`** | `MWChannel` | **MW-FEM** direct microwave output | single `opx_output` → `mw_outputs` | `intermediate_frequency` + upconverter on port (`upconverter_frequency` from `opx_output`) |
 
+Pick the row that matches your hardware, then open that example: **MW-FEM** — [`rabi_chevron.py`](../examples/rabi_chevron.py) / [`quam_ld_generator_example.py`](../examples/quam_ld_generator_example.py); **IQ/Octave** and **baseband Single** — [`quam_ld_example.py`](../examples/quam_ld_example.py) and the [builder auto-detection](#builder-auto-detection) mermaid below.
+
 **`XYDriveBase`** provides shared helpers (e.g. `calculate_voltage_scaling_factor` for scaling between dBm levels).
 
 ### `XYDriveSingle`

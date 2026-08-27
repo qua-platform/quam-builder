@@ -4,6 +4,8 @@
 This folder contains the default operations and catalog-based macro wiring system for quantum-dot QuAM components.
 The main goal is to keep macro behavior decoupled from component classes while making defaults and user overrides explicit, composable, and serializable.
 
+You call **`qubit.x180()`** (or `initialize` / `measure`) in a QUA program. **`wire_machine_macros`** fills the default macros and pulses; the builder and `load()` already run it, so a freshly built machine is ready to use. Override recipes and catalog internals follow below.
+
 ## Architecture Overview
 
 Core modules:
@@ -107,6 +109,23 @@ wire_machine_macros(
         },
     },
 )
+```
+
+### Minimal experiment
+
+```python
+from qm.qua import program
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+
+machine = build_tutorial_machine()  # builder already calls wire_machine_macros
+q1 = machine.qubits["q1"]
+
+with program() as prog:
+    q1.initialize()
+    q1.x180()
+    q1.measure()
 ```
 
 ### With type-level overrides (ad-hoc)
