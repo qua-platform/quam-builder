@@ -1,4 +1,5 @@
 from typing import Any
+from dataclasses import fields
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -73,3 +74,26 @@ class CustomMacro(QuamMacro):
         full_name = owner._create_point_name(point)
         tuning_point = owner.voltage_sequence.gate_set.macros.get(full_name)
         return dict(tuning_point.voltages)
+
+    @classmethod
+    def _own_field_names(cls) -> set[str]:
+        """Field names declared on the subclass itself, excluding framework fields
+        inherited from CustomMacro/QuamMacro/QuamComponent (id, parent, etc.)."""
+        base_field_names = {f.name for f in fields(CustomMacro)}
+        return {f.name for f in fields(cls)} - base_field_names
+
+    def update(self, **kwargs) -> None:
+        """Persistently update calibrated parameters.
+
+        Any keyword argument matching a dataclass field you added on your
+        subclass is set directly, if not None. Passing an unknown keyword
+        raises TypeError, matching normal Python keyword-argument behavior.
+        """
+        updatable = self._own_field_names()
+        for key, value in kwargs.items():
+            if key not in updatable:
+                raise TypeError(
+                    f"{type(self).__name__}.update() got an unexpected keyword argument {key!r}"
+                )
+            if value is not None:
+                setattr(self, key, value)
