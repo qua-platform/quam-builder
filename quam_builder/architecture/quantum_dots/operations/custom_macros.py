@@ -63,7 +63,7 @@ class CustomMacro(QuamMacro):
         owner = find_owner(self)
         return owner
 
-    def _point_voltages(self, point: str | dict) -> dict[str, float]:
+    def point_voltages(self, point: str | dict) -> dict[str, float]:
         """
         Given an owner and a point name, find a dict of voltages associated with this point.
         """
