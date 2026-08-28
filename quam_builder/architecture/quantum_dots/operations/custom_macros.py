@@ -7,6 +7,7 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     _owner_component as find_owner,
 )
 
+__all__ = ["CustomMacro"]
 
 @quam_dataclass
 class CustomMacro(QuamMacro):
