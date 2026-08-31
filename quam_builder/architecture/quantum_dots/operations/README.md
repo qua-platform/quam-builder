@@ -20,9 +20,9 @@ Core modules:
 ## Macro System Design
 
 ```
-                       ┌────────────────────┐
-                       │    wire_machine_macros()   │   User-facing entry point
-                       └─────────┬──────────┘
+                       ┌──────────────────────────┐
+                       │    wire_machine_macros() │   User-facing entry point
+                       └─────────┬────────────────┘
                                  │
                     ┌────────────▼────────────┐
                     │     MacroRegistry       │   Aggregates catalogs
@@ -31,11 +31,11 @@ Core modules:
                                  │
          ┌───────────────────────┼───────────────────────┐
          │                       │                       │
-┌────────▼─────────┐  ┌─────────▼──────────┐  ┌─────────▼──────────┐
-│UtilityMacroCatalog│ │DefaultMacroCatalog │  │ User Catalog(s)    │
-│   priority = 0    │ │  priority = 100    │  │ priority = 200+    │
-│ align, wait       │ │ MRO-based defaults │  │ Lab-owned macros   │
-└───────────────────┘ └────────────────────┘  └────────────────────┘
+┌────────▼──────────┐  ┌─────────▼──────────┐  ┌─────────▼──────────┐
+│UtilityMacroCatalog│  │DefaultMacroCatalog │  │ User Catalog(s)    │
+│   priority = 0    │  │  priority = 100    │  │ priority = 200+    │
+│ align, wait       │  │ MRO-based defaults │  │ Lab-owned macros   │
+└───────────────────┘  └────────────────────┘  └────────────────────┘
 ```
 
 Resolution order: catalogs are merged low-to-high priority. Higher priority wins per macro name. Instance overrides are applied last.
