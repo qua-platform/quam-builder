@@ -138,6 +138,56 @@ with program() as prog:
 
 `duration` and `ramp_duration` are in **nanoseconds**. For several dots at once, put every channel in one dict or use `machine.voltage_sequences["main_qpu"]` (see [voltage_sequence/README.md](voltage_sequence/README.md)).
 
+## Turning pulse sequences into custom macros
+
+Wrap a pulse sequence in a `@quam_dataclass` `QuamMacro` so you can call it as `q1.initialize()`. Register named voltage points on the machine; the macro only navigates them.
+
+This example empties the dot, then ramps to `load`:
+
+```python
+from qm.qua import program
+from quam.core import quam_dataclass
+from quam.core.macro import QuamMacro
+
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.names import SingleQubitMacroName
+
+@quam_dataclass
+class EmptyThenLoadInitialize(QuamMacro):
+    empty_point: str = "empty"
+    load_point: str = "load"
+    ramp_duration: int = 64
+
+    def apply(self, **kwargs):
+        qubit = self.parent
+        while not hasattr(qubit, "step_to_point"):
+            qubit = qubit.parent
+        qubit.step_to_point(self.empty_point)
+        qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration)
+
+machine = build_tutorial_machine()
+q1 = machine.qubits["q1"]
+dot_id = q1.quantum_dot.id
+
+q1.add_point("empty", {dot_id: 0.0}, duration=200)
+q1.add_point("load", {dot_id: 0.10}, duration=200)
+
+wire_machine_macros(
+    machine,
+    instance_overrides={
+        "qubits.q1": {SingleQubitMacroName.INITIALIZE: EmptyThenLoadInitialize},
+    },
+)
+
+with program() as prog:
+    q1.initialize()
+```
+
+`instance_overrides` replace the default `initialize` on that qubit. To apply the same class to every `LDQubit`, pass a `TypeOverrideCatalog` in `catalogs=` (see [Next Steps](#next-steps)). Use `@quam_dataclass` so the macro survives `save()` / `load()`.
+
 ## Next Steps
 ### Choose a builder after the tutorial
 
