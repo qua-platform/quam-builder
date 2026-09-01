@@ -49,20 +49,11 @@ with program() as prog:
     q1_q2.measure()
 ```
 
-## Different spin qubit types
-
-This package enables different spin qubit types hosted in quantum dots, a base quam with functionality concerning quantum dot operation is hosted in **`BaseQuamQD`**. Specific spin qubits are building on top of this **`BaseQuamQD`**.
-
-| Root | Use when |
-|------|----------|
-| **`BaseQuamQD`** | Calibrating **dots and gates** without a full spin abstraction. |
-| **`LossDiVincenzoQuam`** | Running **ESR/EDSR and two-qubit** experiments on the same dot connectivity. |
-| **`ExchangeOnlyQuam`** | Running **Exchange Only Qubit** experiments on the same dot connectivity. (In Progress)|
-| **`SingletTripletQuam`** | Running **Singlet/Triplet Qubit** experiments on the same dot connectivity. (In Progress)|
-
-A typical workflow would be starting with `BaseQuamQD`, saving the charge-calibrated state, then upgrade to the relevant `QubitQuam`. The tutorial machine is already a `LossDiVincenzoQuam` so you can inspect the full tree offline.
 
 
+### Different spin qubit types
+
+This package enables different spin qubit types hosted in quantum dots, a base quam with functionality concerning quantum dot operation is hosted in `BaseQuamQD`. `BaseQuamQD` can be used to calibrate **dots, virtualization, voltage points** without a full qubit abstraction. Specific spin qubits are building on top of this `BaseQuamQD`. Currently we offer `LossDiVincenzoQuam` for **ESR/EDSR and two-qubit** experiments on the same dot connectivity. `ExchangeOnlyQuam` and `SingletTripletQuam` are in progress. A typical workflow would be starting with `BaseQuamQD`, saving the charge-calibrated state, then upgrade to the relevant `QubitQuam`. The tutorial machine is already a `LossDiVincenzoQuam` so you can inspect the full tree offline.
 
 # 15-minute offline quickstart
 
@@ -91,7 +82,7 @@ machine.save("quam_state") # Save the quam state to a json file
 ```
 
 Inspect the machine and config above to see how components translate to configuration.
-`build_tutorial_machine()` produces a live `LossDiVincenzoQuam` with gate set id `"main_qpu"`. Dots and qubits delegate voltage moves through **`VoltageSequence`** on that gate set:
+`build_tutorial_machine()` produces a live `LossDiVincenzoQuam` with gate set id `"main_qpu"`. Dots and qubits delegate voltage moves through `VoltageSequence` on that gate set:
 
 ```mermaid
 flowchart TD
@@ -123,7 +114,7 @@ Macros use **placeholders**, not device-safe defaults. Do not apply these voltag
 
 ## Generating pulse sequences with QuaM
 
-QuaM components provide high-level methods to generate voltage sequences through **`VoltageSequence`** see [voltage_sequence/README.md](voltage_sequence/README.md) for full documentation. Here's how to use the key voltage control methods:
+QuaM components provide high-level methods to generate voltage sequences through `VoltageSequence` see [voltage_sequence/README.md](voltage_sequence/README.md) for full documentation. Here's how to use the key voltage control methods:
 
 Define named points **outside** the QUA program (they are stored on the machine). Navigate with `step_to_point` / `ramp_to_point`, or pass absolute voltages with `step_to_voltages` / `ramp_to_voltages`. Targets are absolute levels, not deltas; omitted gates keep their last value (`keep_levels=True`).
 
@@ -197,24 +188,27 @@ wire_machine_macros(
 with program() as prog:
     q1.initialize()
 ```
-
+The macro references named voltage points, so if the points are updated as part of your chip calibration, the macro will automatically use the updated values.
 `instance_overrides` replace the default `initialize` on that qubit. To apply the same class to every `LDQubit`, pass a `TypeOverrideCatalog` in `catalogs=` (see [Next Steps](#next-steps)). Use `@quam_dataclass` so the macro survives `save()` / `load()`.
 
 # Next Steps
+
 ## Choose a builder after the tutorial
 
-| Situation | Entry point |
-|-----------|-------------|
-| Evaluating the package | `build_tutorial_machine()` (offline) |
-| Bringing up charge control first | `build_base_quam()` → `BaseQuamQD` |
-| Wiring already includes plungers, sensors, and drive lines | `build_quam()` → `LossDiVincenzoQuam` |
-| Saved dot machine, adding spin control | `build_loss_divincenzo_quam()` |
 
-Runnable build fragments live in [`tutorial_machine.py`](examples/tutorial_machine.py) and [`wiring_example.py`](examples/wiring_example.py).
+| Situation                                                  | Entry point                           |
+| ---------------------------------------------------------- | ------------------------------------- |
+| Evaluating the package                                     | `build_tutorial_machine()` (offline)  |
+| Bringing up charge control first                           | `build_base_quam()` → `BaseQuamQD`    |
+| Wiring already includes plungers, sensors, and drive lines | `build_quam()` → `LossDiVincenzoQuam` |
+| Saved dot machine, adding spin control                     | `build_loss_divincenzo_quam()`        |
+
+
+Runnable build fragments live in `[tutorial_machine.py](examples/tutorial_machine.py)` and `[wiring_example.py](examples/wiring_example.py)`.
 
 ## Default macros are already wired
 
-Builder entry points and `load()` call **`wire_machine_macros()`**. Call it yourself when:
+Builder entry points and `load()` call `wire_machine_macros()`. Call it yourself when:
 
 - applying a lab catalog or instance override; or
 - manually assembling a machine that did not go through the builder.
@@ -233,35 +227,41 @@ wire_machine_macros(
 
 ## Examples
 
-Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardware rows until the offline path works.
+Scripts live under `[examples/](examples/)`. Start at the top; skip cloud/hardware rows until the offline path works.
 
-| Example | Level | What it covers |
-|---------|-------|----------------|
-| This README + [`tutorial_machine.py`](examples/tutorial_machine.py) | Beginner | Build, config, save/load, construct a program |
-| [Voltage-sequence notebook](../../../tutorials/voltage_sequence.ipynb) | Beginner | Sticky DC, named point, `keep_levels` |
-| [`macro_defaults_example.py`](examples/macro_defaults_example.py) | Beginner | Parameterize default macros; still no hardware |
-| [`wiring_example.py`](examples/wiring_example.py) | Intermediate | Combined vs two-stage builder |
-| [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py) | Intermediate | Builder-first generator path |
-| [`full_workflow_example.py`](examples/full_workflow_example.py) | Intermediate | Pulse family + overrides after defaults |
-| [`macro_overrides_example.py`](examples/macro_overrides_example.py) | Intermediate | `catalogs` / `instance_overrides` |
-| [`virtual_gate_set_example.py`](examples/virtual_gate_set_example.py) | Intermediate | Virtual layers and `resolve_voltages` |
-| [`voltage_balanced_macros_example.py`](examples/voltage_balanced_macros_example.py) | Advanced | AC-coupled compensation |
-| [`dcz_macro_example.py`](examples/dcz_macro_example.py) | Advanced | Two-qubit DCZ |
-| [`rabi_chevron.py`](examples/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/rabi_chevron_transport.py) | Advanced | Manual assembly, custom macros, SaaS |
 
-**Additional examples** in [`examples/`](examples/): `mwe_sensor_resonator_same_port.py`, [`qm_example.py`](examples/qm_example.py), [`pulse_overrides_example.py`](examples/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/virtual_dc_set_example.py) — read each module docstring for scope.
+| Example                                                                                                           | Level        | What it covers                                 |
+| ----------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
+| This README + `[tutorial_machine.py](examples/tutorial_machine.py)`                                               | Beginner     | Build, config, save/load, construct a program  |
+| [Voltage-sequence notebook](../../../tutorials/voltage_sequence.ipynb)                                            | Beginner     | Sticky DC, named point, `keep_levels`          |
+| `[macro_defaults_example.py](examples/macro_defaults_example.py)`                                                 | Beginner     | Parameterize default macros; still no hardware |
+| `[wiring_example.py](examples/wiring_example.py)`                                                                 | Intermediate | Combined vs two-stage builder                  |
+| `[quam_qd_generator_example.py](examples/quam_qd_generator_example.py)`                                           | Intermediate | Builder-first generator path                   |
+| `[full_workflow_example.py](examples/full_workflow_example.py)`                                                   | Intermediate | Pulse family + overrides after defaults        |
+| `[macro_overrides_example.py](examples/macro_overrides_example.py)`                                               | Intermediate | `catalogs` / `instance_overrides`              |
+| `[virtual_gate_set_example.py](examples/virtual_gate_set_example.py)`                                             | Intermediate | Virtual layers and `resolve_voltages`          |
+| `[voltage_balanced_macros_example.py](examples/voltage_balanced_macros_example.py)`                               | Advanced     | AC-coupled compensation                        |
+| `[dcz_macro_example.py](examples/dcz_macro_example.py)`                                                           | Advanced     | Two-qubit DCZ                                  |
+| `[rabi_chevron.py](examples/rabi_chevron.py)` / `[rabi_chevron_transport.py](examples/rabi_chevron_transport.py)` | Advanced     | Manual assembly, custom macros, SaaS           |
+
+
+**Additional examples** in `[examples/](examples/)`: `mwe_sensor_resonator_same_port.py`, `[qm_example.py](examples/qm_example.py)`, `[pulse_overrides_example.py](examples/pulse_overrides_example.py)`, `[external_macro_package_example.py](examples/external_macro_package_example.py)`, `[virtual_dc_set_example.py](examples/virtual_dc_set_example.py)` — read each module docstring for scope.
 
 ## Task-oriented reference map
 
-| Area | Location | Role |
-|------|----------|------|
-| Builder (hardware adaptation) | [`quam_builder.builder.quantum_dots`](../../builder/quantum_dots/) | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md) |
-| Components | [`components/`](components/) | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md) |
-| Voltage sequencing | [`voltage_sequence/`](voltage_sequence/) | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
-| Virtual gates | [`virtual_gates/`](virtual_gates/) | Layers and matrices |
-| Operations and defaults | [`operations/`](operations/) | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md) |
-| QPU models | [`qpu/`](qpu/) | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md) |
-| Examples | [`examples/`](examples/) | Runnable scripts |
+
+| Area                          | Location                                                           | Role                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Builder (hardware adaptation) | `[quam_builder.builder.quantum_dots](../../builder/quantum_dots/)` | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md)                         |
+| Components                    | `[components/](components/)`                                       | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md)                           |
+| Voltage sequencing            | `[voltage_sequence/](voltage_sequence/)`                           | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
+| Virtual gates                 | `[virtual_gates/](virtual_gates/)`                                 | Layers and matrices                                                                                       |
+| Operations and defaults       | `[operations/](operations/)`                                       | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md)                  |
+| QPU models                    | `[qpu/](qpu/)`                                                     | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md)                          |
+| Examples                      | `[examples/](examples/)`                                           | Runnable scripts                                                                                          |
+
+
+
 
 ## Component inventory
 
@@ -270,6 +270,8 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 - **Readout:** `ReadoutResonator`, `ReadoutTransport`, `Reservoir` — [components/README.md](components/README.md)
 - **Pulses / DAC:** `pulses.py`, `DacSpec` / `QdacSpec` — [components/README.md](components/README.md)
 - **Spin qubits:** `LossDiVincenzoQuam`, `LDQubit`, `LDQubitPair`, `XYDriveSingle` / `XYDriveIQ` / `XYDriveMW` — [qpu/README.md](qpu/README.md)
+
+
 
 ## Import cheat sheet
 
