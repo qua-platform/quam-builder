@@ -37,8 +37,25 @@ class CloseableFakeDac:
         self.closed = True
 
 
+class ShutdownFakeDac:
+    """Driver that tears down via ``shutdown`` rather than ``close``."""
+
+    instances: dict[str, ShutdownFakeDac] = {}
+
+    def __init__(self, name: str, **_connection: Any) -> None:
+        self.name = name
+        self.shutdown_called = False
+        type(self).instances[name] = self
+
+    def channel(self, port: int) -> SimpleNamespace:
+        return SimpleNamespace(dc_constant_V=lambda value=None: 0.0)
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+
+
 class NonCloseableFakeDac:
-    """Driver missing ``close`` — used to assert validation."""
+    """Driver with no teardown method."""
 
     def __init__(self, name: str, **_connection: Any) -> None:
         self.name = name
@@ -63,6 +80,22 @@ def closeable_dac_config(fake_module_name: str) -> dict:
             "channel_method": "channel",
             "accessor": "dc_constant_V",
             "is_qdac": False,
+            "close_method": "close",
+        }
+    }
+
+
+@pytest.fixture
+def shutdown_dac_config(fake_module_name: str) -> dict:
+    return {
+        "main": {
+            "driver_module": fake_module_name,
+            "driver_class": "ShutdownFakeDac",
+            "connection": {},
+            "channel_method": "channel",
+            "accessor": "dc_constant_V",
+            "is_qdac": False,
+            "close_method": "shutdown",
         }
     }
 
@@ -84,6 +117,7 @@ def non_closeable_dac_config(fake_module_name: str) -> dict:
 @pytest.fixture
 def machine_with_gated_dac() -> BaseQuamQD:
     CloseableFakeDac.instances.clear()
+    ShutdownFakeDac.instances.clear()
     machine = BaseQuamQD()
     gate = VoltageGate(
         id="p1",
@@ -107,18 +141,20 @@ def connected_machine(
     return machine_with_gated_dac
 
 
-def test_connect_rejects_driver_without_close(
+def test_connect_accepts_driver_without_close_method(
     machine_with_gated_dac: BaseQuamQD, non_closeable_dac_config: dict
 ):
     machine_with_gated_dac.set_dac_config(non_closeable_dac_config)
-    with pytest.raises(TypeError, match=r"must implement a callable \.close\(\)"):
-        machine_with_gated_dac.connect_to_external_source()
+    machine_with_gated_dac.connect_to_external_source()
+    assert "main" in machine_with_gated_dac.dacs
+    assert machine_with_gated_dac.dacs["main"]["close_method"] is None
 
 
 def test_connect_accepts_closeable_driver(connected_machine: BaseQuamQD):
     assert "main" in connected_machine.dacs
     assert callable(connected_machine.physical_channels["p1"].offset_parameter)
     assert not CloseableFakeDac.instances["main"].closed
+    assert connected_machine.dacs["main"]["close_method"] == "close"
 
 
 def test_disconnect_closes_driver_without_changing_quam_config(
@@ -140,15 +176,37 @@ def test_disconnect_is_noop_when_no_dacs():
     assert machine.dacs == {}
 
 
-def test_disconnect_rejects_driver_without_close():
+def test_disconnect_skips_driver_without_close_method(
+    machine_with_gated_dac: BaseQuamQD, non_closeable_dac_config: dict
+):
+    machine_with_gated_dac.set_dac_config(non_closeable_dac_config)
+    machine_with_gated_dac.connect_to_external_source()
+    machine_with_gated_dac.disconnect_from_external_source()
+    assert "main" in machine_with_gated_dac.dacs
+
+
+def test_disconnect_calls_configured_close_method(
+    machine_with_gated_dac: BaseQuamQD, shutdown_dac_config: dict
+):
+    machine_with_gated_dac.set_dac_config(shutdown_dac_config)
+    machine_with_gated_dac.connect_to_external_source()
+    driver = ShutdownFakeDac.instances["main"]
+
+    machine_with_gated_dac.disconnect_from_external_source()
+
+    assert driver.shutdown_called
+
+
+def test_disconnect_rejects_missing_configured_method():
     machine = BaseQuamQD()
     machine.dacs["broken"] = {
         "driver": NonCloseableFakeDac("broken"),
         "channel_method": "channel",
         "accessor": "dc_constant_V",
         "is_qdac": False,
+        "close_method": "close",
     }
-    with pytest.raises(TypeError, match=r"must implement a callable \.close\(\)"):
+    with pytest.raises(TypeError, match=r"has no callable 'close' method"):
         machine.disconnect_from_external_source()
 
 
