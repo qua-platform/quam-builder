@@ -171,6 +171,8 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   )
   ```
 
+- `add_layer()` returns the `VirtualizationLayer`. To inspect the coupling heatmap, call `layer.plot_matrix()` (see [§7.9](#79-plotting-the-virtualization-matrix)).
+
 #### 4.  Add `VoltageTuningPoint` macros to the `GateSet` or `VirtualGateSet`
 
 - This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
@@ -659,6 +661,25 @@ To validate a rectangular virtualization layer:
 2. Generate a set of virtual voltage samples, convert them to the “expected” physical voltages using the pseudo-inverse (`physical_expected = M_pinv @ source`), then resolve the same virtual voltages through the `VirtualGateSet`. The resolved physical voltages should match `physical_expected` within numerical tolerance.
 
 3. Optional visualisation: plot the original vs. resolved physical voltages to confirm they fall on the identity line. The automated regression `tests/architecture/quantum_dots/components/test_rectangular_virtual_gate_set.py::test_rectangular_roundtrip_visualisation` performs exactly this procedure (using Matplotlib’s Agg backend) so you can run `pytest` and inspect the generated scatter data if deeper debugging is needed.
+
+### 7.9 Plotting the virtualization matrix
+
+`VirtualizationLayer.plot_matrix()` draws the coupling heatmap: **rows** are `source_gates`, **columns** are `target_gates`, with a zero-centered `coolwarm` color scale. `add_layer()` returns the layer; you can also use `my_virtual_gate_set.layers[-1]`. Matplotlib is required (lazy import; raises `ImportError` if it is not installed).
+
+```python
+layer = my_virtual_gate_set.add_layer(
+    source_gates=["v_Coarse1", "v_Coarse2"],
+    target_gates=["channel_p1", "channel_p2"],
+    matrix=[[1.0, 0.5], [0.5, 1.0]],
+    layer_id="coarse",
+)
+
+fig, ax = layer.plot_matrix()  # rows = source gates, columns = target gates
+```
+
+![Virtualization matrix heatmap for a 2x2 coarse layer](images/virtualization_matrix.png)
+
+To inspect `M⁻¹` (the map used during voltage resolution), call `layer.plot_inverse_matrix()`.
 
 ## 8. Full End to End Example
 
