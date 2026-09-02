@@ -40,6 +40,184 @@ class VirtualizationLayer(QuamComponent):
     def _as_matrix_array(self) -> np.ndarray:
         return np.asarray(self.matrix, dtype=float)
 
+    def _plot_labeled_matrix(
+        self,
+        matrix_array: np.ndarray,
+        row_labels: List[str],
+        column_labels: List[str],
+        row_axis_label: str,
+        column_axis_label: str,
+        colorbar_label: str,
+        default_title: str,
+        ax: Any,
+        annotate: bool,
+        colorbar: bool,
+        cmap: str,
+        value_format: str,
+        title: str | None,
+    ) -> tuple[Any, Any]:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as exc:
+            raise ImportError(
+                "VirtualizationLayer matrix plotting requires matplotlib to be installed."
+            ) from exc
+
+        if ax is None:
+            fig_width = max(4.0, 0.8 * len(column_labels) + 2.5)
+            fig_height = max(3.0, 0.55 * len(row_labels) + 1.8)
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        else:
+            fig = ax.figure
+
+        max_abs_value = float(np.max(np.abs(matrix_array))) if matrix_array.size else 0.0
+        color_limit = max_abs_value if max_abs_value > 0 else 1.0
+        image = ax.imshow(
+            matrix_array,
+            aspect="auto",
+            cmap=cmap,
+            vmin=-color_limit,
+            vmax=color_limit,
+        )
+
+        ax.set_xticks(np.arange(len(column_labels)))
+        ax.set_xticklabels(column_labels, rotation=45, ha="right")
+        ax.set_yticks(np.arange(len(row_labels)))
+        ax.set_yticklabels(row_labels)
+        ax.set_xlabel(column_axis_label)
+        ax.xaxis.set_label_position("top")
+        ax.xaxis.tick_top()
+        ax.set_ylabel(row_axis_label)
+        ax.set_title(title if title is not None else default_title)
+
+        ax.set_xticks(np.arange(len(column_labels) + 1) - 0.5, minor=True)
+        ax.set_yticks(np.arange(len(row_labels) + 1) - 0.5, minor=True)
+        ax.grid(which="minor", color="white", linestyle="-", linewidth=1.5)
+        ax.tick_params(which="minor", bottom=False, left=False)
+
+        if annotate:
+            for row_idx, row in enumerate(matrix_array):
+                for col_idx, value in enumerate(row):
+                    text_color = "white" if abs(value) > 0.5 * color_limit else "black"
+                    ax.text(
+                        col_idx,
+                        row_idx,
+                        format(value, value_format),
+                        ha="center",
+                        va="center",
+                        color=text_color,
+                    )
+
+        if colorbar:
+            cbar = fig.colorbar(image, ax=ax)
+            cbar.set_label(colorbar_label)
+
+        fig.tight_layout()
+        return fig, ax
+
+    def plot_matrix(
+        self,
+        ax: Any = None,
+        annotate: bool = True,
+        colorbar: bool = True,
+        cmap: str = "coolwarm",
+        value_format: str = ".3g",
+        title: str | None = None,
+    ) -> tuple[Any, Any]:
+        """
+        Plot the virtualization matrix as a labeled source-to-target heatmap.
+
+        Rows correspond to ``source_gates`` and columns correspond to
+        ``target_gates``. The matrix is shown with a zero-centered color scale so
+        users can quickly identify positive, negative, and weak couplings.
+
+        Args:
+            ax: Optional matplotlib axes to draw on.
+            annotate: If True, write the matrix value inside each cell.
+            colorbar: If True, add a colorbar showing the coefficient scale.
+            cmap: Matplotlib colormap used for the heatmap.
+            value_format: Format specifier used for cell annotations.
+            title: Optional plot title. Defaults to the layer id when available.
+
+        Returns:
+            A tuple of ``(figure, axes)``.
+        """
+        matrix_array = self._as_matrix_array()
+        expected_shape = (len(self.source_gates), len(self.target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
+            )
+
+        default_title = (
+            f"Virtualization matrix: {self.id}" if self.id is not None else "Virtualization matrix"
+        )
+        return self._plot_labeled_matrix(
+            matrix_array=matrix_array,
+            row_labels=self.source_gates,
+            column_labels=self.target_gates,
+            row_axis_label="Source gates",
+            column_axis_label="Target gates",
+            colorbar_label="Virtualization coefficient",
+            default_title=default_title,
+            ax=ax,
+            annotate=annotate,
+            colorbar=colorbar,
+            cmap=cmap,
+            value_format=value_format,
+            title=title,
+        )
+
+    def plot_inverse_matrix(
+        self,
+        ax: Any = None,
+        annotate: bool = True,
+        colorbar: bool = True,
+        cmap: str = "coolwarm",
+        value_format: str = ".3g",
+        title: str | None = None,
+    ) -> tuple[Any, Any]:
+        """
+        Plot the inverse virtualization matrix as a labeled target-to-source heatmap.
+
+        Rows correspond to ``target_gates`` and columns correspond to
+        ``source_gates`` because the inverse matrix maps source gate voltages back
+        onto target gate voltages.
+
+        Args:
+            ax: Optional matplotlib axes to draw on.
+            annotate: If True, write the matrix value inside each cell.
+            colorbar: If True, add a colorbar showing the coefficient scale.
+            cmap: Matplotlib colormap used for the heatmap.
+            value_format: Format specifier used for cell annotations.
+            title: Optional plot title. Defaults to the layer id when available.
+
+        Returns:
+            A tuple of ``(figure, axes)``.
+        """
+        inverse_matrix = self.calculate_inverse_matrix()
+        default_title = (
+            f"Inverse virtualization matrix: {self.id}"
+            if self.id is not None
+            else "Inverse virtualization matrix"
+        )
+        return self._plot_labeled_matrix(
+            matrix_array=inverse_matrix,
+            row_labels=self.target_gates,
+            column_labels=self.source_gates,
+            row_axis_label="Target gates",
+            column_axis_label="Source gates",
+            colorbar_label="Inverse virtualization coefficient",
+            default_title=default_title,
+            ax=ax,
+            annotate=annotate,
+            colorbar=colorbar,
+            cmap=cmap,
+            value_format=value_format,
+            title=title,
+        )
+
     def calculate_inverse_matrix(self) -> np.ndarray:
         """Calculates the inverse (or pseudo-inverse) of the virtualization matrix."""
         matrix_array = self._as_matrix_array()
