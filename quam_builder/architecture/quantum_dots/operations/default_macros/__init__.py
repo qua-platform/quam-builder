@@ -15,7 +15,6 @@ from .state_macros import *
 from .single_qubit_macros import *
 from .two_qubit_macros import *
 
-
 __all__ = [
     *state_macros.__all__,
     *single_qubit_macros.__all__,

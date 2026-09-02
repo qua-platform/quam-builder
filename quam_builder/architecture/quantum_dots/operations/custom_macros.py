@@ -10,6 +10,7 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
 
 __all__ = ["CustomMacro"]
 
+
 @quam_dataclass
 class CustomMacro(QuamMacro):
     """
@@ -17,13 +18,13 @@ class CustomMacro(QuamMacro):
 
     In order to create your own macro, subclass this and add any QUA code to the apply() function.
 
-    The below example creates a custom initialize macro, which simply steps to a point for a 
-    particular duration. It is recommended that you add any arguments necessary in the apply() 
-    function as dataclass attributes, so that the apply functions can fall back to a default value 
-    stored at the class level. 
+    The below example creates a custom initialize macro, which simply steps to a point for a
+    particular duration. It is recommended that you add any arguments necessary in the apply()
+    function as dataclass attributes, so that the apply functions can fall back to a default value
+    stored at the class level.
 
-    Additionally, it is good practise to update the inferred_duration based on the apply() function that 
-    you have written. 
+    Additionally, it is good practise to update the inferred_duration based on the apply() function that
+    you have written.
 
     E.g.
     >>> @quam_dataclass
@@ -58,7 +59,7 @@ class CustomMacro(QuamMacro):
     @property
     def owner(self):
         """
-        Extracts the owner of this particular macro. In general, the owner should be considered to be the 
+        Extracts the owner of this particular macro. In general, the owner should be considered to be the
         QuantumDotPair object, as most macros are done at a pairwise level.
         """
         owner = find_owner(self)

@@ -300,7 +300,8 @@ class VoltageBalancedMacroCatalog:
             VoltagePointName,
         )
         from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_macros import (
-        CZMacro, CROTMacro
+            CZMacro,
+            CROTMacro,
         )
 
         from quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.state_macros import (
@@ -312,12 +313,15 @@ class VoltageBalancedMacroCatalog:
             TwoStageBalancedInitializeMacro,
         )
         from quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.two_qubit_macros import (
-            BalancedCz2QMacro, BalancedCROTMacro
+            BalancedCz2QMacro,
+            BalancedCROTMacro,
         )
 
         if component_type is LDQubitPair:
-            return {TwoQubitMacroName.CZ.value: CZMacro,
-                    TwoQubitMacroName.CROT.value: CROTMacro,}
+            return {
+                TwoQubitMacroName.CZ.value: CZMacro,
+                TwoQubitMacroName.CROT.value: CROTMacro,
+            }
         if component_type is QuantumDotPair:
             return {
                 VoltagePointName.INITIALIZE.value: BalancedHeraldedInitializeMacro,
@@ -353,9 +357,7 @@ class TypeOverrideCatalog:
             overrides: Mapping from component class to macro-name -> factory.
                 Only exact type matches are used (no MRO walk).
         """
-        self._overrides: dict[type, MacroFactoryMap] = {
-            t: dict(m) for t, m in overrides.items()
-        }
+        self._overrides: dict[type, MacroFactoryMap] = {t: dict(m) for t, m in overrides.items()}
 
     def get_factories(self, component_type: type) -> MacroFactoryMap:
         """Return overrides for *component_type*, or empty dict if none."""
