@@ -82,9 +82,7 @@ class BalancedCz2QMacro(QubitPairMacro):
         """
         m = self.exchange_decay_model
         if m is None:
-            raise ValueError(
-                "T_2π model not calibrated.  Run 18a_swap_oscillations first."
-            )
+            raise ValueError("T_2π model not calibrated.  Run 18a_swap_oscillations first.")
         model_type = m.get("type", "polynomial")
         if model_type == "polynomial":
             result = 0.0
@@ -146,14 +144,10 @@ class BalancedCz2QMacro(QubitPairMacro):
         wait = self.wait_duration if wait_duration is None else wait_duration
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         phase_shift_control = (
-            self.phase_shift_control
-            if phase_shift_control is None
-            else phase_shift_control
+            self.phase_shift_control if phase_shift_control is None else phase_shift_control
         )
         phase_shift_target = (
-            self.phase_shift_target
-            if phase_shift_target is None
-            else phase_shift_target
+            self.phase_shift_target if phase_shift_target is None else phase_shift_target
         )
 
         owner = self.qubit_pair
@@ -166,12 +160,8 @@ class BalancedCz2QMacro(QubitPairMacro):
 
         qua.align(*gates)
         # with qua.strict_timing_():
-        vs.ramp_to_voltages(
-            negative, duration=wait, ramp_duration=ramp, ensure_align=False
-        )
-        vs.ramp_to_voltages(
-            positive, duration=wait, ramp_duration=2 * ramp, ensure_align=False
-        )
+        vs.ramp_to_voltages(negative, duration=wait, ramp_duration=ramp, ensure_align=False)
+        vs.ramp_to_voltages(positive, duration=wait, ramp_duration=2 * ramp, ensure_align=False)
         vs.ramp_to_voltages(
             zero,
             duration=16,
@@ -179,9 +169,7 @@ class BalancedCz2QMacro(QubitPairMacro):
             ensure_align=False,
         )
 
-        qua.frame_rotation_2pi(
-            phase_shift_control, self.qubit_pair.qubit_control.xy.name
-        )
+        qua.frame_rotation_2pi(phase_shift_control, self.qubit_pair.qubit_control.xy.name)
         qua.frame_rotation_2pi(phase_shift_target, self.qubit_pair.qubit_target.xy.name)
 
     def balance(self) -> None:
@@ -344,10 +332,12 @@ class BalancedCROTMacro(QubitPairMacro):
         vs = owner.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
 
-        pulse_duration = drive_qubit.xy.operations[pulse_name].length if duration is None else duration
+        pulse_duration = (
+            drive_qubit.xy.operations[pulse_name].length if duration is None else duration
+        )
         qua.align(drive_qubit.xy.name, *gates)
         with qua.strict_timing_():
-            qua.wait(int((3*ramp_duration + pulse_duration)//4), drive_qubit.xy.name)
+            qua.wait(int((3 * ramp_duration + pulse_duration) // 4), drive_qubit.xy.name)
 
             drive_qubit.xy.play(
                 pulse_name,
@@ -359,7 +349,10 @@ class BalancedCROTMacro(QubitPairMacro):
                 negative, duration=pulse_duration, ramp_duration=ramp_duration, ensure_align=False
             )
             vs.ramp_to_voltages(
-                positive, duration=pulse_duration, ramp_duration=2 * ramp_duration, ensure_align=False
+                positive,
+                duration=pulse_duration,
+                ramp_duration=2 * ramp_duration,
+                ensure_align=False,
             )
             vs.ramp_to_voltages(
                 zero,

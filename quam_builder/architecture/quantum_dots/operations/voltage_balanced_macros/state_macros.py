@@ -33,6 +33,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     VoltagePointName,
 )
 from qualang_tools.units import unit
+
 u = unit(coerce_to_integer=True)
 
 __all__ = [
@@ -54,9 +55,7 @@ def _default_target_qubit_name(
     if qubit_pair is not None:
         role = "control" if qubit_role is None else qubit_role
         if role not in {"target", "control"}:
-            raise ValueError(
-                f"Invalid qubit_role '{role}'. Expected 'target' or 'control'."
-            )
+            raise ValueError(f"Invalid qubit_role '{role}'. Expected 'target' or 'control'.")
         if role == "control":
             control = getattr(qubit_pair, "qubit_control", None)
             if control is not None:
@@ -178,7 +177,7 @@ class _BalancedRoundTripMacro(QuamMacro):
         vs.ramp_to_voltages(
             positive,
             duration=hold,
-            ramp_duration=2*ramp,
+            ramp_duration=2 * ramp,
             ensure_align=False,
         )
         vs.ramp_to_voltages(
@@ -209,21 +208,22 @@ class BalancedInitializeMacro(_BalancedRoundTripMacro):
 
     point: str = VoltagePointName.INITIALIZE.value
 
+
 @quam_dataclass
-class BalancedHeraldedInitializeMacro(BalancedInitializeMacro): 
+class BalancedHeraldedInitializeMacro(BalancedInitializeMacro):
     def apply(
-            self,
-            max_loops: int = 2,
-            target_state: Optional[Literal[0, 1]] = None,
-            return_n_loops: bool = False,
-            conditional_drive: bool = True,
-            operation: str = "x180",
-            qubit_role: Optional[Literal["target", "control"]] = None,
-            qubit_name: Optional[str] = None,
-            meas_ramp_duration: Optional[int] = None,
-            meas_buffer_duration: Optional[int] = None,
-            **kwargs
-        ):
+        self,
+        max_loops: int = 2,
+        target_state: Optional[Literal[0, 1]] = None,
+        return_n_loops: bool = False,
+        conditional_drive: bool = True,
+        operation: str = "x180",
+        qubit_role: Optional[Literal["target", "control"]] = None,
+        qubit_name: Optional[str] = None,
+        meas_ramp_duration: Optional[int] = None,
+        meas_buffer_duration: Optional[int] = None,
+        **kwargs,
+    ):
         owner = _owner_component(self)
         if qubit_name is None:
             qubit_name = _default_target_qubit_name(owner, qubit_role=qubit_role)
@@ -257,34 +257,34 @@ class BalancedHeraldedInitializeMacro(BalancedInitializeMacro):
                 buffer_duration=meas_buffer_duration,
             )
 
-            # As long as the state is in the initial value, the loop will continue until max_loops
-            #qua.assign(cond, qua.Cast.to_bool(state - target_state))
+            # As long as the state is in the initial value, the loop will continue until max_loops
+            # qua.assign(cond, qua.Cast.to_bool(state - target_state))
             qua.assign(n_count, n_count + 1)
             qubit = owner.machine.qubits[qubit_name]
             with qua.if_(cond):
                 qua.align(*gates, qubit.xy.name, owner.sensor_dots[0].readout_resonator.id)
                 qubit.apply(operation)
 
-        if return_n_loops: 
+        if return_n_loops:
             return n_count
         return None
 
 
 @quam_dataclass
-class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro): 
+class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro):
     def apply(
-            self,
-            max_loops: int = 1000,
-            target_state: Optional[Literal[0, 1]] = None,
-            return_n_loops: bool = False,
-            conditional_drive: bool = True,
-            operation: str = "x180",
-            qubit_role: Optional[Literal["target", "control"]] = None,
-            qubit_name: Optional[str] = None,
-            meas_ramp_duration: Optional[int] = None,
-            meas_buffer_duration: Optional[int] = None,
-            **kwargs
-        ):
+        self,
+        max_loops: int = 1000,
+        target_state: Optional[Literal[0, 1]] = None,
+        return_n_loops: bool = False,
+        conditional_drive: bool = True,
+        operation: str = "x180",
+        qubit_role: Optional[Literal["target", "control"]] = None,
+        qubit_name: Optional[str] = None,
+        meas_ramp_duration: Optional[int] = None,
+        meas_buffer_duration: Optional[int] = None,
+        **kwargs,
+    ):
         owner = _owner_component(self)
         if qubit_name is None:
             qubit_name = _default_target_qubit_name(owner, qubit_role=qubit_role)
@@ -311,7 +311,7 @@ class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro):
         drive_success = qua.declare(bool)
         qua.assign(drive_success, False)
 
-        # FIRST LOOP: We always initialise, measure, drive. 
+        # FIRST LOOP: We always initialise, measure, drive.
 
         # First INIT
         super().apply(**kwargs)
@@ -329,14 +329,13 @@ class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro):
 
         # qua.assign(prev_cond, qua.Cast.to_bool(prev_state - target_state))
 
-        # Now, we enter the loop. In this loop, we initialise, measure, and conditionally drive. 
-        # The drive condition: 
-            # - Regardless of whether the prev_cond is FALSE (target) or TRUE (non-target), if the loop measures 
-            #   the OPPOSITE condition, then this means that the drive worked. We therefore drive if the state is NOT 
-            #   at the target state. Easy. 
-            # - If the newly measured state is the SAME condition, this means that the drive did not work, and that we are stuck. 
-            #   In this case, we will continue the loop until we measure the opposite state, and then exit, conditionally driving. 
-
+        # Now, we enter the loop. In this loop, we initialise, measure, and conditionally drive.
+        # The drive condition:
+        # - Regardless of whether the prev_cond is FALSE (target) or TRUE (non-target), if the loop measures
+        #   the OPPOSITE condition, then this means that the drive worked. We therefore drive if the state is NOT
+        #   at the target state. Easy.
+        # - If the newly measured state is the SAME condition, this means that the drive did not work, and that we are stuck.
+        #   In this case, we will continue the loop until we measure the opposite state, and then exit, conditionally driving.
 
         with qua.while_((n_count < max_loops) & (cond | ~drive_success)):
             # First initialise. super() should be BalancedInitializeMacro
@@ -349,15 +348,15 @@ class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro):
                 buffer_duration=meas_buffer_duration,
             )
 
-            # As long as the state is in the initial value, the loop will continue until max_loops
+            # As long as the state is in the initial value, the loop will continue until max_loops
             qua.assign(cond, qua.Cast.to_bool(state - target_state))
 
-            # If cond != prev_cond, then drive worked. 
-            with qua.if_(state ^ prev_cond): # IF DIFFERENT, THEN TRUE. 
+            # If cond != prev_cond, then drive worked.
+            with qua.if_(state ^ prev_cond):  # IF DIFFERENT, THEN TRUE.
                 qua.assign(drive_success, True)
-            
-            # IF SAME, THEN FALSE, drive_success = FALSE. 
-            
+
+            # IF SAME, THEN FALSE, drive_success = FALSE.
+
             qua.assign(n_count, n_count + 1)
             qubit = owner.machine.qubits[qubit_name]
             with qua.if_(cond):
@@ -365,9 +364,10 @@ class BalancedHeraldedInitializeMacroWithMemory(BalancedInitializeMacro):
 
             qua.assign(prev_cond, state)
 
-        if return_n_loops: 
+        if return_n_loops:
             return n_count
         return None
+
 
 @quam_dataclass
 class BalancedEmptyMacro(_BalancedRoundTripMacro):
@@ -542,9 +542,7 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
             #     ramp_duration=ramp,
             #     ensure_align=False,
             # )
-            vs.ramp_to_zero(
-                ramp_duration = ramp
-            )
+            vs.ramp_to_zero(ramp_duration=ramp)
 
         return result
 
@@ -583,10 +581,10 @@ class TwoStageBalancedInitializeMacro(QuamMacro):
         rd_mid = self.ramp_duration_mid
         hold = self.hold_duration
         total_ns = (
-            2 * rd1       # segments 1 + 5
-            + 2 * rd2     # segments 2 + 4
-            + rd_mid       # segment 3
-            + 2 * hold    # holds at -V1 and +V1
+            2 * rd1  # segments 1 + 5
+            + 2 * rd2  # segments 2 + 4
+            + rd_mid  # segment 3
+            + 2 * hold  # holds at -V1 and +V1
             + DEFAULTS.state_macro.point_duration  # final dwell at 0
         )
         return total_ns * 1e-9
@@ -634,16 +632,28 @@ class TwoStageBalancedInitializeMacro(QuamMacro):
 
         # with qua.strict_timing_():
         vs.ramp_to_voltages(
-            neg_v2, duration=16, ramp_duration=rd1, ensure_align=False,
+            neg_v2,
+            duration=16,
+            ramp_duration=rd1,
+            ensure_align=False,
         )
         vs.ramp_to_voltages(
-            neg_v1, duration=hold, ramp_duration=rd2, ensure_align=False,
+            neg_v1,
+            duration=hold,
+            ramp_duration=rd2,
+            ensure_align=False,
         )
         vs.ramp_to_voltages(
-            pos_v1, duration=hold, ramp_duration=rd_mid, ensure_align=False,
+            pos_v1,
+            duration=hold,
+            ramp_duration=rd_mid,
+            ensure_align=False,
         )
         vs.ramp_to_voltages(
-            pos_v2, duration=16, ramp_duration=rd2, ensure_align=False,
+            pos_v2,
+            duration=16,
+            ramp_duration=rd2,
+            ensure_align=False,
         )
         vs.ramp_to_voltages(
             zero,
@@ -892,7 +902,7 @@ class BalancedSensorDotMeasureMacro(QuamMacro):
 
 
 @quam_dataclass
-class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro): 
+class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
 
     point: str = VoltagePointName.MEASURE.value
     ramp_duration: int = DEFAULTS.state_macro.ramp_duration
@@ -900,17 +910,17 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
     hold_duration: int = DEFAULTS.state_macro.hold_duration
 
     def apply(
-        self, 
-        ramp_duration: int = None, 
+        self,
+        ramp_duration: int = None,
         buffer_duration: int = None,
-        hold_duration: int = None, 
-        point: str | dict = None, 
+        hold_duration: int = None,
+        point: str | dict = None,
         pulse_name: str = "gaussian_x180",
         return_iq: bool = False,
         xy_channel: Any = None,
         amplitude_scale: float = 1.0,
         frequency_detuning_Hz: int = 0,
-    ): 
+    ):
         owner = _owner_component(self)
 
         xy_exists = xy_channel is not None
@@ -920,9 +930,9 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
         hold_dur = self.hold_duration if hold_duration is None else hold_duration
         target_point = self.point if point is None else point
 
-        if not owner.sensor_dots: 
+        if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.name}' has no sensor dots for readout")
-        
+
         sensor_dot = owner.sensor_dots[0]
         sensor_macro = sensor_dot.macros[TwoQubitMacroName.MEASURE]
         if hasattr(sensor_macro, "readout_pulse_length_ns_for_pair"):
@@ -951,18 +961,18 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
 
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
         elements_to_align = [sensor_dot.readout_resonator.name, *gates]
-        if xy_exists: 
+        if xy_exists:
             elements_to_align.extend([xy_channel.id])
         qua.align(*elements_to_align)
 
-        if xy_exists: 
+        if xy_exists:
             op_frequency = xy_channel.intermediate_frequency
             new_freq = op_frequency + frequency_detuning_Hz
 
             # Update the frequency outside of the strict timing
             xy_channel.update_frequency(new_freq)
             op_length = xy_channel.operations[pulse_name].length
-        else: 
+        else:
             op_length = 0
 
         with qua.strict_timing_():
@@ -972,14 +982,16 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
                 ramp_duration=ramp,
                 ensure_align=False,
             )
-            qua.wait(wait_cycles + readout_len//4 + hold_dur//4, sensor_dot.readout_resonator.name)
+            qua.wait(
+                wait_cycles + readout_len // 4 + hold_dur // 4, sensor_dot.readout_resonator.name
+            )
 
-            if xy_exists: 
-                qua.wait(wait_cycles + readout_len//4, xy_channel.id)
-                qua.wait(op_length//4 , xy_channel.id)
-                qua.wait(hold_dur//4, xy_channel.id)
-                qua.wait(op_length//4, sensor_dot.readout_resonator.name)
-            
+            if xy_exists:
+                qua.wait(wait_cycles + readout_len // 4, xy_channel.id)
+                qua.wait(op_length // 4, xy_channel.id)
+                qua.wait(hold_dur // 4, xy_channel.id)
+                qua.wait(op_length // 4, sensor_dot.readout_resonator.name)
+
             vs.ramp_to_voltages(
                 positive,
                 duration=hold + op_length + hold_dur,
@@ -987,22 +999,22 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
                 ensure_align=False,
             )
 
-            qua.wait(wait_cycles + ramp//4, sensor_dot.readout_resonator.name)
-            
+            qua.wait(wait_cycles + ramp // 4, sensor_dot.readout_resonator.name)
+
             result = sensor_macro.apply(
                 quantum_dot_pair_id=owner.id,
                 return_iq=return_iq,
             )
-            if xy_exists: 
-                qua.wait(wait_cycles + ramp//4 + readout_len//4 , xy_channel.id)
+            if xy_exists:
+                qua.wait(wait_cycles + ramp // 4 + readout_len // 4, xy_channel.id)
                 with qua.if_(result < 1):
-                    xy_channel.play(pulse_name, amplitude_scale = amplitude_scale)
+                    xy_channel.play(pulse_name, amplitude_scale=amplitude_scale)
                 with qua.else_():
-                    qua.wait(op_length//4 , xy_channel.id)
-                qua.wait(hold_dur//4, xy_channel.id)
-            
-            qua.wait(hold_dur//4, sensor_dot.readout_resonator.name)
-            
+                    qua.wait(op_length // 4, xy_channel.id)
+                qua.wait(hold_dur // 4, xy_channel.id)
+
+            qua.wait(hold_dur // 4, sensor_dot.readout_resonator.name)
+
             vs.ramp_to_voltages(
                 zero,
                 duration=ramp,
