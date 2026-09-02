@@ -14,7 +14,7 @@ from .pulse_catalog import *
 from .names import *
 from .default_macros import *
 from .default_operations import *
-from .custom_macros import CustomMacro
+from .custom_macro import CustomMacro
 
 __all__ = [
     *macro_catalog.__all__,
