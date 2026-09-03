@@ -89,17 +89,23 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
     return [point for point in ramp for _ in range(sampling_rate)]
 
 
-def validate_compensation(samples, allowed=1.0):
-    plt.figure()
+def analog_abs_integral(sample):
+    """Absolute trapezoidal integral of one analog sample array."""
+    try:
+        return np.abs(np.trapezoid(sample))
+    except AttributeError:
+        return np.abs(np.trapz(sample))
+
+
+def validate_compensation(samples, allowed=1.0, show_plot=True):
+    if show_plot:
+        plt.figure()
+        for name, sample in samples.con1.analog.items():
+            plt.plot(sample, label=name)
+        plt.legend()
+        plt.show()
     for name, sample in samples.con1.analog.items():
-        plt.plot(sample, label=name)
-    plt.legend()
-    plt.show()
-    for name, sample in samples.con1.analog.items():
-        try:
-            integrated = np.abs(np.trapezoid(sample))
-        except AttributeError:
-            integrated = np.abs(np.trapz(sample))
+        integrated = analog_abs_integral(sample)
         assert (
             integrated < allowed
         ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"
