@@ -828,7 +828,7 @@ class VoltageSequence:
             ...     voltage_seq.ramp_to_voltages({"P1": 0.0}, duration=1000, ramp_duration=100)
             ...
             ...     # Apply compensation to counteract accumulated drift
-            ...     voltage_seq.apply_compensation_pulse()  # Use default 0.49V limit
+            ...     voltage_seq.apply_compensation_pulse()  # Use default 0.05 V limit
             ...     voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom limit
 
         Note:

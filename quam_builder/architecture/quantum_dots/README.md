@@ -1,668 +1,291 @@
-# Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
+# Quantum-dot QuAM architecture
 
+This package (`quam_builder.architecture.quantum_dots`) provides QuAM components, voltage-control tooling, default operations and macros, and wiring helpers for **quantum-dot and spin-qubit** processors.
 
-## 1. Introduction
+It is aimed at:
 
-This document first introduces the **GateSet** component with the **VoltageSequence** tool, a python framework for generating QUA sequences to group control of DC gate voltages, particularly useful for spin qubit experiments.
+- Labs **building a machine from connectivity specs** (recommended: [`quam_builder.builder.quantum_dots`](../../builder/quantum_dots/)).
+- Experimentalists **moving from raw QUA** to a structured QuAM machine (components, named voltage points, macros, and `wire_machine_macros`).
 
-The components `GateSet` and `VoltageSequence` enable precise physical voltage control, essential for quantum dot operations and forming a basis for `VirtualGateSet`.
+You can use the **builder** to generate a full machine, or assemble **components piecemeal** when you need a custom topology. Child READMEs cover specific areas in depth; this document is the onboarding hub.
 
-Spin qubit experiments are encouraged to use the **VoltageGate** QuAM channel. A `VoltageGate` channel is a Quantum Dot specific channel inheriting from QuAM's `SingleChannel` object. It adds to the `SingleChannel` by containing an `offset_parameter` and an `attenuation` value.
+## Why this package
 
-Subsequently, this document introduces the **VirtualGateSet** and **VirtualizationLayer** components. These extend the physical gate control capabilities provided by `GateSet` and `VoltageSequence` by adding one or more layers of virtual gates.
+Spin-qubit experiments combine **sticky DC gate control**, **microwave drive**, and **readout** in one QUA program. Without structure, that usually means ad-hoc channel dicts, copy-pasted pulse blocks, and manual tracking of absolute gate voltages across ramps.
 
-Virtual gates simplify complex tuning procedures in experiments, especially for spin qubits, by allowing control over abstract parameters that map to multiple physical gate voltages.
+This package replaces that with a **serialized QuAM machine**: named voltage points, default macros, and wiring helpers so experiments read like `qubit.initialize()` / `qubit.x180()` instead of low-level `play`/`ramp` on every gate.
 
-**`VirtualGateSet` builds upon `GateSet` and inherits all of its features**, including physical channel management, `VoltageTuningPoint` definitions, and all voltage control methods. This means you can use virtual gates while still having access to all the voltage control capabilities of the underlying `GateSet`.
-
-### 1.1  Relevance to Spin Qubits
-
-Virtual gates are extremely powerful for operating spin qubits:
-
-- **Orthogonal Control:** Provide more orthogonal control over quantum dot properties (e.g., independently tuning inter-dot tunnel coupling and dot chemical potential).
-- **Hierarchical Tuning:** Multiple layers allow for a hierarchy of control, from coarse adjustments to fine-tuning.
-- **Simplified Tuning:** Complex multi-dimensional tuning tasks become simpler in virtual gate space.
-- **Automated Calibration:** Virtual gate matrices can be calibrated automatically, adapting to device changes.
-- **Standardization:** Defines device operation in terms of abstract parameters rather than specific physical gate voltages, improving experiment portability and comparability.
-
-The `VirtualGateSet` framework provides the necessary tools to implement these advanced control schemes within QUA.
-
-## 2. Overview and Workflow
-
-### 2.1. Components Overview
-
-#### 2.1.1 VoltageGate
-
-`VoltageGate` is a QuAM channel built specifically to handle quantum dot and spin qubit experiments. It inherits from `SingleChannel`, adding an `offset_parameter` and `attenuation` values.
-
-- `offset_parameter` is built to work with external voltage sources (and external drivers) in mind. For example, in the case that the external voltage is provided by the QM QDAC-II, one can use the QCoDeS driver as follows:
-
-  ```python
-  channel_p1 = VoltageGate(...)
-
-  channel_p1.offset_parameter = QDAC.ch17.dc_constant_V # QDAC is a QCoDeS driver
-
-  channel_p1.offset_parameter(0.1) # Sets the DC offset to 0.1
-  channel_p1.offset_parameter() # Returns 0.1
-  ```
-
-#### 2.1.2 GateSet
-
-`GateSet` is a `QuantumComponent` grouping physical `VoltageGate` (and thus `SingleChannel`) objects. It manages named voltage presets (`VoltageTuningPoint` macros) and creates `VoltageSequence` instances.
-
-#### 2.1.3 VoltageSequence
-
-`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
-
-#### 2.1.4 VirtualGateSet
-
-A subclass of `GateSet`. It manages a list of `VirtualizationLayer` objects, which define the transformations from virtual gate voltages to underlying (either physical or lower-level virtual) gate voltages.
-
-#### 2.1.5 VirtualizationLayer
-
-Represents a single linear transformation (matrix) from a set of source (virtual) gates to a set of target gates.
-
-### 2.2 Workflow
-
-**This document will start with an end-to-end example before diving into the specifics. This example workflow takes place in 6 broad steps:**
-
-#### 1.  Define QUAM `VoltageGate` objects for physical gates
-
-- Below is an example of how a `VoltageGate` is instantiated. As appropriate, add `offset_parameter` and `attenuation` arguments.
-
-- In order for `GateSet`, `VirtualGateSet` and `VoltageSequence` to function properly, the channels **must** be instantiated as **sticky** elements.
-  - This means that any applied offset is maintained.
-  - Any `sequence` in the `GateSet`/`VirtualGateSet`, as well as core functionalities such as `ramp_to_zero`, rely on sticky elements. This is a core requirement.
-
-  ```python
-  from quam_builder.architecture.quantum_dots.components import VoltageGate
-  from quam.components import StickyChannelAddon, pulses
-
-
-  channel_p1 = VoltageGate(
-    opx_output = ("con1", 1), #Specify the OPX output
-    sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)}, # Ensure that the instantiated channel is STICKY
-  )
-
-
-  channel_p2 = VoltageGate(
-    opx_output = ("con1", 2), #Specify the OPX output
-    sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
-  )
-  ```
-
-- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
-
-
-#### 2.  Group channels into a channel dictionary
-
-  ```python
-  channels = {
-    "channel_p1": channel_p1,
-    "channel_p2": channel_p2,
-  }
-  ```
-
-- When creating this mapping, it is important to ensure that the string names used here match the string names in your QuAM machine.
-
-- If your channel object are already parented by a QuAM machine (i.e. `machine.channel["channel_p1"] = VoltageGate(...)`), then the channels cannot be re-parented into your GateSet. In this case, it is important to use the channel reference as such:
-
-  ```python
-  channels = {
-    "channel_p1": channel_p1.get_reference(),
-    "channel_p2": channel_p2.get_reference()
-  }
-  ```
-
-
-#### 3.  Instantiate your GateSet with your channel mapping
-
-- Below shows an example of instantiating your `GateSet`, for basic group control of `VoltageGate` channels.
-
-  ```python
-  from quam_builder.architecture.quantum_dots.components import GateSet
-
-  my_gate_set = GateSet(id="dot_plungers", channels=channels)
-  ```
-
-- If virtual gates are necessary in your setup, use the `VirtualGateSet` instead. The instantiation of `VirtualGateSet` is identical to the `GateSet`.
-
-  ```python
-  from quam_builder.architecture.quantum_dots.components import VirtualGateSet
-
-  my_virtual_gate_set = VirtualGateSet(id="dot_plungers", channels=channels)
-
-  ```
-
-##### 3.1 (Optional) Add Virtualization Layers
-
-- If you are using the `VirtualGateSet`, you can map virtualization layers onto your existing physical or virtual gates using the `.add_layer()` method. You must name the new virtual `source_gates` and input a transformation matrix. This does not need to map onto all of your existing physical or virtual gates.
-
-  ```python
-  # Add coarse tuning layer (virtual gates for overall dot positions)
-  my_virtual_gate_set.add_layer(
-      source_gates=["v_Coarse1", "v_Coarse2"],
-      target_gates=["channel_p1", "channel_p2"], #Your existing physical gates should be the target_gates of your first layer
-      matrix=[[1.0, 0.5], [0.5, 1.0]]  # Coupled control
-  )
-
-  # Add fine tuning layer (virtual gates for precise adjustments)
-  my_virtual_gate_set.add_layer(
-      source_gates=["v_FineTune1", "v_FineTune2"],
-      target_gates=["v_Coarse1", "v_Coarse2"],
-      matrix=[[0.1, 0.0], [0.0, 0.1]]  # Small adjustments
-  )
-  ```
-
-#### 4.  Add `VoltageTuningPoint` macros to the `GateSet` or `VirtualGateSet`
-
-- This is useful for when you have set points in your charge-stability that must be re-used in the experiment. GateSet can hold VoltageTuningPoints which can easily be accessed by VoltageSequence
-
-  ```python
-  my_gate_set.add_point(name="idle", voltages={"channel_P1": 0.1, "channel_P2": -0.05}, duration=1000)
-  ```
-
-- Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
-
-- This is not unique to `GateSet`, or indeed physical gates. `VirtualGateSet` is capable of holding virtual tuning points. The input dictionary mapping can contain any combination of physical or virtual gates, from any layer in the `VirtualGateSet`. The exact mechanism with which the output voltage is calculated is covered later.
-
-  ```python
-  my_virtual_gate_set.add_point(name="idle", voltages={"v_FineTune1": 0.1, "v_Coarse2": -0.05}, duration=1000)
-  ```
-
-- NOTE: Any virtual gate not **explicitly** provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages. For more specific information on this, see sections [4](#important-behavior-zeroing-semantics) and [6.1](#61-important-behavior-unspecified-virtual-gates-are-zeroed-per-operation).
-
-#### 5.  Create a `VoltageSequence` from the `GateSet` or `VirtualGateSet` inside your QUA programme
-
-- `voltage_seq` in the below example can be used in QUA programs to easily step/ramp to points defined as macros in your `GateSet` or `VirtualGateSet`
-
-  ```python
-  with program() as basic_control:
-    voltage_seq = my_gate_set.new_sequence()
-  ```
-
-- Or, if using the `VirtualGateSet`,
-
-  ```python
-  with program() as complex_control:
-    voltage_seq = my_virtual_gate_set.new_sequence()
-  ```
-
-#### 6. Create your QUA program with your `VoltageSequence`
-
-- Instantiate your new sequence in the QUA programme, and step/ramp to any point.
-
-- For a basic `GateSet`,
-
-  ```python
-  with qua.program() as basic_control:
-      voltage_seq = my_gate_set.new_sequence()
-      voltage_seq.step_to_point("idle") # Step to pre-defined point "idle". ramp_to_point also valid, with a ramp_duration argument, also shown in the VirtualGateSet example
-      voltage_seq.step_to_voltages(voltages = {...}, duration = ...) # In-case you would like to step to a point not saved as a macro in the GateSet, you can just define it here
-  ```
-
-- Use a `VirtualGateSet` for full control over virtual and physical points:
-
-  ```python
-  # Create voltage sequence
-  with qua.program() as complex_control:
-      voltage_seq = my_virtual_gate_set.new_sequence()
-
-      # Step to a virtual gate configuration
-      voltage_seq.step_to_voltages(
-          voltages={"v_FineTune1": 0.05, "v_FineTune2": -0.02},
-          duration=500
-      )
-
-      # Ramp to a predefined point
-      voltage_seq.ramp_to_point("readout", ramp_duration=100, duration=2000)
-
-      # Combine virtual and physical control
-      voltage_seq.step_to_voltages(
-          voltages={
-              "v_FineTune1": 0.1,    # Virtual gate adjustment
-              "channel_p2": 0.3              # Direct physical gate control
-          },
-          duration=1000
-      )
-
-      # Fine ramp with virtual gates
-      voltage_seq.ramp_to_voltages(
-          voltages={"v_FineTune2": 0.0},
-          duration=500,
-          ramp_duration=40 # Ensure multiple of 4
-      )
-
-      # Return to zero
-      voltage_seq.ramp_to_zero(ramp_duration=200)
-
-  # The system automatically resolves all virtual gate contributions:
-  # - v_FineTune1 (0.1V) -> v_Coarse1: 0.1V contribution
-  # - v_FineTune2 (0.0V) -> v_Coarse2: 0.0V contribution
-  # - v_Coarse1 (0.1V) + readout (0.2V) -> P1: 0.3V total
-  # - v_Coarse2 (0.0V) + readout (0.1V) -> P2: 0.1V total
-  # - P3: 0.3V direct control
-  ```
-
-## 3. `GateSet`
-
-A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate` or `SingleChannel` channels and treats them as a single, coordinated object for unified control. This is especially useful in Quantum Dot architectures, where one often has many physical gate electrodes that must be tuned together. Instead of controlling each `VoltageGate`/`SingleChannel` channel in isolation, the GateSet allows
-
-- Unified control: Iterate, configure, and programme multiple gates at once through a single object
-
-- Pre-defined DC points: Store named DC working points using add_point(...)
-
-- Voltage Sequences: Used in conjunction with VoltageSequence, a Sequence created in the GateSet allows you to quickly apply complex QUA commands to groups of gates, as well as keeping track of the gate voltages such that a compensating pulse can be applied later.
-
-**Key Features:**
-
-- Defines named voltage/duration presets using the `add_point()` method, which internally registers a `VoltageTuningPoint` in `GateSet.macros`.
-
-- `resolve_voltages()`: Ensures all `GateSet` channels have a defined voltage (defaulting to 0.0V if unspecified). This is particularly useful when you want to specify voltages for only a subset of channels while ensuring all other channels have defined values.
-
-  **Example:**
-
-  ```python
-  # Assume gate_set has channels: {"P1": channel_P1, "P2": channel_P2, "B1": channel_B1}
-
-  # Only specify the voltages of a partial subset of all the gates in the GateSet.
-  partial_voltages = {"P1": 0.3, "B1": -0.1}
-
-  # resolve_voltages fills in missing channels, creating a complete voltages dict internally by replacing all the un-named gate voltages with 0.0V
-  complete_voltages = gate_set.resolve_voltages(partial_voltages)
-  # Result: {"P1": 0.3, "P2": 0.0, "B1": -0.1}
-  ```
-
-- `new_sequence()`: Creates `VoltageSequence` instances.
-
-- While the tuning points can be defined dynamically within a program, it may be useful to predefine fixed tuning points, for example the readout point. This can be dded via `my_gate_set.add_point(name="...", voltages={...}, duration=...)`.
-
-- Internally this adds a **`VoltageTuningPoint` to GateSet.macros**
-
-## 4. `VoltageSequence`
-
-Generates QUA commands for voltage manipulation, associated with a `GateSet`.
-
-**Key Features:**
-
-- Translates high-level requests into QUA `play`, `ramp`, `wait`.
-
-- Tracks current voltage for each channel.
-
-- Optionally tracks integrated voltage for DC compensation (enable via `track_integrated_voltage=True` in `new_sequence()`).
-
-- Supports Python numbers and QUA variables for levels/durations.
-
-### Important Behavior (Zeroing Semantics)
-
-- Any channels unspecified in the input voltages dict are treated as 0 V on each call (consistent with `GateSet.resolve_voltages`).
-- When the sequence is created from a `VirtualGateSet`, any virtual gate not included in a call is assumed 0 V for that operation. This clears any previous contribution from that virtual gate in the resolved physical voltages.
-
-Implication: virtual gates do not maintain state across calls. To preserve a virtual configuration, always include all relevant virtual gates (and their values) in each `step_to_voltages`/`ramp_to_voltages` call, or operate directly on physical gates.
-
-- NOTE: When using QUA loops (such as for_, or infinite_loop_), it is good practise to end the inner loop with a `ramp_to_zero` command, to ensure that the voltages are accurately tracked across loops.
-
-**Creating a `VoltageSequence`:**
-
-- The sequence must be defined within a QUA program.
-
-
-**Core Methods (used in `qua.program()` context):**
-
-- `step_to_voltages(voltages: Dict[str, float], duration: int)`
-  Steps all specified channels directly to the given voltage levels and holds them for the specified duration (in nanoseconds). This creates immediate voltage changes without ramping. Both `voltages` values and `duration` can be QUA variables for dynamic control.
-
-  ```python
-  voltage_seq.step_to_voltages(voltages={"P1": 0.3, "P2": 0.1}, duration=1000)
-  ```
-
-- `ramp_to_voltages(voltages: Dict[str, float], duration: int, ramp_duration: int)`
-  Ramps all specified channels to the given voltage levels over the specified ramp duration, then holds them for the duration (both in nanoseconds). This provides smooth voltage transitions useful for avoiding voltage spikes that could affect sensitive quantum systems. All parameters can be QUA variables.
-
-  ```python
-  voltage_seq.ramp_to_voltages(voltages={"P1": 0.0}, duration=500, ramp_duration=40)
-  ```
-
-- `step_to_point(name: str, duration: Optional[int] = None)`
-  Steps all channels to the voltages defined in a predefined `VoltageTuningPoint` macro. If no duration is provided, uses the default duration from the tuning point definition. This enables quick transitions to well-defined system states. The `duration` parameter can be a QUA variable.
-
-  ```python
-  voltage_seq.step_to_point("idle")
-  voltage_seq.step_to_point("readout", duration=2000)  # Override default duration
-  ```
-
-- `ramp_to_point(name: str, ramp_duration: int, duration: Optional[int] = None)`
-  Ramps all channels to the voltages defined in a predefined `VoltageTuningPoint` over the specified ramp duration, then holds them. Combines the smooth transitions of ramping with the convenience of predefined voltage states. Both `ramp_duration` and `duration` can be QUA variables.
-
-  ```python
-  voltage_seq.ramp_to_point("idle", ramp_duration=50, duration=1000)
-  ```
-
-- `ramp_to_zero(ramp_duration: Optional[int] = None)`
-  Ramps the voltage on all channels in the GateSet to zero and resets the integrated voltage tracking for each channel. If no duration is specified, uses QUA's built-in `ramp_to_zero` command for immediate ramping. Essential for safely returning to a neutral state. The `ramp_duration` parameter can be a QUA variable.
-
-  ```python
-  voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in
-  voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
-  ```
-
-- `apply_compensation_pulse(max_voltage: float = 0.49)`
-  Applies a compensation pulse to each channel to counteract integrated voltage drift when tracking is enabled. The compensation amplitude is calculated based on the accumulated integrated voltage, with the pulse duration optimized to stay within the specified maximum voltage limit. Only available when `track_integrated_voltage=True`.
-
-  ```python
-  voltage_seq.apply_compensation_pulse()  # Use default 0.49V limit
-  voltage_seq.apply_compensation_pulse(max_voltage=0.3)  # Custom voltage limit
-  ```
-
-### Custom Macro Duration Contract
-
-When voltage channels are sticky and compensation tracking is enabled, non-voltage
-macros must expose a deterministic `inferred_duration` (in **seconds**) so hold
-time at the current DC level can be tracked correctly.
-
-- Implement `inferred_duration` on custom macros in seconds (for example, `100e-9`).
-- If a macro directly performs voltage-sequence operations that already update
-  integrated-voltage tracking, set `updates_voltage_tracking = True` on that macro
-  class to avoid double counting.
-- Prefer calling macros through component dispatch (`component.macro_name(...)`)
-  so sticky-duration interception is applied.
-
-## 5. Foundation for Virtual Gates
-
-`GateSet` and `VoltageSequence` provide the physical voltage control layer necessary for `VirtualGateSet`.
-A `VirtualGateSet` translates virtual gate operations into physical gate voltage changes, which are then applied using the `VoltageSequence` mechanisms.
-
-
-## 6. VirtualGateSet
-
-A `VirtualGateSet` allows users to define and operate with virtual gates, abstracting the underlying physical gate operations.
-
-**Key Features:**
-
-- **Inherits from `GateSet`:** Retains all functionalities of `GateSet`, including physical channel management and `VoltageTuningPoint` definitions.
-- **Manage Multiple Virtualization Layers:** Stores a list of `VirtualizationLayer` objects. Multiple layers can be defined and stacked, allowing for hierarchical virtualization. Layers are applied sequentially (in reverse order during voltage resolution) to translate top-level virtual gate voltages into physical gate voltages.
-- **Add Layers:** Use `add_layer(source_gates, target_gates, matrix)` to define and append a new `VirtualizationLayer`:
-  - `source_gates`: Names of the new virtual gates defined by this layer.
-  - `target_gates`: Names of the gates (physical or virtual from a previous layer) that this layer maps onto.
-  - `matrix`: The transformation matrix (list of lists of floats).
-- **Rectangular Matrices (Opt-In):** Set `allow_rectangular_matrices=True` on a `VirtualGateSet` to enable virtualization layers whose matrices are not square. These layers are resolved with the Moore–Penrose pseudo-inverse, allowing over- or under-complete virtual controls while keeping square layers unchanged.
-- **Additive Voltage Resolution:** Overrides `GateSet.resolve_voltages()`. When voltages are specified for virtual gates (potentially across different layers) and/or physical gates simultaneously, this method applies the inverse of the virtualization matrices for each layer. Contributions from all specified virtual and physical gates are resolved and become additive at the physical gate level. Handles multi-layered virtualization by processing layers from the outermost to the innermost.
-
-### 6.1 Important Behavior: Unspecified Virtual Gates Are Zeroed Per Operation
-
-Each `VoltageSequence` call (e.g., `step_to_voltages`, `ramp_to_voltages`, `step_to_point`) is resolved independently. Any virtual gate not explicitly provided in a call is assumed to be 0 V for that operation. This effectively removes any prior contribution from that virtual gate in the resolved physical voltages.
-
-- This applies at every layer. If a higher-level virtual gate is not specified, its contribution is taken as 0 V when resolving to lower levels.
-- Physical channels not specified in a call are also driven to 0 V for that operation (same behavior as `GateSet`).
-
-Implication: Virtual gates do not “remember” their last values across operations. If you want to maintain a virtual configuration, include all relevant virtual gates and their values in each call, or operate directly on physical gates.
-
-Example:
+**Before (raw QUA sketch):**
 
 ```python
-# Suppose v_C1 and v_C2 map to P1, P2 via a layer
+from qm.qua import program, play, wait, amp
 
-# First call: set both virtual gates
-voltage_seq.step_to_voltages({"v_C1": 0.2, "v_C2": 0.1}, duration=1000)
-
-# Second call: only specify v_C1
-# v_C2 is assumed 0 V for this call, so its previous contribution is removed
-voltage_seq.step_to_voltages({"v_C1": 0.2}, duration=1000)
-```
-
-
-## 7. VirtualizationLayer
-
-A `VirtualizationLayer` defines a single step in the virtual-to-physical gate voltage transformation.
-
-**Key Attributes:**
-
-- `source_gates` (`List[str]`): Names of the virtual gates defined in this layer.
-- `target_gates` (`List[str]`): Names of the physical or underlying virtual gates this layer maps to.
-- `matrix` (`List[List[float]]`): The virtualization matrix defining the linear transformation. The relationship is `V_source = M * V_target`. When resolving, `V_target = M_inverse * V_source` is used for this layer's contribution.
-- Handles the calculation of the inverse matrix and the resolution of voltages for its specific layer.
-
-### Mathematical Relations
-
-### 7.1 Forward Transformation (Virtual to Physical)
-
-The core mathematical relationship for each virtualization layer is:
-
-```
-V_target = M * V_source
-```
-
-Where:
-
-- `V_source` is the vector of virtual gate voltages (source gates)
-- `V_target` is the vector of target gate voltages (physical or lower-level virtual gates)
-- `M` is the transformation matrix
-
-For example, with a 2x2 matrix:
-
-```python
-matrix = [[1.0, 0.5], [0.5, 1.0]]
-source_gates = ["v_Gate1", "v_Gate2"]
-target_gates = ["P1", "P2"]
-```
-
-The relationship becomes:
-
-```
-[P1]   [1.0  0.5] [v_Gate1]
-[P2] = [0.5  1.0] [v_Gate2]
-```
-
-Expanded:
-
-- `P1 = 1.0 * v_Gate1 + 0.5 * v_Gate2`
-- `P2 = 0.5 * v_Gate1 + 1.0 * v_Gate2`
-
-### 7.2 Inverse Transformation (Voltage Resolution)
-
-During voltage resolution, the system applies the inverse transformation:
-
-```
-V_source = M⁻¹ * V_target
-```
-
-The code implements this using `numpy.linalg.inv()` to calculate the inverse matrix. For each layer's resolution:
-
-```python
-inverse_matrix = np.linalg.inv(matrix)
-for target_gate, inv_matrix_row in zip(target_gates, inverse_matrix):
-    resolved_voltages[target_gate] += inv_matrix_row @ source_voltages
-```
-
-### 7.3 Multi-Layer Resolution
-
-For multiple virtualization layers, transformations are applied sequentially in reverse order. Consider two layers:
-
-**Layer 1:** `v_Coarse1, v_Coarse2 → P1, P2`
-
-```
-matrix_1 = [[1.0, 0.5], [0.5, 1.0]]
-```
-
-**Layer 2:** `v_Fine1, v_Fine2 → v_Coarse1, v_Coarse2`
-
-```
-matrix_2 = [[0.1, 0.0], [0.0, 0.1]]
-```
-
-The combined transformation is:
-
-```
-[P1]   [1.0  0.5] [0.1  0.0] [v_Fine1]
-[P2] = [0.5  1.0] [0.0  0.1] [v_Fine2]
-```
-
-Which gives the overall relationship:
-
-```
-[P1]   [0.1  0.05] [v_Fine1]
-[P2] = [0.05 0.1 ] [v_Fine2]
-```
-
-### 7.4 Additive Voltage Contributions
-
-The system supports additive contributions from different layers and direct physical gate control. If you specify:
-
-- `v_Fine1 = 1.0V` (from Layer 2)
-- `v_Coarse1 = 0.2V` (from Layer 1)
-- `P1 = 0.1V` (direct)
-
-The final voltage for P1 becomes:
-
-```
-P1_final = P1_direct + P1_from_v_Coarse1 + P1_from_v_Fine1
-         = 0.1 + (1.0 * 0.2) + (1.0 * 0.1)
-         = 0.1 + 0.2 + 0.1 = 0.4V
-```
-
-### 7.5 Matrix Constraints and Rectangular Support
-
-For a valid virtualization layer:
-
-- The matrix dimensions must match the number of source and target gates: `matrix.shape == (len(source_gates), len(target_gates))`.
-- By default, the matrix must be square and invertible (`det(M) ≠ 0`), and the layer uses `numpy.linalg.inv(matrix)` during resolution.
-- If `VirtualGateSet.allow_rectangular_matrices` is set to `True`, non-square matrices are permitted. These layers store `use_pseudoinverse=True` and are resolved with `numpy.linalg.pinv(matrix)`, yielding the least-squares solution for tall matrices and the minimum-norm solution for wide matrices.
-- Square matrices continue to use the true inverse even when rectangular layers are enabled, so existing behaviour and calibrations remain unchanged.
-
-### 7.6 Core Allocation and Performance
-
-**One core is dedicated to each physical gate**, regardless of the number of virtual gates or virtualization layers. This has important implications:
-
-- **Scalable Performance**: Adding virtual gates or virtualization layers doesn't increase the computational load on the QUA system
-- **Real-Time Operation**: All matrix calculations are performed at compile time, not during execution
-- **Predictable Resource Usage**: The number of cores required is determined solely by the number of physical channels
-
-For example, if you have 3 physical gates (`P1`, `P2`, `P3`) but 10 virtual gates across 3 virtualization layers, you still only need 3 cores - one for each physical gate.
-
-### 7.7 Matrix Calculation Example
-
-Consider a simple two-layer system:
-
-```python
-# Layer 1: Virtual gates to physical gates
-matrix_1 = [[1.0, 0.5], [0.5, 1.0]]  # v_Coarse1, v_Coarse2 -> P1, P2
-
-# Layer 2: Higher-level virtual gates to Layer 1 virtual gates
-matrix_2 = [[0.1, 0.0], [0.0, 0.1]]  # v_FineTune1, v_FineTune2 -> v_Coarse1, v_Coarse2
-```
-
-When you set `v_FineTune1 = 0.1V`, the system:
-
-1. Applies inverse of matrix_2: `v_Coarse1 = 0.1V / 0.1 = 1.0V`
-2. Applies inverse of matrix_1: `P1 = 1.0V * 1.0 + 0V * 0.5 = 1.0V`, `P2 = 1.0V * 0.5 + 0V * 1.0 = 0.5V`
-
-This transformation happens at compile time, so the QUA program only sees the final physical gate voltages.
-
-### 7.8 Verifying Rectangular Layers (Round Trip & Plotting)
-
-To validate a rectangular virtualization layer:
-
-1. Enable pseudo-inverse support:
-
-   ```python
-   vgs = VirtualGateSet(id="plunger_set", channels=channels)
-   vgs.allow_rectangular_matrices = True
-   vgs.add_layer(
-       source_gates=["V_bias", "V_sym"],
-       target_gates=["P1", "P2", "P3"],
-       matrix=[[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]],
-   )
-   ```
-
-2. Generate a set of virtual voltage samples, convert them to the “expected” physical voltages using the pseudo-inverse (`physical_expected = M_pinv @ source`), then resolve the same virtual voltages through the `VirtualGateSet`. The resolved physical voltages should match `physical_expected` within numerical tolerance.
-
-3. Optional visualisation: plot the original vs. resolved physical voltages to confirm they fall on the identity line. The automated regression `tests/architecture/quantum_dots/components/test_rectangular_virtual_gate_set.py::test_rectangular_roundtrip_visualisation` performs exactly this procedure (using Matplotlib’s Agg backend) so you can run `pytest` and inspect the generated scatter data if deeper debugging is needed.
-
-## 8. Full End to End Example
-
-### 8.1. Create your channels (VoltageGate or SingleChannel)
-
-```python
-
-from quam.components import (
-    BasicQuam,
-    StickyChannelAddon,
-    pulses
-)
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-
-machine = BasicQuam()
-
-# Define some VoltageGate channels that form your Quam Machine
-machine.channels["ch1"] = VoltageGate(
-    opx_output=("con1", 1),  # OPX controller and port
-    sticky=StickyChannelAddon(duration=1000, digital=False),
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
-)
-machine.channels["ch2"] = VoltageGate(
-    opx_output=("con1", 2),  # OPX controller and port
-    sticky=StickyChannelAddon(duration=1000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
-)
-machine.channels["ch3"] = VoltageGate(
-    opx_output=("con1", 3),  # OPX controller and port
-    sticky=StickyChannelAddon(duration=100000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
-)
-
-```
-
-### 8.2. Create channel dictionary and create your VirtualGateSet
-
-```python
-
-#Ensure that the naming convention is consistent here - "ch1" if it maps to machine.channels["ch1"]
-channels = {
-    "ch1": machine.channels["ch1"].get_reference(), # .get_reference() necessary to avoid reparenting the Quam component
-    "ch2": machine.channels["ch2"].get_reference(),
-    "ch3": machine.channels["ch3"].get_reference(),
-}
-
-from quam_builder.architecture.quantum_dots.components import VirtualGateSet  # Requires quam-builder
-machine.virtual_gate_set = VirtualGateSet(id = "Plungers", channels = channels)
-
-```
-
-### 8.3. Add virtual gate layers
-
-```python
-machine.virtual_gate_set.add_layer(
-    source_gates = ["V1", "V2"], # Pick the virtual gate names here
-    target_gates = ["ch1", "ch2"], # Must be a subset of gates in the gate_set
-    matrix = [[2,1],[0,1]] # Any example matrix
-)
-```
-
-### 8.4. Add any relevant tuning points to your GateSet
-
-```python
-#Some example points
-machine.virtual_gate_set.add_point("init", {"ch1": -0.25, "ch3": 0.12}, duration = 10_000)
-machine.virtual_gate_set.add_point("op", {"V1": 0.2, "V2": 0.1}, duration = 1000)
-machine.virtual_gate_set.add_point("meas", {"ch3": -0.12}, duration = 3_000)
-
-```
-
-### 8.5. Write QUA program
-
-```python
+# Manual delta pulses; easy to lose track of absolute levels with sticky elements
 with program() as prog:
-  my_new_seq = machine.virtual_gate_set.new_sequence(track_integrated_voltage=True)
-  my_new_seq.step_to_point("init") # also valid: my_new_seq.step_to_voltages(voltages = {"ch1": -0.25, "ch3": 0.12}, duration = 10_000)
-  my_new_seq.step_to_point("op")
-  my_new_seq.step_to_point("meas")
+    play("initialize" , "plunger_1")
+    play("initialize", "plunger_2")
+    play("gaussian_x180", "q1_xy")
+    play("initialize_to_measure", "plunger_1")
+    play("initialize_to_measure", "plunger_2")
+    measure("readout", "readout")
 ```
 
-**What is happening here?**
-- In `init`, the input dict is `{"ch1": -0.25, "ch3": 0.12}`. Since `ch2` is omitted in this layer, this will internally translate to a full dict of `{"ch1": -0.25, "ch2": 0.0, "ch3": 0.12}`.
+**After (QuAM + macros):**
 
-- In `op`, the input dict is comprised of virtual gates `{"V1": 0.2, "V2": 0.1}`. `ch3` is absent, and since `V1` and `V2` map only to `ch1` and `ch2`, `ch3` is interpreted as having an input 0.0, to produce a dict of `{"V1": 0.2, "V2": 0.1, "ch3": 0.0}`. Internally, the physical gate voltages are calculated using the inverse of the virtual gate matrix, to a physical gate dict of `{"ch1": 0.05, "ch2": 0.1, "ch3": 0.0}`. Bear in mind that these voltages are absolute, not relative, despite the sticky elements.
+This constructs a QUA program from the tutorial machine.
 
-- In `meas`, the input dict is simply `{"ch3": -0.12}`, which is interpreted as `{"ch1": 0.0, "ch2": 0.0, "ch3": -0.12}`.
+```python
+from qm.qua import program
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+
+machine = build_tutorial_machine()
+q1 = machine.qubits["q1"]
+q1_q2 = machine.qubit_pairs["q1_q2"]
+with program() as prog:
+    q1_q2.initialize()
+    q1.x180()
+    q1_q2.measure()
+```
+
+
+
+### Different spin qubit types
+
+This package enables different spin qubit types hosted in quantum dots, a base quam with functionality concerning quantum dot operation is hosted in `BaseQuamQD`. `BaseQuamQD` can be used to calibrate **dots, virtualization, voltage points** without a full qubit abstraction. Specific spin qubits are building on top of this `BaseQuamQD`. Currently we offer `LossDiVincenzoQuam` for **ESR/EDSR and two-qubit** experiments on the same dot connectivity. `ExchangeOnlyQuam` and `SingletTripletQuam` are in progress. A typical workflow would be starting with `BaseQuamQD`, saving the charge-calibrated state, then upgrade to the relevant `QubitQuam`. The tutorial machine is already a `LossDiVincenzoQuam` so you can inspect the full tree offline.
+
+# 15-minute offline quickstart
+
+## Prerequisites
+
+You should be familiar with:
+
+- **[QUA](https://docs.quantum-machines.co/latest/)** — programs, sticky elements, and pulse play.
+- **[QUAM](https://qua-platform.github.io/quam/)** — machine components, serialization, and references.
+- **[qualang_tools](https://github.com/qua-platform/py-qua-tools)** (optional but common) — connectivity / wiring helpers used by several examples and by `build_quam_wiring`.
+
+This documentation stays **hardware-agnostic** (no specific OPX port lists here). Examples may assume LF-FEM or cluster settings; adapt ports and hosts to your setup.
+
+## Build a tutorial machine and generate the configuration.
+
+```python
+from qm.qua import program
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
+
+machine = build_tutorial_machine() # Builds a LossDiVincenzoQuam
+config = machine.generate_config() # Generates the config used in QuantumMachinesManager.open_qm(config)
+machine.save("quam_state") # Save the quam state to a json file
+```
+
+Inspect the machine and config above to see how components translate to configuration.
+`build_tutorial_machine()` produces a live `LossDiVincenzoQuam` with gate set id `"main_qpu"`. Dots and qubits delegate voltage moves through `VoltageSequence` on that gate set:
+
+```mermaid
+flowchart TD
+  machine[LossDiVincenzoQuam]
+  machine --> vgs["virtual_gate_sets main_qpu"]
+  machine --> dots["quantum_dots virtual_dot_1 virtual_dot_2"]
+  machine --> sensors["sensor_dots virtual_sensor_1"]
+  machine --> qubits["qubits q1 q2"]
+  machine --> pairs["qubit_pairs q1_q2"]
+  qubits --> dots
+  qubits --> xy["xy drive"]
+  pairs --> qubits
+  dots --> vgs
+```
+
+## Reload the Quam state, and construct a QUA program.
+
+```python
+loaded = LossDiVincenzoQuam.load("quam_state") # Load the same state from file
+q1 = loaded.qubits["q1"] # Choose a qubit to interact with
+with program() as prog:
+    q1.initialize() # run predefined macros that translate to Qua play commands
+    q1.x180()
+    q1.measure()
+
+```
+
+Macros use **placeholders**, not device-safe defaults. Do not apply these voltages to hardware.
+
+## Generating pulse sequences with QuaM
+
+QuaM components provide high-level methods to generate voltage sequences through `VoltageSequence` see [voltage_sequence/README.md](voltage_sequence/README.md) for full documentation. Here's how to use the key voltage control methods:
+
+Define named points **outside** the QUA program (they are stored on the machine). Navigate with `step_to_point` / `ramp_to_point`, or pass absolute voltages with `step_to_voltages` / `ramp_to_voltages`. Targets are absolute levels, not deltas; omitted gates keep their last value (`keep_levels=True`).
+
+```python
+from qm.qua import program
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+
+machine = build_tutorial_machine()
+q1 = machine.qubits["q1"]
+dot_id = q1.quantum_dot.id  # "virtual_dot_1"
+
+q1.add_point("empty", {dot_id: -0.10}, duration=200)
+q1.add_point("load", {dot_id: 0.10}, duration=200)
+
+with program() as prog:
+    q1.step_to_point("empty")
+    q1.ramp_to_point("load", ramp_duration=64)
+    q1.step_to_voltages({dot_id: 0.15}, duration=200)
+    q1.ramp_to_voltages({dot_id: 0.0}, duration=200, ramp_duration=64)
+    q1.align()
+```
+
+`duration` and `ramp_duration` are in **nanoseconds**. For several dots at once, put every channel in one dict or use `machine.voltage_sequences["main_qpu"]` (see [voltage_sequence/README.md](voltage_sequence/README.md)).
+
+## Turning pulse sequences into custom macros
+
+Wrap a pulse sequence in a `@quam_dataclass` `QuamMacro` so you can call it as `q1.initialize()`. Register named voltage points on the machine; the macro only navigates them.
+
+This example empties the dot, then ramps to `load`:
+
+```python
+from qm.qua import program
+from quam.core import quam_dataclass
+from quam.core.macro import QuamMacro
+
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.names import SingleQubitMacroName
+
+@quam_dataclass
+class EmptyThenLoadInitialize(QuamMacro):
+    empty_point: str = "empty"
+    load_point: str = "load"
+    ramp_duration: int = 64
+
+    def apply(self, **kwargs):
+        qubit = self.parent
+        while not hasattr(qubit, "step_to_point"):
+            qubit = qubit.parent
+        qubit.step_to_point(self.empty_point)
+        qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration)
+
+machine = build_tutorial_machine()
+q1 = machine.qubits["q1"]
+dot_id = q1.quantum_dot.id
+
+q1.add_point("empty", {dot_id: 0.0}, duration=200)
+q1.add_point("load", {dot_id: 0.10}, duration=200)
+
+wire_machine_macros(
+    machine,
+    instance_overrides={
+        "qubits.q1": {SingleQubitMacroName.INITIALIZE: EmptyThenLoadInitialize},
+    },
+)
+
+with program() as prog:
+    q1.initialize()
+```
+The macro references named voltage points, so if the points are updated as part of your chip calibration, the macro will automatically use the updated values.
+`instance_overrides` replace the default `initialize` on that qubit. To apply the same class to every `LDQubit`, pass a `TypeOverrideCatalog` in `catalogs=` (see [Next Steps](#next-steps)). Use `@quam_dataclass` so the macro survives `save()` / `load()`.
+
+# Next Steps
+
+## Choose a builder after the tutorial
+
+
+| Situation                                                  | Entry point                           |
+| ---------------------------------------------------------- | ------------------------------------- |
+| Evaluating the package                                     | `build_tutorial_machine()` (offline)  |
+| Bringing up charge control first                           | `build_base_quam()` → `BaseQuamQD`    |
+| Wiring already includes plungers, sensors, and drive lines | `build_quam()` → `LossDiVincenzoQuam` |
+| Saved dot machine, adding spin control                     | `build_loss_divincenzo_quam()`        |
+
+
+Runnable build fragments live in `[tutorial_machine.py](examples/tutorial_machine.py)` and `[wiring_example.py](examples/wiring_example.py)`.
+
+## Default macros are already wired
+
+Builder entry points and `load()` call `wire_machine_macros()`. Call it yourself when:
+
+- applying a lab catalog or instance override; or
+- manually assembling a machine that did not go through the builder.
+
+Supported override API:
+
+```python
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+
+wire_machine_macros(
+    machine,
+    catalogs=[...],              # lab MacroCatalog instances
+    instance_overrides={...},    # e.g. {"qubits.q1": {SingleQubitMacroName.X_180: TunedX180Macro}}
+)
+```
+
+## Examples
+
+Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardware rows until the offline path works.
+
+
+| Example                                                                                                           | Level        | What it covers                                 |
+| ----------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
+| This README + [`tutorial_machine.py`](examples/tutorial_machine.py)                                               | Beginner     | Build, config, save/load, construct a program  |
+| [`Voltage-sequence notebook`](../../../tutorials/voltage_sequence.ipynb)                                            | Beginner     | Sticky DC, named point, `keep_levels`          |
+| `[macro_defaults_example.py](examples/macro_defaults_example.py)`                                                 | Beginner     | Parameterize default macros; still no hardware |
+| `[wiring_example.py](examples/wiring_example.py)`                                                                 | Intermediate | Combined vs two-stage builder                  |
+| `[quam_qd_generator_example.py](examples/quam_qd_generator_example.py)`                                           | Intermediate | Builder-first generator path                   |
+| `[full_workflow_example.py](examples/full_workflow_example.py)`                                                   | Intermediate | Pulse family + overrides after defaults        |
+| `[macro_overrides_example.py](examples/macro_overrides_example.py)`                                               | Intermediate | `catalogs` / `instance_overrides`              |
+| `[virtual_gate_set_example.py](examples/virtual_gate_set_example.py)`                                             | Intermediate | Virtual layers and `resolve_voltages`          |
+| `[voltage_balanced_macros_example.py](examples/voltage_balanced_macros_example.py)`                               | Advanced     | AC-coupled compensation                        |
+| `[dcz_macro_example.py](examples/dcz_macro_example.py)`                                                           | Advanced     | Two-qubit DCZ                                  |
+| `[rabi_chevron.py](examples/rabi_chevron.py)` / `[rabi_chevron_transport.py](examples/rabi_chevron_transport.py)` | Advanced     | Manual assembly, custom macros, SaaS           |
+
+
+**Additional examples** in `[examples/](examples/)`: `mwe_sensor_resonator_same_port.py`, `[qm_example.py](examples/qm_example.py)`, `[pulse_overrides_example.py](examples/pulse_overrides_example.py)`, `[external_macro_package_example.py](examples/external_macro_package_example.py)`, `[virtual_dc_set_example.py](examples/virtual_dc_set_example.py)` — read each module docstring for scope.
+
+## Task-oriented reference map
+
+
+| Area                          | Location                                                           | Role                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Builder (hardware adaptation) | [`quam_builder.builder.quantum_dots`](../../builder/quantum_dots/) | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md)                         |
+| Components                    | [`components/`](components/)                                       | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md)                           |
+| Voltage sequencing            | [`voltage_sequence/`](voltage_sequence/)                           | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
+| Virtual gates                 | [`virtual_gates/`](virtual_gates/)                                  | Layers and matrices                                                                                       |
+| Operations and defaults       | [`operations/`](operations/)                                       | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md)                  |
+| QPU models                    | [`qpu/`](qpu/)                                                     | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md)                          |
+| Examples                      | [`examples/`](examples/)                                           | Runnable scripts                                                                                          |
+
+
+
+
+## Component inventory
+
+- **Machine / dots:** `QPU`, `QuantumDot`, `QuantumDotPair`, `SensorDot` — [components/README.md](components/README.md)
+- **Gates / sequences:** `VoltageGate`, `GateSet`, `VirtualGateSet`, `VoltageSequence`, `GlobalGate`, `VirtualDCSet` — [voltage_sequence/README.md](voltage_sequence/README.md)
+- **Readout:** `ReadoutResonator`, `ReadoutTransport`, `Reservoir` — [components/README.md](components/README.md)
+- **Pulses / DAC:** `pulses.py`, `DacSpec` / `QdacSpec` — [components/README.md](components/README.md)
+- **Spin qubits:** `LossDiVincenzoQuam`, `LDQubit`, `LDQubitPair`, `XYDriveSingle` / `XYDriveIQ` / `XYDriveMW` — [qpu/README.md](qpu/README.md)
+
+
+
+## Import cheat sheet
+
+```python
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
+)
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.builder.quantum_dots import (
+    build_quam,
+    build_base_quam,
+    build_loss_divincenzo_quam,
+)
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+```
+
+For `LDQubit`, XY drive types, and machine settings, see [qpu/README.md](qpu/README.md). For DC sequencing, see [voltage_sequence/README.md](voltage_sequence/README.md). For readout and pulse shapes, see [components/README.md](components/README.md). For catalogs and custom macros, see [operations/README.md](operations/README.md).
