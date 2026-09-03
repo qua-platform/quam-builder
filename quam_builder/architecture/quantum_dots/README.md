@@ -227,13 +227,13 @@ wire_machine_macros(
 
 ## Examples
 
-Scripts live under `[examples/](examples/)`. Start at the top; skip cloud/hardware rows until the offline path works.
+Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardware rows until the offline path works.
 
 
 | Example                                                                                                           | Level        | What it covers                                 |
 | ----------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
-| This README + `[tutorial_machine.py](examples/tutorial_machine.py)`                                               | Beginner     | Build, config, save/load, construct a program  |
-| [Voltage-sequence notebook](../../../tutorials/voltage_sequence.ipynb)                                            | Beginner     | Sticky DC, named point, `keep_levels`          |
+| This README + [`tutorial_machine.py`](examples/tutorial_machine.py)                                               | Beginner     | Build, config, save/load, construct a program  |
+| [`Voltage-sequence notebook`](../../../tutorials/voltage_sequence.ipynb)                                            | Beginner     | Sticky DC, named point, `keep_levels`          |
 | `[macro_defaults_example.py](examples/macro_defaults_example.py)`                                                 | Beginner     | Parameterize default macros; still no hardware |
 | `[wiring_example.py](examples/wiring_example.py)`                                                                 | Intermediate | Combined vs two-stage builder                  |
 | `[quam_qd_generator_example.py](examples/quam_qd_generator_example.py)`                                           | Intermediate | Builder-first generator path                   |
@@ -252,13 +252,13 @@ Scripts live under `[examples/](examples/)`. Start at the top; skip cloud/hardwa
 
 | Area                          | Location                                                           | Role                                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Builder (hardware adaptation) | `[quam_builder.builder.quantum_dots](../../builder/quantum_dots/)` | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md)                         |
-| Components                    | `[components/](components/)`                                       | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md)                           |
-| Voltage sequencing            | `[voltage_sequence/](voltage_sequence/)`                           | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
-| Virtual gates                 | `[virtual_gates/](virtual_gates/)`                                 | Layers and matrices                                                                                       |
-| Operations and defaults       | `[operations/](operations/)`                                       | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md)                  |
-| QPU models                    | `[qpu/](qpu/)`                                                     | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md)                          |
-| Examples                      | `[examples/](examples/)`                                           | Runnable scripts                                                                                          |
+| Builder (hardware adaptation) | [`quam_builder.builder.quantum_dots`](../../builder/quantum_dots/) | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md)                         |
+| Components                    | [`components/`](components/)                                       | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md)                           |
+| Voltage sequencing            | [`voltage_sequence/`](voltage_sequence/)                           | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
+| Virtual gates                 | [`virtual_gates/`](virtual_gates/)                                  | Layers and matrices                                                                                       |
+| Operations and defaults       | [`operations/`](operations/)                                       | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md)                  |
+| QPU models                    | [`qpu/`](qpu/)                                                     | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md)                          |
+| Examples                      | [`examples/`](examples/)                                           | Runnable scripts                                                                                          |
 
 
 
