@@ -1,4 +1,3 @@
-import numpy as np
 from typing import TYPE_CHECKING, Dict
 
 from quam.components import QuantumComponent
