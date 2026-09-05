@@ -62,7 +62,6 @@ DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
 DEFAULT_PULSE_NAME = "half_max_square"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 VOLTAGE_BITSHIFT = 12
-ATTENUATION_BITSHIFT = 8
 
 
 def round_amplitude(level):
@@ -151,11 +150,8 @@ class VoltageSequence:
                 and channel_obj.opx_output.output_mode == "amplified"
                 else 0.5
             )
-            if self.gate_set.adjust_for_attenuation and hasattr(channel_obj, "attenuation"):
-                attenuation_scale = 10 ** (channel_obj.attenuation / 20)
-                self._channel_max_voltage[ch_name] = opx_voltage_limit / attenuation_scale
-            else:
-                self._channel_max_voltage[ch_name] = opx_voltage_limit
+            # Don't need the attenuation infra anymore - attenuation scaling is baked into the GateSet
+            self._channel_max_voltage[ch_name] = opx_voltage_limit
 
         if self._keep_levels:
             self._keep_levels_tracker = KeepLevels(self.gate_set)
@@ -210,31 +206,6 @@ class VoltageSequence:
                 elif output_mode == "amplified":
                     ch.operations[DEFAULT_PULSE_NAME].amplitude = 1.25
 
-    def _initialise_attenuation_qua_vars(self) -> None:
-        """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
-        # current_program_scope = id(scopes_manager.program_scope)
-        # if self._prog_id != current_program_scope:
-        #     self._prog_id = current_program_scope
-
-        # if self._check_for_new_program(update_prog_id = False):
-        self.attenuation_qua_variables = {
-            ch_name: (
-                declare(
-                    fixed,
-                    value=10 ** (ch.attenuation / 20) / (1 << ATTENUATION_BITSHIFT),
-                )
-                if hasattr(ch, "attenuation")
-                else declare(fixed, value=1 / (1 << ATTENUATION_BITSHIFT))
-            )
-            for (ch_name, ch) in self.gate_set.channels.items()
-        }
-        if self.gate_set.adjust_for_attenuation:
-            self._attenuated_delta_v_vars: Dict[str, QuaVariable] = {
-                ch_name: declare(fixed) for ch_name in self.gate_set.channels.keys()
-            }
-
-        # else:
-        #     return
 
     def declare_qua_variables(self):
         """Declare all deferred QUA variables. Must be called inside a program scope."""
@@ -269,21 +240,6 @@ class VoltageSequence:
             self._temp_qua_vars[internal_name] = declare(var_type)
         return self._temp_qua_vars[internal_name]
 
-    def _adjust_for_attenuation(self, channel, delta_v):
-        ch_name = next(name for name, ch in self.gate_set.channels.items() if ch is channel)
-        attenuation_scale = self.attenuation_qua_variables[ch_name]
-        if is_qua_type(delta_v):
-            unattenuated_delta_v = self._attenuated_delta_v_vars[ch_name]
-            assign(
-                unattenuated_delta_v,
-                (delta_v * attenuation_scale) << ATTENUATION_BITSHIFT,
-            )
-        else:
-            unattenuated_delta_v = delta_v * (
-                10 ** (channel.attenuation / 20) if hasattr(channel, "attenuation") else 1
-            )
-        return unattenuated_delta_v
-
     def _play_step_on_channel(
         self,
         channel: SingleChannel,
@@ -294,9 +250,6 @@ class VoltageSequence:
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
         DEFAULT_AMPLITUDE_BITSHIFT = int(np.log2(1 / DEFAULT_WF_AMPLITUDE))
         MIN_PULSE_DURATION_NS = channel.operations[DEFAULT_PULSE_NAME].length
-
-        if self.gate_set.adjust_for_attenuation:
-            delta_v = self._adjust_for_attenuation(channel, delta_v)
 
         py_duration = 0
         if not is_qua_type(duration):
@@ -344,8 +297,6 @@ class VoltageSequence:
         hold_duration: DurationType,
     ):
         """Plays a ramp then holds on a single channel."""
-        if self.gate_set.adjust_for_attenuation:
-            delta_v = self._adjust_for_attenuation(channel, delta_v)
         py_ramp_duration = 0
         if not is_qua_type(ramp_duration):
             py_ramp_duration = int(float(str(ramp_duration)))
@@ -405,8 +356,6 @@ class VoltageSequence:
         if self._check_for_new_program(update_prog_id=True):
             self._temp_qua_vars.clear()
             self.declare_qua_variables()
-            if self.gate_set.adjust_for_attenuation:
-                self._initialise_attenuation_qua_vars()
 
         if self._batched_voltages is not None:
             self._batched_voltages.update(target_voltages_dict)
@@ -839,8 +788,6 @@ class VoltageSequence:
             raise ValueError(
                 "apply_compensation_pulse is not supported when integrated voltage is not tracked."
             )
-        # if self.gate_set.adjust_for_attenuation:
-        #     self._initialise_attenuation_qua_vars()
 
         if max_voltage <= 0:
             raise ValueError("max_voltage must be positive.")

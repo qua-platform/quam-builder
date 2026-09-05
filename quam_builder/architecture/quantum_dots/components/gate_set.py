@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 from quam.components import QuantumComponent
 from quam.components.channels import SingleChannel
@@ -90,6 +90,16 @@ class GateSet(QuantumComponent):
     adjust_for_attenuation: bool = False
 
     @property
+    def attenuation_scales(self) -> Dict[str, float]:
+        scale_factor_dict = {}
+        for ch_name, ch in self.channels.items():  
+            attenuation_db = getattr(ch, "attenuation", 0)
+
+            scale_factor = 10 ** (attenuation_db / 20)
+            scale_factor_dict[ch_name] = scale_factor
+        return scale_factor_dict
+
+    @property
     def name(self) -> str:
         return self.id
 
@@ -149,6 +159,11 @@ class GateSet(QuantumComponent):
         # Add any channels in the GateSet that are not in the voltages dict
         for ch_name in self.channels:
             resolved_voltages[ch_name] = voltages.get(ch_name, 0.0)
+
+        if self.adjust_for_attenuation: 
+            for ch_name in self.channels: 
+                scale = self.attenuation_scales[ch_name]
+                resolved_voltages[ch_name] = resolved_voltages[ch_name] * scale
 
         return resolved_voltages
 
