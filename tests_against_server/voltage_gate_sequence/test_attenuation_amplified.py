@@ -7,14 +7,14 @@ from qm import qua
 from validation_utils import simulate_program, validate_compensation, validate_program
 
 
-def test_square_pulses_amplified_with_attenuation(qmm_saas, machine_amplified: QuamGateSet):
+def test_square_pulses_amplified_with_attenuation(qmm, machine_amplified: QuamGateSet):
     """Simulated OPX analog samples match requested physical voltages after
     attenuation scaling, for three Python step_to_point plateaus on amplified
     LF-FEM ports. ramp_to_zero() is called but this assertion only covers the
     plateaus before the first return to 0 V."""
-    level_init = [0.3, -0.1]
+    level_init = [0.15, -0.1]
     duration_init = 1000
-    level_manip = [0.5, -0.3]
+    level_manip = [0.22, -0.15]
     duration_manip = 100
     level_readout = [0.2, -0.2]
     duration_readout = 2000
@@ -58,12 +58,12 @@ def test_square_pulses_amplified_with_attenuation(qmm_saas, machine_amplified: Q
         seq.step_to_point("readout")
         seq.ramp_to_zero()
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, prog, simulation_duration=20000)
+    _, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
 
 
 def test_single_channel_amplified_step_matches_attenuated_level(
-    qmm_saas, machine_amplified: QuamGateSet
+    qmm, machine_amplified: QuamGateSet
 ):
     """A single Python step on ch1: simulated analog equals the physical voltage
     scaled by 10^(attenuation_dB/20) on an amplified LF-FEM port."""
@@ -79,7 +79,7 @@ def test_single_channel_amplified_step_matches_attenuated_level(
         seq = machine_amplified.gate_set.new_sequence()
         seq.step_to_voltages(voltages={"ch1": level}, duration=duration)
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, prog, simulation_duration=4000)
+    _, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=4000)
     analog = samples["con1"].analog["5-6"]
     import matplotlib.pyplot as plt
 
@@ -94,14 +94,14 @@ def test_single_channel_amplified_step_matches_attenuated_level(
     assert np.mean(np.abs(simulated - requested) / requested) < 0.1
 
 
-def test_square_pulses_amplified_with_attenuation_qua(qmm_saas, machine_amplified: QuamGateSet):
+def test_square_pulses_amplified_with_attenuation_qua(qmm, machine_amplified: QuamGateSet):
     """Same plateau sequence as test_square_pulses_amplified_with_attenuation, but
     the first plateau is applied with QUA fixed variables via step_to_voltages.
     Checks that the QUA attenuation path (bit-shift / multiply) still matches
     the requested physical voltages on amplified ports."""
-    level_init = [0.3, -0.1]
+    level_init = [0.15, -0.1]
     duration_init = 1000
-    level_manip = [0.5, -0.3]
+    level_manip = [0.24, -0.15]
     duration_manip = 100
     level_readout = [0.2, -0.2]
     duration_readout = 2000
@@ -147,13 +147,11 @@ def test_square_pulses_amplified_with_attenuation_qua(qmm_saas, machine_amplifie
         seq.step_to_point("readout")
         seq.ramp_to_zero()
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, prog, simulation_duration=20000)
+    _, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=20000)
     validate_program(samples, requested_wf_p, requested_wf_m)
 
 
-def test_amplified_python_compensation_cancels_step_integral(
-    qmm_saas, machine_amplified: QuamGateSet
-):
+def test_amplified_python_compensation_cancels_step_integral(qmm, machine_amplified: QuamGateSet):
     """Python-only step_to_voltages on amplified+attenuated channels, followed by
     apply_compensation_pulse, leaves a near-zero analog integral on both outputs."""
     with qua.program() as program:
@@ -163,11 +161,11 @@ def test_amplified_python_compensation_cancels_step_integral(
         seq.step_to_voltages(voltages={"ch1": 0.03, "ch2": -0.03}, duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, program, int(2e3))
-    validate_compensation(samples, show_plot=False)
+    _, samples = simulate_program(qmm, machine_amplified, program, int(2e3))
+    validate_compensation(samples, show_plot=True)
 
 
-def test_amplified_qua_compensation_cancels_step_integral(qmm_saas, machine_amplified: QuamGateSet):
+def test_amplified_qua_compensation_cancels_step_integral(qmm, machine_amplified: QuamGateSet):
     """Same three-step sequence as the Python compensation test, but voltage
     targets are QUA fixed variables. Checks the QUA compensation-parameter
     path on amplified ports with attenuation scaling."""
@@ -181,11 +179,11 @@ def test_amplified_qua_compensation_cancels_step_integral(qmm_saas, machine_ampl
         seq.step_to_voltages(voltages={"ch1": amplitude_3, "ch2": -amplitude_3}, duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, program, int(2e3))
-    validate_compensation(samples, allowed=10.0, show_plot=False)
+    _, samples = simulate_program(qmm, machine_amplified, program, int(2e3))
+    validate_compensation(samples, allowed=10.0, show_plot=True)
 
 
-def test_amplified_ramp_to_zero_returns_analog_to_zero(qmm_saas, machine_amplified: QuamGateSet):
+def test_amplified_ramp_to_zero_returns_analog_to_zero(qmm, machine_amplified: QuamGateSet):
     """With adjust_for_attenuation, ramp_to_zero() without a duration uses an
     explicit ramp (sticky duration, 100 ns here) instead of QUA ramp_to_zero.
     After a 100 ns step, both analog outputs end at approximately 0 V."""
@@ -194,13 +192,13 @@ def test_amplified_ramp_to_zero_returns_analog_to_zero(qmm_saas, machine_amplifi
         seq.step_to_voltages(voltages={"ch1": 0.05, "ch2": -0.05}, duration=100)
         seq.ramp_to_zero()
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, program, int(2e3))
+    _, samples = simulate_program(qmm, machine_amplified, program, int(2e3))
     for name, sample in samples.con1.analog.items():
         tail = np.max(np.abs(np.asarray(sample[-50:])))
         assert tail < 0.02, f"{name} did not return to ~0 V after ramp_to_zero (tail max={tail})"
 
 
-def test_amplified_python_ramps_then_compensation(qmm_saas, machine_amplified: QuamGateSet):
+def test_amplified_python_ramps_then_compensation(qmm, machine_amplified: QuamGateSet):
     """Python ramp_to_voltages on amplified+attenuated channels, then
     apply_compensation_pulse, leaves a near-zero analog integral."""
     with qua.program() as program:
@@ -210,13 +208,11 @@ def test_amplified_python_ramps_then_compensation(qmm_saas, machine_amplified: Q
         seq.ramp_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16, ramp_duration=16)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, program, int(3e3))
-    validate_compensation(samples, show_plot=False)
+    _, samples = simulate_program(qmm, machine_amplified, program, int(3e3))
+    validate_compensation(samples, show_plot=True)
 
 
-def test_amplified_python_zero_net_steps_need_no_compensation(
-    qmm_saas, machine_amplified: QuamGateSet
-):
+def test_amplified_python_zero_net_steps_need_no_compensation(qmm, machine_amplified: QuamGateSet):
     """Equal-duration opposite Python steps on amplified channels cancel in the
     integral; apply_compensation_pulse should not leave a residual analog integral."""
     with qua.program() as program:
@@ -225,5 +221,5 @@ def test_amplified_python_zero_net_steps_need_no_compensation(
         seq.step_to_voltages(voltages={"ch1": -0.01, "ch2": -0.01}, duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
-    _, samples = simulate_program(qmm_saas, machine_amplified, program, int(2e3))
+    _, samples = simulate_program(qmm, machine_amplified, program, int(2e3))
     validate_compensation(samples, show_plot=False)

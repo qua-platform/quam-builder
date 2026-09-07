@@ -11,7 +11,6 @@ from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
 )
 from quam_builder.builder.quantum_dots.pulses import add_default_baseband_pulse
-from qm import QuantumMachinesManager
 import numpy as np
 
 from quam.components import pulses
@@ -25,14 +24,6 @@ class QuamGateSet(QuamRoot):
 @quam_dataclass
 class QuamVirtualGateSet(QuamRoot):
     virtual_gate_set: VirtualGateSet
-
-
-@pytest.fixture
-def qmm():
-    qmm = QuantumMachinesManager(
-        host="172.16.33.114", cluster_name="CS_4"
-    )  # CS_4 172.16.33.114 #CS_3 172.16.33.115
-    return qmm
 
 
 @pytest.fixture
