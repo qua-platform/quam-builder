@@ -29,8 +29,8 @@ def validate_program(samples, requested_wf_p, requested_wf_m):
 
     wf_p = samples["con1"].analog[f"{5}-{6}"][t0:]
     wf_m = samples["con1"].analog[f"{5}-{3}"][t0:]
-    plt.plot(wf_p)
-    plt.show()
+    # plt.plot(wf_p)
+    # plt.show()
     t1 = np.where(np.isclose(wf_p, 0.0, atol=1e-6))[0][0]
 
     # Plot the simulated samples
