@@ -342,6 +342,28 @@ class VoltageSequence:
                     validate=False,  # Do not validate as pulse may not exist yet
                 )
 
+    def _assign_step_amplitude_scale(
+        self,
+        channel: SingleChannel,
+        delta_v: VoltageLevelType,
+        scale_var: QuaVariable,
+    ):
+        """Resolves the ``amplitude_scale`` of a step into an already-declared QUA variable.
+
+        Same scaling as `_play_step_on_channel`, but split off from the play so that
+        the amplitude is known before the play statement is reached.
+        """
+        if self.gate_set.adjust_for_attenuation:
+            delta_v = self._adjust_for_attenuation(channel, delta_v)
+
+        DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
+        inv_wf_amplitude = float(np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10))
+        log2_inv_wf = np.log2(inv_wf_amplitude)
+        if log2_inv_wf == int(log2_inv_wf) and int(log2_inv_wf) >= 0:
+            assign(scale_var, delta_v << int(log2_inv_wf))
+        else:
+            assign(scale_var, delta_v * inv_wf_amplitude)
+
     def _play_ramp_on_channel(
         self,
         channel: SingleChannel,
@@ -453,7 +475,9 @@ class VoltageSequence:
             if isinstance(target_voltage, int):
                 target_voltage = float(target_voltage)
 
-            target_voltage = round_amplitude(target_voltage)
+            target_voltage = round_amplitude(
+                target_voltage
+            )  # target voltage is always rounded to the nearest dac resolution.
 
             tracker = self.state_trackers[ch_name]
             channel_obj = self.gate_set.channels[ch_name]
@@ -757,51 +781,66 @@ class VoltageSequence:
     ) -> Tuple[QuaScalarExpression, QuaScalarExpression]:
         """
         Generates QUA code to calculate compensation pulse amplitude and duration.
+
+        The integrated voltage is tracked as an integer in units of
+        ``2 ** -INTEGRATED_VOLTAGE_BITSHIFT`` V*ns. Both the duration and the
+        amplitude are derived from it directly, without ever expressing it in
+        whole V*ns: converting to V*ns first would truncate away everything
+        below 1 V*ns, which for short sequences is the whole signal.
+
+        The duration is the shortest one that keeps the amplitude within
+        ``max_voltage``, and the amplitude is then the exact ratio of the
+        accumulated area to that duration, so the compensation area matches the
+        accumulated area to within one DAC step
+        (``2 ** -INTEGRATED_VOLTAGE_BITSHIFT`` V) times the duration.
+
         Returns (qua_amplitude_expression, qua_duration_expression).
         """
         integrated_v = tracker.integrated_voltage
-        # current_v = tracker.current_level # Not directly needed for amp/dur calc here
 
-        eval_int_v = self._get_temp_qua_var(f"{channel_id_str}_eval_int_v", int)
-        q_comp_dur_i = self._get_temp_qua_var(f"{channel_id_str}_comp_dur_i", int)
+        signed_int_v = self._get_temp_qua_var(f"{channel_id_str}_eval_int_v", int)
+        abs_int_v = self._get_temp_qua_var(f"{channel_id_str}_abs_int", int)
         q_comp_dur_4ns = self._get_temp_qua_var(f"{channel_id_str}_comp_dur_4", int)
+        q_comp_amp_scaled = self._get_temp_qua_var(f"{channel_id_str}_comp_amp_scaled", int)
         q_comp_amp = self._get_temp_qua_var(f"{channel_id_str}_comp_amp", fixed)
+        inv_dur = self._get_temp_qua_var(f"{channel_id_str}_inv_dur", fixed)
 
-        assign(eval_int_v, integrated_v)
-        # TODO: do this abs on q_comp_dur instead?
-        abs_eval_int_v = self._get_temp_qua_var(f"{channel_id_str}_abs_int", int)
-        assign(abs_eval_int_v, integrated_v)
-        abs_eval_int_v = integer_abs(abs_eval_int_v)
+        assign(signed_int_v, integrated_v)
+        assign(abs_int_v, integrated_v)
+        abs_int_v = integer_abs(abs_int_v)
 
+        # Shortest duration whose amplitude still fits within max_voltage. The
+        # multiplication truncates, so round up to the next whole clock cycle:
+        # that keeps duration * max_voltage >= |integrated voltage|, hence
+        # |amplitude| <= max_voltage.
         assign(
-            q_comp_dur_i,
-            Cast.mul_int_by_fixed(
-                abs_eval_int_v,  # Math.abs(eval_int_v),
-                COMPENSATION_SCALING_FACTOR / max_voltage,
-            ),
+            q_comp_dur_4ns,
+            Cast.mul_int_by_fixed(abs_int_v, COMPENSATION_SCALING_FACTOR / max_voltage),
         )
-        with if_(q_comp_dur_i < MIN_COMPENSATION_DURATION_NS):
-            assign(q_comp_dur_i, MIN_COMPENSATION_DURATION_NS)
-        assign(q_comp_dur_4ns, (q_comp_dur_i + 3) >> 2 << 2)
+        assign(q_comp_dur_4ns, ((q_comp_dur_4ns >> 2) + 1) << 2)
+        with if_(q_comp_dur_4ns < MIN_COMPENSATION_DURATION_NS):
+            assign(q_comp_dur_4ns, MIN_COMPENSATION_DURATION_NS)
         with if_(q_comp_dur_4ns < DEFAULT_QUA_COMPENSATION_DURATION_NS):
             assign(q_comp_dur_4ns, DEFAULT_QUA_COMPENSATION_DURATION_NS)
 
-        with if_(abs_eval_int_v < INTEGRATED_VOLTAGE_SCALING_FACTOR):
-            assign(q_comp_amp, 0.0)
+        # |amplitude|, still in units of 2 ** -INTEGRATED_VOLTAGE_BITSHIFT V.
+        # Adding half the duration before dividing rounds to the nearest DAC step
+        # instead of always truncating towards zero.
+        assign(inv_dur, Math.div(1, q_comp_dur_4ns))
+        assign(
+            q_comp_amp_scaled,
+            Cast.mul_int_by_fixed(abs_int_v + (q_comp_dur_4ns >> 1), inv_dur),
+        )
+        with if_(q_comp_amp_scaled == 0):
+            # Whatever is left is smaller than the DAC can output; no pulse.
             assign(q_comp_dur_4ns, 0)
-        with else_():
-            with if_(q_comp_dur_4ns > 0):
-                inv_dur = self._get_temp_qua_var(f"{channel_id_str}_inv_dur", fixed)
-                assign(inv_dur, Math.div(1, q_comp_dur_4ns))
-                assign(
-                    q_comp_amp,
-                    -Cast.mul_fixed_by_int(
-                        inv_dur,
-                        Cast.mul_int_by_fixed(eval_int_v, COMPENSATION_SCALING_FACTOR),
-                    ),
-                )
-            with else_():
-                assign(q_comp_amp, 0.0)
+        with if_(signed_int_v > 0):
+            # The pulse has to oppose the accumulated area.
+            assign(q_comp_amp_scaled, -q_comp_amp_scaled)
+        assign(
+            q_comp_amp,
+            Cast.mul_fixed_by_int(COMPENSATION_SCALING_FACTOR, q_comp_amp_scaled),
+        )
         return q_comp_amp, q_comp_dur_4ns
 
     def apply_compensation_pulse(
@@ -887,26 +926,59 @@ class VoltageSequence:
                     delta_v,
                     py_comp_dur,
                 )
-                comp_amp_val, comp_dur_val = py_comp_amp, py_comp_dur
+                if return_to_zero:
+                    self._play_step_on_channel(channel_obj, -py_comp_amp, MIN_PULSE_DURATION_NS)
+                comp_amp_val = 0.0 if return_to_zero else py_comp_amp
             else:
                 q_comp_amp, q_comp_dur_4ns = self._calculate_qua_compensation_params(
                     tracker, channel_max_voltage, channel_obj.name
                 )
-                delta_v_q = q_comp_amp - current_v
+                # Resolve both play amplitudes before playing anything. The channel is
+                # sticky, so it sits at the compensation level until the next play is
+                # issued: any instruction in between -- an assignment, or even the
+                # amplitude arithmetic of the play itself -- stretches the pulse by a
+                # few clock cycles and leaves that much area uncompensated.
+                amp_scale_in = self._get_temp_qua_var(f"{channel_obj.name}_comp_scale_in", fixed)
+                amp_scale_out = self._get_temp_qua_var(f"{channel_obj.name}_comp_scale_out", fixed)
+                self._assign_step_amplitude_scale(
+                    channel_obj, q_comp_amp - current_v, amp_scale_in
+                )
+                self._assign_step_amplitude_scale(channel_obj, -q_comp_amp, amp_scale_out)
+
+                min_duration_cycles = (
+                    channel_obj.operations[DEFAULT_PULSE_NAME].length // CLOCK_CYCLE_NS
+                )
                 with if_(q_comp_dur_4ns > 0):
-                    self._play_step_on_channel(
-                        channel_obj,
-                        delta_v_q,
-                        q_comp_dur_4ns,
+                    channel_obj.play(
+                        DEFAULT_PULSE_NAME,
+                        amplitude_scale=amp_scale_in,
+                        duration=q_comp_dur_4ns >> 2,
+                        validate=False,
                     )
-                comp_amp_val, comp_dur_val = q_comp_amp, q_comp_dur_4ns
+                    if return_to_zero:
+                        channel_obj.play(
+                            DEFAULT_PULSE_NAME,
+                            amplitude_scale=amp_scale_out,
+                            duration=min_duration_cycles,
+                            validate=False,
+                        )
+                with else_():
+                    # Nothing left to compensate: the amplitude is zero, so this step
+                    # only parks the channel at 0 V.
+                    channel_obj.play(
+                        DEFAULT_PULSE_NAME,
+                        amplitude_scale=amp_scale_in,
+                        duration=min_duration_cycles,
+                        validate=False,
+                    )
+                comp_amp_val = 0.0 if return_to_zero else q_comp_amp
 
             tracker.current_level = comp_amp_val
         if return_to_zero:
-            # ensure_align = False here to allow different duration of compensation pulses pr channel.
-            self._common_voltages_change(
-                target_voltages_dict=zero_dict, duration=16, ensure_align=False
-            )
+            # The step back to 0 V is played per channel right after its compensation
+            # pulse (above); only the bookkeeping is left to do here.
+            if self._keep_levels:
+                self._keep_levels_tracker.update_tracking(zero_dict)
             self.ramp_to_zero()
 
         for tracker in self.state_trackers.values():

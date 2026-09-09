@@ -4,6 +4,7 @@ Squares (Python) + Ramps (None) + Compensation (max_amplitude=0.45)
 
 from validation_utils import (
     simulate_program,
+    save_program,
     validate_program,
     validate_compensation,
     validate_durations,
@@ -24,14 +25,14 @@ print("1 single compensation pulse:")
 
 def test_square_pulses_python(qmm, machine):
     """Tests stepping to a single predefined point."""
-    level_init = [0.75, -0.1]
+    level_init = [0.075, -0.01]
     duration_init = 1000
-    level_manip = [0.5, -0.3]
+    level_manip = [0.05, -0.03]
     duration_manip = 100
-    level_readout = [0.2, -0.2]
+    level_readout = [0.02, -0.02]
     duration_readout = 2000
     sampling_rate = 2
-    max_compensation_amplitude = 0.2
+    max_compensation_amplitude = 0.05
 
     requested_wf_p, requested_wf_m = [
         (
@@ -128,6 +129,19 @@ def test_python_voltage_sequence(qmm, machine: QuamGateSet):
             seq.step_to_voltages(voltages={"ch1": 0.01, "ch2": -0.01}, duration=100)
             seq.step_to_voltages(voltages={"ch1": 0.02, "ch2": -0.02}, duration=100)
             seq.step_to_voltages(voltages={"ch1": 0.03, "ch2": -0.03}, duration=100)
+
+        seq.apply_compensation_pulse(max_voltage=0.03)
+
+    _, samples = simulate_program(qmm, machine, program, int(4e3))
+    validate_compensation(samples)
+
+
+def test_python_step_compensation(qmm, machine: QuamGateSet):
+    """Tests stepping to a single predefined point."""
+    with qua.program() as program:
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        with qua.strict_timing_():
+            seq.step_to_voltages(voltages={"ch1": 0.03}, duration=100)
 
         seq.apply_compensation_pulse(max_voltage=0.03)
 

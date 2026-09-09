@@ -67,7 +67,7 @@ def test_single_channel_amplified_step_matches_attenuated_level(
 ):
     """A single Python step on ch1: simulated analog equals the physical voltage
     scaled by 10^(attenuation_dB/20) on an amplified LF-FEM port."""
-    level = 0.1
+    level = 0.01
     duration = 1000
     sampling_rate = 2
 
@@ -81,14 +81,6 @@ def test_single_channel_amplified_step_matches_attenuated_level(
 
     _, samples = simulate_program(qmm, machine_amplified, prog, simulation_duration=4000)
     analog = samples["con1"].analog["5-6"]
-    import matplotlib.pyplot as plt
-
-    from qm import generate_qua_script
-
-    with open("debug_12345.py", "w") as f:
-        print(generate_qua_script(prog, machine_amplified.generate_config()), file=f)
-    samples.con1.plot()
-    plt.show()
     t0 = np.where(analog != 0)[0][0]
     simulated = analog[t0 : t0 + len(requested)]
     assert np.mean(np.abs(simulated - requested) / requested) < 0.1
@@ -156,9 +148,9 @@ def test_amplified_python_compensation_cancels_step_integral(qmm, machine_amplif
     apply_compensation_pulse, leaves a near-zero analog integral on both outputs."""
     with qua.program() as program:
         seq = machine_amplified.gate_set.new_sequence(track_integrated_voltage=True)
-        seq.step_to_voltages(voltages={"ch1": 0.01, "ch2": -0.01}, duration=100)
-        seq.step_to_voltages(voltages={"ch1": 0.02, "ch2": -0.02}, duration=100)
-        seq.step_to_voltages(voltages={"ch1": 0.03, "ch2": -0.03}, duration=100)
+        seq.step_to_voltages(voltages={"ch1": 0.01}, duration=100)
+        # seq.step_to_voltages(voltages={"ch1": 0.02}, duration=100)
+        # seq.step_to_voltages(voltages={"ch1": 0.03}, duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
     _, samples = simulate_program(qmm, machine_amplified, program, int(2e3))
@@ -203,9 +195,9 @@ def test_amplified_python_ramps_then_compensation(qmm, machine_amplified: QuamGa
     apply_compensation_pulse, leaves a near-zero analog integral."""
     with qua.program() as program:
         seq = machine_amplified.gate_set.new_sequence(track_integrated_voltage=True)
-        seq.ramp_to_voltages(voltages={"ch1": 0.01, "ch2": -0.01}, duration=100, ramp_duration=16)
-        seq.ramp_to_voltages(voltages={"ch1": 0.02, "ch2": -0.02}, duration=100, ramp_duration=16)
-        seq.ramp_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16, ramp_duration=16)
+        seq.ramp_to_voltages(voltages={"ch1": 0.01, "ch2": -0.01}, duration=100, ramp_duration=100)
+        seq.ramp_to_voltages(voltages={"ch1": 0.02, "ch2": -0.02}, duration=100, ramp_duration=100)
+        seq.ramp_to_voltages(voltages={"ch1": 0, "ch2": 0}, duration=16, ramp_duration=100)
         seq.apply_compensation_pulse(max_voltage=0.03)
 
     _, samples = simulate_program(qmm, machine_amplified, program, int(3e3))

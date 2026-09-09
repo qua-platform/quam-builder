@@ -35,12 +35,12 @@ def machine():
                 "ch1": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort("con1", 5, 6, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
                 "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort("con1", 5, 3, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
             },
             adjust_for_attenuation=True,
@@ -92,14 +92,14 @@ def virtual_machine():
                         "con1", 5, 6, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
                 "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 3, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
             },
             layers=[

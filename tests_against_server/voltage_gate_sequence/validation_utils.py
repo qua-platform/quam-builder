@@ -8,6 +8,11 @@ import numpy as np
 import time
 
 
+def save_program(file, machine, prog):
+    with open(file, "w") as f:
+        print(generate_qua_script(prog, machine.generate_config()), file=f)
+
+
 def simulate_program(qmm, machine, prog, simulation_duration=10000):
     # Simulates the QUA program for the specified duration
     simulation_config = SimulationConfig(duration=simulation_duration // 4)  # In clock cycles = 4ns
@@ -108,7 +113,7 @@ def validate_compensation(samples, allowed=1.0, show_plot=True):
         integrated = analog_abs_integral(sample)
         assert (
             integrated < allowed
-        ), f"non sufficient compensation for analog output:{name} with abs integrated voltage:{integrated}"
+        ), f"poor compensation for: {name} withabs integrated voltage:{integrated}"
 
 
 def validate_durations(sample, expected_durations, steps):

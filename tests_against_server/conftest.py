@@ -42,9 +42,7 @@ def _selected_backend(config: pytest.Config) -> str:
         return cli
     env = os.environ.get("QM_TEST_BACKEND", "saas").lower()
     if env not in _VALID_BACKENDS:
-        pytest.fail(
-            f"Unknown QM_TEST_BACKEND={env!r}; use one of {sorted(_VALID_BACKENDS)}"
-        )
+        pytest.fail(f"Unknown QM_TEST_BACKEND={env!r}; use one of {sorted(_VALID_BACKENDS)}")
     return env
 
 
@@ -99,7 +97,7 @@ def qmm_saas():
 @pytest.fixture(scope="session")
 def qmm_on_prem():
     """Session-scoped QuantumMachinesManager for the lab on-prem cluster."""
-    return QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
+    return QuantumMachinesManager(host="172.16.33.116", cluster_name="CS_OAS")
 
 
 @pytest.fixture(scope="session")
