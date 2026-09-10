@@ -242,6 +242,7 @@ def build_loss_divincenzo_quam(
     xy_drive_wiring: Optional[dict] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
     implicit_mapping: bool = True,
+    target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
     catalogs: Optional[Sequence[MacroCatalog]] = None,
     instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
     save: bool = True,
@@ -266,6 +267,8 @@ def build_loss_divincenzo_quam(
                               Format: {"q1_q2": ["sensor_1", "sensor_2"], ...}
         implicit_mapping: If True, uses q1->virtual_dot_1 mapping. If False,
                          requires explicit mapping configuration.
+        target_quam_class: Root class to use after Stage 2 promotion.
+            Defaults to ``LossDiVincenzoQuam``.
         catalogs: Optional list of ``MacroCatalog`` instances (e.g. lab packages).
         instance_overrides: Per-component-path overrides keyed by path string.
         save: If True, saves the machine state after building.
@@ -308,6 +311,7 @@ def build_loss_divincenzo_quam(
         xy_drive_wiring=xy_drive_wiring,
         qubit_pair_sensor_map=qubit_pair_sensor_map,
         implicit_mapping=implicit_mapping,
+        target_quam_class=target_quam_class,
     )
     machine = builder.build()
     if getattr(machine, "qpu", None) is None:
@@ -332,6 +336,7 @@ def build_quam(
     calibration_db_path: Optional[Union[Path, str]] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
     connect_qdac: bool = False,
+    target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
     catalogs: Optional[Sequence[MacroCatalog]] = None,
     instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
     save: bool = True,
@@ -350,6 +355,8 @@ def build_quam(
         calibration_db_path: Path to Octave calibration database.
         qubit_pair_sensor_map: Sensor mapping for qubit pairs.
         connect_qdac: If True, connects to QDAC for external voltage control.
+        target_quam_class: Root class to use after Stage 2 promotion.
+            Defaults to ``LossDiVincenzoQuam``.
         catalogs: Optional list of ``MacroCatalog`` instances (e.g. lab packages).
         instance_overrides: Per-component-path overrides keyed by path string.
         save: If True, saves the machine state after building.
@@ -392,6 +399,7 @@ def build_quam(
     machine = build_loss_divincenzo_quam(
         machine,
         qubit_pair_sensor_map=qubit_pair_sensor_map,
+        target_quam_class=target_quam_class,
         catalogs=catalogs,
         instance_overrides=instance_overrides,
         save=save,
