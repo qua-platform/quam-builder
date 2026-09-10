@@ -21,6 +21,7 @@ from quam_builder.tools.voltage_sequence import (
     VoltageSequence,
 )
 from quam_builder.tools.voltage_sequence.exceptions import VoltagePointError
+from quam_builder.tools.voltage_sequence.channel_state import voltage_counts
 from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
 )
@@ -41,7 +42,7 @@ class _NotATuningPoint(QuamMacro):
 def _add_default_pulses(machine):
     for channel in machine.gate_set.channels.values():
         channel.operations[DEFAULT_PULSE_NAME] = pulses.SquarePulse(
-            amplitude=0.25, length=MIN_PULSE_DURATION_NS
+            amplitude=0.5, length=MIN_PULSE_DURATION_NS
         )
 
 
@@ -125,7 +126,9 @@ def test_apply_compensation_pulse_resets_python_integrated_voltage(machine):
     double-count)."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=True, enforce_qua_calcs=False
+        )
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=1000)
         assert seq.state_trackers["ch1"].integrated_voltage != 0
         seq.apply_compensation_pulse(max_voltage=0.4)
@@ -138,7 +141,9 @@ def test_apply_compensation_pulse_return_to_zero_sets_current_level_to_zero(mach
     compensation pulse, so current_level is 0 on all trackers."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=True, enforce_qua_calcs=False
+        )
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=1000)
         seq.apply_compensation_pulse(max_voltage=0.4, return_to_zero=True)
         for tracker in seq.state_trackers.values():
@@ -153,7 +158,9 @@ def test_apply_compensation_pulse_without_return_to_zero_stays_at_compensation_a
     rather than being stepped back to 0 V."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=True, enforce_qua_calcs=False
+        )
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=1000)
         seq.apply_compensation_pulse(
             max_voltage=0.4, go_to_zero=False, return_to_zero=False
@@ -169,7 +176,9 @@ def test_apply_compensation_pulse_clips_max_voltage_to_channel_limit(machine):
     the caller-supplied value."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=True, enforce_qua_calcs=False
+        )
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=5000)
         seq.apply_compensation_pulse(
             max_voltage=10.0, go_to_zero=False, return_to_zero=False
@@ -185,11 +194,13 @@ def test_track_sticky_duration_adds_hold_time_at_current_level_to_the_integral(m
     outputs hold a DC level."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(track_integrated_voltage=True)
+        seq = machine.gate_set.new_sequence(
+            track_integrated_voltage=True, enforce_qua_calcs=False
+        )
         seq.step_to_voltages(voltages={"ch1": 0.25, "ch2": 0.0}, duration=100)
         after_step = seq.state_trackers["ch1"].integrated_voltage
         seq.track_sticky_duration(200)
-        extra = int(np.round(0.25 * 200 * INTEGRATED_VOLTAGE_SCALING_FACTOR))
+        extra = voltage_counts(0.25) * 200
         assert seq.state_trackers["ch1"].integrated_voltage == after_step + extra
         assert seq.state_trackers["ch2"].integrated_voltage == 0
 

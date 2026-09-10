@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from typing import List, Dict
 from qm import SimulationConfig
+from qm.exceptions import QmServerDetectionError
 
 from quam.components import (
     StickyChannelAddon,
@@ -25,7 +26,7 @@ from qm.qua import *
 
 # Constants
 SIM_LENGTH = 40000
-HALF_MAX_HEIGHT = 0.25
+HALF_MAX_HEIGHT = 0.5
 CLOCK_CYCLE = 4
 LFFEM = 6
 MWFEM = 1
@@ -335,7 +336,9 @@ def add_pulse_sequence_qua(
 def _create_program_python(steps):
     machine = create_example_quam(matrix=random_matrix(8, 8, seed=42))
     with program() as prog:
-        seq = machine.voltage_sequences["main_qpu"]
+        seq = machine.virtual_gate_sets["main_qpu"].new_sequence(
+            track_integrated_voltage=True
+        )
         add_pulse_sequence(seq, steps)
         seq.apply_compensation_pulse(max_voltage=0.5)
     return prog, machine
@@ -344,7 +347,9 @@ def _create_program_python(steps):
 def _create_program_qua(steps):
     machine = create_example_quam(matrix=random_matrix(8, 8, seed=42))
     with program() as prog:
-        seq = machine.voltage_sequences["main_qpu"]
+        seq = machine.virtual_gate_sets["main_qpu"].new_sequence(
+            track_integrated_voltage=True
+        )
         qua_vars = {
             name: declare(fixed, value=0.0) for name in seq.gate_set.valid_channel_names
         }
@@ -354,7 +359,10 @@ def _create_program_qua(steps):
 
 
 def _simulate(machine, prog, simulation_duration: int):
-    qmm = machine.connect()
+    try:
+        qmm = machine.connect()
+    except QmServerDetectionError as exc:
+        pytest.skip(f"QMM cluster not available: {exc}")
     simulation_config = SimulationConfig(duration=simulation_duration // 4)
     job = qmm.simulate(machine.generate_config(), prog, simulation_config)
     job.wait_until("Done")

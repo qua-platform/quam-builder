@@ -74,13 +74,12 @@ def test_square_pulses_python(qmm, machine):
 
 def test_square_pulses_qua(qmm, machine):
     """Tests stepping to a single predefined point using QUA fixed variables."""
-    level_init = [0.8, -0.1]
+    level_init = [0.03, -0.01]
     duration_init = 1000
-    level_manip = [0.5, -0.3]
+    level_manip = [0.045, -0.03]
     duration_manip = 100
-    level_readout = [0.2, -0.2]
+    level_readout = [0.02, -0.02]
     duration_readout = 2000
-    max_compensation_amplitude = 0.2
     sampling_rate = 2
 
     for channel in machine.gate_set.channels.values():
