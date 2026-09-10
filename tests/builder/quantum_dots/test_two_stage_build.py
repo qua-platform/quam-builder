@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
+from quam.core import quam_dataclass
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
@@ -18,6 +19,16 @@ from quam_builder.builder.quantum_dots.build_quam import (
     build_loss_divincenzo_quam,
     build_quam,
 )
+
+
+@quam_dataclass
+class CustomQubitQuam(LossDiVincenzoQuam):
+    custom_field: str = "custom"
+
+
+@quam_dataclass
+class CustomBaseQuam(BaseQuamQD):
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -229,6 +240,27 @@ class TestStage2Build:
         assert isinstance(result, LossDiVincenzoQuam)
         assert hasattr(result, "qubits")
         assert hasattr(result, "qubit_pairs")
+
+    def test_uses_explicit_custom_stage2_quam_subclass(self):
+        """Stage 2 should honor an explicit target QUAM class."""
+        machine = CustomBaseQuam()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
+                },
+            }
+        }
+        machine = _BaseQpuBuilder(machine).build()
+
+        result = _LDQubitBuilder(
+            machine,
+            target_quam_class=CustomQubitQuam,
+        ).build()
+
+        assert isinstance(result, CustomQubitQuam)
+        assert result.custom_field == "custom"
 
     def test_implicit_mapping(self):
         """Stage 2 should map q1 → virtual_dot_1 implicitly."""
@@ -707,6 +739,32 @@ class TestHighLevelAPI:
 
         assert isinstance(result, LossDiVincenzoQuam)
         assert "q1" in result.qubits
+
+    def test_custom_stage2_quam_persists_through_save_and_load(self, tmp_path):
+        """Custom Stage 2 subclasses should round-trip through persistence."""
+        machine = CustomBaseQuam()
+        machine.wiring = {
+            "qubits": {
+                "q1": {
+                    WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1"),
+                    WiringLineType.DRIVE.value: _drive_ports("q1"),
+                },
+            }
+        }
+        machine = _BaseQpuBuilder(machine).build()
+
+        save_path = tmp_path / "custom_stage2_quam"
+        result = build_loss_divincenzo_quam(
+            machine,
+            target_quam_class=CustomQubitQuam,
+            save=True,
+            path=save_path,
+        )
+        loaded = CustomQubitQuam.load(save_path)
+
+        assert isinstance(result, CustomQubitQuam)
+        assert isinstance(loaded, CustomQubitQuam)
+        assert loaded.custom_field == "custom"
 
     def test_build_quam_convenience_wrapper(self):
         """Test build_quam() single-call wrapper."""
