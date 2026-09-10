@@ -111,11 +111,11 @@ class ExchangeDefaults:
 class VoltagePulseDefaults:
     """Default voltage pulse parameters for gate channels."""
 
-    direct_amplitude: float = 0.25
-    """Square pulse amplitude for direct voltage outputs."""
+    direct_amplitude: float = 0.5
+    """Square pulse amplitude for direct voltage outputs (full-scale, amplitude_scale ±2)."""
 
-    amplified_amplitude: float = 1.25
-    """Square pulse amplitude for amplified voltage outputs."""
+    amplified_amplitude: float = 2.5
+    """Square pulse amplitude for amplified voltage outputs (full-scale, amplitude_scale ±2)."""
 
 
 @dataclass

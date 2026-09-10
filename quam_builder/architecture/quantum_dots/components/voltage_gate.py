@@ -62,6 +62,29 @@ class VoltageGate(SingleChannel):
         return self
 
     @property
+    def full_scale(self) -> float:
+        """Maximum absolute OPX output voltage (0.5 V direct, 2.5 V amplified)."""
+        opx = self.opx_output
+        if opx is not None and getattr(opx, "output_mode", None) == "amplified":
+            return 2.5
+        return 0.5
+
+    @property
+    def step_waveform_amplitude(self) -> float:
+        """Baseband square-pulse amplitude so ``amplitude_scale`` in ±2 covers rail-to-rail."""
+        return self.full_scale
+
+    def device_to_opx(self, voltage):
+        """Convert a device-side voltage to OPX volts using this gate's attenuation."""
+        scale = 10 ** (self.attenuation / 20)
+        return voltage * scale
+
+    def opx_to_device(self, voltage):
+        """Convert OPX volts to a device-side voltage using this gate's attenuation."""
+        scale = 10 ** (self.attenuation / 20)
+        return voltage / scale
+
+    @property
     def qdac_spec(self):
         if self.dac_spec is not None and isinstance(self.dac_spec, QdacSpec):
             return self.dac_spec

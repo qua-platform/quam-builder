@@ -87,9 +87,7 @@ class MacroWirer:
 
     # -- internal -----------------------------------------------------------
 
-    def _materialize_from_registry(
-        self, component: object, *, fill_only: bool = False
-    ) -> None:
+    def _materialize_from_registry(self, component: object, *, fill_only: bool = False) -> None:
         """Materialize macros from the registry onto *component*.
 
         For each name in the resolved factory map:
@@ -108,9 +106,7 @@ class MacroWirer:
         for name, factory in factories.items():
             if name not in macros:
                 self._set_macro(component, name, factory())
-            elif not fill_only and self._factory_overrides_existing(
-                factory, macros[name]
-            ):
+            elif not fill_only and self._factory_overrides_existing(factory, macros[name]):
                 self._set_macro(component, name, factory())
 
     @staticmethod
@@ -133,9 +129,7 @@ class MacroWirer:
     ) -> None:
         for path, factory_map in overrides.items():
             if path not in components:
-                raise KeyError(
-                    f"Unknown component path '{path}'. " f"Known: {sorted(components)}"
-                )
+                raise KeyError(f"Unknown component path '{path}'. " f"Known: {sorted(components)}")
             component = components[path]
             for name, factory_or_sentinel in factory_map.items():
                 if factory_or_sentinel is DISABLED:
@@ -163,8 +157,7 @@ class MacroWirer:
             raise KeyError(f"Component '{component}' has no macros container.")
         if name not in macros:
             raise KeyError(
-                f"Macro '{name}' not found on "
-                f"'{getattr(component, 'id', component)}'."
+                f"Macro '{name}' not found on " f"'{getattr(component, 'id', component)}'."
             )
         del macros[name]
 
@@ -228,14 +221,13 @@ class PulseWirer:
                 if name not in qubit.xy.operations:
                     qubit.xy.add_pulse(name, pulse)
 
-
     @staticmethod
     def _wire_readout_pulses(machine: object) -> None:
         sensor_dots = getattr(machine, "sensor_dots", None)
 
-        # Should give us a sensor : [qd_pairs] mapping allowing us to create per-qd_pair readout pulses
+        # Should give us a sensor : [qd_pairs] mapping allowing us to create per-qd_pair readout pulses
         if sensor_dots is not None:
-            sensor_to_qdpair_mapping = {s : [] for s in list(sensor_dots.keys())}
+            sensor_to_qdpair_mapping = {s: [] for s in list(sensor_dots.keys())}
             quantum_dot_pairs = getattr(machine, "quantum_dot_pairs", None)
             if quantum_dot_pairs is not None:
                 for qd_pair_name, qd_pair in quantum_dot_pairs.items():
@@ -276,13 +268,14 @@ class PulseWirer:
                 if DEFAULT_PULSE_NAME not in operations:
                     output_mode = getattr(physical_channel.opx_output, "output_mode", None)
                     if output_mode is None:
-                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.5)
                     elif output_mode == "direct":
-                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.5)
                     elif output_mode == "amplified":
-                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(1.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(2.5)
                     else:
-                        raise ValueError("Unknown output mode '{}'".format(output_mode))
+                        raise ValueError(f"Unknown output mode '{output_mode}'")
+
 
 # ---------------------------------------------------------------------------
 # Top-level entry point

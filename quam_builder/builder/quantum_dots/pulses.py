@@ -144,50 +144,55 @@ def add_default_ldv_qubit_pair_pulses(qubit_pair: Any) -> None:
 def add_default_baseband_pulse(voltage_gate: VoltageGate):
     """Add default square pulse to the voltage gate.
     Note that the amplitude of the default pulse is chosen based on the output mode:
-        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 1.25V
-        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.25V
-        - if OPX+, then the waveform amplitude is 0.25V.
+        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 2.5V
+        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.5V
+        - if OPX+, then the waveform amplitude is 0.5V.
 
         Args:
             voltage_gate: VoltageGate instance to configure.
-        """
+    """
     if not isinstance(voltage_gate, str):
+        amp = (
+            voltage_gate.step_waveform_amplitude
+            if hasattr(voltage_gate, "step_waveform_amplitude")
+            else DEFAULTS.voltage_pulse.direct_amplitude
+        )
         if hasattr(voltage_gate.opx_output, "output_mode"):
             if voltage_gate.opx_output.output_mode == "amplified":
-                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                    amplitude=1.25, length=MIN_PULSE_DURATION_NS
-                )
+                amp = DEFAULTS.voltage_pulse.amplified_amplitude
             else:
-                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                )
-        else:
-            voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                amplitude=0.25, length=MIN_PULSE_DURATION_NS
-            )
+                amp = DEFAULTS.voltage_pulse.direct_amplitude
+        voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+            amplitude=amp, length=MIN_PULSE_DURATION_NS
+        )
         # Add trigger pulse for the external DAC
         if len(voltage_gate.digital_outputs) > 0:
-            voltage_gate.operations["trigger"] = SquarePulse(amplitude=0.0, length=1000, digital_marker="ON")
+            voltage_gate.operations["trigger"] = SquarePulse(
+                amplitude=0.0, length=1000, digital_marker="ON"
+            )
 
-def update_output_mode_and_default_baseband_pulse(voltage_gate: VoltageGate, output_mode: Literal["amplified", "direct"]):
+
+def update_output_mode_and_default_baseband_pulse(
+    voltage_gate: VoltageGate, output_mode: Literal["amplified", "direct"]
+):
     """Update default square pulse of the voltage gate.
     Note that the amplitude of the default pulse is chosen based on the output mode:
-        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 1.25V
-        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.25V
-        - if OPX+, then the waveform amplitude is 0.25V.
+        - if OPX1000 & output_mode is "amplified", then the waveform amplitude is 2.5V
+        - if OPX1000 & output_mode is "direct", then the waveform amplitude is 0.5V
+        - if OPX+, then the waveform amplitude is 0.5V.
 
         Args:
             voltage_gate: VoltageGate instance to configure.
             output_mode: The OPX1000 LF-FEM output mode. Can be "amplified" or "direct".
-        """
+    """
     if not isinstance(voltage_gate, str):
         if hasattr(voltage_gate.opx_output, "output_mode"):
             voltage_gate.opx_output.output_mode = output_mode
-            if voltage_gate.opx_output.output_mode == "amplified":
-                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                    amplitude=1.25, length=MIN_PULSE_DURATION_NS
-                )
-            else:
-                voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                )
+            amp = (
+                DEFAULTS.voltage_pulse.amplified_amplitude
+                if output_mode == "amplified"
+                else DEFAULTS.voltage_pulse.direct_amplitude
+            )
+            voltage_gate.operations[DEFAULT_PULSE_NAME] = SquarePulse(
+                amplitude=amp, length=MIN_PULSE_DURATION_NS
+            )

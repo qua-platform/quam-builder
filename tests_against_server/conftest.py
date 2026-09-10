@@ -97,7 +97,7 @@ def qmm_saas():
 @pytest.fixture(scope="session")
 def qmm_on_prem():
     """Session-scoped QuantumMachinesManager for the lab on-prem cluster."""
-    return QuantumMachinesManager(host="172.16.33.114", cluster_name="CS_4")
+    return QuantumMachinesManager(host="172.16.33.116", cluster_name="CS_OAS")
 
 
 @pytest.fixture(scope="session")
