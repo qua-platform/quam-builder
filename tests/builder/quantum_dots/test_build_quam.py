@@ -319,6 +319,31 @@ class TestBuildQuam:
             build_quam(machine, calibration_db_path=temp_dir, save=False)
             assert mock_ld.call_args.kwargs["save"] is False
 
+    def test_build_quam_forwards_target_quam_class(self, temp_dir):
+        machine = BaseQuamQD()
+        machine.wiring = {}
+        machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
+        CustomTargetQuam = type("CustomTargetQuam", (LossDiVincenzoQuam,), {})
+
+        with (
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_base_quam"
+            ) as mock_base,
+            patch(
+                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
+            ) as mock_ld,
+        ):
+            mock_base.return_value = machine
+            mock_ld.return_value = machine
+            build_quam(
+                machine,
+                calibration_db_path=temp_dir,
+                target_quam_class=CustomTargetQuam,
+                save=False,
+            )
+
+        assert mock_ld.call_args.kwargs["target_quam_class"] is CustomTargetQuam
+
 
 class TestCalibrationPathResolver:
     """Tests for calibration path normalization.

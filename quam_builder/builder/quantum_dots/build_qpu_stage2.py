@@ -47,6 +47,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         xy_drive_wiring: Optional[Dict[str, Dict]] = None,
         qubit_pair_sensor_map: Optional[Dict[str, List[str]]] = None,
         implicit_mapping: bool = True,
+        target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
     ):
         """Initialize Stage 2 builder.
 
@@ -66,15 +67,23 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             qubit_pair_sensor_map: Sensor mapping for qubit pairs.
                                   Format: {"q1_q2": ["sensor_1"], ...}
             implicit_mapping: If True, uses q1→virtual_dot_1 mapping.
+            target_quam_class: Root class to use after Stage 2 promotion.
         """
+        if not issubclass(target_quam_class, LossDiVincenzoQuam):
+            raise TypeError(
+                "target_quam_class must be a LossDiVincenzoQuam subclass, "
+                f"got {target_quam_class!r}."
+            )
+
         # Load machine if path provided
         if isinstance(machine, (str, Path)):
-            machine = LossDiVincenzoQuam.load(machine)
+            machine = BaseQuamQD.load(machine)
 
         self.machine = machine
         self.xy_drive_wiring = xy_drive_wiring
         self.qubit_pair_sensor_map = qubit_pair_sensor_map or {}
         self.implicit_mapping = implicit_mapping
+        self.target_quam_class = target_quam_class
 
     def build(self) -> LossDiVincenzoQuam:
         """Execute Stage 2 build process.
@@ -93,7 +102,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         if isinstance(self.machine, BaseQuamQD) and not isinstance(
             self.machine, LossDiVincenzoQuam
         ):
-            self.machine.__class__ = LossDiVincenzoQuam
+            self.machine.__class__ = self.target_quam_class
             # Initialize LDQuam-specific fields
             if not hasattr(self.machine, "qubits"):
                 self.machine.qubits = {}
