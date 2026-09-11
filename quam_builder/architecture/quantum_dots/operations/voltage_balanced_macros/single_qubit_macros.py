@@ -26,7 +26,8 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
     _owner_component,
 )
 from quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.state_macros import (
-    BalancedInitializeMacro, _point_voltages,
+    BalancedInitializeMacro,
+    _point_voltages,
 )
 from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
@@ -35,6 +36,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
 from quam_builder.tools.qua_tools import CLOCK_CYCLE_NS, is_qua_type
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from qualang_tools.units import unit
+
 
 @quam_dataclass
 class BalancedXYDriveMacro(XYDriveMacro):

@@ -174,6 +174,7 @@ def make_readout_pulse(dot_pair_name: Optional[str] = None) -> SquareReadoutPuls
         amplitude=DEFAULTS.readout.amplitude,
     )
 
+
 def make_baseband_pulse(amplitude: float):
     """Build default baseband pulse for all voltage gates connected to the OPX.
 

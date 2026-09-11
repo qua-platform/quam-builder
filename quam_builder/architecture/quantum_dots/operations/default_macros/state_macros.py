@@ -230,9 +230,7 @@ class ExchangeStateMacro(QuamMacro):
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         wait = self.wait_duration if wait_duration is None else wait_duration
         exchange_point = self.point if point is None else point
-        exchange_return_point = (
-            self.return_point if return_point is None else return_point
-        )
+        exchange_return_point = self.return_point if return_point is None else return_point
 
         # Ramp to exchange; hold at plateau for wait_duration (ns after ramp completes)
         _ramp_to_target(owner, exchange_point, ramp_duration=ramp, duration=wait)
@@ -259,16 +257,15 @@ class SensorDotMeasureMacro(QuamMacro):
 
     pulse_name: str = "readout"
 
-
     def _resolve_pulse_name_for_pair(self, pair_name: Optional[str] = None) -> str | None:
         owner = _owner_component(self)
         resonator = owner.readout_resonator
-        if resonator is None: 
+        if resonator is None:
             return None
         ops = getattr(resonator, "operations", None)
-        if pair_name is not None: 
+        if pair_name is not None:
             pair_pulse_name = f"{self.pulse_name}_{pair_name}"
-            if ops is not None and pair_pulse_name in ops: 
+            if ops is not None and pair_pulse_name in ops:
                 return pair_pulse_name
         return self.pulse_name
 
@@ -358,7 +355,7 @@ class SensorDotMeasureMacro(QuamMacro):
         # projected = declare(fixed)
         # assign(projected, i_qua * wI + q_qua * wQ + offset)
 
-        state = i_qua > threshold # Assuming that the readout projects onto the I axis
+        state = i_qua > threshold  # Assuming that the readout projects onto the I axis
         if return_iq:
             return (i_qua, q_qua, state)
         return state
@@ -410,11 +407,9 @@ class MeasurePSBPairMacro(QuamMacro):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
         buf = self.buffer_duration if buffer_duration is None else buffer_duration
-    
+
         if not owner.sensor_dots:
-            raise ValueError(
-                f"QuantumDotPair '{owner.id}' has no sensor dots for readout."
-            )
+            raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
 
         gate_names = []
