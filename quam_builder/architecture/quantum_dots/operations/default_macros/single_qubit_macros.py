@@ -122,9 +122,7 @@ def _resolve_qubit_pair(qubit):
     """
     preferred_dot_id = getattr(qubit, "preferred_readout_quantum_dot", None)
     if preferred_dot_id is None:
-        raise ValueError(
-            f"Qubit '{qubit.id}' has no preferred_readout_quantum_dot set."
-        )
+        raise ValueError(f"Qubit '{qubit.id}' has no preferred_readout_quantum_dot set.")
     machine = qubit.machine
     for pair in machine.qubit_pairs.values():
         qc, qt = pair.qubit_control, pair.qubit_target
@@ -174,24 +172,6 @@ class Initialize1QMacro(QubitMacro):
             kwargs["qubit_name"] = self.qubit.name
         return self._resolve_canonical_macro().apply(**kwargs)
 
-    def __getattr__(self, name):
-        field_names = _state_macro_field_names(InitializeStateMacro)
-        if name in field_names:
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        try:
-            field_names = _state_macro_field_names(InitializeStateMacro)
-        except TypeError:
-            field_names = frozenset()
-        if name in field_names:
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
-
 
 @quam_dataclass
 class Measure1QMacro(QubitMacro):
@@ -224,24 +204,6 @@ class Measure1QMacro(QubitMacro):
     def apply(self, **kwargs):
         return self._resolve_canonical_macro().apply(**kwargs)
 
-    def __getattr__(self, name):
-        field_names = _state_macro_field_names(MeasurePSBPairMacro)
-        if name in field_names:
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        try:
-            field_names = _state_macro_field_names(MeasurePSBPairMacro)
-        except TypeError:
-            field_names = frozenset()
-        if name in field_names:
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
-
 
 @quam_dataclass
 class Empty1QMacro(QubitMacro):
@@ -268,24 +230,6 @@ class Empty1QMacro(QubitMacro):
 
     def apply(self, **kwargs):
         return self._resolve_canonical_macro().apply(**kwargs)
-
-    def __getattr__(self, name):
-        field_names = _state_macro_field_names(EmptyStateMacro)
-        if name in field_names:
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        try:
-            field_names = _state_macro_field_names(EmptyStateMacro)
-        except TypeError:
-            field_names = frozenset()
-        if name in field_names:
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
 
 
 @quam_dataclass
@@ -383,25 +327,21 @@ class XYDriveMacro(QubitMacro):
             self.qubit.larmor_frequency = float(frequency)
 
         elif frequency_offset is not None:
-            self.qubit.larmor_frequency = float(
-                self.qubit.larmor_frequency + frequency_offset
-            )
+            self.qubit.larmor_frequency = float(self.qubit.larmor_frequency + frequency_offset)
 
     def apply(
-            self,
-            phase: float = 0.0,
-            amplitude_scale: float | None = None,
-            duration=None,
-            **kwargs,
+        self,
+        phase: float = 0.0,
+        amplitude_scale: float | None = None,
+        duration=None,
+        **kwargs,
     ):
         phase += self.phase
 
         if not math.isclose(phase, 0.0):
             self.qubit.virtual_z(phase)
         self.qubit.xy.play(
-            pulse_name=self.pulse_name,
-            amplitude_scale=amplitude_scale,
-            duration=duration
+            pulse_name=self.pulse_name, amplitude_scale=amplitude_scale, duration=duration
         )
 
 
@@ -514,6 +454,7 @@ class YNeg90Macro(XYDriveMacro):
 @quam_dataclass
 class Z180Macro(ZMacro):
     """Apply virtual 180-degree Z rotation via canonical `z` macro."""
+
     axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle: float = float(np.pi)
 
@@ -521,6 +462,7 @@ class Z180Macro(ZMacro):
 @quam_dataclass
 class Z90Macro(ZMacro):
     """Apply virtual 90-degree Z rotation via canonical `z` macro."""
+
     axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle = float(np.pi / 2)
 
@@ -528,8 +470,10 @@ class Z90Macro(ZMacro):
 @quam_dataclass
 class ZNeg90Macro(ZMacro):
     """Apply virtual -90-degree Z rotation via canonical `z` macro."""
+
     axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle = float(-np.pi / 2)
+
 
 @quam_dataclass
 class IdentityMacro(QubitMacro):

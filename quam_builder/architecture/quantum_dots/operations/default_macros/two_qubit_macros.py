@@ -1,4 +1,3 @@
-
 """Two-qubit default macros for quantum-dot qubit pairs."""
 
 # Framework macro base classes introduce deep inheritance chains by design.
@@ -38,7 +37,7 @@ __all__ = [
     "CZMacro",
     "SwapMacro",
     "ISwapMacro",
-    "DispatchInitialize2QMacro"
+    "DispatchInitialize2QMacro",
 ]
 
 
@@ -78,11 +77,7 @@ def _runtime_frequency_hz(qubit, esr_frequency):
         lo_frequency = drive.LO_frequency
 
     if lo_frequency is None:
-        return (
-            esr_frequency
-            if is_qua_type(esr_frequency)
-            else int(round(float(esr_frequency)))
-        )
+        return esr_frequency if is_qua_type(esr_frequency) else int(round(float(esr_frequency)))
 
     target_frequency = esr_frequency - lo_frequency
     if is_qua_type(target_frequency):
@@ -188,9 +183,7 @@ class Initialize2QMacro(QubitPairMacro):
         if kwargs.get("qubit_name") is None:
             role = "control" if qubit_role is None else qubit_role
             if role not in {"target", "control"}:
-                raise ValueError(
-                    f"Invalid qubit_role '{role}'. Expected 'target' or 'control'."
-                )
+                raise ValueError(f"Invalid qubit_role '{role}'. Expected 'target' or 'control'.")
             if role == "control":
                 kwargs["qubit_name"] = owner.qubit_control.name
             else:
@@ -199,20 +192,8 @@ class Initialize2QMacro(QubitPairMacro):
             pair_target_state = getattr(owner, "heralded_initialize_target_state", None)
             if pair_target_state is not None:
                 kwargs["target_state"] = pair_target_state
-        return self._resolve_canonical_macro().apply(xy_channel = owner.xy, **kwargs)
+        return self._resolve_canonical_macro().apply(xy_channel=owner.xy, **kwargs)
 
-    def __getattr__(self, name):
-        if name in _state_macro_field_names(InitializeStateMacro):
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        if name in _state_macro_field_names(InitializeStateMacro):
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
 
 class DispatchInitialize2QMacro(QubitPairMacro):
     """Initialize qubit pair by delegating to QuantumDotPair's initialize macro."""
@@ -238,9 +219,7 @@ class Measure2QMacro(QubitPairMacro):
         owner = _owner_component(self)
         qd_pair = getattr(owner, "quantum_dot_pair", None)
         if qd_pair is None:
-            raise ValueError(
-                f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout."
-            )
+            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for readout.")
         return qd_pair.macros[self._CANONICAL_MACRO_NAME]
 
     @property
@@ -258,19 +237,6 @@ class Measure2QMacro(QubitPairMacro):
 
     def apply(self, **kwargs):
         return self._resolve_canonical_macro().apply(**kwargs)
-
-    def __getattr__(self, name):
-        if name in _state_macro_field_names(MeasurePSBPairMacro):
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        if name in _state_macro_field_names(MeasurePSBPairMacro):
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
 
 
 class Empty2QMacro(QubitPairMacro):
@@ -282,9 +248,7 @@ class Empty2QMacro(QubitPairMacro):
         owner = _owner_component(self)
         qd_pair = getattr(owner, "quantum_dot_pair", None)
         if qd_pair is None:
-            raise ValueError(
-                f"LDQubitPair '{owner.id}' has no quantum_dot_pair for empty."
-            )
+            raise ValueError(f"LDQubitPair '{owner.id}' has no quantum_dot_pair for empty.")
         return qd_pair.macros[self._CANONICAL_MACRO_NAME]
 
     @property
@@ -302,19 +266,6 @@ class Empty2QMacro(QubitPairMacro):
 
     def apply(self, **kwargs):
         return self._resolve_canonical_macro().apply(**kwargs)
-
-    def __getattr__(self, name):
-        if name in _state_macro_field_names(EmptyStateMacro):
-            return getattr(self._resolve_canonical_macro(), name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        if name in _state_macro_field_names(EmptyStateMacro):
-            setattr(self._resolve_canonical_macro(), name, value)
-            return
-        super().__setattr__(name, value)
 
 
 class Exchange2QMacro(ExchangeStateMacro, QubitPairMacro):
@@ -402,11 +353,7 @@ class CROTMacro(QubitPairMacro):
 
     def _drive_qubit(self, drive_target: bool):
         """Return the qubit whose XY channel emits the ESR pulse."""
-        qubit = (
-            self.qubit_pair.qubit_target
-            if drive_target
-            else self.qubit_pair.qubit_control
-        )
+        qubit = self.qubit_pair.qubit_target if drive_target else self.qubit_pair.qubit_control
         if getattr(qubit, "xy", None) is None:
             raise ValueError(
                 f"Qubit '{qubit.id}' in pair '{self.qubit_pair.id}' has no XY drive configured."
@@ -506,9 +453,7 @@ class CROTMacro(QubitPairMacro):
             drive_qubit, self.pulse_name if pulse_name is None else pulse_name
         )
         pulse_amplitude = self.amplitude if amplitude is None else amplitude
-        runtime_esr_frequency = (
-            self.esr_frequency if esr_frequency is None else esr_frequency
-        )
+        runtime_esr_frequency = self.esr_frequency if esr_frequency is None else esr_frequency
         pulse_duration = self._pulse_duration_ns(
             drive_qubit,
             resolved_pulse_name,
@@ -535,17 +480,13 @@ class CROTMacro(QubitPairMacro):
             vs.ramp_to_voltages(
                 positive, duration=pulse_duration, ramp_duration=ramp, ensure_align=False
             )
-            vs.ramp_to_voltages(
-                zero, duration=16, ramp_duration=ramp, ensure_align=False
-            )
+            vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp, ensure_align=False)
 
         if runtime_esr_frequency is not None:
             drive_qubit.xy.update_frequency(larmor_frequency)
 
         # Record the mirror leg so balance() can cancel the net DC later.
-        self._cache.record(
-            point=target_point, ramp_duration=ramp, duration=pulse_duration
-        )
+        self._cache.record(point=target_point, ramp_duration=ramp, duration=pulse_duration)
 
     def apply_inverse(
         self,
@@ -573,9 +514,7 @@ class CROTMacro(QubitPairMacro):
 
         positive = _point_voltages(self.qubit_pair, target_point)
         negative = {k: -v for k, v in positive.items()}
-        self._play_exchange_leg(
-            voltages=negative, pulse_duration=pulse_duration, ramp=ramp
-        )
+        self._play_exchange_leg(voltages=negative, pulse_duration=pulse_duration, ramp=ramp)
 
     def balance(self) -> None:
         """Replay :meth:`apply_inverse` for every cached ``apply`` call, in
@@ -712,9 +651,7 @@ class CZMacro(QubitPairMacro):
         """
         m = self.exchange_decay_model
         if m is None:
-            raise ValueError(
-                "T_2π model not calibrated.  Run 18a_swap_oscillations first."
-            )
+            raise ValueError("T_2π model not calibrated.  Run 18a_swap_oscillations first.")
         model_type = m.get("type", "polynomial")
         if model_type == "polynomial":
             result = 0.0
@@ -749,12 +686,8 @@ class CZMacro(QubitPairMacro):
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
 
         qua.align(*gates)
-        vs.ramp_to_voltages(
-            voltages, duration=wait, ramp_duration=ramp, ensure_align=False
-        )
-        vs.ramp_to_voltages(
-            zero, duration=16, ramp_duration=ramp, ensure_align=False
-        )
+        vs.ramp_to_voltages(voltages, duration=wait, ramp_duration=ramp, ensure_align=False)
+        vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp, ensure_align=False)
 
     def apply(
         self,
@@ -791,15 +724,9 @@ class CZMacro(QubitPairMacro):
         wait = self.wait_duration if wait_duration is None else wait_duration
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         ctrl_phase = (
-            self.phase_shift_control
-            if phase_shift_control is None
-            else phase_shift_control
+            self.phase_shift_control if phase_shift_control is None else phase_shift_control
         )
-        tgt_phase = (
-            self.phase_shift_target
-            if phase_shift_target is None
-            else phase_shift_target
-        )
+        tgt_phase = self.phase_shift_target if phase_shift_target is None else phase_shift_target
 
         positive = _point_voltages(self.qubit_pair, cz_point)
         self._play_exchange_leg(voltages=positive, wait=wait, ramp=ramp)
