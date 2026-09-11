@@ -94,6 +94,39 @@ def get_linear_ramp(start_value, end_value, duration, sampling_rate=1):
     return [point for point in ramp for _ in range(sampling_rate)]
 
 
+SAMPLES_PER_NS = 2  # OPX1000 pulse-mode analog in these tests
+CLOCK_NS = 4
+GAP_ZERO_ATOL = 1e-4
+
+
+def interior_gap_ns(sample, zero_atol=GAP_ZERO_ATOL, samples_per_ns=SAMPLES_PER_NS):
+    """Durations (ns) of analog-zero runs strictly between the first and last
+    non-zero samples. Programmed zeros longer than 16 ns are plateaus, not gaps.
+    """
+    z = np.abs(sample) < zero_atol
+    high = ~z
+    if not np.any(high):
+        return []
+    first = int(np.argmax(high))
+    last = int(len(sample) - 1 - np.argmax(high[::-1]))
+    gaps = []
+    run = 0
+    for bit in z[first : last + 1]:
+        if bit:
+            run += 1
+        elif run:
+            gaps.append(run / samples_per_ns)
+            run = 0
+    if run:
+        gaps.append(run / samples_per_ns)
+    return [g for g in gaps if 0 < g < 16]
+
+
+def assert_no_interior_gaps(sample, name="channel"):
+    gaps = interior_gap_ns(sample)
+    assert gaps == [], f"interior analog gaps on {name}: {gaps} ns"
+
+
 def analog_abs_integral(sample):
     """Absolute trapezoidal integral of one analog sample array."""
     try:

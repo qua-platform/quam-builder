@@ -65,6 +65,20 @@ VOLTAGE_BITSHIFT = 12
 ATTENUATION_BITSHIFT = 8
 
 
+def _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude):
+    """Scale a QUA voltage by ``1/wf_amplitude`` using a bit-shift when possible.
+
+    ``1/wf_amplitude`` must be a power of two: 0.25 V baseband uses ``<< 2``,
+    2 V amplified uses ``>> 1``.
+    """
+    if log2_inv_wf == int(log2_inv_wf):
+        shift = int(log2_inv_wf)
+        if shift >= 0:
+            return delta_v << shift
+        return delta_v >> (-shift)
+    return delta_v * inv_wf_amplitude
+
+
 def round_amplitude(level):
     """
     Rounds an amplitude to 16-bit precision.
@@ -204,11 +218,17 @@ class VoltageSequence:
                     )
                 output_mode = getattr(ch.opx_output, "output_mode", None)
                 if output_mode is None:
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = (
+                        DEFAULTS.voltage_pulse.direct_amplitude
+                    )
                 elif output_mode == "direct":
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 0.25
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = (
+                        DEFAULTS.voltage_pulse.direct_amplitude
+                    )
                 elif output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME].amplitude = 1.25
+                    ch.operations[DEFAULT_PULSE_NAME].amplitude = (
+                        DEFAULTS.voltage_pulse.amplified_amplitude
+                    )
 
     def _initialise_attenuation_qua_vars(self) -> None:
         """Lazy initiation of QUA variables that runs only at the start of the QUA program."""
@@ -307,12 +327,7 @@ class VoltageSequence:
             return
 
         if is_qua_type(delta_v):
-            # Bit-shift only matches scaling when 1/DEFAULT_WF_AMPLITUDE is a power of two
-            # (e.g. 0.25 V baseband). Amplified LF-FEM uses 1.25 V → use explicit multiply.
-            if log2_inv_wf == int(log2_inv_wf) and int(log2_inv_wf) >= 0:
-                scaled_amp = delta_v << int(log2_inv_wf)
-            else:
-                scaled_amp = delta_v * inv_wf_amplitude
+            scaled_amp = _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude)
         else:
             scaled_amp = np.round(delta_v * inv_wf_amplitude, 10)
         duration_cycles = duration >> 2  # Convert ns to clock cycles
@@ -359,10 +374,10 @@ class VoltageSequence:
         DEFAULT_WF_AMPLITUDE = channel.operations[DEFAULT_PULSE_NAME].amplitude
         inv_wf_amplitude = float(np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10))
         log2_inv_wf = np.log2(inv_wf_amplitude)
-        if log2_inv_wf == int(log2_inv_wf) and int(log2_inv_wf) >= 0:
-            assign(scale_var, delta_v << int(log2_inv_wf))
-        else:
-            assign(scale_var, delta_v * inv_wf_amplitude)
+        assign(
+            scale_var,
+            _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude),
+        )
 
     def _play_ramp_on_channel(
         self,
