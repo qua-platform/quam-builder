@@ -281,7 +281,13 @@ def _build_virtual_mapping(
     physical_to_virtual: Dict[str, str] = {}
 
     for index, channel in enumerate(channels, start=1):
-        if channel.opx_output is not None:
+        # ``VoltageGate.opx_output`` is usually stored as a QUAM reference string.
+        # During Stage 1 assembly these gates are still detached from the root, so
+        # resolving the attribute through ``channel.opx_output`` can trigger
+        # ``get_root()`` warnings. Read the raw field instead and defer reference
+        # resolution until the gate is attached to the machine.
+        opx_output = channel.get_raw_value("opx_output")
+        if opx_output is not None:
             virtual_name = f"{prefix}_{index}"
             virtual_to_channel[virtual_name] = channel
             physical_to_virtual[channel.id] = virtual_name
