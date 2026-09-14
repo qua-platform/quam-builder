@@ -27,6 +27,8 @@ from test_utils import compare_ast_nodes, print_ast_as_code  # type: ignore
 
 
 def test_invalid_timing_multiple_4(machine):
+    """step_to_point raises TypeError when the tuning-point duration is not a
+    multiple of 4 ns (here 41 ns)."""
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=41)
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
@@ -35,6 +37,8 @@ def test_invalid_timing_multiple_4(machine):
 
 
 def test_invalid_timing_min_duration(machine):
+    """step_to_point raises TypeError when the tuning-point duration is below the
+    16 ns minimum (here 12 ns)."""
     machine.gate_set.add_point("p1", voltages={"ch1": 0.1, "ch2": 0.2}, duration=12)
     with qua.program() as _prog:  # noqa: F841
         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
@@ -51,8 +55,8 @@ def test_go_to_single_point(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=25)
     expected_ast = ProgramTreeBuilder().build(expected_program)
 
     assert compare_ast_nodes(ast, expected_ast)
@@ -69,10 +73,10 @@ def test_go_to_multiple_points(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch2", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch1", duration=50)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch2", duration=50)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=50)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=50)
     expected_ast = ProgramTreeBuilder().build(expected_program)
 
     assert compare_ast_nodes(ast, expected_ast)
@@ -80,9 +84,7 @@ def test_go_to_multiple_points(machine):
 
 def test_step_to_point_with_custom_duration(machine):
     """Tests overriding the point's default duration in step_to_point."""
-    machine.gate_set.add_point(
-        "p1", voltages={"ch1": 0.1}, duration=100
-    )  # Default duration
+    machine.gate_set.add_point("p1", voltages={"ch1": 0.1}, duration=100)  # Default duration
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_point("p1", duration=60)
@@ -90,10 +92,7 @@ def test_step_to_point_with_custom_duration(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=15)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=15)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch1", duration=15)
     expected_ast = ProgramTreeBuilder().build(expected_program)
 
     assert compare_ast_nodes(ast, expected_ast)
@@ -107,8 +106,7 @@ def test_step_to_voltages_single_channel(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(1.0), "ch1", duration=30)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=30)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch1", duration=30)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -121,17 +119,15 @@ def test_step_to_voltages_multiple_channels(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.6), "ch1", duration=40)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(-0.4), "ch2", duration=40)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.3), "ch1", duration=40)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(-0.2), "ch2", duration=40)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
 
 def test_step_to_voltages_then_step_to_point(machine):
     """Tests a step_to_voltages operation followed by a step_to_point."""
-    machine.gate_set.add_point(
-        "p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80
-    )
+    machine.gate_set.add_point("p_after_step", voltages={"ch1": 0.2, "ch2": 0.2}, duration=80)
     with qua.program() as prog:
         seq = machine.gate_set.new_sequence(enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1}, duration=100)
@@ -140,10 +136,9 @@ def test_step_to_voltages_then_step_to_point(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=20)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch2", duration=20)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch1", duration=20)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=20)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -151,9 +146,7 @@ def test_step_to_voltages_then_step_to_point(machine):
 def test_sequence_with_qua_variable_duration_step_to_voltages(machine):
     """Tests using a QUA variable for duration in step_to_voltages."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=False, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False, enforce_qua_calcs=False)
         qua_duration = qua.declare(int)
         qua.assign(qua_duration, 200)  # ns
         seq.step_to_voltages(voltages={"ch1": 0.2}, duration=qua_duration)
@@ -163,13 +156,8 @@ def test_sequence_with_qua_variable_duration_step_to_voltages(machine):
         expected_qua_duration = qua.declare(int)
         qua.assign(expected_qua_duration, 200)
         qua.play(
-            DEFAULT_PULSE_NAME * qua.amp(0.8),
+            DEFAULT_PULSE_NAME * qua.amp(0.4),
             "ch1",
-            duration=expected_qua_duration >> 2,
-        )
-        qua.play(
-            DEFAULT_PULSE_NAME * qua.amp(0.0),
-            "ch2",
             duration=expected_qua_duration >> 2,
         )
     expected_ast = ProgramTreeBuilder().build(expected_program)
@@ -180,9 +168,7 @@ def test_sequence_with_qua_variable_duration_step_to_voltages(machine):
 def test_sequence_with_qua_variable_voltage_step_to_voltages(machine):
     """Tests using a QUA variable for voltage in step_to_voltages."""
     with qua.program() as prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=False, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=False, enforce_qua_calcs=False)
         qua_voltage = qua.declare(qua.fixed)
         qua.assign(qua_voltage, 0.15)
         seq.step_to_voltages(voltages={"ch1": qua_voltage, "ch2": 0.1}, duration=100)
@@ -192,11 +178,11 @@ def test_sequence_with_qua_variable_voltage_step_to_voltages(machine):
         expected_qua_voltage = qua.declare(qua.fixed)
         qua.assign(expected_qua_voltage, 0.15)
         qua.play(
-            DEFAULT_PULSE_NAME * qua.amp((expected_qua_voltage - 0.0) << 2),
+            DEFAULT_PULSE_NAME * qua.amp((expected_qua_voltage - 0.0) << 1),
             "ch1",
             duration=25,
         )
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch2", duration=25)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -210,8 +196,8 @@ def test_ramp_to_zero_immediate(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.8), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(-0.6), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.4), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(-0.3), "ch2", duration=25)
         qua.ramp_to_zero("ch1")
         qua.ramp_to_zero("ch2")
 
@@ -228,8 +214,7 @@ def test_ramp_to_zero_with_duration(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(1.0), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch1", duration=25)
         qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
@@ -245,10 +230,8 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
     ast = ProgramTreeBuilder().build(prog)
 
     with qua.program() as expected_program:
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(1.0), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch2", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.0), "ch1", duration=25)
-        qua.play(DEFAULT_PULSE_NAME * qua.amp(1.0), "ch2", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch1", duration=25)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch2", duration=25)
         qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
         qua.play(qua.ramp(-0.25 / 200), "ch2", duration=50)
     expected_ast = ProgramTreeBuilder().build(expected_program)

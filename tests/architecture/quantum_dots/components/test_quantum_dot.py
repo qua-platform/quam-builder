@@ -7,6 +7,7 @@ from qm import qua
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
 
 
 class TestQuantumDotProperties:
@@ -73,7 +74,7 @@ class TestQuantumDotPlay:
     def test_play_in_qua(self, qd_machine):
         qd = list(qd_machine.quantum_dots.values())[0]
         with qua.program() as prog:
-            qd.play("half_max_square")
+            qd.play(DEFAULT_PULSE_NAME)
         assert prog is not None
 
 

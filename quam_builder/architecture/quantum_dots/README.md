@@ -82,18 +82,18 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   channel_p1 = VoltageGate(
     opx_output = ("con1", 1), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)}, # Ensure that the instantiated channel is STICKY
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)}, # Ensure that the instantiated channel is STICKY
   )
 
 
   channel_p2 = VoltageGate(
     opx_output = ("con1", 2), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
   )
   ```
 
-- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
+- Each channel should have a base QUA operation named `"default_pulse"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"default_pulse"`; ensure that the config is generated, and the QM is opened only afterwards.
 
 
 #### 2.  Group channels into a channel dictionary
@@ -599,17 +599,17 @@ machine = BasicQuam()
 machine.channels["ch1"] = VoltageGate(
     opx_output=("con1", 1),  # OPX controller and port
     sticky=StickyChannelAddon(duration=1000, digital=False),
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
 )
 machine.channels["ch2"] = VoltageGate(
     opx_output=("con1", 2),  # OPX controller and port
     sticky=StickyChannelAddon(duration=1000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
 )
 machine.channels["ch3"] = VoltageGate(
     opx_output=("con1", 3),  # OPX controller and port
     sticky=StickyChannelAddon(duration=100000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
 )
 
 ```
