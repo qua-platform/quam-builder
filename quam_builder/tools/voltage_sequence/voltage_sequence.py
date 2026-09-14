@@ -59,7 +59,7 @@ CLOCK_CYCLE_NS = 4
 COMPENSATION_SCALING_FACTOR = 1.0 / INTEGRATED_VOLTAGE_SCALING_FACTOR
 MIN_COMPENSATION_DURATION_NS = 16
 DEFAULT_QUA_COMPENSATION_DURATION_NS = 48
-DEFAULT_PULSE_NAME = "half_max_square"
+DEFAULT_PULSE_NAME = "default_pulse"
 RAMP_QUA_DELAY_CYCLES = 9  # Approx delay for QUA ramp calculations
 VOLTAGE_BITSHIFT = 12
 ATTENUATION_BITSHIFT = 8
@@ -99,7 +99,7 @@ class VoltageSequence:
 
     The user is responsible for ensuring that each QUAM Channel object in the
     GateSet has an operation defined in the QUA configuration named DEFAULT_PULSE_NAME,
-    which is '250mV_square' by default. This operation should correspond to a pulse
+    which is 'default_pulse' by default. This operation should correspond to a pulse
     of MIN_PULSE_DURATION_NS (16ns) with a waveform whose constant sample value is
     DEFAULT_BASE_WF_SAMPLE (0.25V).
     This class does not modify the QUA configuration.
