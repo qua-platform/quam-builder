@@ -20,9 +20,8 @@ All inherit **`ReadoutResonatorBase`** (`frequency_bare`) and support power help
 
 A **`SensorDot`** extends **`QuantumDot`** with:
 
-- **`readout_resonator`** — the RF channel used for PSB readout.
+- **`readout_resonator`** — the channel used for RF readout.
 - **`readout_thresholds`** — per-`QuantumDotPair` discrimination threshold.
-- **`readout_projectors`** — per-pair IQ projector weights (`Projector`: `wI`, `wQ`, `offset`).
 - **`readout_reservoir`** — optional **`DrainSingle`** ohmic contact.
 
 After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`** named `"readout"` (see [operations/README.md](../operations/README.md)). Pair-specific pulses can be named `"readout_{pair_id}"` when multiple pairs share one sensor.
@@ -31,13 +30,12 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
 
 1. **Build** — register `SensorDot` with `readout_resonator` on the machine (builder or manual; see [`quam_qd_example.py`](../examples/quam_qd_example.py)).
 2. **Calibrate** — set resonator frequency and power (`set_output_power` on IQ/MW); run `sensor_dot.calibrate_octave(QM)` when using Octave.
-3. **Discrimination** — store threshold and projector per pair:
+3. **Discrimination** — rotate the IQ plane with readout-pulse **integration weights**, then store a per-pair threshold on I:
 
    ```python
+   pulse = sensor.readout_resonator.operations["readout"]
+   pulse.integration_weights_angle = 0.0  # 0 → discriminate on I
    sensor.readout_thresholds["dot1_dot2_pair"] = 0.12
-   sensor.readout_projectors["dot1_dot2_pair"] = {
-       "wI": 1.0, "wQ": 0.0, "offset": 0.0,
-   }
    ```
 
 4. **Measure in QUA** — `pair.measure()` (via **`MeasurePSBPairMacro`** see [operations/default_macros/state_macros.py](../operations/default_macros/state_macros.py)) steps to the `"measure"` voltage point, aligns gates with the resonator, and calls **`SensorDotMeasureMacro`** for state assignment.

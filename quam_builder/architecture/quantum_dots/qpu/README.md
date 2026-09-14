@@ -8,7 +8,7 @@ For DC gates, virtual gates, and `VoltageSequence`, see the parent [quantum-dot 
 
 ## `BaseQuamQD` machine settings
 
-These fields on **`BaseQuamQD`** (and inherited by **`LossDiVincenzoQuam`**) are machine-level settings. `track_integrated_voltage` and `limit_play_commands` are passed into sequences created by `get_voltage_sequence()` (and similar machine helpers). Direct `gate_set.new_sequence()` uses `GateSet` defaults instead (`enforce_qua_calcs=True`; `track_integrated_voltage` / `limit_play_commands` default `False`):
+These fields on **`BaseQuamQD`** (and inherited by **`LossDiVincenzoQuam`**) are machine-level settings. `get_voltage_sequence()` (and similar machine helpers) copy `track_integrated_voltage` and `limit_play_commands` into each new sequence. You can also pass the same flags **explicitly** to `gate_set.new_sequence(...)` — they are ordinary kwargs, not only machine fields. Direct `GateSet.new_sequence()` defaults are `enforce_qua_calcs=True` and `track_integrated_voltage` / `limit_play_commands` `False`:
 
 | Field | Default | Purpose |
 |-------|---------|---------|
@@ -21,6 +21,15 @@ These fields on **`BaseQuamQD`** (and inherited by **`LossDiVincenzoQuam`**) are
 machine.track_integrated_voltage = True
 machine.limit_play_commands = True
 machine.set_pulse_family("drag")
+
+# Machine helpers pick up those fields:
+seq = machine.get_voltage_sequence("main_qpu")
+
+# Same flags can be set per sequence instead:
+seq = machine.virtual_gate_sets["main_qpu"].new_sequence(
+    track_integrated_voltage=True,
+    limit_play_commands=True,
+)
 ```
 
 See [voltage_sequence/README.md](../voltage_sequence/README.md) for sequence parameters and [operations/README.md](../operations/README.md) for pulse wiring.
@@ -40,7 +49,18 @@ Notable attributes and behaviour (see class docstring for the full list):
 - **`b_field`** — Operating external magnetic field (device metadata).
 - **`active_qubit_names`**, **`active_qubit_pair_names`** — Subsets used when broadcasting QPU-level routines.
 - **`register_qubit`**, **`register_qubit_pair`** — Construct qubit / pair objects from existing `QuantumDot` (and pair) topology.
-- **`get_component`** — Resolves names across qubits, pairs, dots, sensors, barriers, etc.
+- **`get_component(name)`** — Look up a component by its **name string** and return the object. Used throughout QUALab nodes when a node parameter is a name rather than a live reference.
+
+### `get_component`
+
+`LossDiVincenzoQuam.get_component(name)` searches, in order: `qubits`, `quantum_dots`, `sensor_dots`, `barrier_gates`, `quantum_dot_pairs`, `qubit_pairs`. `BaseQuamQD.get_component(name)` searches the same collections except `qubits` / `qubit_pairs`. The first match wins; a missing name raises `ValueError`.
+
+```python
+q1 = machine.get_component("q1")                 # LDQubit
+dot = machine.get_component("virtual_dot_1")     # QuantumDot
+sensor = machine.get_component("virtual_sensor_1")
+pair = machine.get_component("q1_q2")            # LDQubitPair
+```
 
 ## `LDQubit` ([`../qubit/ld_qubit.py`](../qubit/ld_qubit.py))
 
