@@ -275,7 +275,7 @@ State and readout behaviour for dots and pairs is implemented in [`default_macro
 
 | Macro | Component | Role |
 |-------|-----------|------|
-| **`SensorDotMeasureMacro`** | `SensorDot` | Plays readout pulse; with `quantum_dot_pair_id`, applies stored projector/threshold and returns a QUA boolean. |
+| **`SensorDotMeasureMacro`** | `SensorDot` | Plays readout pulse; with `quantum_dot_pair_id`, applies the stored threshold (after pulse integration weights) and returns a QUA boolean. |
 | **`MeasurePSBPairMacro`** | `QuantumDotPair`, `LDQubitPair` | Steps to `"measure"` voltage point (optional `buffer_duration`), aligns gates with resonator, delegates to sensor macro. |
 | **`QPUMeasureMacro`** | `QPU` | Broadcasts measure to active qubits/pairs/dots. |
 | **`InitializeStateMacro`**, **`EmptyStateMacro`**, **`ExchangeStateMacro`** | Many types | Voltage-point state transitions (ramp/step). |
@@ -286,7 +286,8 @@ State and readout behaviour for dots and pairs is implemented in [`default_macro
 |-----------|-------|-------|
 | Measure voltage point | `MeasurePSBPairMacro.point` | Named point or explicit voltage dict |
 | Pre-readout buffer | `MeasurePSBPairMacro.buffer_duration` | Hold at measure point before RF pulse (ns) |
-| Threshold / projector | `SensorDot.readout_thresholds`, `readout_projectors` | Per pair; assign the dict fields directly |
+| Threshold | `SensorDot.readout_thresholds` | Per pair; assign the dict field directly |
+| Integration weights | `SquareReadoutPulse.integration_weights_angle` (on the sensor `"readout"` pulse) | Rotates which IQ axis is used before the I-threshold comparison |
 | Pulse name | `SensorDotMeasureMacro.pulse_name` | Default `"readout"`; pair-specific `"readout_{pair_id}"` if registered |
 
 `MeasurePSBPairMacro.inferred_duration` returns **seconds**: `(buffer_duration_ns * 1e-9) + sensor_macro.inferred_duration`. The public contract for custom macros is also seconds (see [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract)).

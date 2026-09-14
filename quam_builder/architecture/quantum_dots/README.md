@@ -101,8 +101,8 @@ flowchart TD
 ## Reload the Quam state, and construct a QUA program.
 
 ```python
-loaded = LossDiVincenzoQuam.load("quam_state") # Load the same state from file
-q1 = loaded.qubits["q1"] # Choose a qubit to interact with
+machine = LossDiVincenzoQuam.load("quam_state") # Load the same state from file
+q1 = machine.qubits["q1"] # Choose a qubit to interact with
 with program() as prog:
     q1.initialize() # run predefined macros that translate to Qua play commands
     q1.x180()
@@ -143,14 +143,14 @@ with program() as prog:
 
 ## Turning pulse sequences into custom macros
 
-Wrap a pulse sequence in a `@quam_dataclass` `QuamMacro` so you can call it as `q1.initialize()`. Register named voltage points on the machine; the macro only navigates them.
+Wrap a pulse sequence in a `@quam_dataclass` **`QubitMacro`** so you can call it as `q1.initialize()`. Subclass `QubitMacro` (not a bare `QuamMacro`) to get `self.qubit` and to keep the same `update()` pattern as the default state macros. Register named voltage points on the machine; the macro only navigates them. Populate **`inferred_duration`** in **seconds** so sticky-voltage tracking stays correct (see [voltage_sequence — Custom Macro Duration Contract](voltage_sequence/README.md#custom-macro-duration-contract)).
 
 This example empties the dot, then ramps to `load`:
 
 ```python
 from qm.qua import program
 from quam.core import quam_dataclass
-from quam.core.macro import QuamMacro
+from quam.components.macro import QubitMacro
 
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
     build_tutorial_machine,
@@ -159,17 +159,43 @@ from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_mac
 from quam_builder.architecture.quantum_dots.operations.names import SingleQubitMacroName
 
 @quam_dataclass
-class EmptyThenLoadInitialize(QuamMacro):
+class EmptyThenLoadInitialize(QubitMacro):
     empty_point: str = "empty"
     load_point: str = "load"
     ramp_duration: int = 64
+    empty_hold_ns: int = 200
+    load_hold_ns: int = 200
+
+    @property
+    def inferred_duration(self) -> float:
+        return (self.empty_hold_ns + self.ramp_duration + self.load_hold_ns) * 1e-9
+
+    def update(
+        self,
+        *,
+        empty_point: str | None = None,
+        load_point: str | None = None,
+        ramp_duration: int | None = None,
+        empty_hold_ns: int | None = None,
+        load_hold_ns: int | None = None,
+    ) -> None:
+        if empty_point is not None:
+            self.empty_point = empty_point
+        if load_point is not None:
+            self.load_point = load_point
+        if ramp_duration is not None:
+            self.ramp_duration = ramp_duration
+        if empty_hold_ns is not None:
+            self.empty_hold_ns = empty_hold_ns
+        if load_hold_ns is not None:
+            self.load_hold_ns = load_hold_ns
+
+    def __call__(self, *args, **kwargs):
+        return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
-        qubit = self.parent
-        while not hasattr(qubit, "step_to_point"):
-            qubit = qubit.parent
-        qubit.step_to_point(self.empty_point)
-        qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration)
+        self.qubit.step_to_point(self.empty_point)
+        self.qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration)
 
 machine = build_tutorial_machine()
 q1 = machine.qubits["q1"]
@@ -184,6 +210,8 @@ wire_machine_macros(
         "qubits.q1": {SingleQubitMacroName.INITIALIZE: EmptyThenLoadInitialize},
     },
 )
+
+q1.initialize.update(ramp_duration=80)  # persist a calibrated ramp
 
 with program() as prog:
     q1.initialize()
