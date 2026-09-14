@@ -143,6 +143,39 @@ class TestStage1Build:
         # Identity matrix for 2 channels
         assert matrix == [[1.0, 0.0], [0.0, 1.0]]
 
+    def test_stage1_build_does_not_warn_for_detached_voltage_gates(self):
+        """Stage 1 should not resolve VoltageGate references before attachment."""
+        import warnings
+
+        machine = BaseQuamQD()
+        machine.wiring = {
+            "qubits": {
+                "q1": {WiringLineType.PLUNGER_GATE.value: _plunger_ports("q1")},
+                "q2": {WiringLineType.PLUNGER_GATE.value: _plunger_ports("q2")},
+            },
+            "qubit_pairs": {
+                "q1_q2": {WiringLineType.BARRIER_GATE.value: _barrier_ports("q1_q2")},
+            },
+            "readout": {
+                "s1": {
+                    WiringLineType.SENSOR_GATE.value: _sensor_ports("s1"),
+                    WiringLineType.RF_RESONATOR.value: _resonator_ports("s1"),
+                },
+            },
+        }
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _BaseQpuBuilder(machine).build()
+
+        detached_root_warnings = [
+            w
+            for w in caught
+            if "This component is not part of any QuamRoot" in str(w.message)
+            and "VoltageGate" in str(w.message)
+        ]
+        assert detached_root_warnings == []
+
     def test_creates_quantum_dot_pairs(self):
         """Stage 1 should create quantum dot pairs with barriers."""
         machine = BaseQuamQD()
