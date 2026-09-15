@@ -48,7 +48,7 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
         step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
-        calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
+        calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this qubit.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
         reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time).
         add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
