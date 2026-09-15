@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from qm.qua import *
 from qm.qua._expressions import ScalarOfAnyType, VectorOfAnyType
@@ -8,7 +8,7 @@ from quam.core import quam_dataclass
 
 __all__ = ["CRGate", "StarkInducedCZGate"]
 
-AmplitudeScale = ScalarOfAnyType | VectorOfAnyType
+AmplitudeScale = Union[ScalarOfAnyType, VectorOfAnyType]
 
 
 class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
@@ -44,6 +44,8 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
 
         cr_list = []
         for qubit_pair in valid_qubit_pairs:
+            if qubit_pair.cross_resonance is None:
+                continue
             if qubit_pair.qubit_target.name == self.qt.name:
                 cr_list.append(qubit_pair.cross_resonance)
         return cr_list
@@ -60,7 +62,7 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         # self.qt.align()
 
     @staticmethod
-    def _scaled_amplitude(amp_scale: Optional[AmplitudeScale], sign: int):
+    def _scaled_amplitude(amp_scale: Optional[AmplitudeScale], sign: int) -> AmplitudeScale:
         """Apply echo sign to scalar or DRAG ``amplitude_scale`` lists."""
         if amp_scale is None:
             amp_scale = 1
@@ -83,15 +85,9 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         *,
         sign: int = 1,
     ) -> None:
-        scaled_amp: AmplitudeScale | None = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(
-            amp_scale, sign
-        )
+        scaled_amp: AmplitudeScale = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(amp_scale, sign)
 
-        if scaled_amp is None and duration is None:
-            elem.play(wf_type)
-        elif scaled_amp is None:
-            elem.play(wf_type, duration=duration)
-        elif duration is None:
+        if duration is None:
             elem.play(wf_type, amplitude_scale=scaled_amp)
         else:
             elem.play(wf_type, amplitude_scale=scaled_amp, duration=duration)
@@ -131,9 +127,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
     def apply(
         self,
-        cr_type: Optional[
-            Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]
-        ] = None,
+        cr_type: Optional[Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]] = None,
         wf_type: Optional[str] = None,
         duration_clock_cycles: Optional[ScalarOfAnyType] = None,
         drive_amp_scaling: Optional[ScalarOfAnyType] = None,
@@ -253,9 +247,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         self._align_cr()
 
         self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles, sign=-1)
-        self._play_pulse(
-            self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles, sign=-1
-        )
+        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles, sign=-1)
         self._align_cr()
 
         self.qc.xy.play("x180")
