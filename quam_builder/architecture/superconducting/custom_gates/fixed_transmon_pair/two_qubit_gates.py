@@ -92,15 +92,6 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         else:
             elem.play(wf_type, amplitude_scale=scaled_amp, duration=duration)
 
-    def _apply_qc_correction(self, phi: Optional[ScalarOfAnyType]) -> None:
-        if phi is not None:
-            self.qc.xy.frame_rotation_2pi(phi)
-
-    def _apply_qt_correction(self, phi: Optional[ScalarOfAnyType]) -> None:
-        if phi is not None:
-            self.qt.xy.frame_rotation_2pi(phi)
-            self._shift_frame(self.cr, phi)
-
 
 # ============================================================================
 # Cross-Resonance (CR) Gate
@@ -306,5 +297,7 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
         )
 
         align(self._zz.name, self.qt.xy_detuned.name, self.qc.xy.name, self.qt.xy.name)
-        self._apply_qc_correction(qc_corr)
-        self._apply_qt_correction(qt_corr)
+
+        # apply static phase correction
+        self.qc.xy.frame_rotation_2pi(qc_corr)
+        self.qt.xy.frame_rotation_2pi(qt_corr)
