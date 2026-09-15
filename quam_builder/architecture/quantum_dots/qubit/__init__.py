@@ -1,10 +1,10 @@
 from typing import Union
 
-from . import ld_qubit
 from .ld_qubit import *
+from .singlet_triplet_qubit import *
 
 from typing import Union
 
-AnySpinQubit = Union[LDQubit]
+AnySpinQubit = Union[LDQubit, SingletTripletQubit]
 
-__all__ = ["LDQubit", "AnySpinQubit"]
+__all__ = ["LDQubit", "AnySpinQubit", "SingletTripletQubit"]
