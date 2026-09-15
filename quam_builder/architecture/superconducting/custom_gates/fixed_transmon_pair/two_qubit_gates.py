@@ -283,7 +283,7 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
 
     def apply(
         self,
-        wf_type: Optional[Literal["square", "cosine", "gauss", "flattop"]] = "flattop",
+        wf_type: Optional[Literal["square", "flattop"]] = "flattop",
         zz_duration_clock_cycles: Optional[ScalarOfAnyType] = None,
         zz_control_amp_scaling: Optional[AmplitudeScale] = None,
         zz_target_amp_scaling: Optional[AmplitudeScale] = None,
