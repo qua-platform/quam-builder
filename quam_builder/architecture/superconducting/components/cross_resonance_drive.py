@@ -1,5 +1,5 @@
-from quam.core import quam_dataclass
 from quam.components.channels import IQChannel, MWChannel
+from quam.core import quam_dataclass
 
 __all__ = ["CrossResonanceDriveIQ", "CrossResonanceDriveMW"]
 
@@ -18,6 +18,8 @@ class CrossResonanceDriveBase:
 
 @quam_dataclass
 class CrossResonanceDriveIQ(IQChannel, CrossResonanceDriveBase):
+    intermediate_frequency: float = "#./inferred_intermediate_frequency"
+
     @property
     def upconverter_frequency(self):
         return self.LO_frequency
@@ -29,14 +31,8 @@ class CrossResonanceDriveIQ(IQChannel, CrossResonanceDriveBase):
 
 @quam_dataclass
 class CrossResonanceDriveMW(MWChannel, CrossResonanceDriveBase):
+    intermediate_frequency: float = "#./inferred_intermediate_frequency"
+
     @property
     def inferred_intermediate_frequency(self):
         return self.target_qubit_RF_frequency - self.LO_frequency
-
-    @property
-    def upconverter_frequency(self):
-        return self.opx_output.upconverter_frequency
-
-    @property
-    def inferred_RF_frequency(self):
-        return self.upconverter_frequency + self.inferred_intermediate_frequency
