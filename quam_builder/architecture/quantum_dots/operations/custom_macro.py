@@ -1,5 +1,5 @@
 from typing import Any
-from dataclasses import fields
+import dataclasses
 
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -80,8 +80,8 @@ class CustomMacro(QuamMacro):
     def _own_field_names(cls) -> set[str]:
         """Field names declared on the subclass itself, excluding framework fields
         inherited from CustomMacro/QuamMacro/QuamComponent (id, parent, etc.)."""
-        base_field_names = {f.name for f in fields(CustomMacro)}
-        return {f.name for f in fields(cls)} - base_field_names
+        base_field_names = {f.name for f in dataclasses.fields(CustomMacro)}
+        return {f.name for f in dataclasses.fields(cls)} - base_field_names
 
     def update(self, **kwargs) -> None:
         """Persistently update calibrated parameters.
@@ -98,3 +98,12 @@ class CustomMacro(QuamMacro):
                 )
             if value is not None:
                 setattr(self, key, value)
+
+    def resolve_params(self, **overrides) -> dict:
+        """Merge this macro's dataclass field values with any explicit
+        per-call overrides. A None or missing override falls back to self.<field>."""
+        resolved = {}
+        for f in dataclasses.fields(self):
+            override = overrides.get(f.name)
+            resolved[f.name] = getattr(self, f.name) if override is None else override
+        return resolved
