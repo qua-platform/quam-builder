@@ -285,7 +285,8 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
         qc_corr = qc_correction_phase if qc_correction_phase else self.qc_correction_phase
         qt_corr = qt_correction_phase if qt_correction_phase else self.qt_correction_phase
 
-        self._shift_frame(self.qt.xy_detuned, zz_relative_phase)
+        if zz_relative_phase is not None:
+            self._shift_frame(self.qt.xy_detuned, zz_relative_phase)
 
         align(self._zz.name, self.qt.xy_detuned.name)
         self._play_pulse(self._zz, wf_type, zz_control_amp_scaling, zz_duration_clock_cycles)
