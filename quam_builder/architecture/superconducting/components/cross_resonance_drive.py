@@ -6,33 +6,24 @@ __all__ = ["CrossResonanceDriveIQ", "CrossResonanceDriveMW"]
 
 @quam_dataclass
 class CrossResonanceDriveBase:
-    """
-    QUAM hardware channel for a cross-resonance drive.
-
-    Attributes:
-        target_qubit_RF_frequency (float): target qubit's RF frequency.
-    """
-
-    target_qubit_RF_frequency: float = None
+    pass
 
 
 @quam_dataclass
 class CrossResonanceDriveIQ(IQChannel, CrossResonanceDriveBase):
-    intermediate_frequency: float = "#./inferred_intermediate_frequency"
+    intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     @property
     def upconverter_frequency(self):
+        """Returns the up-converter/LO frequency in Hz."""
         return self.LO_frequency
-
-    @property
-    def inferred_intermediate_frequency(self):
-        return self.target_qubit_RF_frequency - self.LO_frequency
 
 
 @quam_dataclass
 class CrossResonanceDriveMW(MWChannel, CrossResonanceDriveBase):
-    intermediate_frequency: float = "#./inferred_intermediate_frequency"
+    intermediate_frequency: int = "#./inferred_intermediate_frequency"
 
     @property
-    def inferred_intermediate_frequency(self):
-        return self.target_qubit_RF_frequency - self.LO_frequency
+    def upconverter_frequency(self):
+        """Returns the up-converter/LO frequency in Hz."""
+        return self.opx_output.upconverter_frequency
