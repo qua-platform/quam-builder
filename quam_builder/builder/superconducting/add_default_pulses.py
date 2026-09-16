@@ -7,7 +7,6 @@ from quam.components.pulses import SquarePulse, SquareReadoutPulse
 from quam_builder.architecture.superconducting.components.pulses import (
     DragCosinePulse,
     DragGaussianPulse,
-    FlatTopGaussianPulse,
 )
 from quam_builder.architecture.superconducting.components.twpa import TWPA
 from quam_builder.architecture.superconducting.qubit import (
@@ -18,6 +17,7 @@ from quam_builder.architecture.superconducting.qubit_pair import (
     FixedFrequencyTransmonPair,
     FluxTunableTransmonPair,
 )
+from quam_builder.common.pulses import FlatTopGaussianPulse
 
 # Class containing tools to help handling units and conversions.
 u = unit(coerce_to_integer=True)
@@ -313,16 +313,27 @@ def add_default_transmon_pair_pulses(
             transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
     if hasattr(transmon_pair, "cross_resonance"):
         if transmon_pair.cross_resonance is not None:
-            transmon_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+            transmon_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=1.0, length=100)
             transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,
                 flat_length=50,
                 axis_angle=0.0,
             )
+
+            # add cancel pulse
+            pair_id = transmon_pair.id
+            target_qubit = transmon_pair.qubit_target
+            target_qubit.xy.operations[f"cr_{pair_id}_square"] = SquarePulse(amplitude=0.2, length=100)
+            target_qubit.xy.operations[f"cr_{pair_id}_flattop"] = FlatTopGaussianPulse(
+                amplitude=0.2,
+                length=100,
+                flat_length=50,
+                axis_angle=0.0,
+            )
     if hasattr(transmon_pair, "zz_drive"):
         if transmon_pair.zz_drive is not None:
-            transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+            transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=1.0, length=100)
             transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,
