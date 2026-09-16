@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Fixed
 - NV center - fix invalid `SPCM` component.
 - Quantum Dots - fix for voltage_sequence with amplified and attenuated `VoltageGates`
+- Quantum Dots - restore amplified LF-FEM default pulse amplitude to 1.25 V (half of 2.5 V full scale)
 
 ## [0.2.0] - 2025-10-29
 ### Added
