@@ -25,6 +25,7 @@ from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
     MacroRegistry,
     UtilityMacroCatalog,
 )
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
     make_readout_pulse,
     make_xy_pulse_factories,
@@ -280,7 +281,9 @@ class PulseWirer:
                     elif output_mode == "direct":
                         operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(0.25)
                     elif output_mode == "amplified":
-                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(1.25)
+                        operations[DEFAULT_PULSE_NAME] = make_baseband_pulse(
+                            DEFAULTS.voltage_pulse.amplified_amplitude
+                        )
                     else:
                         raise ValueError("Unknown output mode '{}'".format(output_mode))
 

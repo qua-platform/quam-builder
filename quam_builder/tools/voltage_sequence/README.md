@@ -32,18 +32,18 @@ This framework is specifically designed to work with channels that have **sticky
   channel_p1 = VoltageGate(
     opx_output = ("con1", 1), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
   )
 
 
   channel_p2 = VoltageGate(
     opx_output = ("con1", 2), #Specify the OPX output
     sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
   )
   ```
 
-- Each channel should have a base QUA operation named `"half_max_square"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"half_max_square"`; ensure that the config is generated, and the QM is opened only afterwards.
+- Each channel should have a base QUA operation named `"default_pulse"`, as shown above. Note that `GateSet.new_sequence()` automatically updates the channel operations to include `"default_pulse"`; ensure that the config is generated, and the QM is opened only afterwards.
 
 
 

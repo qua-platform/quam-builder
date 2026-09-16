@@ -10,8 +10,10 @@ from quam_builder.architecture.quantum_dots.components import (
     VirtualizationLayer,
     VoltageGate,
 )
-from qm import QuantumMachinesManager
+from quam_builder.builder.quantum_dots.pulses import add_default_baseband_pulse
 import numpy as np
+
+from quam.components import pulses
 
 
 @quam_dataclass
@@ -25,37 +27,56 @@ class QuamVirtualGateSet(QuamRoot):
 
 
 @pytest.fixture
-def qmm():
-    qmm = QuantumMachinesManager(
-        host="172.16.33.114", cluster_name="CS_4"
-    )  # CS_4 172.16.33.114 #CS_3 172.16.33.115
-    return qmm
-
-
-@pytest.fixture
 def machine():
     machine = QuamGateSet(
         gate_set=GateSet(
             id="test_gate_set",
             channels={
                 "ch1": VoltageGate(
-                    opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 6, upsampling_mode="pulse"
-                    ),
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 6, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
                 "ch2": VoltageGate(
-                    opx_output=LFFEMAnalogOutputPort(
-                        "con1", 5, 3, upsampling_mode="pulse"
-                    ),
+                    opx_output=LFFEMAnalogOutputPort("con1", 5, 3, upsampling_mode="pulse"),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
             },
             adjust_for_attenuation=True,
         ),
     )
+    for channel in machine.gate_set.channels.values():
+        add_default_baseband_pulse(channel)
+    return machine
+
+
+@pytest.fixture
+def machine_amplified():
+    machine = QuamGateSet(
+        gate_set=GateSet(
+            id="test_gate_set_amplified",
+            channels={
+                "ch1": VoltageGate(
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 6, upsampling_mode="pulse", output_mode="amplified"
+                    ),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=20,
+                ),
+                "ch2": VoltageGate(
+                    opx_output=LFFEMAnalogOutputPort(
+                        "con1", 5, 3, upsampling_mode="pulse", output_mode="amplified"
+                    ),
+                    sticky=StickyChannelAddon(duration=100, digital=False),
+                    attenuation=20,
+                ),
+            },
+            adjust_for_attenuation=True,
+        ),
+    )
+    for channel in machine.gate_set.channels.values():
+        add_default_baseband_pulse(channel)
     return machine
 
 
@@ -71,14 +92,14 @@ def virtual_machine():
                         "con1", 5, 6, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
                 "ch2": VoltageGate(
                     opx_output=LFFEMAnalogOutputPort(
                         "con1", 5, 3, upsampling_mode="pulse", output_mode="direct"
                     ),
                     sticky=StickyChannelAddon(duration=100, digital=False),
-                    attenuation=10,
+                    attenuation=20,
                 ),
             },
             layers=[
@@ -92,5 +113,6 @@ def virtual_machine():
         )
     )
 
-    # machine.virtual_gate_set = gate_set
+    for channel in machine.virtual_gate_set.channels.values():
+        add_default_baseband_pulse(channel)
     return machine
