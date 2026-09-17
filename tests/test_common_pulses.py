@@ -123,3 +123,35 @@ def test_sample_rate_rescales_waveform():
     waveform_1ghz = _make_pulse(sample_rate=1e9).waveform_function()
     waveform_2ghz = _make_pulse(sample_rate=2e9).waveform_function()
     assert not np.allclose(waveform_1ghz, waveform_2ghz)
+
+
+def test_zero_zeta_matches_no_kerr_waveform():
+    """zeta_ground_hz=zeta_excited_hz=0.0 is the default and must reproduce the
+    plain (no self-Kerr correction) waveform exactly -- self-Kerr is a strict,
+    opt-in generalization."""
+    waveform_default = _make_pulse().waveform_function()
+    waveform_explicit_zero = _make_pulse(
+        zeta_ground_hz=0.0, zeta_excited_hz=0.0
+    ).waveform_function()
+    assert np.allclose(waveform_default, waveform_explicit_zero)
+
+
+def test_waveform_depends_on_asymmetric_zeta():
+    waveform_no_kerr = _make_pulse(zeta_ground_hz=0.0, zeta_excited_hz=0.0).waveform_function()
+    waveform_with_kerr = _make_pulse(
+        zeta_ground_hz=-175.0, zeta_excited_hz=-56.0
+    ).waveform_function()
+    assert not np.allclose(waveform_no_kerr, waveform_with_kerr)
+
+
+def test_waveform_shape_and_dtype_with_kerr_enabled():
+    pulse = _make_pulse(zeta_ground_hz=-175.0, zeta_excited_hz=-56.0)
+    waveform = pulse.waveform_function()
+    assert waveform.shape == (100,)
+    assert np.iscomplexobj(waveform)
+
+
+def test_waveform_amplitude_normalization_with_kerr_enabled():
+    pulse = _make_pulse(amplitude=0.5, length=100, zeta_ground_hz=-175.0, zeta_excited_hz=-56.0)
+    waveform = pulse.waveform_function()
+    assert np.sum(np.abs(waveform)) == pytest.approx(0.5 * 100)
