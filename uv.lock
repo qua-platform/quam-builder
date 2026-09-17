@@ -368,7 +368,7 @@ resolution-markers = [
     "python_full_version < '3.10'",
 ]
 dependencies = [
-    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "xarray", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/a1/58cc7f4c72c144fcb720395c244fd36df33ddc0bdd67fbb1c38037cd068c/cf_xarray-0.9.4.tar.gz", hash = "sha256:23833bce5ddffc31ec95258c82a62c848c15332696d91abbf960a4325bc6accb", size = 506942, upload-time = "2024-07-17T10:07:46.518Z" }
 wheels = [
@@ -383,7 +383,7 @@ resolution-markers = [
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "xarray", marker = "python_full_version == '3.10.*'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5b/15/8c916b4118ece2011c0c1365b64823ce361d352c460785402c78b8520ba8/cf_xarray-0.10.6.tar.gz", hash = "sha256:159236eca465453784ee7efa2a430d5e2092978db8a5d4d8b591f61d0639cb89", size = 513498, upload-time = "2025-06-20T18:19:18.526Z" }
 wheels = [
@@ -399,7 +399,7 @@ resolution-markers = [
     "python_full_version == '3.11.*'",
 ]
 dependencies = [
-    { name = "xarray", version = "2025.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "xarray", marker = "python_full_version >= '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8d/f3/b6d58d2cf6f39413504335ab1a8d98edc22ac0ab2603141ce8f17f161ea5/cf_xarray-0.10.10.tar.gz", hash = "sha256:09cb1ec94593913de4662182b5e9374f828e9540b7471a01c7abcb9bbfdaa3d1", size = 683343, upload-time = "2025-12-11T19:25:07.636Z" }
 wheels = [
@@ -3781,7 +3781,7 @@ dependencies = [
     { name = "versioningit", marker = "python_full_version < '3.10'" },
     { name = "websockets", version = "15.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "wrapt", marker = "python_full_version < '3.10'" },
-    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "xarray", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0d/01/45ff13476c95523079950db255da27c6fc5522f65ee12ca45ee8bd9d0bdc/qcodes-0.46.0.tar.gz", hash = "sha256:e0ae1d9d57448240920d4e2d52ceceae545a971e1d8b95f931770422fe800c99", size = 815980, upload-time = "2024-07-04T09:18:28.822Z" }
 wheels = [
@@ -3822,7 +3822,7 @@ dependencies = [
     { name = "versioningit", marker = "python_full_version == '3.10.*'" },
     { name = "websockets", version = "16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "wrapt", marker = "python_full_version == '3.10.*'" },
-    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "xarray", marker = "python_full_version == '3.10.*'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7c/d5/2e8c3b36c6fd4969911ad905814320f7ca2c541bafa8d7199e35d8143002/qcodes-0.52.0.tar.gz", hash = "sha256:add998d3817ff5bbc96665291a615bc230fa39fcac52b19ef315c8f1553c0a6e", size = 800095, upload-time = "2025-04-04T07:33:11.013Z" }
 wheels = [
@@ -3862,7 +3862,7 @@ dependencies = [
     { name = "uncertainties", marker = "python_full_version >= '3.11'" },
     { name = "versioningit", marker = "python_full_version >= '3.11'" },
     { name = "websockets", version = "16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "xarray", version = "2025.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "xarray", marker = "python_full_version >= '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/34/3b/38c613958911c7ea14d852632042e834749558416eea6b93761802bdf6da/qcodes-0.54.4.tar.gz", hash = "sha256:949cf3907fda1af176f545ee7aa3853119204a4c34beafef3fd569aa46521d9a", size = 817999, upload-time = "2025-12-12T17:39:33.878Z" }
 wheels = [
@@ -3981,13 +3981,15 @@ dependencies = [
 
 [[package]]
 name = "qualang-tools"
-version = "0.21.1"
-source = { git = "https://github.com/qua-platform/py-qua-tools.git?rev=main#db8e38e4d04d66b781a0f0a3a4267844aa059904" }
+version = "0.23.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "attrs" },
     { name = "grpclib" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "numpy" },
+    { name = "packaging" },
     { name = "qm-qua" },
     { name = "scikit-learn", version = "1.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
@@ -3995,6 +3997,11 @@ dependencies = [
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "scipy", version = "1.16.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/d1/791e0b9e7c04532b0308558dd86f4a00c5e44f2ae43bb3ad06110ade0bf3/qualang_tools-0.23.0.tar.gz", hash = "sha256:6d10fd6da3ac9fe191bc59edc42bcc54839885e7bd25646269fd870a8cc75b2c", size = 4444079, upload-time = "2026-07-31T09:05:29.104Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/f0/8700ccda326abb751e4542f887ac1ac0e7e0f53ab529bbc9ab96f5c964aa/qualang_tools-0.23.0-py3-none-any.whl", hash = "sha256:f4de9702509cb2944fa0ac91367dadcdad092cc8e7d3d9c83f7fec4ad2171fe6", size = 4499316, upload-time = "2026-07-31T09:05:27.027Z" },
 ]
 
 [[package]]
@@ -4067,9 +4074,7 @@ dependencies = [
     { name = "qm-saas" },
     { name = "qualang-tools" },
     { name = "quam" },
-    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "xarray", version = "2025.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "xarray" },
 ]
 
 [package.dev-dependencies]
@@ -4122,9 +4127,10 @@ requires-dist = [
     { name = "qcodes-contrib-drivers", specifier = ">=0.22.0" },
     { name = "qm-qua", specifier = ">=1.2.2" },
     { name = "qm-saas", specifier = ">=1.1.7" },
-    { name = "qualang-tools", git = "https://github.com/qua-platform/py-qua-tools.git?rev=main" },
+    { name = "qualang-tools", specifier = ">=0.22.0" },
     { name = "quam", specifier = ">=0.4.0" },
-    { name = "xarray", specifier = ">=2024.7.0" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "xarray", specifier = ">=2023.12.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -5243,52 +5249,14 @@ wheels = [
 name = "xarray"
 version = "2024.7.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.10'",
-]
 dependencies = [
-    { name = "numpy", marker = "python_full_version < '3.10'" },
-    { name = "packaging", marker = "python_full_version < '3.10'" },
-    { name = "pandas", marker = "python_full_version < '3.10'" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/84/e8/8ee12706df0d34ad04b3737621a73432458d47bc8abfbd6f049e51ca89c3/xarray-2024.7.0.tar.gz", hash = "sha256:4cae512d121a8522d41e66d942fb06c526bc1fd32c2c181d5fe62fe65b671638", size = 3728663, upload-time = "2024-07-30T08:31:45.48Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/45/95/233e1f9c939f5ba314297315df709e6a5e823bf3cade7211991b15aa65d2/xarray-2024.7.0-py3-none-any.whl", hash = "sha256:1b0fd51ec408474aa1f4a355d75c00cc1c02bd425d97b2c2e551fd21810e7f64", size = 1176466, upload-time = "2024-07-30T08:31:43.077Z" },
-]
-
-[[package]]
-name = "xarray"
-version = "2025.6.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.10.*'",
-]
-dependencies = [
-    { name = "numpy", marker = "python_full_version == '3.10.*'" },
-    { name = "packaging", marker = "python_full_version == '3.10.*'" },
-    { name = "pandas", marker = "python_full_version == '3.10.*'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/ec/e50d833518f10b0c24feb184b209bb6856f25b919ba8c1f89678b930b1cd/xarray-2025.6.1.tar.gz", hash = "sha256:a84f3f07544634a130d7dc615ae44175419f4c77957a7255161ed99c69c7c8b0", size = 3003185, upload-time = "2025-06-12T03:04:09.099Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/8a/6b50c1dd2260d407c1a499d47cf829f59f07007e0dcebafdabb24d1d26a5/xarray-2025.6.1-py3-none-any.whl", hash = "sha256:8b988b47f67a383bdc3b04c5db475cd165e580134c1f1943d52aee4a9c97651b", size = 1314739, upload-time = "2025-06-12T03:04:06.708Z" },
-]
-
-[[package]]
-name = "xarray"
-version = "2025.11.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
-]
-dependencies = [
-    { name = "numpy", marker = "python_full_version >= '3.11'" },
-    { name = "packaging", marker = "python_full_version >= '3.11'" },
-    { name = "pandas", marker = "python_full_version >= '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/39/ad/b072c970cfb2e2724509bf1e8d7fb4084cc186a90d486c9ac4a48ff83186/xarray-2025.11.0.tar.gz", hash = "sha256:d7a4aa4500edbfd60676b1613db97da309ab144cac0bcff0cbf483c61c662af1", size = 3072276, upload-time = "2025-11-17T16:12:09.167Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/b4/cfa7aa56807dd2d9db0576c3440b3acd51bae6207338ec5610d4878e5c9b/xarray-2025.11.0-py3-none-any.whl", hash = "sha256:986893b995de4a948429356a3897d78e634243c1cac242bd59d03832b9d72dd1", size = 1375447, upload-time = "2025-11-17T16:12:07.123Z" },
 ]
 
 [[package]]

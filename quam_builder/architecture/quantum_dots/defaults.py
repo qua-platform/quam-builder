@@ -114,7 +114,7 @@ class VoltagePulseDefaults:
     direct_amplitude: float = 0.25
     """Square pulse amplitude for direct voltage outputs."""
 
-    amplified_amplitude: float = 2.0
+    amplified_amplitude: float = 1.25
     """Square pulse amplitude for amplified voltage outputs."""
 
 

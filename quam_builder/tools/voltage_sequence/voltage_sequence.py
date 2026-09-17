@@ -68,8 +68,8 @@ ATTENUATION_BITSHIFT = 8
 def _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude):
     """Scale a QUA voltage by ``1/wf_amplitude`` using a bit-shift when possible.
 
-    ``1/wf_amplitude`` must be a power of two: 0.25 V baseband uses ``<< 2``,
-    2 V amplified uses ``>> 1``.
+    ``1/wf_amplitude`` must be a power of two: 0.25 V baseband uses ``<< 2``.
+    1.25 V amplified is not a power of two, so it multiplies by ``inv_wf_amplitude``.
     """
     if log2_inv_wf == int(log2_inv_wf):
         shift = int(log2_inv_wf)
