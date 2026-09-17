@@ -182,6 +182,7 @@ if qdac_connect:
                 "channel_method": "channel",
                 "accessor": "dc_constant_V",
                 "is_qdac": True,
+                "close_method": "close",
             }
         }
     )

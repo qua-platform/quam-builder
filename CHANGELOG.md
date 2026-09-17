@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - `DrachmaReadoutPulse` now supports per-state resonator linewidths (`kappa_ground_hz`, `kappa_excited_hz`). Equal values reproduce the previous shared-kappa waveform (#155).
 - Optional self-Kerr correction on `DrachmaReadoutPulse` via `zeta_ground_hz` and `zeta_excited_hz` (default `0.0`, which leaves the waveform unchanged) (#155).
 - `DrachmaReadoutPulse.depletion_time_ns` (default `16`): extra wait after the pulse for the resonator to decay before measurement (#155).
+- Add support for cloud-based QMM instances in `machine.connect()`
+  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
+- Optional ``close_method`` on quantum-dot ``dac_config`` entries so
+  ``disconnect_from_external_source`` can tear down any driver API (not only ``.close()``).
+
 
 ### Changed
 
@@ -27,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Added `DrachmaReadoutPulse` readout scheme (#140).
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument (#121).
+
 
 ### Changed
 
