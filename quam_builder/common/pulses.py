@@ -1,7 +1,6 @@
 import numpy as np
-
 from quam.core import quam_dataclass
-from quam.components.pulses import Pulse, ReadoutPulse
+from quam.components.pulses import Pulse, ReadoutPulse as BaseReadoutPulse
 
 __all__ = [
     "GaussianPulse",
@@ -10,6 +9,13 @@ __all__ = [
     "GaussianFilteredSquarePulse",
     "DrachmaReadoutPulse",
 ]
+
+
+@quam_dataclass
+class ReadoutPulse(BaseReadoutPulse):
+    """just addint depletion time attribute"""
+
+    depletion_time_ns: int = 16
 
 
 @quam_dataclass
@@ -256,18 +262,33 @@ class DrachmaReadoutPulse(ReadoutPulse):
     ground- and excited-state resonator frequencies (detuning_{0,1} = +-chi
     in the paper's notation, where chi is the dispersive shift).
 
-    resonator_kappa_hz and detuning_*_hz are given in Hz and converted
-    internally (via a factor of 1/sample_rate) to the per-sample units used
-    by kappa/2pi, chi/2pi in the paper (e.g. for sample_rate = 1e9 Sa/s,
-    kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
+    NOTE: the paper itself uses a single shared kappa for all states in Eq. (7)
+    above -- there is no per-state kappa_j anywhere in Jerger et al. The split
+    into kappa_ground_hz / kappa_excited_hz below is OUR OWN extension, not a
+    result from the paper. It is motivated by the generic input-output equation
+    for a driven-dissipative resonator conditioned on state j,
+    da_j/dt = -(kappa_j/2 + i*chi_j)*a_j + sqrt(kappa_j)*a_in(t), which gives
+    each factor in the product its own kappa_j when the resonator linewidth is
+    state-dependent in practice (e.g. state-dependent Purcell decay or extra
+    loss channels when the qubit is excited). We generalize the normalization
+    from kappa^(N/2) in Eq. (7) to sqrt(kappa_ground_hz * kappa_excited_hz),
+    which reduces to the original formula when kappa_ground_hz == kappa_excited_hz.
+    This extension has not been validated against the paper or experimentally;
+    treat it as a heuristic, not a derived result.
+
+    kappa_*_hz and detuning_*_hz are given in Hz and converted internally
+    (via a factor of 1/sample_rate) to the per-sample units used by kappa/2pi,
+    chi/2pi in the paper (e.g. for sample_rate = 1e9 Sa/s, kappa/2pi = 0.5647 MHz
+    -> kappa_ground_hz = 564700).
 
     Args:
-        sample_rate (float): Sample rate in Hz used to convert resonator_kappa_hz
+        sample_rate (float): Sample rate in Hz used to convert kappa_*_hz
             and detuning_*_hz to per-sample units (default 1e9, i.e. 1 sample = 1 ns).
     """
 
     amplitude: float  # NOT a peak amplitude, determines the area under the graph similar to square pulse amplitude
-    resonator_kappa_hz: float  # kappa/(2*pi), Hz
+    kappa_ground_hz: float  # kappa_g/(2*pi), resonator linewidth for |g>, Hz
+    kappa_excited_hz: float  # kappa_e/(2*pi), resonator linewidth for |e>, Hz
     detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
     detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
     sample_rate: float = 1e9
@@ -282,16 +303,19 @@ class DrachmaReadoutPulse(ReadoutPulse):
 
     def _differential_operator_coeffs(self):
         """Coefficients of the polynomial in D = d/dt for
-        prod_j (kappa/2 + i*detuning_j + D). coeffs[k] multiplies the k-th
+        prod_j (kappa_j/2 + i*detuning_j + D). coeffs[k] multiplies the k-th
         time derivative of a_T(t)."""
-        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
+        kappas = [
+            2 * np.pi * self.kappa_ground_hz / self.sample_rate,
+            2 * np.pi * self.kappa_excited_hz / self.sample_rate,
+        ]
         detunings = [
             2 * np.pi * self.detuning_ground_hz / self.sample_rate,
             2 * np.pi * self.detuning_excited_hz / self.sample_rate,
         ]
 
         coeffs = np.array([1.0 + 0.0j])
-        for detuning in detunings:
+        for kappa, detuning in zip(kappas, detunings):
             factor = np.array([kappa / 2 + 1j * detuning, 1.0 + 0.0j])  # [D^0, D^1]
             coeffs = np.convolve(coeffs, factor)
         return coeffs, len(detunings)
@@ -314,10 +338,15 @@ class DrachmaReadoutPulse(ReadoutPulse):
                 "DrachmaReadoutPulse.length must be at least 2 samples "
                 f"(got {self.length}); the trial function is undefined for length == 1."
             )
-        if self.resonator_kappa_hz <= 0:
+        if self.kappa_ground_hz <= 0:
             raise ValueError(
-                "DrachmaReadoutPulse.resonator_kappa_hz must be positive "
-                f"(got {self.resonator_kappa_hz})"
+                "DrachmaReadoutPulse.kappa_ground_hz must be positive "
+                f"(got {self.kappa_ground_hz})"
+            )
+        if self.kappa_excited_hz <= 0:
+            raise ValueError(
+                "DrachmaReadoutPulse.kappa_excited_hz must be positive "
+                f"(got {self.kappa_excited_hz})"
             )
         if self.sample_rate <= 0:
             raise ValueError(
@@ -325,16 +354,19 @@ class DrachmaReadoutPulse(ReadoutPulse):
             )
 
         norm = self.amplitude * self.length
-        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
+        kappa_norm = np.sqrt(
+            (2 * np.pi * self.kappa_ground_hz / self.sample_rate)
+            * (2 * np.pi * self.kappa_excited_hz / self.sample_rate)
+        )
         a_T = self._trial_function()
-        coeffs, n_states = self._differential_operator_coeffs()
+        coeffs, _ = self._differential_operator_coeffs()
 
         derivatives = self._time_derivatives(a_T, max_order=len(coeffs) - 1)
 
         a_in = np.zeros_like(a_T, dtype=complex)
         for k, c_k in enumerate(coeffs):
             a_in += c_k * derivatives[k]
-        a_in /= kappa ** (n_states / 2)
+        a_in /= kappa_norm
 
         a_in_sum = np.sum(np.abs(a_in))
         if a_in_sum == 0:
