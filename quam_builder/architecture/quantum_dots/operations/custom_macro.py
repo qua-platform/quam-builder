@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, get_type_hints, Optional
 import dataclasses
 
 from quam.core import quam_dataclass
@@ -10,30 +10,97 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.state_macr
 
 __all__ = ["CustomMacro"]
 
+class _MacroParameters:
+    """
+    Builds a ``Parameters`` model for each ``CustomMacro`` subclass.
+
+    The generated model is created from the macro's own dataclass fields,
+    excluding framework fields inherited from ``CustomMacro`` / ``QuamMacro``.
+    Each generated field is optional and defaults to ``None``, so the model can
+    be used for node-level overrides without creating a second handwritten
+    parameter class.
+    """
+
+    def __init__(self):
+        self._cache = {}
+
+    def __get__(self, instance, owner):
+        if owner not in self._cache:
+            from pydantic import create_model
+
+            base_fields = {f.name for f in dataclasses.fields(CustomMacro)}
+            try:
+                hints = get_type_hints(owner)
+            except Exception:
+                hints = {}
+            fields = {
+                f.name: (Optional[hints.get(f.name, f.type)], None)
+                for f in dataclasses.fields(owner)
+                if f.name not in base_fields
+            }
+            self._cache[owner] = create_model(
+                f"{owner.__name__}Parameters", __module__=owner.__module__, **fields
+            )
+        return self._cache[owner]
+
 
 @quam_dataclass
 class CustomMacro(QuamMacro):
     """
     A Custom Macro class that users can subclass to create their own custom macro.
 
-    In order to create your own macro, subclass this and add any QUA code to the apply() function.
+    To create a custom macro, subclass this class, declare any configurable
+    fields directly on the dataclass, and implement the QUA logic in
+    :meth:`apply`.
+
+    The configurable fields you put on the macro class serve two purposes:
+
+    1. They are stored on the macro object itself and therefore participate in
+       serialization, ``update(...)``, and ``resolve_params(...)``.
+    2. They are automatically exposed through the ``Parameters`` descriptor as
+       an optional Pydantic model that Qualibrate nodes can mix into their
+       parameter classes.
 
     The below example creates a custom initialize macro, which simply steps to a point for a
-    particular duration. It is recommended that you add any arguments necessary in the apply()
-    function as dataclass attributes, so that the apply functions can fall back to a default value
-    stored at the class level.
+    particular duration. The macro's configurable parameters are declared as class attributes; 
+    you can either use self.resolve_params() to resolve the attribute value from the kwargs, or 
+    you can add them manually as arguments of the apply() function. 
 
-    Additionally, it is good practise to update the inferred_duration based on the apply() function that
-    you have written.
-
-    E.g.
+    Pattern 1: use ``resolve_params(...)`` as a convenience helper.
     >>> @quam_dataclass
     ... class CustomInitializeMacro(CustomMacro):
-    ...     # Add default values to the arguments passed in the apply function
+    ...     # Add default values to the macro dataclass itself
     ...     point_duration: int = 100
     ...     point_voltages: float = 0.1
     ...
-    ...     def apply(self, *args, point_duration: Optional[int] = None, point_voltages: Optional[float] = None, **kwargs):
+    ...     def apply(self, *args, **kwargs):
+    ...         params = self.resolve_params(**kwargs)
+    ...         point_duration = params["point_duration"]
+    ...         point_voltages = params["point_voltages"]
+    ...         qd_pair = self.owner
+    ...         qd_pair.step_to_voltages(
+    ...             voltages = {qd_pair.name : point_voltages},
+    ...             duration = point_duration
+    ...         )
+    ...
+    ...     @property
+    ...     def inferred_duration(self):
+    ...         return self.point_duration
+
+    Pattern 2: spell out the fallback logic directly in ``apply(...)``.
+    >>> @quam_dataclass
+    ... class CustomInitializeMacro(CustomMacro):
+    ...     # Add default values to the macro dataclass itself
+    ...     point_duration: int = 100
+    ...     point_voltages: float = 0.1
+    ...
+    ...     def apply(
+    ...         self,
+    ...         *args,
+    ...         point_duration: Optional[int] = None,
+    ...         point_voltages: Optional[float] = None,
+    ...         **kwargs,
+    ...     ):
     ...         point_duration = self.point_duration if point_duration is None else point_duration
     ...         point_voltages = self.point_voltages if point_voltages is None else point_voltages
     ...         qd_pair = self.owner
@@ -45,7 +112,11 @@ class CustomMacro(QuamMacro):
     ...     @property
     ...     def inferred_duration(self):
     ...         return self.point_duration
+
+    It is also good practice to implement :attr:`inferred_duration` when you
+    can estimate how long the macro takes to run.
     """
+    Parameters = _MacroParameters()
 
     def __call__(self, *args, **kwargs):
         """
