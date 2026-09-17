@@ -169,6 +169,7 @@ class TestWirerBuilderIntegration:
                 "channel_method": "channel",
                 "accessor": "dc_constant_V",
                 "is_qdac": True,
+                "close_method": "close",
             },
             "qdac2": {
                 "driver_module": "qcodes_contrib_drivers.drivers.QDevil.QDAC2",
@@ -177,6 +178,7 @@ class TestWirerBuilderIntegration:
                 "channel_method": "channel",
                 "accessor": "dc_constant_V",
                 "is_qdac": True,
+                "close_method": "close",
             },
         }
         instruments = Instruments()
