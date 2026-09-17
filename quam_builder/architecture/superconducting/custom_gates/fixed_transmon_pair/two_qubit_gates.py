@@ -85,9 +85,7 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         *,
         sign: int = 1,
     ) -> None:
-        scaled_amp: AmplitudeScale = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(
-            amp_scale, sign
-        )
+        scaled_amp: AmplitudeScale = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(amp_scale, sign)
 
         if duration is None:
             elem.play(wf_type, amplitude_scale=scaled_amp)
@@ -120,9 +118,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
     def apply(
         self,
-        cr_type: Optional[
-            Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]
-        ] = None,
+        cr_type: Optional[Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]] = None,
         wf_type: Optional[str] = None,
         duration_clock_cycles: Optional[ScalarOfAnyType] = None,
         drive_amp_scaling: Optional[ScalarOfAnyType] = None,
@@ -242,9 +238,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         self._align_cr()
 
         self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles, sign=-1)
-        self._play_pulse(
-            self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles, sign=-1
-        )
+        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles, sign=-1)
         self._align_cr()
 
         self.qc.xy.play("x180")
@@ -292,18 +286,18 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
         qt_corr = qt_correction_phase if qt_correction_phase else self.qt_correction_phase
 
         if zz_relative_phase is not None:
-            self._shift_frame(self.qt.xy_detuned, zz_relative_phase)
+            self._shift_frame(self.qt.xyd, zz_relative_phase)
 
-        align(self._zz.name, self.qt.xy_detuned.name)
+        align(self._zz.name, self.qt.xyd.name)
         self._play_pulse(self._zz, wf_type, zz_control_amp_scaling, zz_duration_clock_cycles)
         self._play_pulse(
-            self.qt.xy_detuned,
+            self.qt.xyd,
             self.pair_target_wf("zz", wf_type, self.qubit_pair.name),
             zz_target_amp_scaling,
             zz_duration_clock_cycles,
         )
 
-        align(self._zz.name, self.qt.xy_detuned.name, self.qc.xy.name, self.qt.xy.name)
+        align(self._zz.name, self.qt.xyd.name, self.qc.xy.name, self.qt.xy.name)
 
         # apply static phase correction
         self.qc.xy.frame_rotation_2pi(qc_corr)
