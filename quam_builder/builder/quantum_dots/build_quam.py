@@ -323,11 +323,28 @@ def build_loss_divincenzo_quam(
         instance_overrides=instance_overrides,
         fill_only=False,
     )
+    _wire_octave_iq_channels(machine)
 
     if save:
         machine.save(path)
 
     return machine
+
+
+def _wire_octave_iq_channels(machine: LossDiVincenzoQuam) -> None:
+    """Link Octave upconverters back to their IQ drive channels."""
+    for qubit in getattr(machine, "qubits", {}).values():
+        xy = getattr(qubit, "xy", None)
+        if xy is None or not hasattr(xy, "frequency_converter_up"):
+            continue
+
+        converter = getattr(xy, "frequency_converter_up", None)
+        if converter is None or getattr(converter, "octave", None) is None:
+            continue
+
+        xy_ref = xy.get_reference()
+        if xy_ref is not None:
+            converter.channel = xy_ref
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
