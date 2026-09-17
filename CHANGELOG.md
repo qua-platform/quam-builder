@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+- Add support for cloud-based QMM instances in `machine.connect()`
+  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
+- Optional ``close_method`` on quantum-dot ``dac_config`` entries so
+  ``disconnect_from_external_source`` can tear down any driver API (not only ``.close()``).
+
 ## [0.5.0] - 2026-08-19
 
 ### Added
@@ -15,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Added `DrachmaReadoutPulse` readout scheme (#140).
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument (#121).
+
 
 ### Changed
 
