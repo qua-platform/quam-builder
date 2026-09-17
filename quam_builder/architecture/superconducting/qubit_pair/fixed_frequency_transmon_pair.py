@@ -8,7 +8,7 @@ from quam_builder.architecture.superconducting.components.cross_resonance_drive 
     CrossResonanceDriveIQ,
     CrossResonanceDriveMW,
 )
-from quam_builder.architecture.superconducting.components.zz_drive import (
+from quam_builder.architecture.superconducting.components.zz import (
     ZZDriveIQ,
     ZZDriveMW,
 )
@@ -28,7 +28,6 @@ class FixedFrequencyTransmonPair(QubitPair):
         qubit_target (Union[AnyFixedFrequencyTransmon]): The target qubit of the pair.
         cross_resonance (Optional[Union[CrossResonanceDriveMW, CrossResonanceDriveIQ]]): The cross-resonance drive component.
         zz (Optional[Union[ZZDriveMW, ZZDriveIQ]]): The ZZ drive component.
-        xy_detuned (Union[MWChannel, IQChannel]): The detuned xy drive component.
         confusion (list): The readout confusion matrix.
         extras (Dict[str, Any]): Additional attributes for the transmon pair.
     """

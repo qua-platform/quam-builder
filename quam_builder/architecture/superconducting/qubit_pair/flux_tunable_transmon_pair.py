@@ -11,7 +11,7 @@ from quam_builder.architecture.superconducting.components.cross_resonance_drive 
 from quam_builder.architecture.superconducting.components.tunable_coupler import (
     TunableCoupler,
 )
-from quam_builder.architecture.superconducting.components.zz_drive import (
+from quam_builder.architecture.superconducting.components.zz import (
     ZZDriveIQ,
     ZZDriveMW,
 )

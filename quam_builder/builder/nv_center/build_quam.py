@@ -2,23 +2,21 @@ from pathlib import Path
 from typing import Optional, Union
 
 from numpy import ceil, sqrt
+
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import FrequencyConverter, LocalOscillator, Octave
-
-from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.superconducting.components.mixer import StandaloneMixer
+from quam_builder.builder.nv_center.add_default_pulses import (
+    add_default_nv_center_pair_pulses,
+    add_default_nv_center_pulses,
+)
+from quam_builder.builder.nv_center.add_nv_drive_component import add_nv_drive_component
 from quam_builder.builder.nv_center.add_nv_laser_component import add_nv_laser_component
 from quam_builder.builder.nv_center.add_nv_spcm_component import add_nv_spcm_component
-from quam_builder.builder.nv_center.add_nv_drive_component import add_nv_drive_component
-from quam_builder.builder.nv_center.add_default_pulses import (
-    add_default_nv_center_pulses,
-    add_default_nv_center_pair_pulses,
-)
 
 
-def build_quam(
-    machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuamNV:
+def build_quam(machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuamNV:
     """Builds the QuAM by adding various components and saving the machine configuration.
 
     Args:
@@ -50,9 +48,7 @@ def add_ports(machine: AnyQuamNV):
             for ports in wiring_by_line_type.values():
                 for port in ports:
                     if "ports" in ports.get_raw_value(port):
-                        machine.ports.reference_to_port(
-                            ports.get_unreferenced_value(port), create=True
-                        )
+                        machine.ports.reference_to_port(ports.get_unreferenced_value(port), create=True)
 
 
 def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -> str:
@@ -71,9 +67,7 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -
     return f"{x},{y}"
 
 
-def _add_nv_line_components(
-    nv_center, element_type: str, qubit_id: str, wiring_by_line_type
-) -> None:
+def _add_nv_line_components(nv_center, element_type: str, qubit_id: str, wiring_by_line_type) -> None:
     """Dispatches component creation for each line type of an NV center qubit."""
     spcm_number = ""
     for line_type, ports in wiring_by_line_type.items():
@@ -95,15 +89,11 @@ def add_nv_center(machine: AnyQuamNV):
         if element_type == "qubits":
             machine.active_qubit_names = []
             number_of_qubits = len(wiring_by_element)
-            for qubit_number, (qubit_id, wiring_by_line_type) in enumerate(
-                wiring_by_element.items()
-            ):
+            for qubit_number, (qubit_id, wiring_by_line_type) in enumerate(wiring_by_element.items()):
                 qubit_class = machine.qubit_type
                 nv_center = qubit_class(id=qubit_id)
                 machine.qubits[qubit_id] = nv_center
-                machine.qubits[qubit_id].grid_location = _set_default_grid_location(
-                    qubit_number, number_of_qubits
-                )
+                machine.qubits[qubit_id].grid_location = _set_default_grid_location(qubit_number, number_of_qubits)
                 _add_nv_line_components(nv_center, element_type, qubit_id, wiring_by_line_type)
                 machine.active_qubit_names.append(nv_center.name)
 
@@ -128,8 +118,8 @@ def add_nv_center(machine: AnyQuamNV):
             #             add_transmon_pair_cross_resonance_component(
             #                 nv_center_pair, wiring_path, ports
             #             )
-            #         elif line_type == WiringLineType.ZZ_DRIVE.value:
-            #             add_transmon_pair_zz_drive_component(
+            #         elif line_type == WiringLineType.ZZ.value:
+            #             add_transmon_pair_zz_component(
             #                 nv_center_pair, wiring_path, ports
             #             )
             #         else:
@@ -153,9 +143,7 @@ def add_pulses(machine: AnyQuamNV):
             add_default_nv_center_pair_pulses(qubit_pair)
 
 
-def add_octaves(
-    machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None
-) -> AnyQuamNV:
+def add_octaves(machine: AnyQuamNV, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuamNV:
     """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
 
     Args:

@@ -303,7 +303,7 @@ def add_default_transmon_pair_pulses(
     """Adds default pulses to a transmon qubit pair depending on its attributes:
         * transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
         * transmon_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=0.1, length=100)
-        * transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+        * transmon_pair.zz.operations["square"] = SquarePulse(amplitude=0.1, length=100)
 
     Args:
         transmon_pair (Union[FixedFrequencyTransmonPair, FluxTunableTransmonPair]): The transmon qubit pair to which the pulses will be added.
@@ -331,9 +331,9 @@ def add_default_transmon_pair_pulses(
                 flat_length=50,
                 axis_angle=0.0,
             )
-    if hasattr(transmon_pair, "zz_drive"):
-        if transmon_pair.zz_drive is not None:
-            transmon_pair.zz_drive.operations["square"] = SquarePulse(amplitude=1.0, length=100)
+    if hasattr(transmon_pair, "zz"):
+        if transmon_pair.zz is not None:
+            transmon_pair.zz.operations["square"] = SquarePulse(amplitude=1.0, length=100)
             transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,

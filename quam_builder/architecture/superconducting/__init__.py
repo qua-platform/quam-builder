@@ -5,7 +5,7 @@ from .components import (
     readout_resonator,
     tunable_coupler,
     xy_drive,
-    zz_drive,
+    zz,
 )
 from .custom_gates import CZGate
 from .qpu import BaseQuam, FixedFrequencyQuam, FluxTunableQuam

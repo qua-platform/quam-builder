@@ -1,7 +1,7 @@
 from typing import Union
 
 from quam.core import quam_dataclass
-from quam_builder.architecture.superconducting.components.zz_drive import ZZDriveIQ, ZZDriveMW
+from quam_builder.architecture.superconducting.components.zz import ZZDriveIQ, ZZDriveMW
 from quam_builder.architecture.superconducting.qubit.base_transmon import BaseTransmon
 
 __all__ = ["FixedFrequencyTransmon", "FixedFrequencyZZDriveTransmon"]
