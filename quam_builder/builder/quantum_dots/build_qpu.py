@@ -14,12 +14,10 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import warnings
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from quam_builder.architecture.superconducting.components.xy_drive import (
-    XYDriveIQ,
-    XYDriveMW,
-)
 from quam_builder.architecture.quantum_dots.components.xy_drive import (
     XYDriveSingle,
+    XYDriveIQ,
+    XYDriveMW,
 )
 from quam_builder.architecture.quantum_dots.components import (
     ReadoutResonatorSingle,
