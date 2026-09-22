@@ -65,6 +65,8 @@ class VirtualDCSet(QuantumComponent):
     layers: List[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
 
+    check_max_voltage: bool = True
+
     _current_physical_voltages: Dict[str, float] = field(default_factory=dict)
     _current_levels: Dict[str, float] = field(default_factory=dict)
 
@@ -466,6 +468,23 @@ class VirtualDCSet(QuantumComponent):
             old_value = current_volts_dict.get(name, 0.0)
             deltas[name] = new_value - old_value
         physical_deltas = self.resolve_voltages(deltas)
+
+        # Include a max voltage check, optionally. This should run before the setting loop, since we do not want to set half-way until an issue is discovered. 
+        if self.check_max_voltage: 
+            self.channel_voltage_limits = {
+                ch.id : getattr(ch.dac_spec, "abs_dac_voltage_limit", None) for ch in self.channels.values()
+            }
+            for name, delta_v in physical_deltas.items(): 
+                current_v = physical_voltages[name]
+                applied_total = current_v + delta_v
+
+                max_v = self.channel_voltage_limits[name]
+                if max_v is None: 
+                    continue
+                
+                if abs(applied_total) > max_v: 
+                    raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of ±{max_v}V. Tried to apply {applied_total}V")
+
         for name, delta in physical_deltas.items():
             if requery:
                 current_physical = self.channels[name].offset_parameter()
