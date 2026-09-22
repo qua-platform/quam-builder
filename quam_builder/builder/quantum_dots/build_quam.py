@@ -665,14 +665,14 @@ def _wire_voltage_gate_qdac(
         dig = voltage_gate.digital_outputs[digital_output_key]
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
-            qdac_output_port=qdac_output_port,
+            output_port=qdac_output_port,
             opx_trigger_out=dig.opx_output.get_reference(),
             qdac_trigger_in=qdac_trigger_in,
         )
     else:
         voltage_gate.dac_spec = QdacSpec(
             dac_name=dac_name,
-            qdac_output_port=qdac_output_port,
+            output_port=qdac_output_port,
         )
 
 

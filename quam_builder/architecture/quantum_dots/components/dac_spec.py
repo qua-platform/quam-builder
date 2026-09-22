@@ -12,7 +12,7 @@ class DacSpec(QuamComponent):
     """
     Quam Component for an agnostic DAC, to be parented by VoltageGate.
     Attributes:
-        - output_port: An integer to indicate which channel you are outputting via. The driver structuer
+        - output_port: An integer to indicate which channel you are outputting via. The driver structure
                         should look like driver.channel_method(output_port).
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the DAC.
     """
@@ -51,20 +51,15 @@ class QdacSpec(DacSpec):
     Quam Component for a QDAC Channel, to be parented by VoltageGate.
     Attributes:
         - qdac_trigger_in: The QDAC external trigger port associated with the VoltageGate DC component.
-        - qdac_output_port: The QDAC port associated with the VoltageGate DC component.
+        - qdac_output_port: Legacy attribute, now an alias for ``output_port``
     """
 
     qdac_trigger_in: int = None
-    qdac_output_port: int = None
 
-    def __post_init__(self):
-        if self.qdac_output_port is None and self.output_port is None:
-            raise ValueError("Either output_port or qdac_output_port must be provided")
-        if self.qdac_output_port is None:  # Means only the output_port is defined
-            self.qdac_output_port = self.output_port
-        else:  # Means that the user has inputted a qdac_output_port. We can sync them again
-            self.output_port = self.qdac_output_port
-        super().__post_init__()
+    @property
+    def qdac_output_port(self) -> int:
+        """Legacy alias for ``output_port``."""
+        return self.output_port
 
     @property
     def qdac(self):
@@ -79,7 +74,7 @@ class QdacSpec(DacSpec):
         dwell_s: float = 200e-6,
         stepped: bool = True,
     ) -> None:
-        dc_list = self.qdac.channel(self.qdac_output_port).dc_list(
+        dc_list = self.qdac.channel(self.output_port).dc_list(
             voltages=voltages,
             dwell_s=dwell_s,
             stepped=stepped,
@@ -102,7 +97,7 @@ class QdacSpec(DacSpec):
     ):
         """An example of how to fully utilise the QDAC API in the QdacSpec. This example plays a triangle wave."""
 
-        triangle_wave = self.qdac.channel(self.qdac_output_port).triangle_wave(
+        triangle_wave = self.qdac.channel(self.output_port).triangle_wave(
             frequency_Hz=frequency_Hz,
             repetitions=repetitions,
             period_s=period_s,
