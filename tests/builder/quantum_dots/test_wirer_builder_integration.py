@@ -235,7 +235,7 @@ class TestWirerBuilderIntegration:
         vgs = machine.virtual_gate_sets["main_qpu"]
         gate = vgs.channels["vg1"]
         assert gate.dac_spec is not None
-        assert gate.dac_spec.qdac_output_port == 1
+        assert gate.dac_spec.output_port == 1
         assert gate.dac_spec.dac_name == "qdac1"
 
     def test_make_voltage_gate_qdac_only_skips_opx_output_ref(self):

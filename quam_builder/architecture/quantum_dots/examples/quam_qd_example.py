@@ -172,7 +172,7 @@ machine.register_channel_elements(
 
 qdac_connect = True
 if qdac_connect:
-    qdac_ip = "172.16.33.101"
+    qdac_ip = "172.16.33.111"
     qdac_name = "main_QDAC"
     machine.set_dac_config(
         {
@@ -201,7 +201,7 @@ if qdac_connect:
                     },
                     operations={"trigger": pulses.Pulse(length=100, digital_marker="ON")},
                 ),
-                qdac_output_port=i + 1,
+                output_port=i + 1,
             )
 
     machine.connect_to_external_source()
@@ -229,13 +229,11 @@ machine.register_quantum_dot_pair(
 # Define the detuning axes for both QuantumDotPairs
 machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
     matrix=[[1, -1]],
-    detuning_axis_name="dot1_dot2_pair_epsilon",
     set_dc_virtual_axis=False,
 )
 
 machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
     matrix=[[1, -1]],
-    detuning_axis_name="dot3_dot4_pair_epsilon",
     set_dc_virtual_axis=False,
 )
 
