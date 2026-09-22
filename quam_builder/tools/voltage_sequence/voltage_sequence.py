@@ -140,7 +140,11 @@ class VoltageSequence:
             inside QUA loops and switch/case blocks. Defaults to True.
             Set to False only if you need pure Python-mode tracking for
             a program with no QUA control flow around voltage operations.
-
+            limit_play_commands: When True, it will use the influence_map stored in the gate_set 
+            to suppress play commands from outputs where the desired output resolves to 
+            less than the resolution of the OPX output. This ensures that sparse virtual 
+            matrices don't produce a huge number of zero-amplitude play commands, 
+            saturating the OPX memory. 
         """
         self.gate_set: GateSet = gate_set
         self._update_baseband_pulse_amplitude()
