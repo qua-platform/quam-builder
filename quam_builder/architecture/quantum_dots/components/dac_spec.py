@@ -74,6 +74,7 @@ class QdacSpec(DacSpec):
         dwell_s: float = 200e-6,
         stepped: bool = True,
     ) -> None:
+        self.qdac.channel(self.output_port).dc_mode("list")
         dc_list = self.qdac.channel(self.output_port).dc_list(
             voltages=voltages,
             dwell_s=dwell_s,
