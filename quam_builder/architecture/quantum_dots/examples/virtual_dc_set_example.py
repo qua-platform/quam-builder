@@ -1,135 +1,171 @@
 """
+VirtualDCSet example (updated)
 
-This is an example script on how to instantiate a QPU which contains Loss-DiVincenzo qubits, with other barrier gates and sensor dots.
+This example shows how to build and use a :class:`~quam_builder.architecture.quantum_dots.components.virtual_dc_set.VirtualDCSet`
+to control DC offsets via a virtualization stack **independent of the OPX**, using external DAC drivers.
 
-Workflow:
+Key ideas:
+- Physical channels are :class:`~quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate` objects.
+- Each physical gate should have:
+  - ``offset_parameter``: a callable like a QCoDeS parameter (``param() -> float`` and ``param(v)`` sets)
+  - ``dac_spec``: a :class:`~quam_builder.architecture.quantum_dots.components.dac_spec.DacSpec` (or ``QdacSpec``)
+    with ``abs_dac_voltage_limit`` set, so VirtualDCSet can enforce per-channel limits.
 
-1. Instantiate your machine.
-
-2. Instantiate the base hardware channels for the machine.
-    - In this example, arbitrary HW gates are created as VoltageGates. For QuantumDots and SensorDots, the base channel must be VoltageGate and sticky. They are instantiated in a mapping dictionary to be input into the machine
-
-3. Create your VirtualGateSet. You do not need to manually add all the channels, the function create_virtual_gate_set should do it automatically.
-    Ensure that the mapping of the desired virtual gate to the relevant HW channel is correct, as the QuantumDot names will be extracted from this input dict.
-
-4. Register your components.
-    - Register the relevant QuantumDots, SensorDots and BarrierGates, mapped correctly to the relevant output channel. As long as the channel is correctly mapped,
-        the name of the element will be made consistent to that in the VirtualGateSet
-
-5. Create your QUA programme
-    - For simultaneous stepping/ramping, use either
-        sequence = machine.voltage_sequences[gate_set_id]
-        sequence.step_to_voltages({"virtual_dot_1": ..., "virtual_dot_2": ...})
-    or use sequence.simultaneous:
-        with sequence.simultaneous(duration = ...):
-            machine.qubits["virtual_dot_1"].step_to_voltages(...)
-            machine.qubits["virtual_dot_2"].step_to_voltages(...)
-
+By default this file runs without QCoDeS (it uses a small in-memory fake parameter).
+Set ``QUAM_QDAC=1`` to use a real QDAC-II via QCoDeS if available.
 """
 
+from __future__ import annotations
+
 import os
+from typing import Callable
 
-from quam.components import (
-    StickyChannelAddon,
-    pulses,
-)
-from quam.components.ports import (
-    LFFEMAnalogOutputPort,
-    LFFEMAnalogInputPort,
-    MWFEMAnalogOutputPort,
-    MWFEMAnalogInputPort,
-)
+from quam.components import StickyChannelAddon
+from quam.components.ports import LFFEMAnalogOutputPort
 
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
-from quam_builder.architecture.quantum_dots.components import VoltageGate
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
-from quam_builder.architecture.quantum_dots.components import ReadoutResonatorSingle
-from qm.qua import *
+from quam_builder.architecture.quantum_dots.components.dac_spec import DacSpec, QdacSpec
+from quam_builder.architecture.quantum_dots.components.virtual_dc_set import VirtualDCSet
+from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+
+
+class FakeOffsetParameter:
+    """Minimal QCoDeS-like parameter: param() -> value, param(v) sets value."""
+
+    def __init__(self, initial: float = 0.0) -> None:
+        self._value = float(initial)
+
+    def __call__(self, value: float | None = None) -> float:
+        if value is not None:
+            self._value = float(value)
+        return self._value
+
+
+def create_voltage_gate(
+    *,
+    gate_id: str,
+    opx_port_id: int,
+    dac_output_port: int,
+    lf_fem: int = 5,
+    dac_voltage_limit: float = 2.5,
+    offset_parameter: Callable[[float | None], float],
+    use_qdac_spec: bool = False,
+) -> VoltageGate:
+    """Create a VoltageGate wired to an external DAC via offset_parameter + dac_spec."""
+    gate = VoltageGate(
+        id=gate_id,
+        opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=opx_port_id),
+        sticky=StickyChannelAddon(duration=16, digital=False),
+    )
+    gate.offset_parameter = offset_parameter
+    gate.dac_spec = (
+        QdacSpec(
+            output_port=dac_output_port,
+            dac_name="main",
+            abs_dac_voltage_limit=dac_voltage_limit,
+        )
+        if use_qdac_spec
+        else DacSpec(
+            output_port=dac_output_port,
+            dac_name="main",
+            abs_dac_voltage_limit=dac_voltage_limit,
+        )
+    )
+    return gate
 
 
 ###########################################
 ###### Instantiate Physical Channels ######
 ###########################################
-if os.environ.get("QUAM_QDAC") != "1":
-    print("Skipping QDAC example. Set QUAM_QDAC=1 to run.")
-    raise SystemExit(0)
+use_qdac = os.environ.get("QUAM_QDAC") == "1"
 
-try:
+if use_qdac:
     from qcodes import Instrument
     from qcodes_contrib_drivers.drivers.QDevil.QDAC2 import QDac2
-except ImportError:
-    print("QCoDeS/QDAC drivers not installed; skipping QDAC example.")
-    raise SystemExit(0)
-qdac_ip = "172.16.33.101"
-lf_fem = 5
-name = "QDAC"
-try:
-    qdac = Instrument.find_instrument(name)
-except KeyError:
-    qdac = QDac2(name, visalib="@py", address=f"TCPIP::{qdac_ip}::5025::SOCKET")
 
-p1 = VoltageGate(
-    id=f"plunger_1",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=1),
-    qdac_channel=1,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-p2 = VoltageGate(
-    id=f"plunger_2",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=2),
-    qdac_channel=2,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-p3 = VoltageGate(
-    id=f"plunger_3",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=3),
-    qdac_channel=3,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-p4 = VoltageGate(
-    id=f"plunger_4",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=4),
-    qdac_channel=4,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-b1 = VoltageGate(
-    id=f"barrier_1",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=5),
-    qdac_channel=5,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-b2 = VoltageGate(
-    id=f"barrier_2",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=6),
-    qdac_channel=6,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-b3 = VoltageGate(
-    id=f"barrier_3",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=7),
-    qdac_channel=7,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
-s1 = VoltageGate(
-    id=f"sensor_DC",
-    opx_output=LFFEMAnalogOutputPort("con1", lf_fem, port_id=8),
-    qdac_channel=8,
-    sticky=StickyChannelAddon(duration=16, digital=False),
-)
+    qdac_ip = os.environ.get("QDAC_IP", "172.16.33.111")
+    qdac_name = os.environ.get("QDAC_NAME", "QDAC")
 
-p1.offset_parameter = qdac.channel(p1.qdac_channel).dc_constant_V
-p2.offset_parameter = qdac.channel(p2.qdac_channel).dc_constant_V
-p3.offset_parameter = qdac.channel(p3.qdac_channel).dc_constant_V
-p4.offset_parameter = qdac.channel(p4.qdac_channel).dc_constant_V
-b1.offset_parameter = qdac.channel(b1.qdac_channel).dc_constant_V
-b2.offset_parameter = qdac.channel(b2.qdac_channel).dc_constant_V
-b3.offset_parameter = qdac.channel(b3.qdac_channel).dc_constant_V
-s1.offset_parameter = qdac.channel(s1.qdac_channel).dc_constant_V
+    try:
+        qdac = Instrument.find_instrument(qdac_name)
+    except KeyError:
+        qdac = QDac2(
+            qdac_name, visalib="@py", address=f"TCPIP::{qdac_ip}::5025::SOCKET"
+        )
+
+    def make_param(port: int) -> Callable[[float | None], float]:
+        return qdac.channel(port).dc_constant_V
+
+    use_qdac_spec = True
+else:
+    def make_param(_port: int) -> FakeOffsetParameter:
+        return FakeOffsetParameter(0.0)
+
+    use_qdac_spec = False
 
 
-from quam_builder.architecture.quantum_dots.components import VirtualDCSet
+p1 = create_voltage_gate(
+    gate_id="plunger_1",
+    opx_port_id=1,
+    dac_output_port=1,
+    dac_voltage_limit=0.5,  # unique limit for this gate
+    offset_parameter=make_param(1),
+    use_qdac_spec=use_qdac_spec,
+)
+p2 = create_voltage_gate(
+    gate_id="plunger_2",
+    opx_port_id=2,
+    dac_output_port=2,
+    offset_parameter=make_param(2),
+    use_qdac_spec=use_qdac_spec,
+)
+p3 = create_voltage_gate(
+    gate_id="plunger_3",
+    opx_port_id=3,
+    dac_output_port=3,
+    offset_parameter=make_param(3),
+    use_qdac_spec=use_qdac_spec,
+)
+p4 = create_voltage_gate(
+    gate_id="plunger_4",
+    opx_port_id=4,
+    dac_output_port=4,
+    offset_parameter=make_param(4),
+    use_qdac_spec=use_qdac_spec,
+)
+b1 = create_voltage_gate(
+    gate_id="barrier_1",
+    opx_port_id=5,
+    dac_output_port=5,
+    offset_parameter=make_param(5),
+    use_qdac_spec=use_qdac_spec,
+)
+b2 = create_voltage_gate(
+    gate_id="barrier_2",
+    opx_port_id=6,
+    dac_output_port=6,
+    dac_voltage_limit=0.05,  # unique limit for this gate
+    offset_parameter=make_param(6),
+    use_qdac_spec=use_qdac_spec,
+)
+b3 = create_voltage_gate(
+    gate_id="barrier_3",
+    opx_port_id=7,
+    dac_output_port=7,
+    offset_parameter=make_param(7),
+    use_qdac_spec=use_qdac_spec,
+)
+s1 = create_voltage_gate(
+    gate_id="sensor_DC",
+    opx_port_id=8,
+    dac_output_port=8,
+    offset_parameter=make_param(8),
+    use_qdac_spec=use_qdac_spec,
+)
 
+
+###########################################
+###### Instantiate VirtualDCSet Layer #####
+###########################################
 virtual_dc_set = VirtualDCSet(
     id="Dots DC",
     channels={
@@ -142,8 +178,10 @@ virtual_dc_set = VirtualDCSet(
         "barrier_3": b3,
         "sensor_DC": s1,
     },
+    check_max_voltage=True,
 )
 
+# Matrix shape is [source_gates x target_gates]
 virtual_dc_set.add_layer(
     layer_id="cross_compensation",
     source_gates=["VP1", "VP2", "VP3", "VP4"],
@@ -175,3 +213,45 @@ virtual_dc_set.add_layer(
         [0.6, 0.9],
     ],
 )
+
+
+###########################################
+###### Apply a virtual voltage change #####
+###########################################
+# Set absolute targets (virtual or physical names are allowed).
+# VirtualDCSet will:
+# - optionally requery current physical voltages (requery=True),
+# - compute deltas in the mixed virtual/physical space,
+# - resolve those deltas back to physical DAC outputs,
+# - enforce per-channel ``abs_dac_voltage_limit``,
+# - write final values via ``offset_parameter``.
+virtual_dc_set.set_voltages(
+    {"det_1": 0.10, "det_2": -0.05, "barrier_2": 0.02},
+    requery=True,
+    resync=True,
+)
+
+print("Applied physical voltages:")
+for ch_name, ch in virtual_dc_set.channels.items():
+    print(
+        f"  {ch_name}: {ch.offset_parameter(): .4f} V "
+        f"(limit={getattr(ch.dac_spec, 'abs_dac_voltage_limit', None)} V)"
+    )
+
+print("\nAll current virtual+physical levels (computed):")
+print(virtual_dc_set.all_current_voltages)
+
+print("\nChecking that DAC limits raise as expected...")
+try:
+    # Both of these exceed the per-gate abs_dac_voltage_limit set above.
+    virtual_dc_set.set_voltages(
+        {"plunger_1": 0.8, "barrier_2": 0.2},
+        requery=True,
+        resync=False,
+    )
+except ValueError as exc:
+    msg = str(exc)
+    assert "exceeds limit" in msg or "exceed" in msg, msg
+    print(f"OK: caught expected ValueError: {exc}")
+else:
+    raise AssertionError("Expected a ValueError due to DAC voltage limits, but none was raised.")
