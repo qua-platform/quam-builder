@@ -155,3 +155,8 @@ def test_waveform_amplitude_normalization_with_kerr_enabled():
     pulse = _make_pulse(amplitude=0.5, length=100, zeta_ground_hz=-175.0, zeta_excited_hz=-56.0)
     waveform = pulse.waveform_function()
     assert np.sum(np.abs(waveform)) == pytest.approx(0.5 * 100)
+
+
+def test_depletion_time_ns_default_and_override():
+    assert _make_pulse().depletion_time_ns == 16
+    assert _make_pulse(depletion_time_ns=32).depletion_time_ns == 32

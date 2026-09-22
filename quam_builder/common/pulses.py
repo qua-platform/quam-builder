@@ -305,6 +305,9 @@ class DrachmaReadoutPulse(ReadoutPulse):
     detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
     zeta_ground_hz: float = 0.0  # ground-state self-Kerr coeff, zeta_0/(2*pi), Hz
     zeta_excited_hz: float = 0.0  # excited-state self-Kerr coeff, zeta_1/(2*pi), Hz
+    depletion_time_ns: int = (
+        16  # extra time after the pulse to wait for the resonator to decay before measurement
+    )
     sample_rate: float = 1e9
 
     def _trial_function(self):
