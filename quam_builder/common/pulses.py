@@ -1,6 +1,6 @@
 import numpy as np
 from quam.core import quam_dataclass
-from quam.components.pulses import Pulse, ReadoutPulse as BaseReadoutPulse
+from quam.components.pulses import Pulse, ReadoutPulse
 
 __all__ = [
     "GaussianPulse",
@@ -9,13 +9,6 @@ __all__ = [
     "GaussianFilteredSquarePulse",
     "DrachmaReadoutPulse",
 ]
-
-
-@quam_dataclass
-class ReadoutPulse(BaseReadoutPulse):
-    """just addint depletion time attribute"""
-
-    depletion_time_ns: int = 16
 
 
 @quam_dataclass
