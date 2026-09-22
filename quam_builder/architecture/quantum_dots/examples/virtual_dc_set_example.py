@@ -23,9 +23,12 @@ from typing import Callable
 from quam.components import StickyChannelAddon
 from quam.components.ports import LFFEMAnalogOutputPort
 
-from quam_builder.architecture.quantum_dots.components.dac_spec import DacSpec, QdacSpec
-from quam_builder.architecture.quantum_dots.components.virtual_dc_set import VirtualDCSet
-from quam_builder.architecture.quantum_dots.components.voltage_gate import VoltageGate
+from quam_builder.architecture.quantum_dots.components import (
+    DacSpec, 
+    QdacSpec, 
+    VirtualDCSet,
+    VoltageGate,
+)
 
 
 class FakeOffsetParameter:
