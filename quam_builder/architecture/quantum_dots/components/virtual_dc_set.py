@@ -34,6 +34,9 @@ class VirtualDCSet(QuantumComponent):
             may use non-square matrices.
         channels: Physical channels are `VoltageGate` instances that the virtual
             gates ultimately resolve to.
+        check_max_voltage: A bool option, whether to enforce a strict absolute voltage 
+            limit on the PHYSICAL outputs of the DAC. The absolute limits are defined in 
+            each VoltageGate's DacSpec object, default ±2.5V. 
 
     Example:
         >>> from quam.components.channels import SingleChannel
@@ -457,40 +460,52 @@ class VirtualDCSet(QuantumComponent):
         """
         Input a dict of {name: voltage}, and internally this will resolve to a set of physical voltages
         to be applied.
+
+        Args: 
+            - voltages: A dictionary of voltages (physical or virtual) to be applied via the DAC. Any virtual 
+            gate inputs will be resolved to a set of physical channel outputs, additively. 
+            - requery: A bool option, whether to re-query the DAC for the currently applied voltages. If False, then it 
+            will calculate the virtualized value using the currently cached value. 
+            - resync: A bool option, whether to re-query the DAC again AFTER applying all the voltages, in order to populate
+            the cached values. If False, then it will populate the cache using the calculated applied voltage. 
         """
+        # Optionally requery the actual DAC. If False, then it will use the cached values. 
         if requery:
             current_volts_dict = self.all_current_voltages.copy()
         else:
             current_volts_dict = self._current_levels
+
+        # The current physical outputs, in order to calculate the necessary delta_v
         physical_voltages = {name: current_volts_dict[name] for name in self.channels}
+
+        # Calcualte the required voltage difference. This is specifically for virtualization - if we only cared about physical, we can skip this step. 
         deltas = {}
         for name, new_value in voltages.items():
             old_value = current_volts_dict.get(name, 0.0)
             deltas[name] = new_value - old_value
         physical_deltas = self.resolve_voltages(deltas)
 
-        # Include a max voltage check, optionally. This should run before the setting loop, since we do not want to set half-way until an issue is discovered. 
+        # Optionally include a check for the max voltage. This has to be a separate loop to the sequential setter loop, since we do not want 
+        # an error to arise half-way, leading to incomplete DAC voltage application and potentially an unknown charge state. 
         if self.check_max_voltage: 
-            self.channel_voltage_limits = {
-                ch.id : getattr(ch.dac_spec, "abs_dac_voltage_limit", None) for ch in self.channels.values()
-            }
             for name, delta_v in physical_deltas.items(): 
-                current_v = physical_voltages[name]
-                applied_total = current_v + delta_v
-
-                max_v = self.channel_voltage_limits[name]
+                # Extract the voltage limit, default to None
+                max_v = getattr(self.channels[name].dac_spec, "abs_dac_voltage_limit", None)
                 if max_v is None: 
                     continue
-                
+
+                current_v = current_volts_dict[name]
+                applied_total = current_v + delta_v
                 if abs(applied_total) > max_v: 
                     raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of ±{max_v}V. Tried to apply {applied_total}V")
 
+        # The setter loop
         for name, delta in physical_deltas.items():
-            if requery:
-                current_physical = self.channels[name].offset_parameter()
-            else:
-                current_physical = current_volts_dict.get(name, 0.0)
+            # current_volts_dict contains all the physical + virtual gates, and gated for requery already above. 
+            current_physical = current_volts_dict.get(name, 0.0)
             self.channels[name].offset_parameter(current_physical + delta)
+
+            # Set the physical voltages dict here to the setter value, so that we can repopulate with the cache in-case of resync = False.
             physical_voltages[name] = current_physical + delta
         if resync:
             self._current_levels = self.all_current_voltages.copy()
@@ -504,7 +519,7 @@ class VirtualDCSet(QuantumComponent):
             1. Measure the physical outputs of the offset_parameter
             2. Calculate the virtual structure of the entire VirtualDCSet
             3. Return the relevant float value of the desired virtual gate name
-        If requery = False, then the value will be extracted from the current levels dict.
+        If requery = False, then the value will be extracted from the cached dict.
         """
         if name not in self.valid_channel_names:
             raise ValueError(f"Channel {name} not in list of valid channel names")
