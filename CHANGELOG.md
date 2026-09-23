@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+- `CZGate.apply(..., align_elements: bool = True)` so two-qubit RB can drop the three explicit CZ aligns without changing the default for other nodes. `False` keeps flux pulses and phase compensation and requires the caller to establish timing.
+
 ## [0.5.0] - 2026-08-19
 
 ### Added
