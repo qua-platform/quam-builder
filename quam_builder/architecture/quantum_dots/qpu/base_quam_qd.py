@@ -798,6 +798,7 @@ class BaseQuamQD(QuamRoot):
         self,
         gate_set_id: str,
         matrix: List[List[float]] = None,
+        check_max_voltage: bool = True,
     ) -> None:
         """
         Method to create a VirtualDCSet, using the same structure as the VirtualGateSet.
@@ -818,6 +819,7 @@ class BaseQuamQD(QuamRoot):
             id=gate_set_id,
             channels=channel_mapping,
             allow_rectangular_matrices=allow_rectangular_matrices,
+            check_max_voltage = check_max_voltage,
         )
 
         for layer in vgs.layers:
