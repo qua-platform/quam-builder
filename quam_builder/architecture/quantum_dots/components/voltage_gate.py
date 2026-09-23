@@ -26,6 +26,7 @@ class VoltageGate(SingleChannel):
         opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). It is omitted from
             :meth:`~quam.core.quam_classes.QuamRoot.generate_config` (no ``elements`` entry, no sticky);
             use :attr:`dac_spec` / external drivers for DC.
+        dac_spec: An object containing all the relevant information about the DAC channel associated with this VoltageGate. 
 
     Example:
         >>>

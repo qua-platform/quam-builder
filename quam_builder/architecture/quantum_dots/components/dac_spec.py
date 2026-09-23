@@ -21,6 +21,8 @@ class DacSpec(QuamComponent):
     opx_trigger_out: Channel = None
     dac_name: str = "main"
 
+    abs_dac_voltage_limit: Optional[float] = 2.5
+
     def __post_init__(self):
         super().__post_init__()
         if self.output_port is None and isinstance(self, DacSpec):
