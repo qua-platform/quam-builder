@@ -8,12 +8,14 @@ Loss-DiVincenzo qubits, including:
 """
 
 from typing import Any, Union
+
 import numpy as np
-from quam.components.pulses import SquareReadoutPulse, DragPulse
-from quam_builder.common.pulses import GaussianPulse
+
 from qualang_tools.addons.calibration.calibrations import unit
-from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam.components.pulses import DragPulse, SquareReadoutPulse
 from quam_builder.architecture.quantum_dots.components import ReadoutResonatorBase
+from quam_builder.architecture.quantum_dots.qubit import LDQubit
+from quam_builder.common.pulses import GaussianPulse
 
 u = unit(coerce_to_integer=True)
 

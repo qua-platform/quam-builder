@@ -1,5 +1,5 @@
 from .components import (
-    cross_resonance,
+    cross_resonance_drive,
     flux_line,
     mixer,
     readout_resonator,

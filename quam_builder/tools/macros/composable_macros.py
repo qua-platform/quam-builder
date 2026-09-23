@@ -283,6 +283,8 @@ class SequenceMacro(QuamMacro):
                     previous_element.align(new_element)
                 elif isinstance(new_element, (QubitPair)):
                     new_element.align()
+                elif previous_element == new_element and hasattr(previous_element, "align"):
+                    previous_element.align()
                 else:
                     raise TypeError(
                         f"Cannot align '{previous_element.id}' to '{new_element.id}' because previous_element is not Qubit, or QubitPair "
