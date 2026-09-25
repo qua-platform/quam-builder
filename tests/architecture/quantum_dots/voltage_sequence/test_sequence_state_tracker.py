@@ -17,9 +17,17 @@ from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
 )
 
 
-def _expected_integral(level: float, duration: int) -> int:
-    from quam_builder.tools.voltage_sequence.channel_state import voltage_counts
+def voltage_counts(level: float) -> float:
+    """Fixed-point voltage scaling (counts per ns) used in tests.
 
+    The production tracker rounds the *final* integrated value:
+    ``round(level * duration * 1024)``. For test readability we expose the
+    per-ns scaling without pre-rounding.
+    """
+    return float(level) * INTEGRATED_VOLTAGE_SCALING_FACTOR
+
+
+def _expected_integral(level: float, duration: int) -> int:
     return voltage_counts(level) * duration
 
 
@@ -68,8 +76,6 @@ def test_update_integrated_voltage_accumulates_python_step_contribution():
 
 def test_update_integrated_voltage_includes_average_level_over_python_ramp():
     """A ramp contribution uses the average of current_level and the target level."""
-    from quam_builder.tools.voltage_sequence.channel_state import voltage_counts
-
     tracker = SequenceStateTracker("P1")
     tracker.current_level = 0.1
     tracker.update_integrated_voltage(level=0.3, duration=100, ramp_duration=20)
@@ -98,7 +104,7 @@ def test_reset_integrated_voltage_clears_python_accumulator():
 def test_ensure_qua_area_raises_if_internal_state_is_not_int():
     """Promotion to QUA area vars requires Python coarse/fine to be ints."""
     tracker = SequenceStateTracker("P1")
-    tracker._coarse = "not_an_int"  # type: ignore[assignment]
+    tracker._integrated_voltage_internal = "not_an_int"  # type: ignore[assignment]
     with pytest.raises(StateError, match="Expected int before QUA variable promotion"):
         tracker._ensure_qua_integrated_voltage_var()
 
@@ -113,8 +119,8 @@ def test_update_integrated_voltage_promotes_to_qua_when_level_is_qua():
         qua_level = qua.declare(qua.fixed, value=0.2)
         tracker.update_integrated_voltage(qua_level, 80)
         assert is_qua_type(tracker.integrated_voltage)
-        assert tracker._qua_coarse is not None
-        assert tracker._integrated_voltage_qua_var is tracker._qua_coarse
+        assert tracker._integrated_voltage_qua_var is not None
+        assert tracker._integrated_voltage_qua_var is tracker._integrated_voltage_internal
 
 
 def test_reset_integrated_voltage_after_qua_promotion_assigns_python_prefix():
@@ -130,7 +136,7 @@ def test_reset_integrated_voltage_after_qua_promotion_assigns_python_prefix():
         tracker.reset_integrated_voltage()
 
         assert tracker.integrated_voltage is not None
-        assert tracker._qua_coarse is tracker._integrated_voltage_qua_var
+        assert tracker._integrated_voltage_qua_var is tracker._integrated_voltage_internal
 
 
 def test_current_level_setter_promotes_and_then_accepts_python_values():

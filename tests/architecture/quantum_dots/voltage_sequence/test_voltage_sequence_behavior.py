@@ -21,7 +21,6 @@ from quam_builder.tools.voltage_sequence import (
     VoltageSequence,
 )
 from quam_builder.tools.voltage_sequence.exceptions import VoltagePointError
-from quam_builder.tools.voltage_sequence.channel_state import voltage_counts
 from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
 )
@@ -31,6 +30,16 @@ from quam_builder.tools.voltage_sequence.voltage_sequence import (
     DEFAULT_QUA_COMPENSATION_DURATION_NS,
     round_amplitude,
 )
+
+
+def voltage_counts(level: float) -> float:
+    """Fixed-point voltage scaling (counts per ns) used in tests.
+
+    The production tracker rounds the *final* integrated value:
+    ``round(level * duration * 1024)``. For test readability we expose the
+    per-ns scaling without pre-rounding.
+    """
+    return float(level) * INTEGRATED_VOLTAGE_SCALING_FACTOR
 
 
 @quam_dataclass
