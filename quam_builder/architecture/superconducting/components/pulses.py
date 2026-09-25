@@ -1,9 +1,10 @@
 import math
 import warnings
+
 import numpy as np
 
-from quam.core import quam_dataclass
 from quam.components.pulses import Pulse
+from quam.core import quam_dataclass
 
 __all__ = [
     "DragGaussianPulse",
@@ -51,7 +52,7 @@ class DragGaussianPulse(Pulse):
     sigma: float
     alpha: float
     anharmonicity: float
-    detuning: float = 0.0
+    detuning: int = 0.0
     subtracted: bool = True
 
     def __post_init__(self) -> None:
@@ -114,7 +115,7 @@ class DragCosinePulse(Pulse):
     amplitude: float
     alpha: float
     anharmonicity: float
-    detuning: float = 0.0
+    detuning: int = 0.0
 
     def __post_init__(self) -> None:
         return super().__post_init__()
@@ -158,8 +159,7 @@ class FlatTopBlackmanPulse(Pulse):
         rise_fall_length = (self.length - self.flat_length) // 2
         if self.flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                "FlatTopBlackmanPulse requires (length - flat_length) to be even "
-                f"({self.length=} {self.flat_length=})"
+                f"FlatTopBlackmanPulse requires (length - flat_length) to be even ({self.length=} {self.flat_length=})"
             )
 
         wf = flattop_blackman_waveform(
@@ -224,8 +224,7 @@ class FlatTopTanhPulse(Pulse):
         rise_fall_length = (self.length - self.flat_length) // 2
         if self.flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                "FlatTopTanhPulse requires (length - flat_length) to be even "
-                f"({self.length=} {self.flat_length=})"
+                f"FlatTopTanhPulse requires (length - flat_length) to be even ({self.length=} {self.flat_length=})"
             )
 
         wf = flattop_tanh_waveform(
@@ -284,8 +283,7 @@ class CosineBipolarPulse(Pulse):
             raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
             raise ValueError(
-                f"CosineBipolarPulse.flat_length={F} must be even to split equally "
-                "into + and - halves."
+                f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves."
             )
 
         remaining = L - F

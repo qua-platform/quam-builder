@@ -1,11 +1,11 @@
 from .components import (
-    cross_resonance,
+    cross_resonance_drive,
     flux_line,
     mixer,
     readout_resonator,
     tunable_coupler,
     xy_drive,
-    zz_drive,
+    zz,
 )
 from .custom_gates import CZGate
 from .qpu import BaseQuam, FixedFrequencyQuam, FluxTunableQuam

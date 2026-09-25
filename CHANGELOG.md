@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Added
 
+- Macro class for the CR and CZ gate on fixed frequency transmons: `CRGate` and `StarkInducedCZGate`.
+- QPU class `FixedFrequencyZZDriveQuam` and associated `FixedFrequencyZZDriveTransmon`, `ZZDriveIQ`, and `ZZDriveMW`.
+- Architecture components for cross-resonance gates: `xy_detuned_drive`, `CrossResonanceDrive` channel parameters, CR gate macro parameters on `CRGate`, and detuned-drive builder wiring.
 - Added `BaseQuam.twpa_keepalive()` to keep sticky TWPA pumps on across a real-time loop (#123).
 - Added default single-qubit gate macros for transmons (`MeasureMacro`, `ResetMacro`, `VirtualZMacro`, `DelayMacro`, `IdMacro`) (#101).
 - Added `DrachmaReadoutPulse` readout scheme (#140).
@@ -38,7 +41,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Added `FluxTunableTransmonPair.moving_qubit` (`Literal["control", "target"]`, default `"control"`) to select which qubit carries the flux pulse during two-qubit gates.
 - `CZGate` now reads `qubit_pair.moving_qubit` to play the flux pulse on either the control or the target qubit.
 - Default `readout_GEF` `SquareReadoutPulse` added to transmon resonators by `add_default_transmon_pulses` so `readout_state_gef` works out of the box.
-
 ### Changed
 
 - Updated qualang-tools requirement to `"qualang-tools>=0.22.0"`.
