@@ -3,9 +3,7 @@ import pytest
 from quam.core import QuamRoot, quam_dataclass
 from quam.components import SingleChannel
 from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
-from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
-    VirtualGateSet,
-)
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import VirtualGateSet
 
 
 @quam_dataclass
