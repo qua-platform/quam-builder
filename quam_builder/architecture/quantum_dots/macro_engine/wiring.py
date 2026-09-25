@@ -31,7 +31,7 @@ from quam_builder.architecture.quantum_dots.operations.pulse_catalog import (
     make_xy_pulse_factories,
     make_baseband_pulse,
 )
-from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
+from quam_builder.architecture.quantum_dots.voltage_sequence import DEFAULT_PULSE_NAME
 
 __all__ = [
     "wire_machine_macros",

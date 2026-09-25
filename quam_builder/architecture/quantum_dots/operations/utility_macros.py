@@ -1,4 +1,11 @@
-"""Default utility macros for quantum operations."""
+"""Default utility macros for quantum-dot macro dispatch.
+
+This module was previously located under ``quam_builder.tools.macros``. It lives
+under the quantum-dots architecture because it is part of the macro registry
+used by :class:`~quam_builder.architecture.quantum_dots.operations.macro_catalog.UtilityMacroCatalog`.
+"""
+
+from __future__ import annotations
 
 from typing import Any, List, Optional
 
@@ -68,3 +75,4 @@ UTILITY_MACRO_FACTORIES = {
     "align": AlignMacro,
     "wait": WaitMacro,
 }
+

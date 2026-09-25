@@ -1,9 +1,7 @@
 import pytest
 
 from quam.components import SingleChannel
-from quam_builder.architecture.quantum_dots.voltage_sequence.gate_set import (
-    VoltageTuningPoint,
-)
+from quam_builder.architecture.quantum_dots.components.gate_set import VoltageTuningPoint
 
 
 def test_gateset_initialization(machine):

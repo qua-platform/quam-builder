@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from quam.core import quam_dataclass
 from .mixins import VoltageMacroMixin
-from quam_builder.tools.voltage_sequence import VoltageSequence
+from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD

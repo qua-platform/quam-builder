@@ -14,7 +14,7 @@ from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.tools.qua_tools import DurationType, VoltageLevelType
 
 if TYPE_CHECKING:
-    from quam_builder.tools.voltage_sequence import VoltageSequence
+    from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 
 __all__ = ["VoltageControlMixin"]

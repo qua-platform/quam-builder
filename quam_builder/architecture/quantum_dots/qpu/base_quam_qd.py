@@ -45,7 +45,7 @@ from quam_builder.architecture.quantum_dots.components import (
 
 from quam_builder.architecture.quantum_dots.components.global_gate import GlobalGate
 from quam_builder.architecture.quantum_dots.components.dac_spec import QdacSpec
-from quam_builder.tools.voltage_sequence import VoltageSequence
+from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 from quam_builder.architecture.quantum_dots.qubit import AnySpinQubit
 
 __all__ = ["BaseQuamQD"]

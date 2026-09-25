@@ -9,8 +9,8 @@ import pytest
 from qm import qua
 
 from quam_builder.tools.qua_tools import is_qua_type
-from quam_builder.tools.voltage_sequence.exceptions import StateError
-from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.exceptions import StateError
+from quam_builder.architecture.quantum_dots.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
     KeepLevels,
     SequenceStateTracker,
