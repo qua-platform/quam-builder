@@ -2,9 +2,7 @@ import pytest
 
 from qm import qua
 
-from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
-    VirtualGateSet,
-)
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import VirtualGateSet
 from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
     DEFAULT_PULSE_NAME,  # DEFAULT_PULSE_NAME
 )

@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from quam.components.channels import SingleChannel
 
-from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
     VirtualGateSet,
     VirtualizationLayer,
 )

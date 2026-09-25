@@ -5,9 +5,7 @@
 import pytest
 import numpy as np
 
-from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
-    VirtualizationLayer,
-)
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import VirtualizationLayer
 
 
 def test_initialization():

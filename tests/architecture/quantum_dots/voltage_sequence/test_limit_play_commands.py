@@ -17,9 +17,7 @@ import pytest
 from qm import generate_qua_script, qua
 from quam.components import SingleChannel
 
-from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
-    VirtualGateSet,
-)
+from quam_builder.architecture.quantum_dots.components.virtual_gate_set import VirtualGateSet
 from quam_builder.architecture.quantum_dots.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
 )
