@@ -27,7 +27,9 @@ from typing import Dict, Protocol, Type, Union, runtime_checkable
 
 from quam.core.macro import QuamMacro
 
-from quam_builder.tools.macros.default_macros import UTILITY_MACRO_FACTORIES
+from quam_builder.architecture.quantum_dots.operations.utility_macros import (
+    UTILITY_MACRO_FACTORIES,
+)
 
 __all__ = [
     "MacroFactory",

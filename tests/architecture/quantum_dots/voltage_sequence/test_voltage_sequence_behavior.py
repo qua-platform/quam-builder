@@ -15,16 +15,16 @@ from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.components import GateSet, VoltageGate
 from quam_builder.tools.qua_tools import is_qua_type
-from quam_builder.tools.voltage_sequence import (
+from quam_builder.architecture.quantum_dots.voltage_sequence import (
     DEFAULT_PULSE_NAME,
     MIN_PULSE_DURATION_NS,
     VoltageSequence,
 )
-from quam_builder.tools.voltage_sequence.exceptions import VoltagePointError
-from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.exceptions import VoltagePointError
+from quam_builder.architecture.quantum_dots.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
 )
-from quam_builder.tools.voltage_sequence.voltage_sequence import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
     CLOCK_CYCLE_NS,
     COMPENSATION_SCALING_FACTOR,
     DEFAULT_QUA_COMPENSATION_DURATION_NS,

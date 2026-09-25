@@ -27,7 +27,10 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
     TwoQubitMacroName,
 )
-from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
+from quam_builder.architecture.quantum_dots.voltage_sequence import (
+    DEFAULT_PULSE_NAME,
+    MIN_PULSE_DURATION_NS,
+)
 
 __all__ = [
     "PULSE_FAMILIES",

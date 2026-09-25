@@ -7,7 +7,7 @@ from qm import qua
 
 from quam_builder.architecture.quantum_dots.components import QuantumDot
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
-from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME
+from quam_builder.architecture.quantum_dots.voltage_sequence import DEFAULT_PULSE_NAME
 
 
 class TestQuantumDotProperties:

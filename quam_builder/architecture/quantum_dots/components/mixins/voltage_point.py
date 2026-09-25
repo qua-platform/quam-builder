@@ -12,7 +12,7 @@ from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from .voltage_control import VoltageControlMixin
 
 if TYPE_CHECKING:
-    from quam_builder.tools.voltage_sequence import VoltageSequence
+    from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 
 __all__ = ["VoltagePointMixin"]
 

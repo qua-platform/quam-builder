@@ -20,10 +20,10 @@ from quam.components import SingleChannel
 from quam_builder.architecture.quantum_dots.virtual_gates.virtual_gate_set import (
     VirtualGateSet,
 )
-from quam_builder.tools.voltage_sequence.sequence_state_tracker import (
+from quam_builder.architecture.quantum_dots.voltage_sequence.sequence_state_tracker import (
     INTEGRATED_VOLTAGE_SCALING_FACTOR,
 )
-from quam_builder.tools.voltage_sequence.voltage_sequence import round_amplitude
+from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import round_amplitude
 
 # VoltageSequence rounds levels with np.float16 (~1e-3 relative precision).
 _APPROX_REL = 1e-3

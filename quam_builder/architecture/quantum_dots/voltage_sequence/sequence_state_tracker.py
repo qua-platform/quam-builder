@@ -4,7 +4,7 @@ import numpy as np
 from qm.qua.type_hints import QuaVariable, Scalar
 from qm.qua import declare, assign, Cast, fixed
 
-from quam_builder.tools.voltage_sequence.exceptions import StateError
+from .exceptions import StateError
 from quam_builder.tools.qua_tools import is_qua_type
 from quam_builder.architecture.quantum_dots.components.gate_set import GateSet
 from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (

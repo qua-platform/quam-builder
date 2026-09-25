@@ -17,7 +17,10 @@ from qualang_tools.addons.calibration.calibrations import unit
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.qubit import LDQubit
 from quam_builder.architecture.quantum_dots.components import ANY_READOUT_RESONATOR, VoltageGate
-from quam_builder.tools.voltage_sequence import DEFAULT_PULSE_NAME, MIN_PULSE_DURATION_NS
+from quam_builder.architecture.quantum_dots.voltage_sequence import (
+    DEFAULT_PULSE_NAME,
+    MIN_PULSE_DURATION_NS,
+)
 
 u = unit(coerce_to_integer=True)
 
