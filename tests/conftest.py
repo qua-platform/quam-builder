@@ -1,9 +1,5 @@
 """Test-wide fixtures and helpers."""
 
-# This section combines two sets of functionality that are independently useful:
-
-# (1) Make test utilities easily importable from any test location by adding the test directory
-#     to sys.path. This is especially helpful for importing helper modules like test_utils.py.
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -13,47 +9,6 @@ import pytest
 # Make test utilities (test_utils.py) importable from any sub-directory
 sys.path.insert(0, str(Path(__file__).parent))
 
-# (2) Patch/extend WiringLineType from qualang_tools.wirer.connectivity, if present,
-#     to ensure additional quantum-dot gate types (PLUNGER, BARRIER, etc.) are available,
-#     maintaining compatibility with older releases of qualang_tools that might not contain them.
-try:
-    from enum import Enum
-    from qualang_tools.wirer.connectivity import wiring_spec
-
-    # Existing enum member names/values
-    _existing_members = {member.name: member.value for member in wiring_spec.WiringLineType}
-    # Additional enum options for quantum-dot testing
-    _extra_members = {
-        "PLUNGER_GATE": "plunger_gate",
-        "PLUNGER": "plunger_gate",
-        "BARRIER_GATE": "barrier_gate",
-        "BARRIER": "barrier_gate",
-        "GLOBAL_GATE": "global_gate",
-        "SENSOR_GATE": "sensor_gate",
-        "RF_RESONATOR": "rf_resonator",
-    }
-
-    # Only extend if any extra members aren't in the installed version.
-    if any(name not in _existing_members for name in _extra_members):
-        merged = {
-            **_existing_members,
-            **{k: v for k, v in _extra_members.items() if k not in _existing_members},
-        }
-        ExtendedWiringLineType = Enum("WiringLineType", merged)
-        wiring_spec.WiringLineType = ExtendedWiringLineType
-        # Update future imports so they also see these entries.
-        sys.modules["qualang_tools.wirer.connectivity.wiring_spec"].WiringLineType = (
-            ExtendedWiringLineType
-        )
-except ImportError:
-    # qualang_tools might not be installed; ignore if not needed.
-    pass
-
-# (3) Globally patch quam.config.resolvers.quam_version_validator for the lifetime of each test
-#     so that tests never fail due to the developer's local QUAM config version. This allows tests
-#     that use QuamBase.load() to always pass regardless of user environment.
-import pytest
-from unittest.mock import patch
 
 @pytest.fixture(autouse=True)
 def bypass_quam_config_version_check():

@@ -268,10 +268,6 @@ class VoltageBalancedMacroCatalog:
 
     At priority 200 this overrides :class:`DefaultMacroCatalog` (100) for:
 
-    * :class:`~quam_builder.architecture.quantum_dots.qubit.LDQubit` -- ``xy_drive``
-      → :class:`~quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.single_qubit_macros.BalancedXYDriveMacro`
-    * :class:`~quam_builder.architecture.quantum_dots.qubit_pair.LDQubitPair` -- ``exchange``
-      → :class:`~quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.two_qubit_macros.BalancedExchange2QMacro`
     * :class:`~quam_builder.architecture.quantum_dots.components.QuantumDotPair` -- ``initialize``,
       ``empty``, ``measure`` → balanced state macros in
       :mod:`quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros.state_macros`
