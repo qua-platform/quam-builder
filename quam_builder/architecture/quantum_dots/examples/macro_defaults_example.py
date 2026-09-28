@@ -30,7 +30,6 @@ def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
         qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
         qubit.macros[VoltagePointName.MEASURE].buffer_duration = 240
         qubit.xy.operations[f"{DrivePulseName.GAUSSIAN}_x90"].amplitude = 0.0085
-        qubit.macros[SingleQubitMacroName.IDENTITY].duration = None
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
 
