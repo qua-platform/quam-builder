@@ -1,131 +1,127 @@
-import numpy as np
+"""Example: virtual gates on the tutorial machine.
 
-import os
+``build_tutorial_machine()`` creates ``machine.virtual_gate_sets["main_qpu"]``
+with two layers:
+
+* ``compensation_layer`` starts as an identity. Each virtual name drives one
+  physical gate. Cross-talk is written into this layer with
+  ``update_cross_compensation_submatrix``.
+* ``quantum_dot_pair_detuning_matrix`` is the detuning axis the builder
+  registers for the dot pair (``epsilon = virtual_dot_1 - virtual_dot_2``).
+
+The script resolves a virtual plunger before and after cross-talk, resolves
+the detuning axis, then steps to that detuning in a QUA program.
+"""
+
+from __future__ import annotations
+
 import matplotlib
-import matplotlib.pyplot as plt
-from quam.components.channels import SingleChannel
+from qm import qua
 
-from quam_builder.architecture.quantum_dots.components.virtual_gate_set import (
-    VirtualGateSet,
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
+    build_tutorial_machine,
 )
+from quam_builder.builder.quantum_dots.build_utils import DEFAULT_GATE_SET_ID
+
+_DOT_PREFIX = "virtual_dot_"
 
 
-def _channels(names):
-    return {
-        name: SingleChannel(id=name, opx_output=("con", idx + 1)) for idx, name in enumerate(names)
-    }
+def _print_voltages(title: str, voltages: dict) -> None:
+    print(title)
+    shown = False
+    for name in sorted(voltages):
+        value = float(voltages[name])
+        if abs(value) < 1e-9:
+            continue
+        print(f"  {name}: {value:.4f} V")
+        shown = True
+    if not shown:
+        print("  (all physical gates at 0 V)")
 
 
-if not os.environ.get("MPLBACKEND"):
-    matplotlib.use("Agg")
-gate_set = VirtualGateSet(
-    id="rectangular_roundtrip",
-    channels=_channels(["P1", "P2", "P3"]),
-)
-gate_set.allow_rectangular_matrices = True
+def _dot_pairs(gate_set):
+    """Return ``(virtual_name, physical_channel)`` for the dot plungers."""
+    layer = gate_set.layers[0]
+    pairs = []
+    for virtual_name, physical_name in zip(layer.source_gates, layer.target_gates):
+        if str(virtual_name).startswith(_DOT_PREFIX):
+            pairs.append((virtual_name, gate_set.channels[physical_name]))
+    return pairs
 
-matrix = [
-    [1.0, 0.2, -0.1],
-    [0.0, 1.0, 0.5],
-]
-source_gates = ["V_bias", "V_sym"]
-target_gates = ["P1", "P2", "P3"]
-matrix_array = np.asarray(matrix)
 
-gate_set.add_layer(
-    source_gates=source_gates,
-    target_gates=target_gates,
-    matrix=matrix,
-)
+def _show_matrix(layer) -> None:
+    """Draw the compensation matrix when the backend can display it."""
+    _fig, _ax = layer.plot_matrix(title=f"Layer {layer.id}")
+    if matplotlib.get_backend().lower() == "agg":
+        matplotlib.pyplot.close(_fig)
+        print(f"Matrix plot for layer {layer.id!r} skipped (non-interactive backend).")
+        return
+    matplotlib.pyplot.show()
 
-pinv_matrix = np.linalg.pinv(matrix_array)
-source_samples = np.array(
-    [
-        [0.12, -0.05],
-        [-0.08, 0.03],
-        [0.05, 0.1],
-        [-0.02, -0.08],
+
+def main() -> None:
+    machine = build_tutorial_machine()
+    gate_set = machine.virtual_gate_sets[DEFAULT_GATE_SET_ID]
+    layer = gate_set.layers[0]
+    dot_names = [name for name, _channel in _dot_pairs(gate_set)]
+    dot_channels = [channel for _name, channel in _dot_pairs(gate_set)]
+
+    print("=== 1. Gate set from the builder ===")
+    print(f"id: {gate_set.id}")
+    print(f"physical gates: {list(gate_set.channels)}")
+    for existing in gate_set.layers:
+        print(f"layer {existing.id!r}")
+        print(f"  virtual sources: {list(existing.source_gates)}")
+        print(f"  targets: {list(existing.target_gates)}")
+        print(f"  matrix: {existing.matrix}")
+
+    print("\n=== 2. Identity: one virtual plunger, one physical plunger ===")
+    identity = gate_set.resolve_voltages({dot_names[0]: 0.10})
+    _print_voltages(f"resolve {dot_names[0]} = 0.10 V", identity)
+
+    print("\n=== 3. Cross-talk on the two dot plungers ===")
+    # Rows follow the physical channels, columns follow the virtual names.
+    # Off-diagonal entries mean one virtual plunger moves the other dot too.
+    cross_talk = [
+        [1.0, 0.25],
+        [0.10, 1.0],
     ]
-)
-physical_samples = np.array([pinv_matrix @ source for source in source_samples])
-
-resolved_samples = []
-for source_vector in source_samples:
-    resolved = gate_set.resolve_voltages(
-        {gate: value for gate, value in zip(source_gates, source_vector)}
+    machine.update_cross_compensation_submatrix(
+        virtual_names=dot_names,
+        channels=dot_channels,
+        matrix=cross_talk,
+        target="opx",
     )
-    resolved_samples.append(np.array([resolved["P1"], resolved["P2"], resolved["P3"]]))
-resolved_samples = np.array(resolved_samples)
+    coupled = gate_set.resolve_voltages({dot_names[0]: 0.10})
+    _print_voltages(f"resolve {dot_names[0]} = 0.10 V with cross-talk", coupled)
+    _show_matrix(layer)
 
-np.testing.assert_allclose(resolved_samples, physical_samples, rtol=1e-9, atol=1e-9)
-
-fig, axes = plt.subplots(1, 3, figsize=(9, 3), sharex=False, sharey=False)
-for idx, channel in enumerate(target_gates):
-    axes[idx].plot(
-        physical_samples[:, idx],
-        resolved_samples[:, idx],
-        "o",
-        label=f"{channel}",
+    print("\n=== 4. Detuning axis the builder already registered ===")
+    # Compensation is put back to identity so the plungers show only detuning.
+    machine.update_cross_compensation_submatrix(
+        virtual_names=dot_names,
+        channels=dot_channels,
+        matrix=[[1.0, 0.0], [0.0, 1.0]],
+        target="opx",
     )
-    axes[idx].plot(
-        physical_samples[:, idx],
-        physical_samples[:, idx],
-        "--",
-        color="gray",
-        linewidth=0.8,
+    detuning = gate_set.layers[1]
+    detuning_name = detuning.source_gates[0]
+    print(
+        f"{detuning_name} maps onto {list(detuning.target_gates)} "
+        f"with matrix {detuning.matrix}."
     )
-    axes[idx].set_title(channel)
-    axes[idx].set_xlabel("Original physical (V)")
-    axes[idx].set_ylabel("Resolved physical (V)")
-    axes[idx].legend()
+    print("The builder calls QuantumDotPair.define_detuning_axis([[1, -1]]).")
+    print("One knob, two dots: the moves are equal and opposite.")
+    detuned = gate_set.resolve_voltages({detuning_name: 0.04})
+    _print_voltages(f"resolve {detuning_name} = 0.04 V", detuned)
 
-fig.tight_layout()
-plt.show()
+    print("\n=== 5. Step to that detuning inside a QUA program ===")
+    gate_set.add_point("detuned", {detuning_name: 0.04}, duration=200)
+    sequence = machine.voltage_sequences[DEFAULT_GATE_SET_ID]
+    with qua.program() as _program:
+        sequence.step_to_point("detuned")
+    print("Built a QUA program that steps the gate set to point 'detuned'.")
 
-# Example 2: More virtual sources than physical targets (tall matrix)
-gate_set_tall = VirtualGateSet(
-    id="rectangular_tall_example",
-    channels=_channels(["P1", "P2"]),
-)
-gate_set_tall.allow_rectangular_matrices = True
 
-matrix_tall = [
-    [1.0, 0.2],
-    [0.0, 1.0],
-    [0.4, -0.6],
-]
-source_gates_tall = ["V_a", "V_b", "V_c"]
-target_gates_tall = ["P1", "P2"]
-
-gate_set_tall.add_layer(
-    source_gates=source_gates_tall,
-    target_gates=target_gates_tall,
-    matrix=matrix_tall,
-)
-
-sample_virtual_voltages = {"V_a": 0.25, "V_b": -0.1, "V_c": 0.05}
-resolved_physical = gate_set_tall.resolve_voltages(sample_virtual_voltages)
-expected_physical = np.linalg.pinv(np.asarray(matrix_tall)) @ np.array(
-    [sample_virtual_voltages[g] for g in source_gates_tall]
-)
-
-print(
-    "Tall matrix example physical voltages:",
-    {tg: resolved_physical[tg] for tg in target_gates_tall},
-)
-print("Expected (pinv) physical voltages:", expected_physical)
-
-fig2, ax2 = plt.subplots(figsize=(5, 3))
-indices = np.arange(len(target_gates_tall))
-width = 0.35
-resolved_array = np.array([resolved_physical[tg] for tg in target_gates_tall])
-
-ax2.bar(indices - width / 2, resolved_array, width, label="resolved")
-ax2.bar(indices + width / 2, expected_physical, width, label="expected (pinv)")
-ax2.set_xticks(indices)
-ax2.set_xticklabels(target_gates_tall)
-ax2.set_ylabel("Voltage (V)")
-ax2.set_title("Tall matrix resolution check")
-ax2.legend()
-fig2.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    main()
