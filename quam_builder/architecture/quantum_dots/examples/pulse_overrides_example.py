@@ -1,18 +1,15 @@
-"""Example: default pulse wiring and direct pulse configuration.
+"""Example: default XY pulses and editing the calibration anchors.
 
-Demonstrates pulse management:
+``wire_machine_macros(machine)`` registers, on each qubit XY drive, one
+operation per gate for every pulse family (gaussian, square, kaiser,
+hermite, drag), plus ``cz`` and ``crot``.
 
-1. ``wire_machine_macros(machine)`` -- adds default ``gaussian`` pulse to XY drives.
-2. Direct manipulation of pulse objects on channels.
-
-Only one reference pulse (``gaussian``) is registered per qubit by default.
-``XYDriveMacro`` scales amplitude for rotation angle and applies virtual-Z
-for rotation axis, so all single-qubit gates derive from this single pulse.
+Within a family, ``{family}_x90`` and ``{family}_x180`` are the anchors.
+The other gates (``x_neg90``, ``y90``, ``y180``, ``y_neg90``) reference
+the anchor's length and amplitude, so editing the anchor updates them.
 """
 
 from __future__ import annotations
-
-from quam.components.pulses import GaussianPulse
 
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
     build_tutorial_machine,
@@ -20,51 +17,43 @@ from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 
+_ANCHOR = "gaussian_x90"
+_DERIVED = "gaussian_y90"
 
-def print_pulse_summary(machine: LossDiVincenzoQuam, title: str) -> None:
-    """Print pulse operations for each qubit's XY drive."""
+
+def print_gaussian_anchors(machine: LossDiVincenzoQuam, title: str) -> None:
+    """Print the gaussian x90 anchor and the y90 gate that references it."""
     print(f"\n=== {title} ===")
     for qubit_id, qubit in machine.qubits.items():
         xy = getattr(qubit, "xy", None)
         if xy is None:
             continue
-        ops = getattr(xy, "operations", {})
-        print(f"\n  {qubit_id}.xy.operations:")
-        for pulse_name, p in sorted(ops.items()):
-            cls_name = type(p).__name__
-            length = getattr(p, "length", "?")
-            amp = getattr(p, "amplitude", "?")
-            axis = getattr(p, "axis_angle", "N/A")
+        for pulse_name in (_ANCHOR, _DERIVED):
+            pulse = xy.operations[pulse_name]
             print(
-                f"    {pulse_name:>10s}: {cls_name}(length={length}, amplitude={amp}, axis_angle={axis})"
+                f"  {qubit_id}.{pulse_name}: {type(pulse).__name__}"
+                f"(length={pulse.length}, amplitude={pulse.amplitude})"
             )
 
 
-def update_all_qubit_pulses(machine: LossDiVincenzoQuam) -> None:
-    """Update the gaussian pulse on all qubits directly.
+def _set_gaussian_x90(qubit, length: int, amplitude: float) -> None:
+    """Edit the gaussian x90 anchor in place."""
+    pulse = qubit.xy.operations[_ANCHOR]
+    pulse.length = length
+    pulse.amplitude = amplitude
 
-    After wiring, pulse objects are accessible on the channel's operations dict.
-    Modify them in place or replace with new instances.
-    """
+
+def update_all_qubit_pulses(machine: LossDiVincenzoQuam) -> None:
+    """Set the same gaussian x90 anchor on every qubit."""
     for qubit in machine.qubits.values():
-        xy = getattr(qubit, "xy", None)
-        if xy is None:
+        if getattr(qubit, "xy", None) is None:
             continue
-        xy.operations["gaussian_x90"] = GaussianPulse(
-            length=500,
-            amplitude=0.3,
-            sigma=83,
-        )
+        _set_gaussian_x90(qubit, length=500, amplitude=0.3)
 
 
 def update_single_qubit_pulse(machine: LossDiVincenzoQuam) -> None:
-    """Override gaussian on q1 only."""
-    q1 = machine.qubits["q1"]
-    q1.xy.operations["gaussian_x90"] = GaussianPulse(
-        length=800,
-        amplitude=0.15,
-        sigma=133,
-    )
+    """Set a different gaussian x90 anchor on q1 only."""
+    _set_gaussian_x90(machine.qubits["q1"], length=800, amplitude=0.15)
 
 
 def main() -> None:
@@ -73,13 +62,13 @@ def main() -> None:
     # Re-wire to demonstrate explicit default wiring (idempotent).
     wire_machine_macros(machine)
 
-    print_pulse_summary(machine, "Default Pulse")
+    print_gaussian_anchors(machine, "Default gaussian anchor")
 
     update_all_qubit_pulses(machine)
-    print_pulse_summary(machine, "After Updating All Qubit Pulses")
+    print_gaussian_anchors(machine, "After updating every gaussian_x90")
 
     update_single_qubit_pulse(machine)
-    print_pulse_summary(machine, "After Updating q1 Pulse Only")
+    print_gaussian_anchors(machine, "After updating q1 gaussian_x90 only")
 
 
 if __name__ == "__main__":
