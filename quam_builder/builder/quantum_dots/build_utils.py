@@ -9,10 +9,9 @@ This module provides helper functions for:
 - Qubit pair ID parsing
 """
 
-# pylint: disable=undefined-all-variable
 
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
@@ -196,7 +195,7 @@ def _make_resonator(
         frequency_bare=DEFAULTS.readout.frequency,
         intermediate_frequency=DEFAULTS.readout.frequency,
         operations={
-            "readout": pulses.SquareReadoutPulse(
+            "readout": SquareReadoutPulse(
                 length=DEFAULTS.readout.length,
                 id="readout",
                 amplitude=DEFAULTS.readout.amplitude,
