@@ -11,7 +11,7 @@ This module provides helper functions for:
 
 
 import re
-from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Union
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
@@ -68,8 +68,8 @@ def _natural_sort_key(value: str) -> Tuple[Any, ...]:
     match = re.match(r"(.*?)(\d+)$", value)
     if match:
         prefix, number = match.groups()
-        return (prefix, int(number))
-    return (value, 0)
+        return prefix, int(number)
+    return value, 0
 
 
 def _sorted_items(mapping: Mapping[str, Any]) -> Iterable[Tuple[str, Any]]:
@@ -267,7 +267,7 @@ def _validate_drive_ports(qubit_id: str, ports: Mapping[str, Any]) -> str:
 
 def _build_virtual_mapping(
     prefix: str, channels: Sequence[VoltageGate]
-) -> Tuple[Dict[str, VoltageGate], Dict[str, str]]:
+) -> Tuple[Dict[str, VoltageGate], Dict[Union[str, int], str]]:
     """Build bidirectional mapping between virtual names and physical channels, only if an OPX channel is attached.
 
     Args:
@@ -278,7 +278,7 @@ def _build_virtual_mapping(
         Tuple of (virtual_to_channel, physical_to_virtual) mappings.
     """
     virtual_to_channel: Dict[str, VoltageGate] = {}
-    physical_to_virtual: Dict[str, str] = {}
+    physical_to_virtual: Dict[Union[str, int], str] = {}
 
     for index, channel in enumerate(channels, start=1):
         # ``VoltageGate.opx_output`` is usually stored as a QUAM reference string.
@@ -359,14 +359,14 @@ def _extract_qdac_channel(wiring_dict: Dict[str, Any]) -> int | None:
 
 
 def _make_voltage_gate_with_qdac(
-    gate_id: str, wiring_path: str, ports: Mapping[str, Any], qdac_channel: int | None = None
+    gate_id: str, wiring_path: str, ports: dict[str, str], qdac_channel: int | None = None
 ) -> VoltageGate:
     """Create a voltage gate component with sticky channel and optional QDAC mapping.
 
     Args:
         gate_id: Identifier for the gate.
         wiring_path: JSON path to wiring configuration.
-        ports: Port mapping for this line (OPX refs, ``qdac_output``, digitals, etc.).
+        ports: Port mapping for this line (OPX refs, ``qdac_output``, digital, etc.).
         qdac_channel: Optional QDAC channel number for external voltage control.
 
     Returns:
@@ -474,7 +474,7 @@ def _create_xy_drive_from_wiring(
         XYDriveIQ, XYDriveMW, or XYDriveSingle instance based on *drive_type*.
 
     Raises:
-        ValueError: If drive_type is not recognised.
+        ValueError: If drive_type is not recognized.
     """
     drive_id = f"{qubit_id}_xy"
 
