@@ -11,46 +11,55 @@ for the ``catalogs`` kwarg of ``wire_machine_macros``.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from qm import qua
 
-_project_root = Path(__file__).resolve().parents[4]
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
-
-from qm import qua  # noqa: E402
-from quam_builder.architecture.quantum_dots.examples.external_macro_demo.catalog import (  # noqa: E402
+from quam_builder.architecture.quantum_dots.examples.external_macro_demo.catalog import (
     LabMacroCatalog,
 )
-from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (  # noqa: E402
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
     build_tutorial_machine,
 )
-from quam_builder.architecture.quantum_dots.macro_engine import (
-    wire_machine_macros,
-)  # noqa: E402
+from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
+
+
+def _initialize_class(component) -> str:
+    name = VoltagePointName.INITIALIZE.value
+    if name not in component.macros:
+        return "absent"
+    return type(component.macros[name]).__name__
 
 
 def main() -> None:
     """Build machine, wire macros with external catalog, and verify."""
     machine = build_tutorial_machine()
+    dot = machine.quantum_dots["virtual_dot_1"]
+    sensor = machine.sensor_dots["virtual_sensor_1"]
+    print("Before catalog:")
+    print("  virtual_dot_1.initialize:", _initialize_class(dot))
+    print("  virtual_sensor_1.initialize:", _initialize_class(sensor))
 
+    # The tutorial machine is already wired. fill_only=False lets the lab
+    # catalog replace QuantumDot.initialize. SensorDot is a QuantumDot, so
+    # the same factory is applied there too.
     wire_machine_macros(
         machine,
+        fill_only=False,
         catalogs=[LabMacroCatalog()],
     )
 
-    q1 = machine.qubits["q1"]
-    q2 = machine.qubits["q2"]
-    pair = machine.quantum_dot_pairs["virtual_dot_1_virtual_dot_2_pair"]
-    sensor_dot = machine.sensor_dots["virtual_sensor_1"]
+    lab_initialize = dot.macros[VoltagePointName.INITIALIZE.value]
+    print("After catalog:")
+    print("  virtual_dot_1.initialize:", type(lab_initialize).__name__)
+    print("  lab_ramp_duration:", lab_initialize.lab_ramp_duration)
+    print("  virtual_sensor_1.initialize:", _initialize_class(sensor))
+
+    # Tutorial voltage points live on the qubits and dot pairs. The lab
+    # macro ramps this dot, so it needs its own initialize point.
+    dot.add_point(VoltagePointName.INITIALIZE, {dot.id: 0.10}, duration=200)
 
     with qua.program() as _:
-        q1.initialize()
-        q2.initialize()
-        pair.initialize()
-        sensor_dot.macros["measure"].apply("readout")
-        q1.measure()
-        q2.measure()
+        dot.initialize()
 
     print("Built QUA program successfully with external macro catalog.")
 
