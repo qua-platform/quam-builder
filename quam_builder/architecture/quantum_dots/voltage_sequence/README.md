@@ -1,10 +1,7 @@
-> This document is the detailed guide for DC voltage control in QUA: `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
+> This document is the detailed guide for voltage control in QUA: `VoltageGate`, `GateSet`, `VoltageSequence`, `VirtualGateSet`, and `VirtualizationLayer`. For an overview of all quantum-dot QuAM components, operations, and macros, see [../README.md](../README.md).
 
-# Quantum Dot Components: Orchestrating DC Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
-
-**Implementation note:** `VoltageSequence` and related helpers are implemented in [`quam_builder.tools.voltage_sequence`](../../../tools/voltage_sequence/). The [`architecture/quantum_dots/voltage_sequence/`](./) package re-exports them for backward-compatible imports (e.g. `from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence`).
-
-**If you only need sticky DC:**
+# Quantum Dot Components: Orchestrating Voltage Control in QUA & Abstracting Gate Control with Virtualization Layers
+**If you only need sticky voltage control:**
 
 1. Create sticky **`VoltageGate`** channels with a `"half_max_square"` operation.
 2. Group them in a **`GateSet`** and call `add_point(...)` for named working points.
@@ -16,7 +13,7 @@ Full copy-paste workflow: [§8 Full End to End Example](#8-full-end-to-end-examp
 
 ## 1. Introduction
 
-This document first introduces the **GateSet** component with the **VoltageSequence** tool, a python framework for generating QUA sequences to group control of DC gate voltages, particularly useful for spin qubit experiments.
+This document first introduces the **GateSet** component with the **VoltageSequence** tool, a python framework for generating QUA sequences to group control of gate voltages, particularly useful for spin qubit experiments.
 
 The components `GateSet` and `VoltageSequence` enable precise physical voltage control, essential for quantum dot operations and forming a basis for `VirtualGateSet`.
 
@@ -65,7 +62,7 @@ The `VirtualGateSet` framework provides the necessary tools to implement these a
 
 #### 2.1.3 VoltageSequence
 
-`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for DC compensation, which is useful for AC-coupled lines. **One of its primary features is that it keeps track of the current voltage on each physical channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
+`VoltageSequence` uses the GateSet to apply QUA voltage operations (steps, ramps) within a QUA Program. It tracks channel states, optionally including integrated voltage for bias tee compensation. **One of its primary features is that it keeps track of the current voltage on each physical channel, allowing you to ramp to absolute voltages even with sticky mode enabled.**
 
 By default, `GateSet.new_sequence()` creates a sequence with **`keep_levels=True`**: physical and virtual gate names that you omit in a call keep their last set value (see [level holding and zeroing](#important-behavior-level-holding-and-zeroing-semantics)). Pass `keep_levels=False` only when you want omitted gates to be treated as 0 V on every call.
 
@@ -96,19 +93,19 @@ Represents a single linear transformation (matrix) from a set of source (virtual
 
   channel_p1 = VoltageGate(
     opx_output = ("con1", 1), #Specify the OPX output
-    sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)}, # Ensure that the instantiated channel is STICKY
+    sticky=StickyChannelAddon(duration=1_000, digital=False), # Ensure that the instantiated channel is STICKY
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)}, 
   )
 
 
   channel_p2 = VoltageGate(
     opx_output = ("con1", 2), #Specify the OPX output
-    sticky=StickyChannelAddon(duration=1_000, digital=False),  # For DC offsets
-    operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
+    sticky=StickyChannelAddon(duration=1_000, digital=False),
+    operations={"default_pulse": pulses.SquarePulse(amplitude=0.25, length=1000)},
   )
   ```
 
-- Each channel must have a base QUA operation named `"half_max_square"` (see `DEFAULT_PULSE_NAME` in the implementation), as shown above. Define this on the channel before generating the QUA config and opening the QM.
+- Each channel must have a base QUA operation named `"default_pulse"` (see `DEFAULT_PULSE_NAME` in the implementation), as shown above. Define this on the channel before generating the QUA config and opening the QM.
 
 
 #### 2.  Group channels into a channel dictionary
@@ -264,7 +261,7 @@ A `GateSet` is a higher-level abstraction that collects a group of `VoltageGate`
 
 - Unified control: Iterate, configure, and programme multiple gates at once through a single object
 
-- Pre-defined DC points: Store named DC working points using add_point(...)
+- Pre-defined points: Store named working points using add_point(...)
 
 - Voltage Sequences: Used in conjunction with VoltageSequence, a Sequence created in the GateSet allows you to quickly apply complex QUA commands to groups of gates, as well as keeping track of the gate voltages such that a compensating pulse can be applied later.
 
@@ -310,7 +307,7 @@ Generates QUA commands for voltage manipulation, associated with a `GateSet`.
 
 - Tracks current voltage for each channel.
 
-- Optionally tracks integrated voltage for DC compensation (`track_integrated_voltage=True` in `new_sequence()`; default is `False`).
+- Optionally tracks integrated voltage for bias tee compensation (`track_integrated_voltage=True` in `new_sequence()`; default is `False`).
 
 - Supports Python numbers and QUA variables for levels/durations.
 
@@ -433,13 +430,13 @@ with program() as prog:
   ```
 
 - `track_sticky_duration(duration_ns: int)`
-  Updates integrated-voltage trackers for the hold time at current levels **without** emitting pulses. Used when other macros run while sticky DC is non-zero (see macro duration contract below).
+  Updates integrated-voltage trackers for the hold time at current levels **without** emitting pulses. Used when other macros run while sticky gates is non-zero (see macro duration contract below).
 
 ### Custom Macro Duration Contract
 
 When voltage channels are sticky and compensation tracking is enabled, non-voltage
 macros must expose a deterministic `inferred_duration` (in **seconds**) so hold
-time at the current DC level can be tracked correctly.
+time at the current voltage level can be tracked correctly.
 
 - Implement `inferred_duration` on custom macros in seconds (for example, `100e-9`).
 - If a macro directly performs voltage-sequence operations that already update
@@ -705,12 +702,12 @@ machine.channels["ch1"] = VoltageGate(
 )
 machine.channels["ch2"] = VoltageGate(
     opx_output=("con1", 2),  # OPX controller and port
-    sticky=StickyChannelAddon(duration=1000, digital=False),  # For DC offsets
+    sticky=StickyChannelAddon(duration=1000, digital=False),  
     operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
 )
 machine.channels["ch3"] = VoltageGate(
     opx_output=("con1", 3),  # OPX controller and port
-    sticky=StickyChannelAddon(duration=100000, digital=False),  # For DC offsets
+    sticky=StickyChannelAddon(duration=100000, digital=False), 
     operations={"half_max_square": pulses.SquarePulse(amplitude=0.25, length=1000)},
 )
 
