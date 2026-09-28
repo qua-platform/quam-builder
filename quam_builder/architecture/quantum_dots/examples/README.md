@@ -34,7 +34,6 @@ examples/
   macro_overrides_example.py
   pulse_overrides_example.py
   external_macro_package_example.py
-  full_workflow_example.py
   virtual_gate_set_example.py  voltages
   virtual_dc_set_example.py
   voltage_balanced_macros_example.py
@@ -56,9 +55,8 @@ examples/
 | [`quam_ld_generator_example.py`](quam_ld_generator_example.py) | Load a state directory and register MW-FEM qubits | [qpu README](../qpu/README.md) | no — `QUAM_STATE_PATH` |
 | [`macro_defaults_example.py`](macro_defaults_example.py) | Parameterize built-in macros and run them in a QUA program | [operations README](../operations/README.md) | yes |
 | [`macro_overrides_example.py`](macro_overrides_example.py) | `TypeOverrideCatalog`, `instance_overrides`, and `DISABLED` | [operations README](../operations/README.md) | yes |
-| [`pulse_overrides_example.py`](pulse_overrides_example.py) | Default XY pulse and editing it on the channel | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
+| [`pulse_overrides_example.py`](pulse_overrides_example.py) | Default XY pulse, anchor edits, and switching pulse family | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
 | [`external_macro_package_example.py`](external_macro_package_example.py) | Lab-owned catalog in [`external_macro_demo/`](external_macro_demo/) | [operations README](../operations/README.md) | yes |
-| [`full_workflow_example.py`](full_workflow_example.py) | Capstone: pulse edits, pulse-family switch, type and instance overrides | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
 | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | hub table only | yes |
 | [`virtual_dc_set_example.py`](virtual_dc_set_example.py) | `VirtualDCSet` with an external DAC offset, no OPX program | [voltage-sequence README](../voltage_sequence/README.md), [components README](../components/README.md) | no |
 | [`voltage_balanced_macros_example.py`](voltage_balanced_macros_example.py) | AC-coupled compensation, chained macros, cloud simulation | [operations README](../operations/README.md) | yes |
@@ -79,9 +77,8 @@ Use one script per feature:
 | How do I attach qubits to a loaded machine? | [`quam_ld_example.py`](quam_ld_example.py) |
 | How do default macros work? | [`macro_defaults_example.py`](macro_defaults_example.py) |
 | How do I override a macro? | [`macro_overrides_example.py`](macro_overrides_example.py) |
-| How do I change the XY pulse? | [`pulse_overrides_example.py`](pulse_overrides_example.py) |
+| How do I change the XY pulse or switch pulse family? | [`pulse_overrides_example.py`](pulse_overrides_example.py) |
 | How do I keep lab macros outside this repo? | [`external_macro_package_example.py`](external_macro_package_example.py) |
-| How do the macro pieces fit together? | [`full_workflow_example.py`](full_workflow_example.py) |
 | How do virtual layers resolve voltages? | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) |
 | How do I set DC through an external DAC? | [`virtual_dc_set_example.py`](virtual_dc_set_example.py) |
 | How does voltage balancing work? | [`voltage_balanced_macros_example.py`](voltage_balanced_macros_example.py) |
@@ -98,4 +95,4 @@ These showed up while mapping files to features. Later passes fix them.
 - [`quam_ld_example.py`](quam_ld_example.py) calls `LossDiVincenzoQuam.load()` with no path.
 - The hub links a `virtual_gates/` guide. That folder is not in `architecture/quantum_dots/`. [`virtual_gate_set_example.py`](virtual_gate_set_example.py) is the hands-on page for virtual layers.
 - [`rabi_chevron_transport.py`](rabi_chevron_transport.py) is the transport example in the components README. Its docstring and channel setup describe RF reflectometry through `ReadoutResonatorSingle`, and the setup function's return value is named `transport_readout`.
-- [`full_workflow_example.py`](full_workflow_example.py) repeats the default-macro, override, and pulse examples. Keep it as the capstone and point feature docs at the narrower scripts.
+- `full_workflow_example.py` repeated `macro_defaults_example.py`, `macro_overrides_example.py`, and `pulse_overrides_example.py` in one file. Its only unique step, `machine.set_pulse_family("kaiser")`, moved into `pulse_overrides_example.py`. The file was removed.

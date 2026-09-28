@@ -61,7 +61,7 @@ Voltage gates (sticky DC) and readout resonators run on **separate QUA elements*
 
 **`MeasurePSBPairMacro`** (on `QuantumDotPair` / `LDQubitPair`) calls `qua.align(sensor_dot.readout_resonator.name, *gate_names)` before readout so the measure point and RF pulse are time-aligned. When integrated-voltage tracking is enabled, **`SensorDotMeasureMacro`** also reports readout duration so the voltage sequencer can call `track_sticky_duration`.
 
-For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. See [`dcz_macro_example.py`](../examples/dcz_macro_example.py) and [`full_workflow_example.py`](../examples/full_workflow_example.py).
+For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. See [`dcz_macro_example.py`](../examples/dcz_macro_example.py).
 
 ## Custom pulse shapes and windowing
 
@@ -75,7 +75,7 @@ Default XY pulses are **`Scalable*`** classes in [`pulses.py`](pulses.py), wired
 | Hermite | `ScalableHermitePulse` | Gaussian × Hermite polynomial; tunable `hermite_coeff` |
 | DRAG | `ScalableDragPulse` | Derivative pulse for leakage reduction |
 
-**Windowing trade-offs:** Kaiser and Hermite reduce off-resonant spectral content compared to a bare Gaussian; DRAG adds a derivative term for IQ/MW drives. Switch the active family machine-wide with `machine.set_pulse_family("kaiser")` (propagates to all XY macros). See [`full_workflow_example.py`](../examples/full_workflow_example.py).
+**Windowing trade-offs:** Kaiser and Hermite reduce off-resonant spectral content compared to a bare Gaussian; DRAG adds a derivative term for IQ/MW drives. Switch the active family machine-wide with `machine.set_pulse_family("kaiser")` (propagates to all XY macros). See [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py).
 
 All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample grid).
 
@@ -111,5 +111,5 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 | RF readout Rabi–Chevron | [`rabi_chevron.py`](../examples/rabi_chevron.py) |
 | Transport readout | [`rabi_chevron_transport.py`](../examples/rabi_chevron_transport.py) |
 | Pulse overrides | [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py) |
-| Kaiser family switch | [`full_workflow_example.py`](../examples/full_workflow_example.py) |
+| Kaiser family switch | [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py) |
 | Manual sensor + detuning setup | [`quam_qd_example.py`](../examples/quam_qd_example.py) |
