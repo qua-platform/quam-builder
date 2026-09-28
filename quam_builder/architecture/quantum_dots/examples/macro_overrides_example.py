@@ -20,7 +20,10 @@ from quam.components.macro import QubitPairMacro
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
     build_tutorial_machine,
 )
-from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
+from quam_builder.architecture.quantum_dots.macro_engine import (
+    DISABLED,
+    wire_machine_macros,
+)
 from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
     TypeOverrideCatalog,
 )
@@ -78,12 +81,13 @@ class DemoCZMacro(QubitPairMacro):
 def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     """Print macro class bindings for key components/macros."""
     q1 = machine.qubits["q1"]
+    q2 = machine.qubits["q2"]
     pair = machine.qubit_pairs["q1_q2"]
     print(f"\n=== {title} ===")
-    print("q1 macros:", sorted(q1.macros.keys()))
     print("q1.initialize:", type(q1.macros[VoltagePointName.INITIALIZE]).__name__)
     print("q1.x180:", type(q1.macros[SingleQubitMacroName.X_180]).__name__)
     print("q1_q2.cz:", type(pair.macros[TwoQubitMacroName.CZ]).__name__)
+    print("q2.z180 present:", SingleQubitMacroName.Z_180 in q2.macros)
 
 
 # ---------------------------------------------------------------------------
@@ -97,8 +101,11 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
     - ``TypeOverrideCatalog`` replaces macros on all instances of a type.
     - ``instance_overrides`` replaces macros on one specific component.
     """
+    # build_tutorial_machine() already wired defaults. fill_only=False
+    # replaces those macros; the default True only fills names that are missing.
     wire_machine_macros(
         machine,
+        fill_only=False,
         catalogs=[
             TypeOverrideCatalog(
                 {
@@ -117,6 +124,9 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
         instance_overrides={
             "qubits.q1": {
                 SingleQubitMacroName.X_180: TunedX180Macro,
+            },
+            "qubits.q2": {
+                SingleQubitMacroName.Z_180: DISABLED,
             },
         },
     )
