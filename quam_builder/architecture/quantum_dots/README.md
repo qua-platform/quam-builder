@@ -274,7 +274,7 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | [`rabi_chevron.py`](examples/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
 
 
-**Additional examples** in [`examples/`](examples/): `mwe_sensor_resonator_same_port.py`, [`qm_example.py`](examples/qm_example.py), [`pulse_overrides_example.py`](examples/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/virtual_dc_set_example.py) — read each module docstring for scope.
+**Additional examples** in [`examples/`](examples/): [`mwe_sensor_resonator_same_port.py`](examples/mwe_sensor_resonator_same_port.py), [`pulse_overrides_example.py`](examples/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/virtual_dc_set_example.py) — read each module docstring for scope.
 
 ## Task-oriented reference map
 
