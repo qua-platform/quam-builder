@@ -139,7 +139,8 @@ with program() as prog:
     q1.align()
 ```
 
-`duration` and `ramp_duration` are in **nanoseconds**. For several dots at once, put every channel in one dict or use `machine.voltage_sequences["main_qpu"]` (see [voltage_sequence/README.md](voltage_sequence/README.md)).
+`duration` and `ramp_duration` are in **nanoseconds**. 
+For several dots at once use [`VoltageSequence.simultaneous`](voltage_sequence/README.md#Core-Methods).
 
 ## Turning pulse sequences into custom macros
 
@@ -232,7 +233,7 @@ The macro references named voltage points, so if the points are updated as part 
 | Saved dot machine, adding spin control                     | `build_loss_divincenzo_quam()`        |
 
 
-Runnable build fragments live in `[tutorial_machine.py](examples/tutorial_machine.py)` and `[wiring_example.py](examples/wiring_example.py)`.
+Runnable build fragments live in [tutorial_machine.py](examples/tutorial_machine.py) and [wiring_example.py](examples/wiring_example.py).
 
 ## Default macros are already wired
 
@@ -261,19 +262,19 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | Example                                                                                                           | Level        | What it covers                                 |
 | ----------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
 | This README + [`tutorial_machine.py`](examples/tutorial_machine.py)                                               | Beginner     | Build, config, save/load, construct a program  |
-| [`Voltage-sequence notebook`](../../../tutorials/voltage_sequence.ipynb)                                            | Beginner     | Sticky DC, named point, `keep_levels`          |
-| `[macro_defaults_example.py](examples/macro_defaults_example.py)`                                                 | Beginner     | Parameterize default macros; still no hardware |
-| `[wiring_example.py](examples/wiring_example.py)`                                                                 | Intermediate | Combined vs two-stage builder                  |
-| `[quam_qd_generator_example.py](examples/quam_qd_generator_example.py)`                                           | Intermediate | Builder-first generator path                   |
-| `[full_workflow_example.py](examples/full_workflow_example.py)`                                                   | Intermediate | Pulse family + overrides after defaults        |
-| `[macro_overrides_example.py](examples/macro_overrides_example.py)`                                               | Intermediate | `catalogs` / `instance_overrides`              |
-| `[virtual_gate_set_example.py](examples/virtual_gate_set_example.py)`                                             | Intermediate | Virtual layers and `resolve_voltages`          |
-| `[voltage_balanced_macros_example.py](examples/voltage_balanced_macros_example.py)`                               | Advanced     | AC-coupled compensation                        |
-| `[dcz_macro_example.py](examples/dcz_macro_example.py)`                                                           | Advanced     | Two-qubit DCZ                                  |
-| `[rabi_chevron.py](examples/rabi_chevron.py)` / `[rabi_chevron_transport.py](examples/rabi_chevron_transport.py)` | Advanced     | Manual assembly, custom macros, SaaS           |
+| [`Voltage-sequence notebook`](../../../tutorials/voltage_sequence.ipynb)                                          | Beginner     | Sticky DC, named point, `keep_levels`          |
+| [`macro_defaults_example.py`](examples/macro_defaults_example.py)                                                 | Beginner     | Parameterize default macros; still no hardware |
+| [`wiring_example.py`](examples/wiring_example.py)                                                                 | Intermediate | Combined vs two-stage builder                  |
+| [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py)                                           | Intermediate | Builder-first generator path                   |
+| [`full_workflow_example.py`](examples/full_workflow_example.py)                                                   | Intermediate | Pulse family + overrides after defaults        |
+| [`macro_overrides_example.py`](examples/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`              |
+| [`virtual_gate_set_example.py`](examples/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
+| [`voltage_balanced_macros_example.py`](examples/voltage_balanced_macros_example.py)                               | Advanced     | AC-coupled compensation                        |
+| [`dcz_macro_example.py`](examples/dcz_macro_example.py)                                                           | Advanced     | Two-qubit DCZ                                  |
+| [`rabi_chevron.py`](examples/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
 
 
-**Additional examples** in `[examples/](examples/)`: `mwe_sensor_resonator_same_port.py`, `[qm_example.py](examples/qm_example.py)`, `[pulse_overrides_example.py](examples/pulse_overrides_example.py)`, `[external_macro_package_example.py](examples/external_macro_package_example.py)`, `[virtual_dc_set_example.py](examples/virtual_dc_set_example.py)` — read each module docstring for scope.
+**Additional examples** in [`examples/`](examples/): `mwe_sensor_resonator_same_port.py`, [`qm_example.py`](examples/qm_example.py), [`pulse_overrides_example.py`](examples/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/virtual_dc_set_example.py) — read each module docstring for scope.
 
 ## Task-oriented reference map
 
@@ -283,7 +284,7 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | Builder (hardware adaptation) | [`quam_builder.builder.quantum_dots`](../../builder/quantum_dots/) | Connectivity → QuAM tree — [builder README](../../builder/quantum_dots/README.md)                         |
 | Components                    | [`components/`](components/)                                       | Dots, gates, readout, XY, pulses — [components/README.md](components/README.md)                           |
 | Voltage sequencing            | [`voltage_sequence/`](voltage_sequence/)                           | Absolute tracking, `keep_levels`, compensation — [voltage_sequence/README.md](voltage_sequence/README.md) |
-| Virtual gates                 | [`virtual_gates/`](virtual_gates/)                                  | Layers and matrices                                                                                       |
+| Virtual gates                 | [`virtual_gates/`](virtual_gates/)                                 | Layers and matrices                                                                                       |
 | Operations and defaults       | [`operations/`](operations/)                                       | Canonical names, catalogs, default macros — [operations/README.md](operations/README.md)                  |
 | QPU models                    | [`qpu/`](qpu/)                                                     | `BaseQuamQD`, `LossDiVincenzoQuam`, XY variants — [qpu/README.md](qpu/README.md)                          |
 | Examples                      | [`examples/`](examples/)                                           | Runnable scripts                                                                                          |
