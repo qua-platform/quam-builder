@@ -381,8 +381,7 @@ This keeps custom defaults out of `quam-builder` itself.
 
 - [`../examples/macro_defaults_example.py`](../examples/macro_defaults_example.py): default-only wiring and parameterization.
 - [`../examples/macro_overrides_example.py`](../examples/macro_overrides_example.py): catalog and instance overrides.
-- [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring and configuration.
-- [`../examples/full_workflow_example.py`](../examples/full_workflow_example.py): complete end-to-end workflow.
+- [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring, anchor edits, and pulse-family switching.
 - [`../examples/external_macro_package_example.py`](../examples/external_macro_package_example.py): external catalog package pattern.
 - [`../examples/voltage_balanced_macros_example.py`](../examples/voltage_balanced_macros_example.py): balanced state macros + cloud simulation.
 - [`../examples/dcz_macro_example.py`](../examples/dcz_macro_example.py): detuning-based CZ with balanced catalog.

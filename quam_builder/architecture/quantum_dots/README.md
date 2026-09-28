@@ -266,7 +266,6 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | [`macro_defaults_example.py`](examples/macro_defaults_example.py)                                                 | Beginner     | Parameterize default macros; still no hardware |
 | [`wiring_example.py`](examples/wiring_example.py)                                                                 | Intermediate | Combined vs two-stage builder                  |
 | [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py)                                           | Intermediate | Builder-first generator path                   |
-| [`full_workflow_example.py`](examples/full_workflow_example.py)                                                   | Intermediate | Pulse family + overrides after defaults        |
 | [`macro_overrides_example.py`](examples/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`              |
 | [`virtual_gate_set_example.py`](examples/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
 | [`voltage_balanced_macros_example.py`](examples/voltage_balanced_macros_example.py)                               | Advanced     | AC-coupled compensation                        |
