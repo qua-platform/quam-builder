@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-28
+
+### Added
+
+- `DrachmaReadoutPulse` now supports per-state resonator linewidths (`kappa_ground_hz`, `kappa_excited_hz`). Equal values reproduce the previous shared-kappa waveform (#155).
+- Optional self-Kerr correction on `DrachmaReadoutPulse` via `zeta_ground_hz` and `zeta_excited_hz` (default `0.0`, which leaves the waveform unchanged) (#155).
+- `DrachmaReadoutPulse.depletion_time_ns` (default `16`): extra wait after the pulse for the resonator to decay before measurement (#155).
+
+### Changed
+
+- **BREAKING:** `DrachmaReadoutPulse.resonator_kappa_hz` is removed. Set `kappa_ground_hz` and `kappa_excited_hz` instead (use the old value for both to keep the previous waveform) (#155).
+
 ## [0.5.0] - 2026-08-19
 
 ### Added
@@ -112,7 +124,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Builder functions for the general QUAM wiring.
 - Builder functions for Transmons.
 
-[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/qua-platform/quam-builder/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.6.0
 [0.5.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.5.0
 [0.4.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.4.0
 [0.3.0]: https://github.com/qua-platform/quam-builder/releases/tag/v0.3.0
