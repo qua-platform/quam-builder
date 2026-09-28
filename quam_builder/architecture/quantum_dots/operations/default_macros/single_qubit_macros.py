@@ -48,11 +48,6 @@ from quam.components.macro import QubitMacro
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
-from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
-    EmptyStateMacro,
-    InitializeStateMacro,
-    MeasurePSBPairMacro,
-)
 from quam_builder.architecture.quantum_dots.operations.names import (
     X_NEG_90_ALIAS,
     Y_NEG_90_ALIAS,
@@ -490,6 +485,7 @@ class IdentityMacro(QubitMacro):
         return self.apply(*args, **kwargs)
 
     def apply(self, duration: int | None = None, **kwargs):
+        duration = self.duration if duration is None else duration
         self.qubit.idle(duration=duration)
 
 
