@@ -368,7 +368,8 @@ with program() as prog:
 ```
 
 
-**Core Methods (used in `qua.program()` context):**
+### Core Methods
+*** (used in `qua.program()` context): ***
 
 - `step_to_voltages(voltages: Dict[str, float], duration: int)`
   Steps all specified channels directly to the given voltage levels and holds them for the specified duration (in nanoseconds). This creates immediate voltage changes without ramping. Both `voltages` values and `duration` can be QUA variables for dynamic control.
