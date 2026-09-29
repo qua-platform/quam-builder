@@ -311,9 +311,7 @@ wire_machine_macros(machine, catalogs=[VoltageBalancedMacroCatalog()])
 - **`empty`** and **`measure`** points store **positive-polarity** targets; negative segments are derived at runtime.
 - Macros start and end at 0 V with zero net ∫V·dt per channel.
 
-Notable classes: `BalancedInitializeMacro`, `BalancedEmptyMacro`, `BalancedMeasurePSBPairMacro`, `BalancedDCz2QMacro`, `TwoStageBalancedInitializeMacro`.
-
-Examples: [`voltage_balanced_macros_example.py`](../examples/voltage_balanced_macros_example.py), [`dcz_macro_example.py`](../examples/dcz_macro_example.py), [`qm_example.py`](../examples/qm_example.py).
+Notable classes: `BalancedInitializeMacro`, `BalancedEmptyMacro`, `BalancedMeasurePSBPairMacro`, `BalancedDCz2QMacro`, `TwoStageBalancedInitializeMacro`. Register them with the same `catalogs` and `instance_overrides` arguments as any other macro.
 
 ## Two-qubit macros
 
@@ -325,7 +323,7 @@ Default registrations on **`LDQubitPair`**:
 | `crot` | `CROTMacro` | Controlled rotation via virtual-Z on both qubits |
 | `cnot`, `swap`, `iswap` | Placeholder macros | Raise at runtime until you supply lab overrides |
 
-Override with `TypeOverrideCatalog`, instance overrides, or an external catalog. Detuning-based **`BalancedDCz2QMacro`** (balanced catalog) is demonstrated in [`dcz_macro_example.py`](../examples/dcz_macro_example.py).
+Override with `TypeOverrideCatalog`, instance overrides, or an external catalog, as in [`macro_overrides_example.py`](../examples/macro_overrides_example.py). `BalancedDCz2QMacro` is the voltage-balanced form of `cz` and uses that same override path.
 
 ## OperationsRegistry
 
@@ -383,5 +381,3 @@ This keeps custom defaults out of `quam-builder` itself.
 - [`../examples/macro_overrides_example.py`](../examples/macro_overrides_example.py): catalog and instance overrides.
 - [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring, anchor edits, and pulse-family switching.
 - [`../examples/external_macro_package_example.py`](../examples/external_macro_package_example.py): external catalog package pattern.
-- [`../examples/voltage_balanced_macros_example.py`](../examples/voltage_balanced_macros_example.py): balanced state macros + cloud simulation.
-- [`../examples/dcz_macro_example.py`](../examples/dcz_macro_example.py): detuning-based CZ with balanced catalog.

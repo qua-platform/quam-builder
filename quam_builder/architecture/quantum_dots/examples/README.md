@@ -36,9 +36,7 @@ examples/
   external_macro_package_example.py
   virtual_gate_set_example.py  voltages
   virtual_dc_set_example.py
-  voltage_balanced_macros_example.py
-  dcz_macro_example.py         experiments
-  rabi_chevron.py
+  rabi_chevron.py              experiments
   rabi_chevron_transport.py
 ```
 
@@ -59,8 +57,6 @@ examples/
 | [`external_macro_package_example.py`](external_macro_package_example.py) | Lab-owned catalog in [`external_macro_demo/`](external_macro_demo/) | [operations README](../operations/README.md) | yes |
 | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | hub table only | yes |
 | [`virtual_dc_set_example.py`](virtual_dc_set_example.py) | `VirtualDCSet` with an external DAC offset, no OPX program | [voltage-sequence README](../voltage_sequence/README.md), [components README](../components/README.md) | no |
-| [`voltage_balanced_macros_example.py`](voltage_balanced_macros_example.py) | AC-coupled compensation, chained macros, cloud simulation | [operations README](../operations/README.md) | yes |
-| [`dcz_macro_example.py`](dcz_macro_example.py) | Dynamically decoupled CZ, cloud simulation | [operations README](../operations/README.md) | yes |
 | [`rabi_chevron.py`](rabi_chevron.py) | Manual machine, custom macros, resonator readout, cloud simulation | [components README](../components/README.md), [qpu README](../qpu/README.md) | no |
 | [`rabi_chevron_transport.py`](rabi_chevron_transport.py) | Same experiment; filename says transport readout | [components README](../components/README.md) | no |
 
@@ -81,8 +77,6 @@ Use one script per feature:
 | How do I keep lab macros outside this repo? | [`external_macro_package_example.py`](external_macro_package_example.py) |
 | How do virtual layers resolve voltages? | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) |
 | How do I set DC through an external DAC? | [`virtual_dc_set_example.py`](virtual_dc_set_example.py) |
-| How does voltage balancing work? | [`voltage_balanced_macros_example.py`](voltage_balanced_macros_example.py) |
-| How does the DCZ macro run? | [`dcz_macro_example.py`](dcz_macro_example.py) |
 | How does a resonator readout experiment look? | [`rabi_chevron.py`](rabi_chevron.py) |
 
 ## Inventory notes
@@ -96,3 +90,4 @@ These showed up while mapping files to features. Later passes fix them.
 - The hub links a `virtual_gates/` guide. That folder is not in `architecture/quantum_dots/`. [`virtual_gate_set_example.py`](virtual_gate_set_example.py) is the hands-on page for virtual layers.
 - [`rabi_chevron_transport.py`](rabi_chevron_transport.py) is the transport example in the components README. Its docstring and channel setup describe RF reflectometry through `ReadoutResonatorSingle`, and the setup function's return value is named `transport_readout`.
 - `full_workflow_example.py` repeated `macro_defaults_example.py`, `macro_overrides_example.py`, and `pulse_overrides_example.py` in one file. Its only unique step, `machine.set_pulse_family("kaiser")`, moved into `pulse_overrides_example.py`. The file was removed.
+- `voltage_balanced_macros_example.py` and `dcz_macro_example.py` simulated balanced macros and the DCZ gate on QM SaaS. The macro examples stop once the QUA program is built. `VoltageBalancedMacroCatalog` stays documented in the [operations README](../operations/README.md). Both files were removed.

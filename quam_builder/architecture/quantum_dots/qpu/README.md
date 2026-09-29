@@ -116,7 +116,7 @@ XY drive elements and sticky voltage gates are **independent QUA channels**. A c
 
 **Recommended patterns:**
 
-1. **`qua.align(...)`** — before or after combining XY pulses with voltage moves or readout (see [`dcz_macro_example.py`](../examples/dcz_macro_example.py)).
+1. **`qua.align(...)`** — before or after combining XY pulses with voltage moves or readout. [`macro_overrides_example.py`](../examples/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
 2. **`qubit.idle(duration)`** — waits on both the dot plunger and XY channel in cycles (4 ns units).
 3. **Macro `inferred_duration`** — custom macros that hold non-zero DC during XY or readout should expose `inferred_duration` (seconds) so integrated-voltage tracking stays correct. See [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract).
 

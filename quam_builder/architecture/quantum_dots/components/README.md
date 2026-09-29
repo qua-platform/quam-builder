@@ -61,7 +61,7 @@ Voltage gates (sticky DC) and readout resonators run on **separate QUA elements*
 
 **`MeasurePSBPairMacro`** (on `QuantumDotPair` / `LDQubitPair`) calls `qua.align(sensor_dot.readout_resonator.name, *gate_names)` before readout so the measure point and RF pulse are time-aligned. When integrated-voltage tracking is enabled, **`SensorDotMeasureMacro`** also reports readout duration so the voltage sequencer can call `track_sticky_duration`.
 
-For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. See [`dcz_macro_example.py`](../examples/dcz_macro_example.py).
+For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. [`macro_overrides_example.py`](../examples/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
 
 ## Custom pulse shapes and windowing
 
