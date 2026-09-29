@@ -2,9 +2,8 @@ from typing import Optional, Union
 
 from qualang_tools.wirer import Connectivity
 from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
-
-from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.architecture.nv_center.qpu import AnyQuamNV
+from quam_builder.architecture.superconducting.qpu import AnyQuam as AnyQuamSC
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
 
 AnyQuam = Union[AnyQuamSC, AnyQuamNV]
