@@ -268,8 +268,6 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py)                                           | Intermediate | Builder-first generator path                   |
 | [`macro_overrides_example.py`](examples/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`              |
 | [`virtual_gate_set_example.py`](examples/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
-| [`voltage_balanced_macros_example.py`](examples/voltage_balanced_macros_example.py)                               | Advanced     | AC-coupled compensation                        |
-| [`dcz_macro_example.py`](examples/dcz_macro_example.py)                                                           | Advanced     | Two-qubit DCZ                                  |
 | [`rabi_chevron.py`](examples/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
 
 
