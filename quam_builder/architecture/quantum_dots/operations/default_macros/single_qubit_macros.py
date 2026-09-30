@@ -21,16 +21,16 @@ macro level:
 * **Phase** selects the rotation axis via a virtual-Z frame rotation
   (0 → X, π/2 → Y, arbitrary → any XY axis).
 
-The pulse is **never time-stretched** via QUA's ``play(duration=…)``
-parameter, because arbitrary waveforms (Gaussian, Kaiser) have internal
-shape parameters defined in absolute samples.  By always playing at the
-pulse's native ``length``, the macro guarantees the waveform shape is
-self-consistent.
+By default the pulse plays at its calibrated ``length``.  Pass
+``duration`` (in clock cycles, 1 cycle = 4 ns) to override it at runtime,
+e.g. ``qubit.x180(duration=t)`` with ``t`` a QUA variable.  This forwards
+to QUA's ``play(duration=…)`` and is the most efficient way to sweep drive
+length (time-Rabi, Rabi chevron) on the OPX.
 
-For experiments that require sweeping pulse duration (e.g. time-Rabi),
-users should define a custom macro that explicitly accepts the
-shape/length trade-off, or register multiple pulses with different
-length parameters.
+``inferred_duration`` always reports the calibrated ``length`` and ignores
+a runtime ``duration`` override.  When sweeping the duration, size any
+surrounding voltage hold from the swept value rather than from
+``inferred_duration``.
 """
 
 # Framework macro base classes introduce deep inheritance chains by design.

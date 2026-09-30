@@ -199,7 +199,7 @@ Spin qubits use the same **macro engine** as the rest of the architecture: `Loss
 ## Builder and examples
 
 - **Builder** — [`quam_builder.builder.quantum_dots`](../../../builder/quantum_dots/) exposes `build_loss_divincenzo_quam` (and staged builders) to materialize a full `LossDiVincenzoQuam` from connectivity specs.
-- **Examples** — [`../examples/connectivity/wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py), [`../examples/connectivity/wiring_two_stage_example.py`](../examples/connectivity/wiring_two_stage_example.py), [`../examples/connectivity/manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py), [`../examples/experiments/rabi_chevron.py`](../examples/experiments/rabi_chevron.py), [`../examples/experiments/rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py).
+- **Examples** — [`../examples/connectivity/wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py), [`../examples/connectivity/wiring_two_stage_example.py`](../examples/connectivity/wiring_two_stage_example.py), [`../examples/connectivity/manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py), [`../examples/experiments/rabi_chevron.py`](../examples/experiments/rabi_chevron.py).
 
 ## Tests
 
