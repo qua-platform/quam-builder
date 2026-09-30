@@ -53,7 +53,8 @@ def resolve_identity(gate_set, dot_name: str) -> None:
 def inject_cross_talk(machine, layer, dot_names: list[str], dot_channels: list) -> None:
     """Step 3: write cross-talk into the compensation layer and resolve again."""
     print("\n=== 3. Cross-talk on the two dot plungers ===")
-    # Shape is [channels x virtual_names], matching update_cross_compensation_submatrix.
+    # update_cross_compensation_submatrix wants [channels x virtual_names].
+    # add_layer wants the other order, [source_gates x target_gates], with V_source = M * V_target.
     # Off-diagonal entries mean one virtual plunger moves the other dot too.
     cross_talk = [
         [1.0, 0.25],
