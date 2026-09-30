@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from qm import generate_qua_script, qua
 
-from quam_builder.architecture.quantum_dots.examples.external_macro_demo.catalog import (
+from quam_builder.architecture.quantum_dots.examples.macros.external_macro_demo.catalog import (
     LabMacroCatalog,
 )
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (

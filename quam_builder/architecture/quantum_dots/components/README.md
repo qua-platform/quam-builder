@@ -28,7 +28,7 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
 
 ### RF readout workflow
 
-1. **Build** — register `SensorDot` with `readout_resonator` on the machine (builder or manual; see [`quam_qd_example.py`](../examples/quam_qd_example.py)).
+1. **Build** — register `SensorDot` with `readout_resonator` on the machine (builder or manual; see [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py)).
 2. **Calibrate** — set resonator frequency and power (`set_output_power` on IQ/MW); run `sensor_dot.calibrate_octave(QM)` when using Octave.
 3. **Discrimination** — rotate the IQ plane with readout-pulse **integration weights**, then store a per-pair threshold on I:
 
@@ -40,7 +40,7 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
 
 4. **Measure in QUA** — `pair.measure()` (via **`MeasurePSBPairMacro`** see [operations/default_macros/state_macros.py](../operations/default_macros/state_macros.py)) steps to the `"measure"` voltage point, aligns gates with the resonator, and calls **`SensorDotMeasureMacro`** for state assignment.
 
-Example end-to-end: [`rabi_chevron.py`](../examples/rabi_chevron.py).
+Example end-to-end: [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py).
 
 ## Transport / DC readout
 
@@ -51,9 +51,9 @@ Use **transport readout** when the measurement is a DC current or conductance si
 | **`ReadoutTransportSingle`** | LF input-only transport measurement |
 | **`ReadoutTransportSingleIO`** | In/out channel (pulse required for config even if amplitude is zero) |
 
-Attach transport readout on a **`VoltageGate.readout`** field or directly on the sensor dot topology as in [`quam_qd_example.py`](../examples/quam_qd_example.py).
+Attach transport readout on a **`VoltageGate.readout`** field or directly on the sensor dot topology as in [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py).
 
-Example experiment: [`rabi_chevron_transport.py`](../examples/rabi_chevron_transport.py) (same Rabi–Chevron structure as the RF example, different readout path).
+Example experiment: [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) (same Rabi–Chevron structure as the RF example, different readout path).
 
 ## Parallel readout and alignment
 
@@ -61,7 +61,7 @@ Voltage gates (sticky DC) and readout resonators run on **separate QUA elements*
 
 **`MeasurePSBPairMacro`** (on `QuantumDotPair` / `LDQubitPair`) calls `qua.align(sensor_dot.readout_resonator.name, *gate_names)` before readout so the measure point and RF pulse are time-aligned. When integrated-voltage tracking is enabled, **`SensorDotMeasureMacro`** also reports readout duration so the voltage sequencer can call `track_sticky_duration`.
 
-For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. [`macro_overrides_example.py`](../examples/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
+For multi-qubit programs, insert explicit `qua.align(...)` between XY pulses, voltage sequences, and readout blocks. [`macro_overrides_example.py`](../examples/macros/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
 
 ## Custom pulse shapes and windowing
 
@@ -75,13 +75,13 @@ Default XY pulses are **`Scalable*`** classes in [`pulses.py`](pulses.py), wired
 | Hermite | `ScalableHermitePulse` | Gaussian × Hermite polynomial; tunable `hermite_coeff` |
 | DRAG | `ScalableDragPulse` | Derivative pulse for leakage reduction |
 
-**Windowing trade-offs:** Kaiser and Hermite reduce off-resonant spectral content compared to a bare Gaussian; DRAG adds a derivative term for IQ/MW drives. Switch the active family machine-wide with `machine.set_pulse_family("kaiser")` (propagates to all XY macros). See [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py).
+**Windowing trade-offs:** Kaiser and Hermite reduce off-resonant spectral content compared to a bare Gaussian; DRAG adds a derivative term for IQ/MW drives. Switch the active family machine-wide with `machine.set_pulse_family("kaiser")` (propagates to all XY macros). See [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py).
 
 All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample grid).
 
 ### Adding or overriding pulses
 
-- **Override defaults at wiring time** — `wire_machine_macros(..., pulse_overrides=...)` or edit operations after wiring. Example: [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py).
+- **Override defaults at wiring time** — `wire_machine_macros(..., pulse_overrides=...)` or edit operations after wiring. Example: [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py).
 - **Add a pulse on one qubit** — `qubit.add_xy_pulse(name, pulse)` or `qubit.xy.add_pulse(name, pulse)`.
 - **Custom macro** — point `XYDriveMacro.reference_pulse_name` at your operation; calibrate amplitude on the reference pulse (see [operations/README.md](../operations/README.md#single-qubit-gate-composition-model)).
 
@@ -91,7 +91,7 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 ## DAC integration
 
-**`DacSpec`** and **`QdacSpec`** on **`VoltageGate`** attach metadata for external DAC channels (e.g. QDAC-II trigger routing). The gate's **`offset_parameter`** can point at a instrument driver for Python-side offsets while the OPX plays sticky pulses. See [`dac_spec.py`](dac_spec.py) and [`virtual_dc_set_example.py`](../examples/virtual_dc_set_example.py) for combined OPX + external-DC setups.
+**`DacSpec`** and **`QdacSpec`** on **`VoltageGate`** attach metadata for external DAC channels (e.g. QDAC-II trigger routing). The gate's **`offset_parameter`** can point at a instrument driver for Python-side offsets while the OPX plays sticky pulses. See [`dac_spec.py`](dac_spec.py) and [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) for combined OPX + external-DC setups.
 
 **`QdacSpec`** exposes more of the Qdac-II specific functionality but is subclassing **`DacSpec`**
 
@@ -108,8 +108,8 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 | Topic | Script |
 |-------|--------|
-| RF readout Rabi–Chevron | [`rabi_chevron.py`](../examples/rabi_chevron.py) |
-| Transport readout | [`rabi_chevron_transport.py`](../examples/rabi_chevron_transport.py) |
-| Pulse overrides | [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py) |
-| Kaiser family switch | [`pulse_overrides_example.py`](../examples/pulse_overrides_example.py) |
-| Manual sensor + detuning setup | [`quam_qd_example.py`](../examples/quam_qd_example.py) |
+| RF readout Rabi–Chevron | [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py) |
+| Transport readout | [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) |
+| Pulse overrides | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
+| Kaiser family switch | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
+| Manual sensor + detuning setup | [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py) |

@@ -330,7 +330,7 @@ Default registrations on **`LDQubitPair`**:
 | `crot` | `CROTMacro` | Controlled rotation via virtual-Z on both qubits |
 | `cnot`, `swap`, `iswap` | Placeholder macros | Raise at runtime until you supply lab overrides |
 
-Override with `TypeOverrideCatalog`, instance overrides, or an external catalog, as in [`macro_overrides_example.py`](../examples/macro_overrides_example.py). `BalancedDCz2QMacro` is the voltage-balanced form of `cz` and uses that same override path.
+Override with `TypeOverrideCatalog`, instance overrides, or an external catalog, as in [`macro_overrides_example.py`](../examples/macros/macro_overrides_example.py). `BalancedDCz2QMacro` is the voltage-balanced form of `cz` and uses that same override path.
 
 ## OperationsRegistry
 
@@ -384,7 +384,7 @@ This keeps custom defaults out of `quam-builder` itself.
 
 ## Examples
 
-- [`../examples/macro_defaults_example.py`](../examples/macro_defaults_example.py): default-only wiring and parameterization.
-- [`../examples/macro_overrides_example.py`](../examples/macro_overrides_example.py): catalog and instance overrides, plus calibrating an override with `update(...)`.
-- [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring, anchor edits, and pulse-family switching.
-- [`../examples/external_macro_package_example.py`](../examples/external_macro_package_example.py): external catalog package pattern.
+- [`../examples/macros/macro_defaults_example.py`](../examples/macros/macro_defaults_example.py): default-only wiring and parameterization.
+- [`../examples/macros/macro_overrides_example.py`](../examples/macros/macro_overrides_example.py): catalog and instance overrides, plus calibrating an override with `update(...)`.
+- [`../examples/macros/pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py): pulse wiring, anchor edits, and pulse-family switching.
+- [`../examples/macros/external_macro_package_example.py`](../examples/macros/external_macro_package_example.py): external catalog package pattern.

@@ -20,7 +20,7 @@ from quam_builder.builder.quantum_dots import (
 
 # from quam_config import Quam
 
-EXAMPLES_DIR = Path(__file__).resolve().parent
+EXAMPLES_DIR = Path(__file__).resolve().parents[1]
 os.environ.setdefault("QUAM_STATE_PATH", str(EXAMPLES_DIR / "quam_state"))
 
 ########################################################################################################################

@@ -85,6 +85,8 @@ def create_minimal_machine() -> LossDiVincenzoQuam:
         Tuple of (machine, xy_drive, readout_resonator)
     """
     machine = LossDiVincenzoQuam()
+    # Compensation pulses in the QUA program need integrated-voltage tracking.
+    machine.track_integrated_voltage = True
 
     # Define controller and FEM slots
     controller = "con1"
@@ -597,13 +599,15 @@ if __name__ == "__main__":
     print("\nConnecting to QM SaaS cloud simulator...")
 
     # Load SaaS credentials from config file
-    repo_root = Path(__file__).resolve().parents[4]
+    repo_root = Path(__file__).resolve().parents[5]
     saas_config_path = repo_root / ".qm_saas_credentials.json"
     if not saas_config_path.exists():
-        raise FileNotFoundError(
-            f"SaaS credentials not found at {saas_config_path}. "
+        raise SystemExit(
+            "The machine and QUA program were built. This example then runs them "
+            "on QM SaaS.\n"
+            f"Credentials file not found: {saas_config_path}\n"
             "Copy .qm_saas_credentials.json.example to .qm_saas_credentials.json "
-            "and fill in your credentials."
+            "and fill in email, password, and host."
         )
     with open(saas_config_path) as f:
         saas_credentials = json.load(f)
