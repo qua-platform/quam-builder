@@ -266,7 +266,7 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | [`macro_defaults_example.py`](examples/macro_defaults_example.py)                                                 | Beginner     | Parameterize default macros; still no hardware |
 | [`wiring_example.py`](examples/wiring_example.py)                                                                 | Intermediate | Combined vs two-stage builder                  |
 | [`quam_qd_generator_example.py`](examples/quam_qd_generator_example.py)                                           | Intermediate | Builder-first generator path                   |
-| [`macro_overrides_example.py`](examples/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`              |
+| [`macro_overrides_example.py`](examples/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`, then calibrate with `update(...)` |
 | [`virtual_gate_set_example.py`](examples/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
 | [`rabi_chevron.py`](examples/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
 

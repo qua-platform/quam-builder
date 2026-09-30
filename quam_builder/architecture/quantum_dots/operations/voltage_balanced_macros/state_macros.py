@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from numpy import False_
 from qm import qua
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
@@ -38,6 +37,8 @@ u = unit(coerce_to_integer=True)
 
 __all__ = [
     "BalancedInitializeMacro",
+    "BalancedHeraldedInitializeMacro",
+    "BalancedHeraldedInitializeMacroWithMemory",
     "BalancedEmptyMacro",
     "BalancedMeasurePSBPairMacro",
     "BalancedSensorDotMeasureMacro",

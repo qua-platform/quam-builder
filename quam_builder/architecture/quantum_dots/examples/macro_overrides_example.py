@@ -6,6 +6,14 @@ Demonstrates the recommended Python API for overriding macros:
 2. ``TypeOverrideCatalog({LDQubit: {...}})`` -- override all qubits of a type.
 3. ``instance_overrides={"qubits.q1": {...}}`` -- override one specific qubit.
 4. ``DISABLED`` sentinel -- remove a macro from a component.
+5. ``macro.update(...)`` -- calibrate a parameter on an already-wired override.
+
+``TunedX180Macro`` subclasses ``X180Macro`` to expose a calibrated phase.
+``BalancedDCz2QMacro`` (already in ``voltage_balanced_macros``) replaces
+``cz``; it reads the pair's ``exchange`` point, which the tutorial machine
+does not define, so ``add_exchange_point()`` adds it.
+
+The script then prints the QUA program with ``generate_qua_script``.
 """
 
 # pylint: disable=too-many-ancestors
@@ -13,26 +21,15 @@ Demonstrates the recommended Python API for overriding macros:
 from __future__ import annotations
 
 from functools import partial
+import numpy as np
+from qm import generate_qua_script, qua
 
-from qm import qua
-from quam.components.macro import QubitPairMacro
-
-from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
-    build_tutorial_machine,
-)
-from quam_builder.architecture.quantum_dots.macro_engine import (
-    DISABLED,
-    wire_machine_macros,
-)
-from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
-    TypeOverrideCatalog,
-)
-from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
-    X180Macro,
-)
-from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
-    InitializeStateMacro,
-)
+from quam_builder.architecture.quantum_dots.examples.tutorial_machine import build_tutorial_machine
+from quam_builder.architecture.quantum_dots.macro_engine import DISABLED, wire_machine_macros
+from quam_builder.architecture.quantum_dots.operations.macro_catalog import TypeOverrideCatalog
+from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import X180Macro
+from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import InitializeStateMacro
+from quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros import BalancedDCz2QMacro
 from quam_builder.architecture.quantum_dots.operations.names import (
     SingleQubitMacroName,
     TwoQubitMacroName,
@@ -43,40 +40,27 @@ from quam_builder.architecture.quantum_dots.qubit_pair.ld_qubit_pair import LDQu
 from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 
 # ---------------------------------------------------------------------------
-# Custom macro classes (users would define these in their lab package)
+# Override an existing macro to expose a new calibration parameter
 # ---------------------------------------------------------------------------
 
 
 class TunedX180Macro(X180Macro):
-    """Lab-calibrated X180 macro for a specific qubit."""
+    """X180 whose ``phase`` is a calibrated virtual-Z offset.
 
-    pass
+    ``apply`` adds ``self.phase`` to any phase passed at the call, then
+    plays it with ``qubit.virtual_z`` before the pi pulse. Set the
+    calibration with ``update(phase=...)`` after wiring. The value is
+    stored on the macro and kept by ``machine.save``.
+    """
 
-
-class DemoCZMacro(QubitPairMacro):
-    """Placeholder CZ gate showing how users replace default 2Q stubs."""
-
-    duration_ns: int = 64
-
-    @property
-    def inferred_duration(self) -> float:
-        return self.duration_ns * 1e-9
-
-    def apply(self, duration_ns: int | None = None, **kwargs):
-        duration = self.duration_ns if duration_ns is None else duration_ns
-        duration_cycles = max(0, int(round(duration / 4.0)))
-
-        control_xy = self.qubit_pair.qubit_control.xy.name
-        target_xy = self.qubit_pair.qubit_target.xy.name
-        qua.align(control_xy, target_xy)
-        if duration_cycles > 0:
-            qua.wait(duration_cycles, control_xy, target_xy)
-
+    def update(self, *, phase: float | None = None, **kwargs) -> None:
+        super().update(**kwargs)
+        if phase is not None:
+            self.phase = float(phase)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 
 def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     """Print macro class bindings for key components/macros."""
@@ -85,7 +69,9 @@ def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     pair = machine.qubit_pairs["q1_q2"]
     print(f"\n=== {title} ===")
     print("q1.initialize:", type(q1.macros[VoltagePointName.INITIALIZE]).__name__)
-    print("q1.x180:", type(q1.macros[SingleQubitMacroName.X_180]).__name__)
+    x180 = q1.macros[SingleQubitMacroName.X_180]
+    print("q1.x180:", type(x180).__name__)
+    print("q1.x180.phase:", x180.phase)
     print("q1_q2.cz:", type(pair.macros[TwoQubitMacroName.CZ]).__name__)
     print("q2.z180 present:", SingleQubitMacroName.Z_180 in q2.macros)
 
@@ -93,7 +79,6 @@ def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
 # ---------------------------------------------------------------------------
 # Override wiring using the catalog API
 # ---------------------------------------------------------------------------
-
 
 def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
     """Apply type-level and instance-level overrides.
@@ -113,10 +98,11 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
                         SingleQubitMacroName.INITIALIZE: partial(
                             InitializeStateMacro,
                             ramp_duration=64,
+                            hold_duration=1000
                         ),
                     },
                     LDQubitPair: {
-                        TwoQubitMacroName.CZ: DemoCZMacro,
+                        TwoQubitMacroName.CZ: BalancedDCz2QMacro,
                     },
                 }
             ),
@@ -132,6 +118,22 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
     )
 
 
+def add_exchange_point(machine: LossDiVincenzoQuam) -> None:
+    """Register the ``exchange`` point ``BalancedDCz2QMacro`` ramps to.
+
+    The macro reads this point as the positive exchange voltage and
+    negates it for the other polarity. The tutorial machine does not
+    define it.
+    """
+    pair = machine.qubit_pairs["q1_q2"]
+    dot_ids = [dot.id for dot in pair.quantum_dot_pair.quantum_dots]
+    pair.add_point(
+        VoltagePointName.EXCHANGE,
+        dict.fromkeys(dot_ids, 0.06),
+        duration=1000,
+    )
+
+
 def build_program(machine: LossDiVincenzoQuam):
     """Build a QUA program using default and overridden macros."""
     q1 = machine.qubits["q1"]
@@ -141,10 +143,12 @@ def build_program(machine: LossDiVincenzoQuam):
     with qua.program() as prog:
         q1.initialize()
         q2.initialize()
-        q1.x90()
+        qua.align()
         q1.x180()
-        q2.empty()
+        q2.x180()
+        qua.align()
         pair.cz()
+        qua.align()
         q1.measure()
         q2.measure()
 
@@ -158,8 +162,17 @@ def main() -> None:
     apply_macro_overrides(machine)
     print_macro_summary(machine, "After Overrides")
 
-    _ = build_program(machine)
-    print("\nBuilt QUA program successfully with wired default+override macros.")
+    # Calibrated phase for this qubit. Radians; virtual_z converts to QUA turns.
+    machine.qubits["q1"].x180.update(phase=np.pi/4)
+    print_macro_summary(machine, "After calibrating q1.x180.phase")
+
+    add_exchange_point(machine)
+
+    program = build_program(machine)
+    print(
+        "\n=== QUA program after catalog and instance overrides ===\n"
+        + generate_qua_script(program)
+    )
 
 
 if __name__ == "__main__":

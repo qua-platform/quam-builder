@@ -52,7 +52,7 @@ examples/
 | [`quam_ld_example.py`](quam_ld_example.py) | Load a saved machine and register Loss-DiVincenzo qubits | [qpu README](../qpu/README.md) | no — `LossDiVincenzoQuam.load()` |
 | [`quam_ld_generator_example.py`](quam_ld_generator_example.py) | Load a state directory and register MW-FEM qubits | [qpu README](../qpu/README.md) | no — `QUAM_STATE_PATH` |
 | [`macro_defaults_example.py`](macro_defaults_example.py) | Parameterize built-in macros and run them in a QUA program | [operations README](../operations/README.md) | yes |
-| [`macro_overrides_example.py`](macro_overrides_example.py) | `TypeOverrideCatalog`, `instance_overrides`, and `DISABLED` | [operations README](../operations/README.md) | yes |
+| [`macro_overrides_example.py`](macro_overrides_example.py) | `TypeOverrideCatalog`, `instance_overrides`, `DISABLED`, and calibrating an override with `update(...)` | [operations README](../operations/README.md) | yes |
 | [`pulse_overrides_example.py`](pulse_overrides_example.py) | Default XY pulse, anchor edits, and switching pulse family | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
 | [`external_macro_package_example.py`](external_macro_package_example.py) | Lab-owned catalog in [`external_macro_demo/`](external_macro_demo/) | [operations README](../operations/README.md) | yes |
 | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | hub table only | yes |
@@ -72,7 +72,7 @@ Use one script per feature:
 | How do I register dots by hand? | [`quam_qd_example.py`](quam_qd_example.py) |
 | How do I attach qubits to a loaded machine? | [`quam_ld_example.py`](quam_ld_example.py) |
 | How do default macros work? | [`macro_defaults_example.py`](macro_defaults_example.py) |
-| How do I override a macro? | [`macro_overrides_example.py`](macro_overrides_example.py) |
+| How do I override a macro, then calibrate it? | [`macro_overrides_example.py`](macro_overrides_example.py) |
 | How do I change the XY pulse or switch pulse family? | [`pulse_overrides_example.py`](pulse_overrides_example.py) |
 | How do I keep lab macros outside this repo? | [`external_macro_package_example.py`](external_macro_package_example.py) |
 | How do virtual layers resolve voltages? | [`virtual_gate_set_example.py`](virtual_gate_set_example.py) |

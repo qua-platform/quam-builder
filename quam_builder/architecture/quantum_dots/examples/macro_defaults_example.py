@@ -5,12 +5,12 @@ This script demonstrates:
 2. Wiring architecture defaults with ``wire_machine_macros(machine)`` only.
 3. Parameterizing instantiated default macro objects and reference pulses directly on components.
 4. Building a QUA program that calls those default macros.
+5. Printing that program with ``generate_qua_script`` so the ``play``, ``ramp``, and ``wait`` calls from each ``apply`` method are visible.
 """
 
 from __future__ import annotations
 
-import numpy as np
-from qm import qua
+from qm import generate_qua_script, qua
 
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
     build_tutorial_machine,
@@ -58,18 +58,15 @@ def print_macro_parameters(machine: LossDiVincenzoQuam) -> None:
 def build_program(machine: LossDiVincenzoQuam):
     """Build a QUA program that uses default macros only."""
     q1 = machine.qubits["q1"]
-    q2 = machine.qubits["q2"]
 
     with qua.program() as prog:
         q1.initialize()
-        q2.initialize()
+        qua.align()
         q1.x90()
-        q1.x(angle=-np.pi / 2)
-        q2.y(angle=np.pi / 3)
-        q1.z90()
-        q2.I()
+        q1.I()
+        q1.y90()
+        qua.align()
         q1.measure()
-        q2.measure()
 
     return prog
 
@@ -83,9 +80,10 @@ def main() -> None:
     parameterize_default_macros(machine)
     print_macro_parameters(machine)
 
-    _ = build_program(machine)
+    program = build_program(machine)
     print(
-        "\nBuilt QUA program successfully using parameterized default macros (no overrides)."
+        "\n=== QUA program from parameterized default macros ===\n"
+        + generate_qua_script(program)
     )
 
 
