@@ -59,7 +59,7 @@ examples/
 | [`macro_overrides_example.py`](macros/macro_overrides_example.py) | `TypeOverrideCatalog`, `instance_overrides`, `DISABLED`, and calibrating an override with `update(...)` | [operations README](../operations/README.md) | yes |
 | [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) | Default XY pulse, anchor edits, and switching pulse family | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
 | [`external_macro_package_example.py`](macros/external_macro_package_example.py) | Lab-owned catalog in [`external_macro_demo/`](macros/external_macro_demo/) | [operations README](../operations/README.md) | yes |
-| [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | hub table only | yes |
+| [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | [voltage-sequence README](../voltage_sequence/README.md) | yes |
 | [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) | `VirtualDCSet` with an external DAC offset, no OPX program | [voltage-sequence README](../voltage_sequence/README.md), [components README](../components/README.md) | no |
 | [`rabi_chevron.py`](experiments/rabi_chevron.py) | Manual machine, custom macros, resonator readout, cloud simulation | [components README](../components/README.md), [qpu README](../qpu/README.md) | no |
 | [`rabi_chevron_transport.py`](experiments/rabi_chevron_transport.py) | Same experiment; filename says transport readout | [components README](../components/README.md) | no |
