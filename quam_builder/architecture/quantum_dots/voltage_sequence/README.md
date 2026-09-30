@@ -810,9 +810,9 @@ with program() as prog:
 | Typical use | Real-time sequences | Slow bias updates, idle tuning |
 | Layer API | `add_layer()` | `add_to_layer()` (same matrix semantics) |
 
-`define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis.
+`define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis. The two sets are meant to be used together: **`VirtualDCSet`** holds the slow QDAC bias, **`VirtualGateSet`** plays the real-time OPX sequence on the same gates.
 
-Examples: [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) for OPX virtual layers, [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) for external DC.
+[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) shows only the DC set (layers, `set_voltages`, DAC limits). [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) shows the OPX layers.
 
 ## 11. Practical timing limits
 

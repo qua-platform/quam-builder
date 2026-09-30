@@ -91,7 +91,9 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 ## DAC integration
 
-**`DacSpec`** and **`QdacSpec`** on **`VoltageGate`** attach metadata for external DAC channels (e.g. QDAC-II trigger routing). The gate's **`offset_parameter`** can point at a instrument driver for Python-side offsets while the OPX plays sticky pulses. See [`dac_spec.py`](dac_spec.py) and [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) for combined OPX + external-DC setups.
+A **`VoltageGate`** can carry both an OPX output and an external DC source, so a QDAC and the OPX can take part in the same experiment. **`DacSpec`** and **`QdacSpec`** attach metadata for that DC channel (for example QDAC-II trigger routing). **`offset_parameter`** points at the instrument driver, and **`VirtualDCSet`** writes the slow bias through it while the OPX plays sticky pulses on the same gate.
+
+[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) is the DC half: it builds a **`VirtualDCSet`**, resolves virtual voltages onto DAC offsets, and checks the per-channel limit. It does not play an OPX pulse. The OPX virtual-layer path is [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py). Channel metadata lives in [`dac_spec.py`](dac_spec.py).
 
 **`QdacSpec`** exposes more of the Qdac-II specific functionality but is subclassing **`DacSpec`**
 
