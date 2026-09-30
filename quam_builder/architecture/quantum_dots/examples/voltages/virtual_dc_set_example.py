@@ -187,7 +187,8 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         check_max_voltage=True,
     )
 
-    # Matrix shape is [source_gates x target_gates].
+    # add_layer wants [source_gates x target_gates] (V_source = M * V_target).
+    # update_cross_compensation_submatrix wants the other order, [channels x virtual_names].
     virtual_dc_set.add_layer(
         layer_id="cross_compensation",
         source_gates=["VP1", "VP2", "VP3", "VP4"],
@@ -228,8 +229,8 @@ def main() -> None:
     """
     virtual_dc_set = build_virtual_dc_set(use_qdac=os.environ.get("QUAM_QDAC") == "1")
 
-    # Names may be virtual or physical. VirtualDCSet requeried the current
-    # physical voltages, resolves the requested levels through the layers,
+    # Names may be virtual or physical. With requery=True, VirtualDCSet reads the
+    # current physical voltages, resolves the requested levels through the layers,
     # enforces each gate's abs_dac_voltage_limit, and writes offset_parameter.
     virtual_dc_set.set_voltages(
         {"det_1": 0.10, "det_2": -0.05, "barrier_2": 0.02},
