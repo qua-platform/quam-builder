@@ -12,7 +12,7 @@ examples/
   tutorial_machine.py          the shared machine
   connectivity/                build your own machine, with or without the wirer
   macros/                      drive, readout, and custom operations
-  voltages/                    virtual gates on the OPX, and DC bias on a QDAC
+  voltages/                    virtual gates, ramps, and DC bias on a QDAC
   experiments/                 one full experiment on the tutorial machine
   quam_state/                  machines saved by the connectivity scripts
 ```
@@ -66,11 +66,13 @@ The voltage-balanced catalog and the DCZ gate are documented in the [operations 
 
 ## 4. Voltages
 
-A gate can carry an OPX pulse and a slow DC bias at the same time. These two scripts split that into halves. Read the OPX half first.
+A gate can carry an OPX pulse and a slow DC bias at the same time. The first two scripts are the OPX half. The third is the DC half.
 
 1. [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) starts from the tutorial machine. The virtual gate set has a compensation layer (cross-talk between gates) and a detuning axis on the dot pair. The script resolves a voltage before and after cross-talk, then steps to the detuning point inside a QUA program.
 
-2. [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) is the DC half. A `VirtualDCSet` turns virtual voltages into offsets on an external DAC and checks each channel against its voltage limit. It does not play an OPX pulse. By default the DAC is an in-memory stand-in. Set `QUAM_QDAC=1` to talk to a QDAC-II through QCoDeS.
+2. [`voltage_modes_example.py`](voltages/voltage_modes_example.py) is how a later call treats the gates you do not name, and how a ramp differs from a step. With `keep_levels=True` an omitted gate holds its last voltage. With `keep_levels=False` an omitted gate goes to 0 V. The last program ramps to a voltage, ramps to a named point, and closes with `ramp_to_zero`. Set `SIMULATE_ON_OPX = True` to plot a waveform report for each program.
+
+3. [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) is the DC half. A `VirtualDCSet` turns virtual voltages into offsets on an external DAC and checks each channel against its voltage limit. It does not play an OPX pulse. By default the DAC is an in-memory stand-in. Set `QUAM_QDAC=1` to talk to a QDAC-II through QCoDeS.
 
 The connectivity scripts are where the two halves meet on one machine: each gate there has both an OPX output and a `QdacSpec`.
 
@@ -95,6 +97,7 @@ The connectivity scripts are where the two halves meet on one machine: each gate
 | Change the drive waveform or the pulse family | [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) |
 | Keep lab macros in their own package | [`external_macro_package_example.py`](macros/external_macro_package_example.py) |
 | Compensate cross-talk and step along a detuning axis | [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) |
+| Ramp a gate, hold its level, or drive omitted gates to 0 V | [`voltage_modes_example.py`](voltages/voltage_modes_example.py) |
 | Set a QDAC bias from virtual voltages | [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) |
 | See a full sweep, from voltage points through readout | [`rabi_chevron.py`](experiments/rabi_chevron.py) |
 

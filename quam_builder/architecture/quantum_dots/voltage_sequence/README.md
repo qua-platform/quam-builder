@@ -331,6 +331,8 @@ voltage_seq.step_to_voltages({"P2": 0.1}, duration=1000)   # P1 stays at 0.3
 voltage_seq.step_to_voltages({"P1": 0.0}, duration=500)   # explicit 0 on P1; P2 stays at 0.1
 ```
 
+[`voltage_modes_example.py`](../examples/voltages/voltage_modes_example.py) runs both modes, plus `ramp_to_voltages`, `ramp_to_point`, and `ramp_to_zero`, on the tutorial machine and prints each QUA program.
+
 **Stateless mode: `keep_levels=False`**
 
 Omitted physical channels are filled with `0.0` V before play. On a `VirtualGateSet`, each virtualization layer treats omitted **source** virtual gates as `0.0` V for that call, so prior virtual contributions are cleared unless you list those gates again. Use this when every call should define the full effective state, or when you rely on `GateSet.resolve_voltages()` zero-fill semantics directly.
@@ -812,7 +814,7 @@ with program() as prog:
 
 `define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis. The two sets are meant to be used together: **`VirtualDCSet`** holds the slow QDAC bias, **`VirtualGateSet`** plays the real-time OPX sequence on the same gates.
 
-[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) shows only the DC set (layers, `set_voltages`, DAC limits). [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) shows the OPX layers.
+[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) shows only the DC set (layers, `set_voltages`, DAC limits). [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) shows the OPX layers. [`voltage_modes_example.py`](../examples/voltages/voltage_modes_example.py) shows ramps, held levels, and stateless calls.
 
 ## 11. Practical timing limits
 
