@@ -269,7 +269,7 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | [`manual_dots_example.py`](examples/connectivity/manual_dots_example.py) / [`manual_qubits_example.py`](examples/connectivity/manual_qubits_example.py) | Intermediate | Same machine with ports written by hand        |
 | [`macro_overrides_example.py`](examples/macros/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`, then calibrate with `update(...)` |
 | [`virtual_gate_set_example.py`](examples/voltages/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
-| [`rabi_chevron.py`](examples/experiments/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/experiments/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
+| [`rabi_chevron.py`](examples/experiments/rabi_chevron.py)                                                         | Advanced     | Full experiment on the tutorial machine; OPX simulation |
 
 
 **Additional examples** in [`examples/`](examples/): [`pulse_overrides_example.py`](examples/macros/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/macros/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/voltages/virtual_dc_set_example.py) — read each module docstring for scope.

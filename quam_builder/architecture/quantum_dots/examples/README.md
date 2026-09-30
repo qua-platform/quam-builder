@@ -39,7 +39,6 @@ examples/
     virtual_dc_set_example.py
   experiments/
     rabi_chevron.py
-    rabi_chevron_transport.py
 ```
 
 ## Feature map
@@ -57,8 +56,7 @@ examples/
 | [`external_macro_package_example.py`](macros/external_macro_package_example.py) | Lab-owned catalog in [`external_macro_demo/`](macros/external_macro_demo/) | [operations README](../operations/README.md) | yes |
 | [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) | Compensation layer, cross-talk, detuning, and a QUA step | [voltage-sequence README](../voltage_sequence/README.md) | yes |
 | [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) | `VirtualDCSet` DC offsets and voltage limits for an external DAC (the DC half of a QDAC + OPX experiment) | [voltage-sequence README](../voltage_sequence/README.md), [components README](../components/README.md) | no |
-| [`rabi_chevron.py`](experiments/rabi_chevron.py) | Manual machine, custom macros, resonator readout, cloud simulation | [components README](../components/README.md), [qpu README](../qpu/README.md) | no |
-| [`rabi_chevron_transport.py`](experiments/rabi_chevron_transport.py) | Same experiment; filename says transport readout | [components README](../components/README.md) | no |
+| [`rabi_chevron.py`](experiments/rabi_chevron.py) | Frequency x duration sweep with the default `x180` and sensor `measure` macros; OPX simulation and waveform report behind `SIMULATE_ON_OPX` | [components README](../components/README.md), [qpu README](../qpu/README.md) | yes |
 
 ## Where to point readers
 
@@ -77,7 +75,7 @@ Use one script per feature:
 | How do I keep lab macros outside this repo? | [`external_macro_package_example.py`](macros/external_macro_package_example.py) |
 | How do virtual layers resolve voltages? | [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) |
 | How do I set a QDAC (or other external DAC) bias alongside the OPX? | [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) |
-| How does a resonator readout experiment look? | [`rabi_chevron.py`](experiments/rabi_chevron.py) |
+| What does a full experiment on the shared machine look like? | [`rabi_chevron.py`](experiments/rabi_chevron.py) |
 
 ## Inventory notes
 
@@ -86,6 +84,6 @@ These showed up while mapping files to features. Later passes fix them.
 - The [architecture README](../README.md) examples table wraps several entries in backticks, so those rows are not links. The same page and the [operations README](../operations/README.md) link to `qm_example.py`, which is not in this folder.
 - `wiring_example.py`, `mwe_sensor_resonator_same_port.py`, `quam_qd_example.py`, `quam_qd_generator_example.py`, `quam_ld_example.py`, and `quam_ld_generator_example.py` were removed. The four scripts in [`connectivity/`](connectivity/) are the machine-setup path: wirer combined, wirer two-stage, manual dots, manual qubits.
 - The hub links a `virtual_gates/` guide. That folder is not in `architecture/quantum_dots/`. [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) is the hands-on page for virtual layers.
-- [`rabi_chevron_transport.py`](experiments/rabi_chevron_transport.py) is the transport example in the components README. Its docstring and channel setup describe RF reflectometry through `ReadoutResonatorSingle`, and the setup function's return value is named `transport_readout`.
+- `rabi_chevron_transport.py` repeated `rabi_chevron.py` and measured through `ReadoutResonatorSingle` (RF reflectometry), not transport. It was removed. [`rabi_chevron.py`](experiments/rabi_chevron.py) now starts from `build_tutorial_machine()` and uses the default macros instead of custom `DriveMacro` / `MeasureMacro` classes.
 - `full_workflow_example.py` repeated `macro_defaults_example.py`, `macro_overrides_example.py`, and `pulse_overrides_example.py` in one file. Its only unique step, `machine.set_pulse_family("kaiser")`, moved into `pulse_overrides_example.py`. The file was removed.
 - `voltage_balanced_macros_example.py` and `dcz_macro_example.py` simulated balanced macros and the DCZ gate on QM SaaS. The macro examples stop once the QUA program is built. `VoltageBalancedMacroCatalog` stays documented in the [operations README](../operations/README.md). Both files were removed.

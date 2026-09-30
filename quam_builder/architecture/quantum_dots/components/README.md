@@ -53,8 +53,6 @@ Use **transport readout** when the measurement is a DC current or conductance si
 
 Attach transport readout on a **`VoltageGate.readout`** field or on the sensor dot's `readout_reservoir`.
 
-Example experiment: [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) (same Rabi–Chevron structure as the RF example, different readout path).
-
 ## Parallel readout and alignment
 
 Voltage gates (sticky DC) and readout resonators run on **separate QUA elements** and execute in parallel unless synchronized.
@@ -111,7 +109,6 @@ A **`VoltageGate`** can carry both an OPX output and an external DC source, so a
 | Topic | Script |
 |-------|--------|
 | RF readout Rabi–Chevron | [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py) |
-| Transport readout | [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) |
 | Pulse overrides | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
 | Kaiser family switch | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
 | Manual dots, sensors, and QDAC ports | [`manual_dots_example.py`](../examples/connectivity/manual_dots_example.py) |
