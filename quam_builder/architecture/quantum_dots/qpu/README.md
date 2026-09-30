@@ -85,7 +85,7 @@ All three concrete drive types inherit **`XYDriveBase`** and are composed on **`
 | **`XYDriveIQ`** | `IQChannel` | **LF-FEM / OPX+ + Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
 | **`XYDriveMW`** | `MWChannel` | **MW-FEM** direct microwave output | single `opx_output` → `mw_outputs` | `intermediate_frequency` + upconverter on port (`upconverter_frequency` from `opx_output`) |
 
-Pick the row that matches your hardware, then open that example: **MW-FEM** — [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py) / [`quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py); **IQ/Octave** and **baseband Single** — [`quam_ld_example.py`](../examples/connectivity/quam_ld_example.py) and the [builder auto-detection](#builder-auto-detection) mermaid below.
+Pick the row that matches your hardware. **MW-FEM** is what the connectivity examples and [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py) build: [`wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py) lets the wirer choose the drive class, [`manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py) constructs `XYDriveMW` directly. **IQ/Octave** and **baseband Single** are selected by the [builder auto-detection](#builder-auto-detection) below when the allocated ports are IQ or a single LF output.
 
 **`XYDriveBase`** provides shared helpers (e.g. `calculate_voltage_scaling_factor` for scaling between dBm levels).
 
@@ -105,7 +105,7 @@ Pick the row that matches your hardware, then open that example: **MW-FEM** — 
 
 ### `XYDriveMW`
 
-- For **MW-FEM** setups (examples: [`quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py), [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py)).
+- For **MW-FEM** setups (examples: [`wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py), [`manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py), [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py)).
 - Single MW port with on-module upconversion; IF + port upconverter frequency define the emitted tone.
 - Same pulse/macro model as IQ (`axis_angle=0.0`).
 - Power helpers via MW full-scale power ([`power_tools.py`](../../../tools/power_tools.py)).
@@ -199,7 +199,7 @@ Spin qubits use the same **macro engine** as the rest of the architecture: `Loss
 ## Builder and examples
 
 - **Builder** — [`quam_builder.builder.quantum_dots`](../../../builder/quantum_dots/) exposes `build_loss_divincenzo_quam` (and staged builders) to materialize a full `LossDiVincenzoQuam` from connectivity specs.
-- **Examples** — [`../examples/connectivity/quam_ld_example.py`](../examples/connectivity/quam_ld_example.py), [`../examples/connectivity/quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py), [`../examples/experiments/rabi_chevron.py`](../examples/experiments/rabi_chevron.py), [`../examples/experiments/rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py).
+- **Examples** — [`../examples/connectivity/wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py), [`../examples/connectivity/wiring_two_stage_example.py`](../examples/connectivity/wiring_two_stage_example.py), [`../examples/connectivity/manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py), [`../examples/experiments/rabi_chevron.py`](../examples/experiments/rabi_chevron.py), [`../examples/experiments/rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py).
 
 ## Tests
 

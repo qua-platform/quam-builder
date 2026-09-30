@@ -233,7 +233,7 @@ The macro references named voltage points, so if the points are updated as part 
 | Saved dot machine, adding spin control                     | `build_loss_divincenzo_quam()`        |
 
 
-Runnable build fragments live in [tutorial_machine.py](examples/tutorial_machine.py) and [wiring_example.py](examples/connectivity/wiring_example.py).
+Runnable build fragments live in [tutorial_machine.py](examples/tutorial_machine.py), [wiring_combined_example.py](examples/connectivity/wiring_combined_example.py), and [wiring_two_stage_example.py](examples/connectivity/wiring_two_stage_example.py). Hand-placed ports are [manual_dots_example.py](examples/connectivity/manual_dots_example.py) and [manual_qubits_example.py](examples/connectivity/manual_qubits_example.py).
 
 ## Default macros are already wired
 
@@ -264,14 +264,15 @@ Scripts live under [`examples/`](examples/). Start at the top; skip cloud/hardwa
 | This README + [`tutorial_machine.py`](examples/tutorial_machine.py)                                               | Beginner     | Build, config, save/load, construct a program  |
 | [`Voltage-sequence notebook`](../../../tutorials/voltage_sequence.ipynb)                                          | Beginner     | Sticky DC, named point, `keep_levels`          |
 | [`macro_defaults_example.py`](examples/macros/macro_defaults_example.py)                                                 | Beginner     | Parameterize default macros; still no hardware |
-| [`wiring_example.py`](examples/connectivity/wiring_example.py)                                                                 | Intermediate | Combined vs two-stage builder                  |
-| [`quam_qd_generator_example.py`](examples/connectivity/quam_qd_generator_example.py)                                           | Intermediate | Builder-first generator path                   |
+| [`wiring_combined_example.py`](examples/connectivity/wiring_combined_example.py)                                               | Intermediate | Wirer, one stage, including a QDAC             |
+| [`wiring_two_stage_example.py`](examples/connectivity/wiring_two_stage_example.py)                                             | Intermediate | Save the dot machine, then add qubits          |
+| [`manual_dots_example.py`](examples/connectivity/manual_dots_example.py) / [`manual_qubits_example.py`](examples/connectivity/manual_qubits_example.py) | Intermediate | Same machine with ports written by hand        |
 | [`macro_overrides_example.py`](examples/macros/macro_overrides_example.py)                                               | Intermediate | `catalogs` / `instance_overrides`, then calibrate with `update(...)` |
 | [`virtual_gate_set_example.py`](examples/voltages/virtual_gate_set_example.py)                                             | Intermediate | Virtual layers and `resolve_voltages`          |
 | [`rabi_chevron.py`](examples/experiments/rabi_chevron.py) / [`rabi_chevron_transport.py`](examples/experiments/rabi_chevron_transport.py) | Advanced     | Manual assembly, custom macros, SaaS           |
 
 
-**Additional examples** in [`examples/`](examples/): [`mwe_sensor_resonator_same_port.py`](examples/connectivity/mwe_sensor_resonator_same_port.py), [`pulse_overrides_example.py`](examples/macros/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/macros/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/voltages/virtual_dc_set_example.py) — read each module docstring for scope.
+**Additional examples** in [`examples/`](examples/): [`pulse_overrides_example.py`](examples/macros/pulse_overrides_example.py), [`external_macro_package_example.py`](examples/macros/external_macro_package_example.py), [`virtual_dc_set_example.py`](examples/voltages/virtual_dc_set_example.py) — read each module docstring for scope.
 
 ## Task-oriented reference map
 

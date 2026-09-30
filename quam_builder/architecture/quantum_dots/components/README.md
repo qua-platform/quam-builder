@@ -28,7 +28,7 @@ After wiring macros, each sensor resonator gets a default **`SquareReadoutPulse`
 
 ### RF readout workflow
 
-1. **Build** — register `SensorDot` with `readout_resonator` on the machine (builder or manual; see [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py)).
+1. **Build** — register `SensorDot` with `readout_resonator` on the machine (builder, or by hand in [`manual_dots_example.py`](../examples/connectivity/manual_dots_example.py)).
 2. **Calibrate** — set resonator frequency and power (`set_output_power` on IQ/MW); run `sensor_dot.calibrate_octave(QM)` when using Octave.
 3. **Discrimination** — rotate the IQ plane with readout-pulse **integration weights**, then store a per-pair threshold on I:
 
@@ -51,7 +51,7 @@ Use **transport readout** when the measurement is a DC current or conductance si
 | **`ReadoutTransportSingle`** | LF input-only transport measurement |
 | **`ReadoutTransportSingleIO`** | In/out channel (pulse required for config even if amplitude is zero) |
 
-Attach transport readout on a **`VoltageGate.readout`** field or directly on the sensor dot topology as in [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py).
+Attach transport readout on a **`VoltageGate.readout`** field or on the sensor dot's `readout_reservoir`.
 
 Example experiment: [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) (same Rabi–Chevron structure as the RF example, different readout path).
 
@@ -114,4 +114,4 @@ A **`VoltageGate`** can carry both an OPX output and an external DC source, so a
 | Transport readout | [`rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py) |
 | Pulse overrides | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
 | Kaiser family switch | [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py) |
-| Manual sensor + detuning setup | [`quam_qd_example.py`](../examples/connectivity/quam_qd_example.py) |
+| Manual dots, sensors, and QDAC ports | [`manual_dots_example.py`](../examples/connectivity/manual_dots_example.py) |

@@ -14,7 +14,7 @@ Scripts are grouped by feature. Shared pieces stay in this directory. Each group
 - voltage points `initialize`, `measure`, and `empty`
 - default macros and pulses, wired by `build_quam`
 
-Examples should call that function and then change only what the feature needs. [`quam_state/`](quam_state/) is a separate on-disk wiring snapshot used by the builder script. It is not this machine.
+Macro, voltage, and experiment scripts should call that function and then change only what the feature needs. The connectivity scripts build a machine from scratch; that is the setup they teach. [`quam_state/`](quam_state/) holds the snapshots written by [`wiring_two_stage_example.py`](connectivity/wiring_two_stage_example.py) and [`manual_dots_example.py`](connectivity/manual_dots_example.py).
 
 ## Layout
 
@@ -22,7 +22,7 @@ Examples should call that function and then change only what the feature needs. 
 examples/
   README.md
   tutorial_machine.py          shared machine
-  quam_state/                  on-disk wiring for the builder script
+  quam_state/                  saved machines from the connectivity scripts
   macros/
     macro_defaults_example.py
     macro_overrides_example.py
@@ -30,12 +30,10 @@ examples/
     external_macro_package_example.py
     external_macro_demo/       lab catalog imported by the external-macro example
   connectivity/
-    wiring_example.py
-    mwe_sensor_resonator_same_port.py
-    quam_qd_example.py
-    quam_qd_generator_example.py
-    quam_ld_example.py
-    quam_ld_generator_example.py
+    wiring_combined_example.py
+    wiring_two_stage_example.py
+    manual_dots_example.py
+    manual_qubits_example.py
   voltages/
     virtual_gate_set_example.py
     virtual_dc_set_example.py
@@ -49,12 +47,10 @@ examples/
 | Example | Feature | Documented in | Starts from `build_tutorial_machine()` |
 | --- | --- | --- | --- |
 | [`tutorial_machine.py`](tutorial_machine.py) | Shared machine: combined wiring, default macros, voltage points | [architecture README](../README.md), [builder README](../../builder/quantum_dots/README.md) | defines it |
-| [`wiring_example.py`](connectivity/wiring_example.py) | Two-stage build, combined build, and adding drive lines on the same instruments | [builder README](../../builder/quantum_dots/README.md) | no — writes [`quam_state/`](quam_state/) |
-| [`mwe_sensor_resonator_same_port.py`](connectivity/mwe_sensor_resonator_same_port.py) | Allocating sensor resonators, sensor gates, plungers, and barriers under FEM port constraints | not linked from a feature README | no — connectivity only |
-| [`quam_qd_example.py`](connectivity/quam_qd_example.py) | Manual channels, virtual gates, and `register_channel_elements` | [components README](../components/README.md), [builder README](../../builder/quantum_dots/README.md) | no |
-| [`quam_qd_generator_example.py`](connectivity/quam_qd_generator_example.py) | Same manual assembly, then `register_qubit` | hub table calls this the builder-first path | no |
-| [`quam_ld_example.py`](connectivity/quam_ld_example.py) | Load a saved machine and register Loss-DiVincenzo qubits | [qpu README](../qpu/README.md) | no — `LossDiVincenzoQuam.load()` |
-| [`quam_ld_generator_example.py`](connectivity/quam_ld_generator_example.py) | Load a state directory and register MW-FEM qubits | [qpu README](../qpu/README.md) | no — `QUAM_STATE_PATH` |
+| [`wiring_combined_example.py`](connectivity/wiring_combined_example.py) | Wirer, one stage: dots, sensors, QDAC, and MW qubits | [builder README](../../builder/quantum_dots/README.md) | no |
+| [`wiring_two_stage_example.py`](connectivity/wiring_two_stage_example.py) | Save a dot machine, reload it, then add drive lines and qubits | [builder README](../../builder/quantum_dots/README.md) | no — writes [`quam_state/wiring_two_stage`](quam_state/) |
+| [`manual_dots_example.py`](connectivity/manual_dots_example.py) | Hand-placed ports and `QdacSpec`, same dot machine | [components README](../components/README.md), [builder README](../../builder/quantum_dots/README.md) | no — writes [`quam_state/manual_dots`](quam_state/) |
+| [`manual_qubits_example.py`](connectivity/manual_qubits_example.py) | Load that state and register `XYDriveMW` qubits | [qpu README](../qpu/README.md) | no — loads `manual_dots` |
 | [`macro_defaults_example.py`](macros/macro_defaults_example.py) | Parameterize built-in macros and run them in a QUA program | [operations README](../operations/README.md) | yes |
 | [`macro_overrides_example.py`](macros/macro_overrides_example.py) | `TypeOverrideCatalog`, `instance_overrides`, `DISABLED`, and calibrating an override with `update(...)` | [operations README](../operations/README.md) | yes |
 | [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) | Default XY pulse, anchor edits, and switching pulse family | [operations README](../operations/README.md), [components README](../components/README.md) | yes |
@@ -71,10 +67,10 @@ Use one script per feature:
 | Question | Open |
 | --- | --- |
 | What machine do the examples share? | [`tutorial_machine.py`](tutorial_machine.py) |
-| How do I build from connectivity? | [`wiring_example.py`](connectivity/wiring_example.py) |
-| How do port constraints interact? | [`mwe_sensor_resonator_same_port.py`](connectivity/mwe_sensor_resonator_same_port.py) |
-| How do I register dots by hand? | [`quam_qd_example.py`](connectivity/quam_qd_example.py) |
-| How do I attach qubits to a loaded machine? | [`quam_ld_example.py`](connectivity/quam_ld_example.py) |
+| How do I build a machine from connectivity, including a QDAC? | [`wiring_combined_example.py`](connectivity/wiring_combined_example.py) |
+| How do I calibrate dots first, then add qubits? | [`wiring_two_stage_example.py`](connectivity/wiring_two_stage_example.py) |
+| How do I place ports and QDAC channels by hand? | [`manual_dots_example.py`](connectivity/manual_dots_example.py) |
+| How do I add qubits to a saved dot machine by hand? | [`manual_qubits_example.py`](connectivity/manual_qubits_example.py) |
 | How do default macros work? | [`macro_defaults_example.py`](macros/macro_defaults_example.py) |
 | How do I override a macro, then calibrate it? | [`macro_overrides_example.py`](macros/macro_overrides_example.py) |
 | How do I change the XY pulse or switch pulse family? | [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) |
@@ -88,9 +84,7 @@ Use one script per feature:
 These showed up while mapping files to features. Later passes fix them.
 
 - The [architecture README](../README.md) examples table wraps several entries in backticks, so those rows are not links. The same page and the [operations README](../operations/README.md) link to `qm_example.py`, which is not in this folder.
-- The hub describes [`quam_qd_generator_example.py`](connectivity/quam_qd_generator_example.py) as the builder-first path. The script constructs `LossDiVincenzoQuam()` and `VoltageGate`s by hand, in the same style as [`quam_qd_example.py`](connectivity/quam_qd_example.py).
-- [`quam_ld_generator_example.py`](connectivity/quam_ld_generator_example.py) defaults `QUAM_STATE_PATH` to a personal directory and exits when that directory is missing.
-- [`quam_ld_example.py`](connectivity/quam_ld_example.py) calls `LossDiVincenzoQuam.load()` with no path.
+- `wiring_example.py`, `mwe_sensor_resonator_same_port.py`, `quam_qd_example.py`, `quam_qd_generator_example.py`, `quam_ld_example.py`, and `quam_ld_generator_example.py` were removed. The four scripts in [`connectivity/`](connectivity/) are the machine-setup path: wirer combined, wirer two-stage, manual dots, manual qubits.
 - The hub links a `virtual_gates/` guide. That folder is not in `architecture/quantum_dots/`. [`virtual_gate_set_example.py`](voltages/virtual_gate_set_example.py) is the hands-on page for virtual layers.
 - [`rabi_chevron_transport.py`](experiments/rabi_chevron_transport.py) is the transport example in the components README. Its docstring and channel setup describe RF reflectometry through `ReadoutResonatorSingle`, and the setup function's return value is named `transport_readout`.
 - `full_workflow_example.py` repeated `macro_defaults_example.py`, `macro_overrides_example.py`, and `pulse_overrides_example.py` in one file. Its only unique step, `machine.set_pulse_family("kaiser")`, moved into `pulse_overrides_example.py`. The file was removed.
