@@ -1,8 +1,11 @@
 """
-VirtualDCSet example (updated)
+VirtualDCSet example
 
-This example shows how to build and use a :class:`~quam_builder.architecture.quantum_dots.components.virtual_dc_set.VirtualDCSet`
-to control DC offsets via a virtualization stack **independent of the OPX**, using external DAC drivers.
+A VoltageGate can combine an external DC source (for example a QDAC) with an OPX
+output so both take part in one experiment. This script shows only the DC half:
+building a :class:`~quam_builder.architecture.quantum_dots.components.virtual_dc_set.VirtualDCSet`,
+resolving virtual voltages onto DAC offsets, and enforcing per-channel limits.
+The OPX half is ``virtual_gate_set_example.py``.
 
 Key ideas:
 - Physical channels are :class:`~quam_builder.architecture.quantum_dots.components.voltage_gate.VoltageGate` objects.
