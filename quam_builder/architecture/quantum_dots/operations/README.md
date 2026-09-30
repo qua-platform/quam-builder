@@ -311,7 +311,14 @@ wire_machine_macros(machine, catalogs=[VoltageBalancedMacroCatalog()])
 - **`empty`** and **`measure`** points store **positive-polarity** targets; negative segments are derived at runtime.
 - Macros start and end at 0 V with zero net ∫V·dt per channel.
 
-Notable classes: `BalancedInitializeMacro`, `BalancedEmptyMacro`, `BalancedMeasurePSBPairMacro`, `BalancedDCz2QMacro`, `TwoStageBalancedInitializeMacro`. Register them with the same `catalogs` and `instance_overrides` arguments as any other macro.
+Notable classes: `BalancedInitializeMacro`, `BalancedHeraldedInitializeMacro`, `BalancedEmptyMacro`, `BalancedMeasurePSBPairMacro`, `BalancedDCz2QMacro`, `TwoStageBalancedInitializeMacro`. Register them with the same `catalogs` and `instance_overrides` arguments as any other macro. Import any of them directly from the package, the same way as [`default_macros`](default_macros/__init__.py):
+
+```python
+from quam_builder.architecture.quantum_dots.operations.voltage_balanced_macros import (
+    BalancedDCz2QMacro,
+    BalancedHeraldedInitializeMacro,
+)
+```
 
 ## Two-qubit macros
 
@@ -378,6 +385,6 @@ This keeps custom defaults out of `quam-builder` itself.
 ## Examples
 
 - [`../examples/macro_defaults_example.py`](../examples/macro_defaults_example.py): default-only wiring and parameterization.
-- [`../examples/macro_overrides_example.py`](../examples/macro_overrides_example.py): catalog and instance overrides.
+- [`../examples/macro_overrides_example.py`](../examples/macro_overrides_example.py): catalog and instance overrides, plus calibrating an override with `update(...)`.
 - [`../examples/pulse_overrides_example.py`](../examples/pulse_overrides_example.py): pulse wiring, anchor edits, and pulse-family switching.
 - [`../examples/external_macro_package_example.py`](../examples/external_macro_package_example.py): external catalog package pattern.

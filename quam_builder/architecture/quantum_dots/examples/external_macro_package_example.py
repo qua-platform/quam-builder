@@ -7,11 +7,13 @@ in a separate package implementing the ``MacroCatalog`` protocol, passed to
 The key idea: keep lab-owned macro logic in a separate package so it
 survives upstream quam-builder pulls.  The package exports a catalog object
 for the ``catalogs`` kwarg of ``wire_machine_macros``.
+
+The script prints the QUA program with ``generate_qua_script``.
 """
 
 from __future__ import annotations
 
-from qm import qua
+from qm import generate_qua_script, qua
 
 from quam_builder.architecture.quantum_dots.examples.external_macro_demo.catalog import (
     LabMacroCatalog,
@@ -58,10 +60,13 @@ def main() -> None:
     # macro ramps this dot, so it needs its own initialize point.
     dot.add_point(VoltagePointName.INITIALIZE, {dot.id: 0.10}, duration=200)
 
-    with qua.program() as _:
+    with qua.program() as program:
         dot.initialize()
 
-    print("Built QUA program successfully with external macro catalog.")
+    print(
+        "\n=== QUA program from the external catalog ===\n"
+        + generate_qua_script(program)
+    )
 
 
 if __name__ == "__main__":
