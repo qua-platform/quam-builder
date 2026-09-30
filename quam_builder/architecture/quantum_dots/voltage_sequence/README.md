@@ -453,7 +453,7 @@ A `VirtualGateSet` translates virtual gate operations into physical gate voltage
 
 ## 6. VirtualGateSet
 
-A `VirtualGateSet` allows users to define and operate with virtual gates, abstracting the underlying physical gate operations.
+A `VirtualGateSet` allows users to define and operate with virtual gates, abstracting the underlying physical gate operations. On the tutorial machine, [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) walks through the compensation layer, cross-talk, the detuning axis, and a QUA step.
 
 **Key Features:**
 
@@ -812,7 +812,7 @@ with program() as prog:
 
 `define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis.
 
-Example: [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py).
+Examples: [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py) for OPX virtual layers, [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) for external DC.
 
 ## 11. Practical timing limits
 
