@@ -774,8 +774,8 @@ All targets are **absolute** sticky levels, not deltas. Enable `track_integrated
 Experiments often tune **inter-dot detuning** ε rather than individual plunger voltages. The package provides a dedicated virtual axis on **`QuantumDotPair`**:
 
 ```python
-# After registering the pair on the machine (see quam_qd_example.py)
-pair = machine.quantum_dot_pairs["dot1_dot2_pair"]
+# After registering the pair on the machine (see manual_dots_example.py)
+pair = machine.quantum_dot_pairs["virtual_dot_1_virtual_dot_2_pair"]
 
 # Matrix shape: 1 row × 2 columns — maps ε onto the two dot virtual gates
 # Example: ε = V_dot1 - V_dot2  →  [[1, -1]]

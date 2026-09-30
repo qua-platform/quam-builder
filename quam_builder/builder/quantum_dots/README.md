@@ -61,7 +61,7 @@ machine = build_quam(
 )
 ```
 
-Runnable versions: [`tutorial_machine.py`](../../architecture/quantum_dots/examples/tutorial_machine.py), [`wiring_example.py`](../../architecture/quantum_dots/examples/connectivity/wiring_example.py) (example 2), [`quam_qd_generator_example.py`](../../architecture/quantum_dots/examples/connectivity/quam_qd_generator_example.py).
+Runnable versions: [`tutorial_machine.py`](../../architecture/quantum_dots/examples/tutorial_machine.py), [`wiring_combined_example.py`](../../architecture/quantum_dots/examples/connectivity/wiring_combined_example.py).
 
 ## Two-stage workflow
 
@@ -75,7 +75,7 @@ from quam_builder.builder.quantum_dots import build_base_quam
 machine = build_base_quam(machine, save=True, path="base_quam_state")
 ```
 
-Connectivity for this stage should omit drive lines (`add_quantum_dots(..., add_drive_lines=False)`). See [`wiring_example.py`](../../architecture/quantum_dots/examples/connectivity/wiring_example.py) example 1.
+Connectivity for this stage should omit drive lines (`add_quantum_dots(..., add_drive_lines=False)`). [`wiring_two_stage_example.py`](../../architecture/quantum_dots/examples/connectivity/wiring_two_stage_example.py) saves that dot machine and loads it before adding drive lines.
 
 **Stage 2** — `LDQubit` mapped to dots (`q1` → `virtual_dot_1` when `implicit_mapping=True`), XY from wiring, qubit pairs, sensor map:
 
@@ -116,7 +116,7 @@ Helpers such as `add_qpu` and `add_dacs` exist for custom orchestration; prefer 
 - Save / load: `machine.save()` / `machine.load()`. Loading a spin root re-runs wiring.
 - Experiments: `q1.initialize(); q1.x180(); q1.measure()` inside `program()`.
 
-Manual assembly without this builder: [`quam_qd_example.py`](../../architecture/quantum_dots/examples/connectivity/quam_qd_example.py), [`quam_ld_example.py`](../../architecture/quantum_dots/examples/connectivity/quam_ld_example.py).
+Manual assembly without this builder: [`manual_dots_example.py`](../../architecture/quantum_dots/examples/connectivity/manual_dots_example.py), then [`manual_qubits_example.py`](../../architecture/quantum_dots/examples/connectivity/manual_qubits_example.py).
 
 ## Import cheat sheet
 
