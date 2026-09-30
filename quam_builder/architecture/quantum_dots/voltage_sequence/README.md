@@ -812,7 +812,7 @@ with program() as prog:
 
 `define_detuning_axis(..., set_dc_virtual_axis=True)` mirrors the detuning layer onto the matching **`VirtualDCSet`** so Python-side DACs track the same virtual axis.
 
-Example: [`virtual_dc_set_example.py`](../examples/virtual_dc_set_example.py).
+Example: [`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py).
 
 ## 11. Practical timing limits
 

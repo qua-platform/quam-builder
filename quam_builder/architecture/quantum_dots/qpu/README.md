@@ -85,7 +85,7 @@ All three concrete drive types inherit **`XYDriveBase`** and are composed on **`
 | **`XYDriveIQ`** | `IQChannel` | **LF-FEM / OPX+ + Octave or external mixer** | `opx_output_I`, `opx_output_Q`, `frequency_converter_up` | `intermediate_frequency` + `LO_frequency` via `upconverter_frequency` |
 | **`XYDriveMW`** | `MWChannel` | **MW-FEM** direct microwave output | single `opx_output` → `mw_outputs` | `intermediate_frequency` + upconverter on port (`upconverter_frequency` from `opx_output`) |
 
-Pick the row that matches your hardware, then open that example: **MW-FEM** — [`rabi_chevron.py`](../examples/rabi_chevron.py) / [`quam_ld_generator_example.py`](../examples/quam_ld_generator_example.py); **IQ/Octave** and **baseband Single** — [`quam_ld_example.py`](../examples/quam_ld_example.py) and the [builder auto-detection](#builder-auto-detection) mermaid below.
+Pick the row that matches your hardware, then open that example: **MW-FEM** — [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py) / [`quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py); **IQ/Octave** and **baseband Single** — [`quam_ld_example.py`](../examples/connectivity/quam_ld_example.py) and the [builder auto-detection](#builder-auto-detection) mermaid below.
 
 **`XYDriveBase`** provides shared helpers (e.g. `calculate_voltage_scaling_factor` for scaling between dBm levels).
 
@@ -105,7 +105,7 @@ Pick the row that matches your hardware, then open that example: **MW-FEM** — 
 
 ### `XYDriveMW`
 
-- For **MW-FEM** setups (examples: [`quam_ld_generator_example.py`](../examples/quam_ld_generator_example.py), [`rabi_chevron.py`](../examples/rabi_chevron.py)).
+- For **MW-FEM** setups (examples: [`quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py), [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py)).
 - Single MW port with on-module upconversion; IF + port upconverter frequency define the emitted tone.
 - Same pulse/macro model as IQ (`axis_angle=0.0`).
 - Power helpers via MW full-scale power ([`power_tools.py`](../../../tools/power_tools.py)).
@@ -116,7 +116,7 @@ XY drive elements and sticky voltage gates are **independent QUA channels**. A c
 
 **Recommended patterns:**
 
-1. **`qua.align(...)`** — before or after combining XY pulses with voltage moves or readout. [`macro_overrides_example.py`](../examples/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
+1. **`qua.align(...)`** — before or after combining XY pulses with voltage moves or readout. [`macro_overrides_example.py`](../examples/macros/macro_overrides_example.py) aligns the two qubit XY channels inside its CZ macro.
 2. **`qubit.idle(duration)`** — waits on both the dot plunger and XY channel in cycles (4 ns units).
 3. **Macro `inferred_duration`** — custom macros that hold non-zero DC during XY or readout should expose `inferred_duration` (seconds) so integrated-voltage tracking stays correct. See [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract).
 
@@ -199,7 +199,7 @@ Spin qubits use the same **macro engine** as the rest of the architecture: `Loss
 ## Builder and examples
 
 - **Builder** — [`quam_builder.builder.quantum_dots`](../../../builder/quantum_dots/) exposes `build_loss_divincenzo_quam` (and staged builders) to materialize a full `LossDiVincenzoQuam` from connectivity specs.
-- **Examples** — [`../examples/quam_ld_example.py`](../examples/quam_ld_example.py), [`../examples/quam_ld_generator_example.py`](../examples/quam_ld_generator_example.py), [`../examples/rabi_chevron.py`](../examples/rabi_chevron.py), [`../examples/rabi_chevron_transport.py`](../examples/rabi_chevron_transport.py).
+- **Examples** — [`../examples/connectivity/quam_ld_example.py`](../examples/connectivity/quam_ld_example.py), [`../examples/connectivity/quam_ld_generator_example.py`](../examples/connectivity/quam_ld_generator_example.py), [`../examples/experiments/rabi_chevron.py`](../examples/experiments/rabi_chevron.py), [`../examples/experiments/rabi_chevron_transport.py`](../examples/experiments/rabi_chevron_transport.py).
 
 ## Tests
 
