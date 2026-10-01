@@ -170,7 +170,10 @@ class VirtualDCSet(QuantumComponent):
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualization matrix defining the transformation.
+            matrix: Map from target gates to source gates. Shape
+                ``(len(source_gates), len(target_gates))``, with
+                ``V_source = M @ V_target``. Rows follow ``source_gates`` and
+                columns follow ``target_gates``.
 
         Raises:
             ValueError: If any of the checks fail.
@@ -275,7 +278,10 @@ class VirtualDCSet(QuantumComponent):
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualization matrix defining the transformation.
+            matrix: Map from target gates to source gates. Shape
+                ``(len(source_gates), len(target_gates))``, with
+                ``V_source = M @ V_target``. Rows follow ``source_gates`` and
+                columns follow ``target_gates``.
 
         Returns:
             The created VirtualizationLayer object.
