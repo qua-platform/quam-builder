@@ -187,8 +187,8 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         check_max_voltage=True,
     )
 
-    # add_layer wants [source_gates x target_gates] (V_source = M * V_target).
-    # update_cross_compensation_submatrix wants the other order, [channels x virtual_names].
+    # [source_gates x target_gates], with V_source = M @ V_target.
+    # update_cross_compensation_submatrix uses this same layout.
     virtual_dc_set.add_layer(
         layer_id="cross_compensation",
         source_gates=["VP1", "VP2", "VP3", "VP4"],

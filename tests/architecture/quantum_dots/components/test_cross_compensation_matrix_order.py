@@ -1,5 +1,6 @@
-"""``update_cross_compensation_submatrix`` writes the compensation matrix, and
-``resolve_voltages`` then returns physical voltages for ``V_virtual = M @ V_physical``.
+"""``update_cross_compensation_submatrix`` writes the compensation matrix in the
+``add_layer`` layout: rows are ``virtual_names``, columns are ``channels``, and
+``resolve_voltages`` returns physical voltages for ``V_virtual = M @ V_physical``.
 """
 
 from __future__ import annotations
@@ -80,8 +81,8 @@ def test_full_cross_compensation_update_resolves_to_physical_voltages():
 def test_partial_cross_compensation_update_resolves_to_physical_voltages():
     """One updated entry changes only that term of V_virtual = M @ V_physical.
 
-    matrix [[0.3]] for channel p1 and virtual vd2 is written at (vd1, vd2), so
-    M = [[1, 0.3], [0, 1]].
+    matrix [[0.3]] for virtual vd2 and channel p1 is written at (vd2, p1), so
+    M = [[1, 0], [0.3, 1]].
     """
     machine, plunger_1, _plunger_2 = _machine()
     machine.update_cross_compensation_submatrix(
@@ -92,44 +93,44 @@ def test_partial_cross_compensation_update_resolves_to_physical_voltages():
     )
     np.testing.assert_allclose(
         _compensation_matrix(machine),
-        [[1.0, 0.3], [0.0, 1.0]],
+        [[1.0, 0.0], [0.3, 1.0]],
     )
 
-    # V_physical = [-0.3, 1] -> V_virtual = [0, 1]
-    moved_p2 = _resolve(machine, {"vd2": 1.0})
-    assert moved_p2["p1"] == pytest.approx(-0.3)
-    assert moved_p2["p2"] == pytest.approx(1.0)
-
-    # V_physical = [0.5, 0] -> V_virtual = [0.5, 0]
-    moved_p1 = _resolve(machine, {"vd1": 0.5})
-    assert moved_p1["p1"] == pytest.approx(0.5)
+    # V_physical = [1, 0] -> V_virtual = [1, 0.3]
+    moved_p1 = _resolve(machine, {"vd1": 1.0, "vd2": 0.3})
+    assert moved_p1["p1"] == pytest.approx(1.0)
     assert moved_p1["p2"] == pytest.approx(0.0)
+
+    # V_physical = [0, 0.5] -> V_virtual = [0, 0.5]
+    moved_p2 = _resolve(machine, {"vd2": 0.5})
+    assert moved_p2["p1"] == pytest.approx(0.0)
+    assert moved_p2["p2"] == pytest.approx(0.5)
 
 
 def test_reordered_submatrix_update_resolves_to_physical_voltages():
-    """Argument order follows channels and virtual_names, not layer order.
+    """Rows follow virtual_names and columns follow channels, not layer order.
 
-    channels=[p2], virtual_names=[vd2, vd1], matrix=[[0.4, 0.7]] writes
-    M = [[1, 0], [0.7, 0.4]].
+    virtual_names=[vd2, vd1], channels=[p2], matrix=[[0.4], [0.7]] writes
+    M[vd2, p2] = 0.4 and M[vd1, p2] = 0.7, so M = [[1, 0.7], [0, 0.4]].
     """
     machine, _plunger_1, plunger_2 = _machine()
     machine.update_cross_compensation_submatrix(
         virtual_names=["vd2", "vd1"],
         channels=[plunger_2],
-        matrix=[[0.4, 0.7]],
+        matrix=[[0.4], [0.7]],
         target="opx",
     )
     np.testing.assert_allclose(
         _compensation_matrix(machine),
-        [[1.0, 0.0], [0.7, 0.4]],
+        [[1.0, 0.7], [0.0, 0.4]],
     )
 
-    # V_physical = [1, 0] -> V_virtual = [1, 0.7]
-    moved_p1 = _resolve(machine, {"vd1": 1.0, "vd2": 0.7})
+    # V_physical = [1, 0] -> V_virtual = [1, 0]
+    moved_p1 = _resolve(machine, {"vd1": 1.0})
     assert moved_p1["p1"] == pytest.approx(1.0)
     assert moved_p1["p2"] == pytest.approx(0.0)
 
-    # V_physical = [0, 1] -> V_virtual = [0, 0.4]
-    moved_p2 = _resolve(machine, {"vd2": 0.4})
+    # V_physical = [0, 1] -> V_virtual = [0.7, 0.4]
+    moved_p2 = _resolve(machine, {"vd1": 0.7, "vd2": 0.4})
     assert moved_p2["p1"] == pytest.approx(0.0)
     assert moved_p2["p2"] == pytest.approx(1.0)

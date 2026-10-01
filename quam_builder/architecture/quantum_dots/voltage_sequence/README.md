@@ -168,6 +168,8 @@ Represents a single linear transformation (matrix) from a set of source (virtual
   )
   ```
 
+- The matrix has one row per `source_gates` entry and one column per `target_gates` entry: `V_source = M @ V_target`. `BaseQuamQD.update_cross_compensation_submatrix` writes a block of the compensation layer in that same layout (rows are `virtual_names`, columns are `channels`). `update_full_cross_compensation` replaces the whole layer matrix in the layer's own gate order.
+
 - `add_layer()` returns the `VirtualizationLayer`. To inspect the coupling heatmap, call `layer.plot_matrix()` (see [§7.9](#79-plotting-the-virtualization-matrix)).
 
 #### 4.  Add `VoltageTuningPoint` macros to the `GateSet` or `VirtualGateSet`

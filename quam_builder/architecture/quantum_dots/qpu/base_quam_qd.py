@@ -88,8 +88,8 @@ class BaseQuamQD(QuamRoot):
         register_barrier_gates: Internally create BarrierGate objects from the output physical channels.
         register_channel_elements: Shortcut to run register_quantum_dots, register_sensor_dots, and register_barrier_gates, i.e. a shortcut to register all the HW channel outputs.
         add_point: Adds a named voltage point to a VirtualGateSet instance held internally.
-        update_cross_compensation_submatrix: Input a list of virtual gates and a list of HW channels, as well as the associated correction submatrix. Internally it edits the VirtualGateSet matrix stored.
-        update_full_cross_compensation: Update the full compensation matrix of the first VirtualGateSet layer.
+        update_cross_compensation_submatrix: Write a block of the compensation matrix. Rows are virtual gates, columns are physical channels, the same layout as ``add_layer``.
+        update_full_cross_compensation: Replace the compensation matrix of the first VirtualGateSet layer, in that same layout.
         step_to_voltage: Steps the associated VoltageSequence to a dict of voltages.
     """
 
@@ -839,19 +839,28 @@ class BaseQuamQD(QuamRoot):
         matrix: Union[List[List[float]], np.ndarray],
         target: Literal["both", "opx", "dc"] = "both",
     ) -> None:
-        """
-        Updates the a sub-space of the cross-compensation matrix based on the virtual_names and the associated channels.
-        Does not have to be a square matrix.
+        """Write a block of the compensation layer.
+
+        The matrix uses the same layout as ``VirtualGateSet.add_layer`` and
+        ``VirtualDCSet.add_layer``: one row per virtual gate and one column per
+        physical channel, with ``V_virtual = M @ V_physical``. Row order is
+        ``virtual_names``. Column order is ``channels``. The block does not
+        have to be square.
 
         Args:
-            virtual_names (List[str]): A list of the virtual gate names in the sub-space you want to edit. Must be in the same VirtualGateSet
-            channels (List[Channel]): The corresponding HW channels that you would like to edit
-            matrix (List | np.ndarray): The matrix elements to edit
+            virtual_names: Virtual gates (matrix rows) in one VirtualGateSet.
+            channels: Physical channels (matrix columns) in that same set.
+            matrix: Block to write, shape ``(len(virtual_names), len(channels))``.
+            target: ``"opx"`` writes the VirtualGateSet, ``"dc"`` writes the
+                VirtualDCSet, ``"both"`` writes both.
         """
-        sub = np.asarray(matrix)
-        if sub.shape != (len(channels), len(virtual_names)):
+        sub = np.asarray(matrix, dtype=float)
+        if sub.shape != (len(virtual_names), len(channels)):
             raise ValueError(
-                f"Sub-matrix shape mismatch: Expected ({len(channels), len(virtual_names)}) but received {sub.shape}"
+                "Sub-matrix shape mismatch: expected "
+                f"({len(virtual_names)}, {len(channels)}) "
+                "[virtual_names x channels], got "
+                f"{tuple(sub.shape)}"
             )
 
         # Use the first element in the channels list to find relevant VirtualGateSet. All virtual names and channels should be in the same VirtualGateSet anyway
@@ -868,17 +877,15 @@ class BaseQuamQD(QuamRoot):
             )
 
         def create_new_matrix(full_matrix):
-            for subspace_j, v in enumerate(virtual_names):
-                # The corresponding index in the full compensation matrix
-                full_matrix_j = source_index[v]
-                for subspace_i, ch in enumerate(channels):
-                    # Get the virtual name associated with the channel
-                    virtual_name = self._get_virtual_name(ch)
-                    # For the first layer, there should be a 1:1 mapping of channel HW to the virtual gate name, so reuse the same indexing method
-                    full_matrix_i = source_index[virtual_name]
-
-                    # Replace the matrix elemeent
-                    full_matrix[full_matrix_i][full_matrix_j] = matrix[subspace_i][subspace_j]
+            # Row = virtual source, column = physical target, as in add_layer.
+            for subspace_i, virtual_name in enumerate(virtual_names):
+                full_matrix_i = source_index[virtual_name]
+                for subspace_j, channel in enumerate(channels):
+                    # Layer 0 pairs each physical channel with one virtual gate, so
+                    # the channel's column is that virtual gate's index.
+                    paired_virtual_name = self._get_virtual_name(channel)
+                    full_matrix_j = source_index[paired_virtual_name]
+                    full_matrix[full_matrix_i][full_matrix_j] = sub[subspace_i, subspace_j]
             return full_matrix
 
         if target == "opx" or target == "both":
@@ -896,11 +903,19 @@ class BaseQuamQD(QuamRoot):
         virtual_gate_set_name: str = None,
         target: Literal["both", "opx", "dc"] = "both",
     ) -> None:
-        """
-        If an already-calculated full cross-compensation matrix exists, use this method to add.
+        """Replace the compensation layer matrix.
+
+        ``compensation_matrix`` uses the ``add_layer`` layout: one row per
+        source gate and one column per target gate, with
+        ``V_source = M @ V_target``. On the compensation layer that is one
+        row per virtual gate and one column per physical channel, in the
+        layer's own gate order.
+
         Args:
-            compensation_matrix (List[List[float]]): A full cross-compensation matrix to overwrite the existing matrix in the first VirtualGateSet layer
-            virtual_gate_set_name (str): The name of the VirtualGateSet in self.virtual_gate_sets.
+            compensation_matrix: Full matrix written onto layer 0.
+            virtual_gate_set_name: VirtualGateSet to edit. The first one is
+                used when this is omitted.
+            target: ``"opx"``, ``"dc"``, or ``"both"``.
         """
 
         if (
