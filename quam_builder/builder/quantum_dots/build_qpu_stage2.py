@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union, cast
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, ExchangeOnlyQuam
 
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.builder.quantum_dots.build_utils import (
@@ -24,7 +24,7 @@ from quam_builder.builder.quantum_dots.build_utils import (
     _validate_drive_ports,
 )
 
-__all__ = ["_LDQubitBuilder"]
+__all__ = ["_LDQubitBuilder", "_EOQubitBuilder"]
 
 logger = logging.getLogger(__name__)
 
@@ -467,3 +467,279 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             qt = qp.qubit_target
             qc.preferred_readout_quantum_dot = qt.quantum_dot.id
             qt.preferred_readout_quantum_dot = qc.quantum_dot.id
+
+
+class _EOQubitBuilder: 
+    """Stage 2: Builds qubits from existing quantum dots.
+
+    This builder converts BaseQuamQD to ExchangeOnlyQuam and creates:
+    - ExchangeOnlyQubits (mapped to quantum dots)
+    - Qubit pairs
+
+    Requires:
+    - BaseQuamQD with quantum_dots already registered
+    """
+
+    def __init__(
+        self,
+        machine: Union[BaseQuamQD, LossDiVincenzoQuam, str, Path],
+        xy_drive_wiring: Optional[Dict[str, Dict]] = None,
+        qubit_sensor_map: Optional[Dict[str, List[str]]] = None,
+        implicit_mapping: bool = True,
+        target_quam_class: type[ExchangeOnlyQuam] = ExchangeOnlyQuam,
+    ):
+        """Initialize Stage 2 builder.
+
+        Args:
+            machine: BaseQuamQD, LossDiVincenzoQuam, or path to saved state.
+            qubit_sensor_map: Sensor mapping for qubits.
+                                  Format: {"q1": ["sensor_1"], ...}
+            implicit_mapping: If True, uses q1→virtual_dot_1 mapping.
+            target_quam_class: Root class to use after Stage 2 promotion.
+        """
+        if not issubclass(target_quam_class, ExchangeOnlyQuam):
+            raise TypeError(
+                "target_quam_class must be a ExchangeOnlyQuam subclass, "
+                f"got {target_quam_class!r}."
+            )
+
+        # Load machine if path provided
+        if isinstance(machine, (str, Path)):
+            machine = BaseQuamQD.load(machine)
+
+        self.machine = machine
+        self.xy_drive_wiring = xy_drive_wiring
+        self.qubit_sensor_map = qubit_sensor_map or {}
+        self.implicit_mapping = implicit_mapping
+        self.target_quam_class = target_quam_class
+
+    def build(self) -> ExchangeOnlyQuam:
+        """Execute Stage 2 build process.
+
+        Steps:
+        1. Convert BaseQuamQD → ExchangeOnlyQuam if needed
+        2. Validate quantum dots & quantum dot pairs exist
+        3. Register qubits (with implicit mapping, the ExchangeAxis assignments can be swapped when Quam is populated.)
+        4. Register qubit pairs
+
+        Returns:
+            ExchangeOnlyQuam with qubits registered.
+        """
+        # Convert machine class if BaseQuamQD
+        if isinstance(self.machine, BaseQuamQD) and not isinstance(
+            self.machine, ExchangeOnlyQuam
+        ):
+            self.machine.__class__ = self.target_quam_class
+            # Initialize LDQuam-specific fields
+            if not hasattr(self.machine, "qubits"):
+                self.machine.qubits = {}
+            if not hasattr(self.machine, "qubit_pairs"):
+                self.machine.qubit_pairs = {}
+            if not hasattr(self.machine, "active_qubit_names"):
+                self.machine.active_qubit_names = []
+            if not hasattr(self.machine, "active_qubit_pair_names"):
+                self.machine.active_qubit_pair_names = []
+
+        # Validate quantum dots exist
+        if not self.machine.quantum_dots:
+            raise ValueError(
+                "No quantum dots found in machine. "
+                "Please run Stage 1 (build_base_quam) first."
+            )
+
+        if not self.machine.quantum_dot_pairs: 
+            raise ValueError(
+                "No quantum dot pairs found in machine. "
+                "Please run Stage 1 (build_base_quam) first."
+            )
+
+        # Register qubits and qubit pairs
+        self._register_qubits()
+        self._register_qubit_pairs()
+        self._wire_sensor_dots_to_pairs()
+
+        # Type cast: machine is guaranteed to be LossDiVincenzoQuam at this point
+        return cast(ExchangeOnlyQuam, self.machine)
+
+    def _map_qubit_to_dot_pairs(self, qubit_id: str) -> str:
+        """Map qubit ID to quantum dot ID using implicit or explicit mapping.
+
+        Args:
+            qubit_id: Qubit identifier (e.g., 'q1', 'Q2').
+
+        Returns:
+            Quantum dot virtual name (e.g., 'virtual_dot_1').
+
+        Raises:
+            ValueError: If quantum dot not found.
+        """
+        if self.implicit_mapping:
+            quantum_dot_id = _implicit_qubit_to_dot_mapping(qubit_id)
+        else:
+            # TODO: Add support for explicit mapping from config
+            raise NotImplementedError("Explicit mapping not yet implemented")
+
+        # Validate quantum dot exists
+        if quantum_dot_id not in self.machine.quantum_dots:
+            raise ValueError(
+                f"Quantum dot '{quantum_dot_id}' not found for qubit '{qubit_id}'. "
+                f"Available quantum dots: {list(self.machine.quantum_dots.keys())}"
+            )
+
+        return quantum_dot_id
+
+    def _traverse_port_reference(self, ref: str):
+        """Manually resolve a port reference like ``#/ports/mw_outputs/con1/4/1``."""
+        parts = ref.lstrip("#/").split("/")
+        obj = self.machine
+        for part in parts:
+            if isinstance(obj, Mapping):
+                if part in obj:
+                    obj = obj[part]
+                elif part.isdigit() and int(part) in obj:
+                    obj = obj[int(part)]
+                else:
+                    return None
+            elif hasattr(obj, part):
+                obj = getattr(obj, part)
+            else:
+                return None
+        return obj
+
+    def _register_qubits(self):
+        """Register qubits with the machine using implicit mapping."""
+        # Get qubit IDs from wiring or XY drive wiring
+        qubit_ids = set()
+
+        if hasattr(self.machine, "wiring") and self.machine.wiring:
+            qubit_ids.update(self.machine.wiring.get("qubits", {}).keys())
+
+        # If no qubit IDs found, infer from quantum dots
+        if not qubit_ids:
+            logger.info(
+                "No qubit IDs found in wiring. Inferring from quantum dot names."
+            )
+            # Extract numbers from virtual_dot_N to create qN
+            for dot_id in self.machine.quantum_dots.keys():
+                try:
+                    number = _extract_qubit_number(dot_id)
+                    qubit_ids.add(f"q{number}")
+                except ValueError:
+                    logger.warning(
+                        f"Could not infer qubit ID from quantum dot: {dot_id}"
+                    )
+
+        # Register each qubit
+        for qubit_id in sorted(qubit_ids, key=_natural_sort_key):
+            # Map to quantum dot
+            quantum_dot_id = self._map_qubit_to_dot(qubit_id)
+
+            # Create XY
+            xy = self._create_xy(qubit_id)
+
+            # Register qubit
+            qubit_name = qubit_id
+            self.machine.register_qubit(
+                qubit_name=qubit_name,
+                quantum_dot_id=quantum_dot_id,
+                xy=xy,
+                readout_quantum_dot=None,  # TODO: Add readout dot support
+            )
+
+            if xy is not None:
+                self._set_initial_larmor_frequency(qubit_name, qubit_id)
+
+            logger.info(
+                f"Registered qubit {qubit_name} → quantum_dot {quantum_dot_id} "
+                f"(XY drive: {xy is not None})"
+            )
+
+    def _register_qubit_pairs(self):
+        """Register qubit pairs using quantum dot pairs."""
+        # Get qubit pair IDs from wiring
+        qubit_pair_ids = []
+        if hasattr(self.machine, "wiring") and self.machine.wiring:
+            qubit_pair_ids = list(self.machine.wiring.get("qubit_pairs", {}).keys())
+
+        # If no qubit pair IDs in wiring, infer from quantum dot pairs
+        if not qubit_pair_ids:
+            logger.info(
+                "No qubit pair IDs found in wiring. Inferring from quantum dot pairs."
+            )
+            for dot_pair_id in self.machine.quantum_dot_pairs.keys():
+                # Parse quantum dot pair ID to get qubit numbers
+                # e.g., "virtual_dot_1_virtual_dot_2_pair" → "q1_q2"
+                try:
+                    # Extract numbers from quantum dot pair
+                    parts = dot_pair_id.replace("_pair", "").split("_")
+                    numbers = [p for p in parts if p.isdigit()]
+                    if len(numbers) >= 2:
+                        qubit_pair_ids.append(f"q{numbers[0]}_q{numbers[1]}")
+                except Exception as e:
+                    logger.warning(
+                        f"Could not infer qubit pair ID from quantum dot pair: {dot_pair_id}"
+                    )
+
+        # Register each qubit pair
+        for pair_id in qubit_pair_ids:
+            try:
+                # Parse pair ID
+                control_id, target_id = _parse_qubit_pair_ids(pair_id)
+
+                # Validate both qubits exist
+                if control_id not in self.machine.qubits:
+                    logger.warning(
+                        f"Skipping qubit pair {pair_id}: control qubit {control_id} not registered"
+                    )
+                    continue
+
+                if target_id not in self.machine.qubits:
+                    logger.warning(
+                        f"Skipping qubit pair {pair_id}: target qubit {target_id} not registered"
+                    )
+                    continue
+
+                # Register qubit pair
+                qubit_pair_name = f"{control_id}_{target_id}"
+                self.machine.register_qubit_pair(
+                    id=qubit_pair_name,
+                    qubit_control_name=control_id,
+                    qubit_target_name=target_id,
+                )
+
+                logger.info(
+                    f"Registered qubit pair {qubit_pair_name} "
+                    f"(control={control_id}, target={target_id})"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to register qubit pair {pair_id}: {e}")
+                continue
+
+    def _wire_sensor_dots_to_pairs(self) -> None:
+        """Populate quantum_dot_pair.sensor_dots from qubit_sensor_map.
+
+        Also initialises placeholder readout discrimination parameters
+        (threshold=0, identity projector) on each sensor dot for each
+        pair it is wired to, so the PSB measurement chain is compilable
+        before calibration.
+        """
+        for qubit_id, sensor_names in self.qubit_sensor_map.items():
+            q = self.machine.qubits.get(qubit_id)
+            if q is None:
+                continue
+            qdps = [q.jn_pair, q.jz_pair]
+            for qdp in qdps: 
+                for sname in sensor_names:
+                    for sid in self.machine.sensor_dots:
+                        if sid == sname or sid.endswith(f"_{sname.split('_')[-1]}"):
+                            ref = f"#/sensor_dots/{sid}"
+                            if ref not in qdp.sensor_dots:
+                                qdp.sensor_dots.append(ref)
+                            sd = self.machine.sensor_dots[sid]
+                            if qdp.id not in sd.readout_thresholds:
+                                sd._add_readout_params(
+                                    qdp.id,
+                                    threshold=0.0,
+                                    projector={"wI": 1.0, "wQ": 0.0, "offset": 0.0},
+                                )

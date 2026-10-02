@@ -346,6 +346,18 @@ def _wire_octave_iq_channels(machine: LossDiVincenzoQuam) -> None:
         if xy_ref is not None:
             converter.channel = xy_ref
 
+def build_exchange_only_quam(
+    machine: Union[BaseQuamQD, LossDiVincenzoQuam, str, Path],
+    xy_drive_wiring: Optional[dict] = None,
+    qubit_pair_sensor_map: Optional[dict] = None,
+    implicit_mapping: bool = True,
+    target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
+    catalogs: Optional[Sequence[MacroCatalog]] = None,
+    instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
+    save: bool = True,
+    path: Optional[Union[Path, str]] = None,
+): 
+    pass
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def build_quam(
