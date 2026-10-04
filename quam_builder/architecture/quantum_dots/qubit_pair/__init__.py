@@ -6,7 +6,7 @@ from .exchange_only_qubit_pair import *
 
 __all__ = [
     *ld_qubit_pair.__all__,
-    *ExchangeOnlyQubitPair.__all__,
+    *exchange_only_qubit_pair.__all__,
 ]
 
 AnySpinQubitPair = Union[LDQubitPair, ExchangeOnlyQubitPair]

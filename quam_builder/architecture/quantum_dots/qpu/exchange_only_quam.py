@@ -21,14 +21,14 @@ class ExchangeOnlyQuam(BaseSpinQubitQuam):
     def register_qubit(
         self,
         qubit_name: str,
-        Jn_pair: str,
-        Jz_pair: str,
+        jn_pair: str,
+        jz_pair: str,
     ) -> None:
         """
         Instantiates a Loss-DiVincenzo qubit based on the associated quantum dot.
         """
-        jn_pair = self.quantum_dot_pairs[Jn_pair]
-        jz_pair = self.quantum_dot_pairs[Jz_pair]
+        jn_pair = self.quantum_dot_pairs[jn_pair].get_reference()
+        jz_pair = self.quantum_dot_pairs[jz_pair].get_reference()
 
         qubit = ExchangeOnlyQubit(
             id=qubit_name,

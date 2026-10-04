@@ -20,6 +20,7 @@ from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.builder.quantum_dots.build_utils import (
     _extract_qubit_number,
     _normalize_element_type,
+    adjust_wiring_for_spin_type,
 )
 from quam_builder.builder.qop_connectivity.qdac_wiring import (
     extract_qdac_output_port,
@@ -34,9 +35,9 @@ from quam_builder.builder.quantum_dots.build_qpu import (
     _set_default_grid_location,
 )
 from quam_builder.builder.quantum_dots.build_qpu_stage1 import _BaseQpuBuilder
-from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder
+from quam_builder.builder.quantum_dots.build_qpu_stage2 import _LDQubitBuilder, _EOQubitBuilder
 from quam_builder.architecture.quantum_dots.components import QPU
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, AnyQuamQD
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, ExchangeOnlyQuam, AnyQuamQD
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.macro_catalog import (
     MacroCatalog,
@@ -112,30 +113,33 @@ def _dac_mapping_from_wiring(machine: BaseQuamQD) -> dict[str, dict[str, Any]]:
             if entry:
                 result[sensor_gate_id] = entry
 
-    for qubit_id, wiring_by_line_type in normalized.get("qubits", {}).items():
-        for line_type, ports in wiring_by_line_type.items():
-            if line_type != WiringLineType.PLUNGER_GATE.value:
-                continue
-            plain = _to_plain_mapping(ports)
-            if not isinstance(plain, dict):
-                continue
-            entry = _dac_entry_from_wiring_plain(plain)
-            if entry:
-                result[f"plunger_{_extract_qubit_number(qubit_id)}"] = entry
+    for section in ("qubits", "quantum_dots"):
+        for qubit_id, wiring_by_line_type in normalized.get(section, {}).items():
+            for line_type, ports in wiring_by_line_type.items():
+                if line_type != WiringLineType.PLUNGER_GATE.value:
+                    continue
+                plain = _to_plain_mapping(ports)
+                if not isinstance(plain, dict):
+                    continue
+                entry = _dac_entry_from_wiring_plain(plain)
+                if entry:
+                    result[f"plunger_{_extract_qubit_number(qubit_id)}"] = entry
 
     # 1 to match assembly.barrier_counter in QPUAssembly under quam_builder/builder/quantum_dots/build_qpu.py
+    # qubit_pairs is walked first so a Loss-DiVincenzo machine keeps the same ids.
     barrier_counter = 1
-    for _pair_id, wiring_by_line_type in normalized.get("qubit_pairs", {}).items():
-        for line_type, ports in wiring_by_line_type.items():
-            if line_type != WiringLineType.BARRIER_GATE.value:
-                continue
-            plain = _to_plain_mapping(ports)
-            if not isinstance(plain, dict):
-                continue
-            entry = _dac_entry_from_wiring_plain(plain)
-            if entry:
-                result[f"barrier_{barrier_counter}"] = entry
-            barrier_counter += 1
+    for section in ("qubit_pairs", "quantum_dot_pairs"):
+        for _pair_id, wiring_by_line_type in normalized.get(section, {}).items():
+            for line_type, ports in wiring_by_line_type.items():
+                if line_type != WiringLineType.BARRIER_GATE.value:
+                    continue
+                plain = _to_plain_mapping(ports)
+                if not isinstance(plain, dict):
+                    continue
+                entry = _dac_entry_from_wiring_plain(plain)
+                if entry:
+                    result[f"barrier_{barrier_counter}"] = entry
+                barrier_counter += 1
 
     return result
 
@@ -225,6 +229,7 @@ __all__ = [
     "build_quam",
     "build_base_quam",
     "build_loss_divincenzo_quam",
+    "build_exchange_only_quam",
     "add_octaves",
     "add_external_mixers",
     "add_ports",
@@ -284,7 +289,7 @@ def build_loss_divincenzo_quam(
         >>> # Assuming base_machine is a BaseQuamQD from Stage 1 with wiring
         >>> ld_machine = build_loss_divincenzo_quam(base_machine)
         >>> # XY drives are automatically extracted from base_machine.wiring
-        >>> print(ld_machine.quantum_dots.keys())  # ['q1', 'q2', ...]
+        >>> print(ld_machine.qubits.keys())  # ['q1', 'q2', ...]
 
     Example (from file with manual XY drives):
         >>> # Load Stage 1 result from file (may not have wiring)
@@ -348,29 +353,93 @@ def _wire_octave_iq_channels(machine: LossDiVincenzoQuam) -> None:
 
 def build_exchange_only_quam(
     machine: Union[BaseQuamQD, LossDiVincenzoQuam, str, Path],
-    xy_drive_wiring: Optional[dict] = None,
-    qubit_pair_sensor_map: Optional[dict] = None,
+    qubits_sensor_map: Optional[dict] = None,
     implicit_mapping: bool = True,
-    target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
+    target_quam_class: type[ExchangeOnlyQuam] = ExchangeOnlyQuam,
     catalogs: Optional[Sequence[MacroCatalog]] = None,
     instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
     save: bool = True,
     path: Optional[Union[Path, str]] = None,
-): 
-    pass
+) -> ExchangeOnlyQuam: 
+    """Build Stage 2: Convert BaseQuamQD to ExchangeOnlyQuam with qubits.
+
+    This is INDEPENDENT of Stage 1 and works with any BaseQuamQD (file or memory).
+
+    Creates:
+    - EOQubits (mapped to QuantumDotPairs with implicit mapping)
+    - Qubit pairs
+    - Default pulses
+
+    Args:
+        machine: BaseQuamQD, ExchangeOnlyQuam, or path to saved BaseQuamQD state.
+        qubits_sensor_map: Sensor mapping for qubit pairs.
+                              Format: {"q1": ["sensor_1", "sensor_2"], ...}
+        implicit_mapping: If True, uses an implicit mapping method. This method maps qubits 
+                                to QuantumDotPairs that have one shared QuantumDot. 
+        target_quam_class: Root class to use after Stage 2 promotion.
+            Defaults to ``ExchangeOnlyQuam``.
+        catalogs: Optional list of ``MacroCatalog`` instances (e.g. lab packages).
+        instance_overrides: Per-component-path overrides keyed by path string.
+        save: If True, saves the machine state after building.
+        path: Optional directory or ``state_old.json`` file path passed to
+            :meth:`~quam.core.quam_classes.QuamRoot.save`. If ``None``, uses QUAM
+            default state path (env / config). Ignored when ``save`` is False.
+
+    Returns:
+        ExchangeOnlyQuam with qubits registered.
+
+    Example (from memory):
+        >>> from quam_builder.builder.quantum_dots import build_loss_divincenzo_quam
+        >>> # Assuming base_machine is a BaseQuamQD from Stage 1 with wiring
+        >>> eo_machine = build_exchange_only_quam(base_machine)
+        >>> # XY drives are automatically extracted from base_machine.wiring
+        >>> print(eo_machine.qubits.keys())  # ['q1', 'q2', ...]
+
+    Note:
+        This function implements Stage 2 only and requires quantum dots and quantum dot pairs
+        to be already registered. If starting from scratch, first call build_base_quam().
+    """
+    
+    add_ports(machine)
+
+    # Build Stage 2: Qubits from quantum dots
+    builder = _EOQubitBuilder(
+        machine,
+        qubits_sensor_map=qubits_sensor_map,
+        implicit_mapping=implicit_mapping,
+        target_quam_class=target_quam_class,
+    )
+    machine = builder.build()
+    if getattr(machine, "qpu", None) is None:
+        machine.qpu = QPU()
+
+    wire_machine_macros(
+        machine,
+        catalogs=catalogs,
+        instance_overrides=instance_overrides,
+        fill_only=False,
+    )
+    _wire_octave_iq_channels(machine)
+
+    if save:
+        machine.save(path)
+
+    return machine
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def build_quam(
-    machine: Union[BaseQuamQD, LossDiVincenzoQuam],
+    machine: AnyQuamQD,
+    return_qd_layer_only: bool = False, 
     calibration_db_path: Optional[Union[Path, str]] = None,
+    qubits_sensor_map: Optional[dict] = None,
     qubit_pair_sensor_map: Optional[dict] = None,
     connect_qdac: bool = False,
-    target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
+    target_quam_class: type[Union[LossDiVincenzoQuam, ExchangeOnlyQuam]] = LossDiVincenzoQuam, # Default to LossDiVincenzo
     catalogs: Optional[Sequence[MacroCatalog]] = None,
     instance_overrides: Optional[dict[str, MacroFactoryMap]] = None,
     save: bool = True,
     path: Optional[Union[Path, str]] = None,
-) -> LossDiVincenzoQuam:  # pylint: disable=too-many-arguments,too-many-positional-arguments
+) -> AnyQuamQD:  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Build complete QuAM configuration using two-stage process.
 
     This is a convenience wrapper that executes both stages:
@@ -412,6 +481,10 @@ def build_quam(
         >>> # Stage 2: Add qubits (can be done later)
         >>> machine = build_loss_divincenzo_quam("base_quam_state")
     """
+    if target_quam_class is LossDiVincenzoQuam: 
+        adjust_wiring_for_spin_type(machine, "loss_divincenzo")
+    if target_quam_class is ExchangeOnlyQuam: 
+        adjust_wiring_for_spin_type(machine, "exchange_only")
     # Stage 1: Build BaseQuamQD
     if isinstance(machine, BaseQuamQD) and not hasattr(machine, "qubits"):
         machine = build_base_quam(
@@ -423,17 +496,33 @@ def build_quam(
             save=save,
             path=path,
         )
+        if return_qd_layer_only: 
+            return machine
 
-    # Stage 2: Convert to LossDiVincenzoQuam
-    machine = build_loss_divincenzo_quam(
-        machine,
-        qubit_pair_sensor_map=qubit_pair_sensor_map,
-        target_quam_class=target_quam_class,
-        catalogs=catalogs,
-        instance_overrides=instance_overrides,
-        save=save,
-        path=path,
-    )
+    if target_quam_class is LossDiVincenzoQuam: 
+        # Stage 2: Convert to LossDiVincenzoQuam
+        # qubit_pair_sensor_map is deprecated. Convert to qubits_sensor_map
+        machine = build_loss_divincenzo_quam(
+            machine,
+            qubit_pair_sensor_map=qubit_pair_sensor_map,
+            target_quam_class=target_quam_class,
+            catalogs=catalogs,
+            instance_overrides=instance_overrides,
+            save=save,
+            path=path,
+        )
+
+    if target_quam_class is ExchangeOnlyQuam: 
+        # Stage 2: Convert to ExchangeOnlyQuam
+        machine = build_exchange_only_quam(
+            machine, 
+            qubits_sensor_map = qubits_sensor_map, 
+            target_quam_class=target_quam_class, 
+            catalogs=catalogs, 
+            instance_overrides = instance_overrides, 
+            save = save, 
+            path = path
+        )
 
     return machine
 

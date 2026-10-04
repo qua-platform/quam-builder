@@ -18,10 +18,12 @@ from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
 )
 
+__all__ = ["BaseSpinQubitQuam"]
+
 @quam_dataclass 
 class BaseSpinQubitQuam(BaseQuamQD, ABC): 
     """
-    Base class for a spin qubit-based Quam. 
+    Abstract base class for a spin qubit-based Quam. 
 
     Attributes: 
         qubits (Dict[str, AnySpinQubit]) : A dictionary containing any spin qubit type. 

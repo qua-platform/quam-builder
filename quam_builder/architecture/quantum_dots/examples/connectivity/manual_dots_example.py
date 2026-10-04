@@ -25,7 +25,7 @@ from quam_builder.architecture.quantum_dots.components import (
     VoltageGate,
 )
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
-from quam_builder.architecture.quantum_dots.examples.connectivity.wiring_combined_example import (
+from quam_builder.architecture.quantum_dots.examples.connectivity.wiring_combined_LD_example import (
     READOUT_AMPLITUDE_V,
     READOUT_DURATION_NS,
     SENSOR_RESONATOR_FREQUENCIES_HZ,
