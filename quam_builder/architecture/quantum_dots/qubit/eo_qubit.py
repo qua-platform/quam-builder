@@ -1,4 +1,5 @@
 from typing import List, Dict, Union, Any, TYPE_CHECKING
+import numpy as np
 from dataclasses import field
 
 from quam.components import Qubit
@@ -55,12 +56,54 @@ class ExchangeOnlyQubit(VoltageMacroMixin, Qubit):
 
     def swap_axis_assignment(self) -> None: 
         """A convenience method to swap the axis assignments of the ExchangeOnlyQubit's ExchangeAxis."""
-        self.jn_pair = self.jz_pair.get_reference()
-        self.jz_pair = self.jn_pair.get_reference()
+        jn_ref = self.jn_pair.get_reference()
+        jz_ref = self.jz_pair.get_reference()
+
+        self.jn_pair = jz_ref
+        self.jz_pair = jn_ref
+    
+    @property
+    def x_axis_name(self): 
+        return f"{self.name}_x_axis"
+
+    @property
+    def z_axis_name(self): 
+        return f"{self.name}_z_axis"
+
+    def define_qubit_control_axes(
+        self, 
+        matrix: List[List[float]] | None = None
+    ) -> None: 
+
+        gate_set = self.voltage_sequence.gate_set
+
+        # Validate that the exchange axes actually exists in layer 1
+        layer_1_sources = gate_set.layers[1].source_gates
+        if self.jn_pair.exchange_axis_name not in layer_1_sources or self.jz_pair.exchange_axis_name not in layer_1_sources: 
+            raise ValueError(f"Exchange axes {self.jn_pair.exchange_axis_name} and {self.jz_pair.exchange_axis_name} undefined. Please construct them first.")
+
+        source_gates = [self.x_axis_name, self.z_axis_name]
+        target_gates = [self.jn_pair.exchange_axis_name, self.jz_pair.exchange_axis_name]
+
+        if matrix is None: 
+            matrix = [[np.sqrt(3)/2, 0], [- 0.5, 1]]
+
+        if len(matrix) != 2: 
+            raise ValueError(f"X and Z qubit control axes matrix does not satisfy len(matrix) == 2. len(matrix) == {len(matrix)}")
+        
+        if len(matrix[0]) != 2 or len(matrix[1]) != 2: 
+            raise ValueError(f"X and Z qubit control axes matrix is not 2x2.")
+        
+        gate_set.add_to_layer(
+            layer_id = "qubit_control_layer", 
+            source_gates = source_gates, 
+            target_gates = target_gates, 
+            matrix = matrix
+        )
 
     @property
     def machine(self) -> "BaseQuamQD":
-        return self.quantum_dot_pairs[0].machine
+        return self.jn_pair.machine
 
     @property
     def xy(self) -> None: 
@@ -69,12 +112,14 @@ class ExchangeOnlyQubit(VoltageMacroMixin, Qubit):
 
     @property
     def voltage_sequence(self):
-        return self.quantum_dot_pairs[0].voltage_sequence
+        return self.jn_pair.voltage_sequence
 
     @property
-    def quantum_dots(self) -> List: 
-        """Extract a list of the 3 QuantumDot objects that are associated with the ExchangeOnlyQubit."""
-        return list({pair.quantum_dots for pair in [self.jn_pair, self.jz_pair]})
+    def quantum_dots(self) -> List:
+        return list(
+            set(self.jn_pair.quantum_dots)
+            | set(self.jz_pair.quantum_dots)
+        )
 
     @property
     def thermalization_time(self):
