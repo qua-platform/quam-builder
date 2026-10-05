@@ -93,7 +93,7 @@ def _make_offset_parameters(use_qdac: bool):
     from qcodes import Instrument
     from qcodes_contrib_drivers.drivers.QDevil.QDAC2 import QDac2
 
-    qdac_ip = os.environ.get("QDAC_IP", "172.16.33.111")
+    qdac_ip = os.environ.get("QDAC_IP", "127.0.0.1")
     qdac_name = os.environ.get("QDAC_NAME", "QDAC")
 
     try:
