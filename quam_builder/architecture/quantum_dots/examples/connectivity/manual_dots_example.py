@@ -37,8 +37,8 @@ EXAMPLES_DIR = Path(__file__).resolve().parents[1]
 STATE_PATH = EXAMPLES_DIR / "quam_state" / "manual_dots"
 
 CON = "con1"
-LF_FEM_GATES = 2  # plungers, barriers, sensor gates
-LF_FEM_RESONATORS = 3
+LF_FEM_GATES = [2, 3]  # plungers, barriers, sensor gates
+LF_FEM_RESONATORS = 4
 QDAC_NAME = "qdac1"
 
 
@@ -49,6 +49,11 @@ def make_gate(gate_id: str, port: int, *, trigger_in: int | None = None) -> Volt
     QDAC output 1-8) are exactly what ``wiring_combined_example.py`` allocates
     for the same elements, so this script produces the same machine.
     """
+    if port > 8: 
+        lf_fem_id = LF_FEM_GATES[1] 
+        port = port - 8
+    else:
+        lf_fem_id = LF_FEM_GATES[0]
     dac_spec = QdacSpec(dac_name=QDAC_NAME, output_port=port)
     if trigger_in is not None:
         # A digital marker on the same LF-FEM port triggers the QDAC to step
@@ -59,14 +64,14 @@ def make_gate(gate_id: str, port: int, *, trigger_in: int | None = None) -> Volt
             id=f"{gate_id}_qdac_trigger",
             digital_outputs={
                 "trigger": DigitalOutputChannel(
-                    opx_output=(CON, LF_FEM_GATES, port), delay=0, buffer=0
+                    opx_output=(CON, lf_fem_id, port), delay=0, buffer=0
                 )
             },
             operations={"trigger": pulses.Pulse(length=100, digital_marker="ON")},
         )
     return VoltageGate(
         id=gate_id,
-        opx_output=LFFEMAnalogOutputPort(CON, LF_FEM_GATES, port_id=port),
+        opx_output=LFFEMAnalogOutputPort(CON, lf_fem_id, port_id=port),
         sticky=StickyChannelAddon(duration=16, digital=False),
         dac_spec=dac_spec,
     )
@@ -74,9 +79,9 @@ def make_gate(gate_id: str, port: int, *, trigger_in: int | None = None) -> Volt
 
 def build_physical_channels() -> dict:
     """Step 1: one VoltageGate per plunger, barrier, and sensor gate."""
-    plungers = [make_gate(f"plunger_{i}", i, trigger_in=i if i <= 2 else None) for i in range(1, 5)]
-    barriers = [make_gate(f"barrier_{i}", 4 + i) for i in range(1, 3)]
-    sensors = [make_gate(f"sensor_{i}", 6 + i) for i in range(1, 3)]
+    plungers = [make_gate(f"plunger_{i}", i, trigger_in=i if i <= 2 else None) for i in range(1, 7)]
+    barriers = [make_gate(f"barrier_{i}", 6 + i) for i in range(1, 6)]
+    sensors = [make_gate(f"sensor_{i}", 11 + i) for i in range(1, 3)]
     return {"plungers": plungers, "barriers": barriers, "sensors": sensors}
 
 
@@ -120,8 +125,13 @@ def register_gate_set_and_elements(
             "virtual_dot_2": plungers[1],
             "virtual_dot_3": plungers[2],
             "virtual_dot_4": plungers[3],
+            "virtual_dot_5": plungers[4],
+            "virtual_dot_6": plungers[5],
             "virtual_barrier_1": barriers[0],
             "virtual_barrier_2": barriers[1],
+            "virtual_barrier_3": barriers[2],
+            "virtual_barrier_4": barriers[3],
+            "virtual_barrier_5": barriers[4],
             "virtual_sensor_1": sensors[0],
             "virtual_sensor_2": sensors[1],
         },
@@ -141,18 +151,20 @@ def register_quantum_dot_pairs(machine: BaseQuamQD) -> None:
     register_quantum_dot_pair() also defines the pair's detuning axis
     (epsilon = dot_a - dot_b) by default -- no separate call needed.
     """
-    machine.register_quantum_dot_pair(
-        id="virtual_dot_1_virtual_dot_2_pair",
-        quantum_dot_ids=["virtual_dot_1", "virtual_dot_2"],
-        sensor_dot_ids=["virtual_sensor_1"],
-        barrier_gate_id="virtual_barrier_1",
-    )
-    machine.register_quantum_dot_pair(
-        id="virtual_dot_3_virtual_dot_4_pair",
-        quantum_dot_ids=["virtual_dot_3", "virtual_dot_4"],
-        sensor_dot_ids=["virtual_sensor_2"],
-        barrier_gate_id="virtual_barrier_2",
-    )
+    quantum_dot_pairs = [
+        (1, 2), 
+        (2, 3), 
+        (3, 4), 
+        (4, 5), 
+        (5, 6), 
+    ]
+    for qdp in quantum_dot_pairs: 
+        machine.register_quantum_dot_pair(
+            id=f"virtual_dot_{qdp[0]}_virtual_dot_{qdp[1]}_pair",
+            quantum_dot_ids=[f"virtual_dot_{qdp[0]}", f"virtual_dot_{qdp[1]}"],
+            sensor_dot_ids = [f"virtual_sensor_{1 if qdp[0] > 3 else 2}"], 
+            barrier_gate_id = f"virtual_barrier_{qdp[0]}"
+        )
 
 
 def set_qdac_config(machine: BaseQuamQD) -> None:
