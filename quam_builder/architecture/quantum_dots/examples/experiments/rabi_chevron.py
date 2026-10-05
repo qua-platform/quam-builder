@@ -36,7 +36,7 @@ from quam_builder.architecture.quantum_dots.examples.tutorial_machine import (
 )
 from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
 
-SIMULATE_ON_OPX = False
+SIMULATE_ON_OPX = True
 # Clock cycles (4 ns). One shot is a few microseconds, and the full sweep is
 # 100 x 48 x 80 shots, so the simulation only covers the beginning of it.
 SIMULATION_DURATION_CLK = 10_000
@@ -59,6 +59,7 @@ def build_machine():
 
     qubit = machine.qubits[QUBIT_ID]
     qubit.add_point("operate", {qubit.quantum_dot.id: 0.12}, duration=200)
+    qubit.x180.update(duration=int(min(DURATIONS_CLK) * 4)) # Set the gate length to the min of duration vector
     return machine
 
 
