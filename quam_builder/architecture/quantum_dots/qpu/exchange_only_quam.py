@@ -25,7 +25,7 @@ class ExchangeOnlyQuam(BaseSpinQubitQuam):
         jz_pair: str,
     ) -> None:
         """
-        Instantiates a Loss-DiVincenzo qubit based on the associated quantum dot.
+        Instantiates an Exchange-Only qubit based on the associated quantum dot pairs.
         """
         jn_pair = self.quantum_dot_pairs[jn_pair].get_reference()
         jz_pair = self.quantum_dot_pairs[jz_pair].get_reference()
