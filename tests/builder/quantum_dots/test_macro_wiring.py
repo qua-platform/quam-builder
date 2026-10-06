@@ -12,7 +12,6 @@ from quam.components import pulses
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
-    XYDriveMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
@@ -133,36 +132,6 @@ def test_component_type_override_applies_to_all_instances():
         assert qubit.macros["initialize"].ramp_duration == 48
 
 
-def test_component_type_override_sets_xy_drive_runtime_params():
-    """Override params should populate canonical xy_drive attributes after init.
-
-    Uses TypeOverrideCatalog to set reference_angle on all LDQubits.
-    """
-    machine = _build_machine()
-
-    def _make_xy_drive():
-        m = XYDriveMacro()
-        m.reference_angle = 1.5
-        return m
-
-    wire_machine_macros(
-        machine,
-        catalogs=[
-            TypeOverrideCatalog(
-                {
-                    LDQubit: {
-                        SingleQubitMacroName.XY_DRIVE: _make_xy_drive,
-                    },
-                }
-            ),
-        ],
-    )
-
-    for qubit in machine.qubits.values():
-        assert isinstance(qubit.macros["xy_drive"], XYDriveMacro)
-        assert qubit.macros["xy_drive"].reference_angle == pytest.approx(1.5)
-
-
 def test_default_two_qubit_crot_macro_is_wired():
     """LDQubitPair should receive the default CROT macro via wire_machine_macros."""
     machine = _build_machine()
@@ -200,22 +169,27 @@ def test_runtime_phase_is_added_to_axis_phase():
     )
 
 
-def test_fixed_angle_macros_delegate_to_canonical_axes():
-    """x90/y90/z90 wrappers should dispatch to canonical x/y/z with fixed angles."""
+def test_fixed_angle_z_macros_delegate_to_canonical_z():
+    """z90/z180/z_neg90 wrappers should dispatch to the canonical `z` macro.
+
+    Unlike X/Y, Z rotations have no dedicated pulse to protect (they are
+    frame-only), so z90/z180/z_neg90 simply forward a fixed angle to the
+    shared canonical `z` macro.
+    """
     machine = _build_machine()
     q1 = machine.qubits["q1"]
-
-    with patch.object(q1.macros["x"], "apply", return_value=None) as mock_apply:
-        q1.macros["x90"].apply()
-    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
-
-    with patch.object(q1.macros["y"], "apply", return_value=None) as mock_apply:
-        q1.macros["y90"].apply()
-    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
 
     with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
         q1.macros["z90"].apply()
     mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
+
+    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
+        q1.macros["z180"].apply()
+    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi))
+
+    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
+        q1.macros["z_neg90"].apply()
+    mock_apply.assert_called_once_with(angle=pytest.approx(-np.pi / 2))
 
 
 def test_x180_macro_produces_valid_qua_program():
@@ -243,11 +217,15 @@ def test_x180_macro_triggers_play():
             q1.macros["x180"].apply()
 
     assert mock_play.call_count >= 1
-    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x90"
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
 
 
-def test_runtime_amplitude_scale_multiplies_angle_scale():
-    """Runtime amplitude scaling should multiply the angle-derived pulse scaling."""
+def test_runtime_amplitude_scale_is_passed_through_unscaled_for_dedicated_pulse():
+    """X90Macro is a dedicated, independently-calibrated pulse (no angle-derived
+
+    baseline scaling), so a runtime amplitude_scale passes straight through
+    to xy.play unchanged.
+    """
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
@@ -259,15 +237,21 @@ def test_runtime_amplitude_scale_multiplies_angle_scale():
     ):
         q1.x90(amplitude_scale=0.5)
 
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.25)
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.5)
 
 
-def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
-    """Updating the reference pulse amplitude should affect both x180 and x90."""
+def test_dedicated_x90_and_x180_pulses_are_calibrated_independently():
+    """x90 and x180 are separate, independently-calibrated operations.
+
+    Unlike the canonical angle-scaled path (which reuses a single
+    reference pulse), the dedicated macros each play their own operation,
+    so changing one's amplitude must not affect the other.
+    """
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
+    original_x180_amplitude = q1.xy.operations["gaussian_x180"].amplitude
     q1.xy.operations["gaussian_x90"].amplitude = 0.15
 
     with (
@@ -275,29 +259,24 @@ def test_reference_pulse_amplitude_is_shared_source_of_truth_for_x_family():
         patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
     ):
         q1.x180()
-    x180_scale = mock_play.call_args.kwargs["amplitude_scale"]
-    if x180_scale is None:
-        x180_scale = 1.0
 
-    with (
-        patch.object(q1.xy, "play", return_value=None) as mock_play,
-        patch.object(q1.voltage_sequence, "step_to_voltages", return_value=None),
-    ):
-        q1.x90()
-    x90_scale = mock_play.call_args.kwargs["amplitude_scale"]
-
-    assert q1.xy.operations["gaussian_x90"].amplitude * x180_scale == pytest.approx(0.15)
-    assert q1.xy.operations["gaussian_x90"].amplitude * x90_scale == pytest.approx(0.075)
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
+    assert q1.xy.operations["gaussian_x180"].amplitude == pytest.approx(
+        original_x180_amplitude
+    )
 
 
 def test_fixed_angle_inferred_duration_uses_reference_pulse_length():
-    """Inferred duration should always equal the reference pulse length (no stretching)."""
+    """Inferred duration should always equal the reference pulse length (no stretching).
+
+    Pulse lengths are reported in nanoseconds (see XYDriveMacro.inferred_duration).
+    """
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
-    ref_duration = q1.xy.operations["gaussian_x90"].length * 1e-9
+    ref_duration = q1.xy.operations["gaussian_x90"].length
     assert q1.macros["x"].inferred_duration == pytest.approx(ref_duration)
     assert q1.macros["x90"].inferred_duration == pytest.approx(ref_duration)
     assert q1.macros["y90"].inferred_duration == pytest.approx(ref_duration)
