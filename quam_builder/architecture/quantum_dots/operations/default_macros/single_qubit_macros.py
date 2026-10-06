@@ -39,7 +39,6 @@ surrounding voltage hold from the swept value rather than from
 from __future__ import annotations
 
 import dataclasses
-import math
 from typing import ClassVar
 
 import numpy as np
@@ -100,7 +99,7 @@ def _compose_amplitude_scale(
     Returns ``None`` only when the composition is an identity scaling.
     """
     scale = base_scale if extra_scale is None else base_scale * extra_scale
-    if extra_scale is None and math.isclose(scale, 1.0):
+    if extra_scale is None and np.isclose(scale, 1.0):
         return None
     return scale
 
@@ -238,7 +237,6 @@ class XYDriveMacro(QubitMacro):
     """
 
     pulse_family: str = DrivePulseName.GAUSSIAN.value
-    reference_angle: float = None
     phase: float = None
 
     _gate_suffix: ClassVar[str] = "_x90"
