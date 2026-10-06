@@ -402,7 +402,7 @@ with program() as prog:
   ```
 
 - `ramp_to_zero(ramp_duration: Optional[int] = None, reset_tracker: bool = False)`
-  Ramps all **physical** channels in the GateSet to 0 V. Does **not** reset integrated-voltage trackers unless `reset_tracker=True`. If `ramp_duration` is `None`, uses QUA’s built-in `ramp_to_zero` per element (using each channel’s sticky duration). If `ramp_duration` is set, uses `ramp_to_voltages` to 0 V on all physical channels.
+  Ramps every physical channel to 0 V and sets every virtual gate to 0 V, so a held virtual level is not resolved back onto the channels. Does **not** reset integrated-voltage trackers unless `reset_tracker=True`. With no `ramp_duration` and attenuation scaling off, each element uses QUA's `ramp_to_zero`. Otherwise the channels ramp through `ramp_to_voltages` (the given duration, or the sticky duration when attenuation is on) and QUA's `ramp_to_zero` then clears the sticky residue.
 
   ```python
   voltage_seq.ramp_to_zero()  # QUA built-in ramp per channel

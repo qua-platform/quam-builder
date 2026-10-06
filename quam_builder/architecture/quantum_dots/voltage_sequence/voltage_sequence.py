@@ -1003,147 +1003,69 @@ class VoltageSequence:
         for tracker in self.state_trackers.values():
             tracker.reset_integrated_voltage()
 
-    def _perform_ramp_to_zero_with_duration(
-        self,
-        channel_obj: SingleChannel,
-        tracker: SequenceStateTracker,
-        ramp_duration: int,
-    ):
-        """Helper for ramp_to_zero when a specific duration is provided."""
-        DEFAULT_WF_AMPLITUDE = channel_obj.operations[DEFAULT_PULSE_NAME].amplitude
-        current_v = tracker.current_level
-        validate_duration(ramp_duration, "ramp_duration")
+    def _explicit_zero_ramp_duration(self, ramp_duration: Optional[int]):
+        """Duration for an explicit ramp to 0 V, or None for QUA's ``ramp_to_zero``.
 
-        if is_qua_type(current_v):
-            ramp_rate = self._get_temp_qua_var(f"{channel_obj.name}_r2z_rate")
-            with if_(ramp_duration > 0):
-                inv_dur = self._get_temp_qua_var(f"{channel_obj.id}_inv_dur", fixed)
-                assign(inv_dur, Math.div(1, ramp_duration))
-                assign(ramp_rate, -current_v * inv_dur)
-                channel_obj.play(
-                    ramp(ramp_rate),
-                    duration=ramp_duration >> 2,
-                )
-            with else_():  # Duration is 0, effectively a step
-                channel_obj.play(
-                    DEFAULT_PULSE_NAME,
-                    amplitude_scale=-current_v * np.round(1.0 / DEFAULT_WF_AMPLITUDE, 10),
-                    duration=ramp_duration >> 2,
-                    validate=False,  # Do not validate as pulse may not exist yet
-                )
-        else:
-            py_curr_v = float(str(current_v))
-            if ramp_duration > 0 and py_curr_v != 0.0:
-                rate_val = -py_curr_v / ramp_duration
-                channel_obj.play(
-                    ramp(rate_val),
-                    duration=ramp_duration >> 2,
-                    validate=False,
-                )
-            elif py_curr_v != 0.0:  # Duration is 0, step
-                delta_v_to_zero = -py_curr_v
-                if is_qua_type(delta_v_to_zero):
-                    scaled_amp_to_zero = delta_v_to_zero * (1.0 / DEFAULT_WF_AMPLITUDE)
-                else:
-                    scaled_amp_to_zero = np.round(
-                        delta_v_to_zero * (1.0 / DEFAULT_WF_AMPLITUDE), 10
-                    )
-                channel_obj.play(
-                    DEFAULT_PULSE_NAME,
-                    amplitude_scale=scaled_amp_to_zero,
-                    duration=ramp_duration >> 2,
-                    validate=False,  # Do not validate as pulse may not exist yet
-                )
+        QUA's ``ramp_to_zero`` does not apply the same output scaling as
+        ``ramp_to_voltages``. With attenuation enabled, use the longest sticky
+        duration so the ramp matches the other voltage commands.
+        """
+        if ramp_duration is not None:
+            return ramp_duration
+        if not self.gate_set.adjust_for_attenuation:
+            return None
+        sticky_durations = [
+            int(sticky.duration)
+            for sticky in (
+                getattr(ch, "sticky", None) for ch in self.gate_set.channels.values()
+            )
+            if sticky is not None and getattr(sticky, "duration", None) is not None
+        ]
+        return max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
 
     def ramp_to_zero(
         self, ramp_duration: Optional[int] = None, reset_tracker: Optional[bool] = False
     ):
-        """
-        Ramps every physical channel to zero.
+        """Ramp every physical channel to zero.
 
         Virtual gates are set to zero as well, including levels held by
         ``keep_levels``. Otherwise those virtual voltages are resolved back
         onto the physical channels and the ramp does not move.
 
-        Also resets integrated voltage tracking.
+        With ``ramp_duration`` set, or when attenuation scaling is on, the
+        channels ramp through ``ramp_to_voltages`` and QUA's ``ramp_to_zero``
+        then clears the sticky rounding residue. Otherwise each element uses
+        QUA's ``ramp_to_zero`` directly.
 
         Args:
-            ramp_duration: Optional. The duration (ns) of the ramp to zero.
-                If None, uses QUA's ``ramp_to_zero`` on each element when
-                ``adjust_for_attenuation`` is off; when it is on, uses an explicit
-                ramp so OPX scaling matches ``step_to_voltages`` / ``ramp_to_voltages``.
-                Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
-                variable. An explicit ramp is followed by QUA's ``ramp_to_zero``
-                so the sticky element is cleared of rounding residue.
-            reset_tracker: Optional. Reset integrated voltage tracking
-
-        Example:
-            >>> with qua.program() as prog:
-            ...     voltage_seq = gate_set.new_sequence()
-            ...
-            ...     # Set various voltages
-            ...     voltage_seq.step_to_voltages({"P1": 0.3, "P2": 0.1}, duration=1000)
-            ...
-            ...     # Different ways to return to zero
-            ...     voltage_seq.ramp_to_zero()  # Immediate ramp using QUA built-in with duration defined on element
-            ...     voltage_seq.ramp_to_zero(ramp_duration=100)  # Controlled ramp over 100ns
-            ...
-            ...     # All channels now at 0V, optionally reset tracked integrated voltage
+            ramp_duration: Ramp duration in ns. A multiple of 4 ns and longer
+                than 16 ns, or a QUA variable. Omitted, QUA's ``ramp_to_zero``
+                is used, except with attenuation scaling, which takes the
+                sticky duration instead.
+            reset_tracker: When integrated-voltage tracking is on, zero those
+                trackers after the ramp.
         """
-
         # Include every virtual gate. keep_levels holds those voltages, and
         # resolve_voltages would add them back onto the physical channels.
         zero_voltages = {name: 0.0 for name in self.gate_set.valid_channel_names}
+        duration = self._explicit_zero_ramp_duration(ramp_duration)
 
-        if ramp_duration is None:
-            if self.gate_set.adjust_for_attenuation:
-                # QUA ramp_to_zero() does not apply the same OPX scaling as _play_*_on_channel
-                # when adjust_for_attenuation is enabled; use an explicit ramp so attenuation
-                # and default-pulse amplitude stay consistent (e.g. amplified LF-FEM).
-                sticky_durations = [
-                    int(sticky.duration)
-                    for sticky in (
-                        getattr(ch, "sticky", None) for ch in self.gate_set.channels.values()
-                    )
-                    if sticky is not None and getattr(sticky, "duration", None) is not None
-                ]
-                ramp_ns = max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
-                self.ramp_to_voltages(
-                    voltages=zero_voltages,
-                    duration=0,
-                    ramp_duration=ramp_ns,
+        if duration is None:
+            for channel_name, channel_obj in self.gate_set.channels.items():
+                tracker = self.state_trackers[channel_name]
+                ramp_to_zero(channel_obj.name)
+                tracker.current_level = 0.0
+                tracker.update_integrated_voltage(
+                    level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
                 )
-                self._clear_sticky_offset()
-                if not self._track_integrated_voltage:
-                    for ch_name, channel_obj in self.gate_set.channels.items():
-                        tracker = self.state_trackers[ch_name]
-                        tracker.update_integrated_voltage(
-                            level=0.0,
-                            duration=0,
-                            ramp_duration=channel_obj.sticky.duration,
-                        )
-            else:
-                for ch_name, channel_obj in self.gate_set.channels.items():
-                    tracker = self.state_trackers[ch_name]
-                    ramp_to_zero(channel_obj.name)
-                    tracker.current_level = 0.0
-                    tracker.update_integrated_voltage(
-                        level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
-                    )
-                if self._keep_levels:
-                    self._keep_levels_tracker.update_tracking(zero_voltages)
-
+            if self._keep_levels:
+                self._keep_levels_tracker.update_tracking(zero_voltages)
         else:
-            self.ramp_to_voltages(
-                voltages=zero_voltages,
-                duration=0,
-                ramp_duration=ramp_duration,
-            )
+            self.ramp_to_voltages(voltages=zero_voltages, duration=0, ramp_duration=duration)
             self._clear_sticky_offset()
 
-        if self._track_integrated_voltage:
-            if reset_tracker:
-                self.reset_integrated_voltage()
+        if self._track_integrated_voltage and reset_tracker:
+            self.reset_integrated_voltage()
 
     def _clear_sticky_offset(self) -> None:
         """Call QUA ``ramp_to_zero`` after an explicit ramp has reached ~0 V.
