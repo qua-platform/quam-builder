@@ -34,10 +34,10 @@ e.g. ``qubit.x180(duration=t)`` with ``t`` a QUA variable.  This forwards
 to QUA's ``play(duration=…)`` and is the most efficient way to sweep drive
 length (time-Rabi, Rabi chevron) on the OPX.
 
-``inferred_duration`` always reports the calibrated ``length`` and ignores
-a runtime ``duration`` override.  When sweeping the duration, size any
-surrounding voltage hold from the swept value rather than from
-``inferred_duration``.
+``inferred_duration`` reports the calibrated ``length`` in seconds
+(``length * 1e-9``) and ignores a runtime ``duration`` override.  When
+sweeping the duration, size any surrounding voltage hold from the swept
+value rather than from ``inferred_duration``.
 """
 
 # Framework macro base classes introduce deep inheritance chains by design.
@@ -264,8 +264,8 @@ class XYDriveMacro(QubitMacro):
 
     @property
     def inferred_duration(self) -> float | None:
-        """Length of the operation this macro plays, in nanoseconds."""
-        return self.qubit.xy.operations[self.pulse_name].length
+        """Length of the operation this macro plays, in seconds."""
+        return self.qubit.xy.operations[self.pulse_name].length * 1e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)

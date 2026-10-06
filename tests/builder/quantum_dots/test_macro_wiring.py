@@ -316,7 +316,7 @@ def test_dedicated_x90_and_x180_pulses_are_calibrated_independently():
 
 
 def test_inferred_duration_uses_the_played_pulse_length():
-    """Each macro reports the length of the operation it plays, in nanoseconds."""
+    """Each macro reports the played pulse length in seconds."""
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
@@ -324,11 +324,11 @@ def test_inferred_duration_uses_the_played_pulse_length():
     q1.xy.operations["gaussian_x180"].length = 80
     q1.xy.operations["gaussian_y90"] = pulses.GaussianPulse(length=48, amplitude=0.01, sigma=12)
 
-    assert q1.macros["x"].inferred_duration == pytest.approx(80)
+    assert q1.macros["x"].inferred_duration == pytest.approx(80e-9)
     assert q1.macros["x90"].inferred_duration == pytest.approx(
-        q1.xy.operations["gaussian_x90"].length
+        q1.xy.operations["gaussian_x90"].length * 1e-9
     )
-    assert q1.macros["y90"].inferred_duration == pytest.approx(48)
+    assert q1.macros["y90"].inferred_duration == pytest.approx(48e-9)
 
 
 def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration():
