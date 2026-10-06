@@ -1073,7 +1073,8 @@ class VoltageSequence:
                 ``adjust_for_attenuation`` is off; when it is on, uses an explicit
                 ramp so OPX scaling matches ``step_to_voltages`` / ``ramp_to_voltages``.
                 Must be >16ns and a multiple of 4ns. Can be a fixed value or a QUA
-                variable.
+                variable. An explicit ramp is followed by QUA's ``ramp_to_zero``
+                so the sticky element is cleared of rounding residue.
             reset_tracker: Optional. Reset integrated voltage tracking
 
         Example:
@@ -1112,6 +1113,7 @@ class VoltageSequence:
                     duration=0,
                     ramp_duration=ramp_ns,
                 )
+                self._clear_sticky_offset()
                 if not self._track_integrated_voltage:
                     for ch_name, channel_obj in self.gate_set.channels.items():
                         tracker = self.state_trackers[ch_name]
@@ -1137,10 +1139,20 @@ class VoltageSequence:
                 duration=0,
                 ramp_duration=ramp_duration,
             )
+            self._clear_sticky_offset()
 
         if self._track_integrated_voltage:
             if reset_tracker:
                 self.reset_integrated_voltage()
+
+    def _clear_sticky_offset(self) -> None:
+        """Call QUA ``ramp_to_zero`` after an explicit ramp has reached ~0 V.
+
+        The explicit ramp lands on the nearest 16-bit level. ``ramp_to_zero``
+        clears the remaining sticky offset.
+        """
+        for channel_obj in self.gate_set.channels.values():
+            ramp_to_zero(channel_obj.name)
 
     def reset_integrated_voltage(
         self,

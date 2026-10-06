@@ -216,6 +216,8 @@ def test_ramp_to_zero_with_duration(machine):
     with qua.program() as expected_program:
         qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch1", duration=25)
         qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
+        qua.ramp_to_zero("ch1")
+        qua.ramp_to_zero("ch2")
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
@@ -234,6 +236,8 @@ def test_ramp_to_zero_with_duration_multiple_channels(machine):
         qua.play(DEFAULT_PULSE_NAME * qua.amp(0.5), "ch2", duration=25)
         qua.play(qua.ramp(-0.25 / 200), "ch1", duration=50)
         qua.play(qua.ramp(-0.25 / 200), "ch2", duration=50)
+        qua.ramp_to_zero("ch1")
+        qua.ramp_to_zero("ch2")
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 

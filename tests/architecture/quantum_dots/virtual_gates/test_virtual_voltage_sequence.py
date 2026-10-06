@@ -187,6 +187,8 @@ def test_vgs_ramp_to_zero_with_duration_clears_virtual_levels(
         qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch2", duration=10)
         qua.play(qua.ramp(-0.05 / 200), "ch1", duration=50)
         qua.play(qua.ramp(-0.1 / 200), "ch2", duration=50)
+        qua.ramp_to_zero("ch1")
+        qua.ramp_to_zero("ch2")
     expected_ast = ProgramTreeBuilder().build(expected_program)
     assert compare_ast_nodes(ast, expected_ast)
 
