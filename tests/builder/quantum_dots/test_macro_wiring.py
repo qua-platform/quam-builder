@@ -117,6 +117,7 @@ def test_component_type_override_applies_to_all_instances():
 
     wire_machine_macros(
         machine,
+        fill_only=False,
         catalogs=[
             TypeOverrideCatalog(
                 {
@@ -335,13 +336,12 @@ def test_inferred_duration_uses_the_played_pulse_length():
     assert q1.macros["y90"].inferred_duration == pytest.approx(48e-9)
 
 
-def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration():
-    """Voltage tracking should advance by the native pulse length."""
+def test_xy_play_does_not_track_sticky_duration():
+    """XY apply plays the pulse and does not update voltage-sequence tracking."""
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
-    pulse = q1.xy.operations["gaussian_x90"]
 
     with (
         patch.object(q1.xy, "play", return_value=None),
@@ -349,7 +349,7 @@ def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration(
     ):
         q1.x90()
 
-    mock_track.assert_called_once_with(pulse.length)
+    mock_track.assert_not_called()
 
 
 def test_xy_drive_update_duration_persists_pulse_length_in_ns():

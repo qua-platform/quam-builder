@@ -259,7 +259,6 @@ class XYDriveMacro(QubitMacro):
     pulse_family: str = DrivePulseName.GAUSSIAN.value
 
     _gate_suffix: ClassVar[str] = "_x180"
-    _reference_gate_suffix: ClassVar[str] = "_x180"
     _scales_with_angle: ClassVar[bool] = False
 
     @property
@@ -269,13 +268,13 @@ class XYDriveMacro(QubitMacro):
 
     @property
     def reference_pulse_name(self) -> str:
-        """Reference (x180) operation name for the active family."""
-        return f"{self.pulse_family}{self._reference_gate_suffix}"
+        """Operation this macro plays. Same value as ``pulse_name``."""
+        return self.pulse_name
 
     @property
     def pulse(self):
-        """Return the x180 anchor for this pulse family."""
-        return self.qubit.xy.operations[self.reference_pulse_name]
+        """Return the operation this macro plays."""
+        return self.qubit.xy.operations[self.pulse_name]
 
     @property
     def inferred_duration(self) -> float | None:

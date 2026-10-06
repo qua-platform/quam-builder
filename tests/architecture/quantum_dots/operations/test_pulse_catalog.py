@@ -169,6 +169,7 @@ class TestPulseFamilySwitching:
         macro = Y90Macro.__new__(Y90Macro)
         macro.pulse_family = "square"
         assert macro.pulse_name == "square_y90"
+        assert macro.reference_pulse_name == "square_y90"
 
     def test_switching_family_changes_all_suffixes(self):
         from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (

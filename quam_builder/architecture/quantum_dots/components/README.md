@@ -81,11 +81,11 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 - **Override defaults at wiring time** — `wire_machine_macros(..., pulse_overrides=...)` or edit operations after wiring. Example: [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py).
 - **Add a pulse on one qubit** — `qubit.add_xy_pulse(name, pulse)` or `qubit.xy.add_pulse(name, pulse)`.
-- **Custom macro** — point `XYDriveMacro.reference_pulse_name` at your operation; calibrate amplitude on the reference pulse (see [operations/README.md](../operations/README.md#single-qubit-gate-composition-model)).
+- **Custom macro** — subclass `XYDriveMacro` and set `_gate_suffix` to the operation it plays. `update()` writes that operation when its length and amplitude are stored values (see [operations/README.md](../operations/README.md#single-qubit-gate-composition-model)).
 
-**Baseband (`XYDriveSingle`):** pulses use real waveforms (`axis_angle=None`); rotation axis is selected by virtual-Z in the macro, not hardware IQ mixing.
+**Baseband (`XYDriveSingle`):** pulses use real waveforms (`axis_angle=None`). X and Y operations share that waveform.
 
-**IQ / MW (`XYDriveIQ`, `XYDriveMW`):** default reference pulses use `axis_angle=0.0`; the macro applies virtual-Z for X/Y axis selection.
+**IQ / MW (`XYDriveIQ`, `XYDriveMW`):** each operation stores its own `axis_angle`. The XY macros do not apply a virtual-Z to choose the axis.
 
 ## DAC integration
 

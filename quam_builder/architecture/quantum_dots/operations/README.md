@@ -67,11 +67,10 @@ From [`../../../tools/macros/default_macros.py`](../../../tools/macros/default_m
 ### `LDQubit`
 
 - State macros: `initialize`, `measure`, `empty`, `exchange`
-- Canonical 1Q macros: `xy_drive`, `x`, `y`, `z`
-- Fixed-angle wrappers: `x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, `z180`, `z90`
+- `xy_drive` and `x180` play `{family}_x180`. `x(angle)` scales that pulse by `angle / π`. `y(angle)` scales `{family}_y180` the same way. Omitting `angle` is a π rotation.
+- Fixed-angle pulses: `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`. Each plays its own operation and does not accept `angle`.
+- Virtual-Z: `z`, `z180`, `z90`, `z_neg90`. `z(angle)` defaults to π. The fixed rotations do not accept `angle`.
 - Identity: `I`
-
-`x` and `y` scale the `x180` and `y180` pulses by `angle / π`. Fixed-angle macros play their own calibrated pulse and do not accept `angle`. `z90`, `z180`, and `z_neg90` are fixed virtual-Z rotations and do not accept `angle`.
 
 ### `LDQubitPair`
 
@@ -258,7 +257,7 @@ qubit.xy.operations[qubit.macros["x180"].pulse_name]  # gaussian_x180
 | x90 amplitude, length, shape | `qubit.xy.operations["gaussian_x90"]` | `x90`, and operations that reference it (`x_neg90`, `y90`, `y_neg90`) |
 | x180 amplitude and length | `qubit.xy.operations["gaussian_x180"]` | `x180`, `xy_drive`, `x()`, and `y180` (which references it). `y()` plays `y180` |
 | Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
-| Drive frequency | `qubit.xy.intermediate_frequency` | All XY gates |
+| Drive frequency | `qubit.larmor_frequency` (`update(frequency=...)`) | All XY gates |
 | Voltage points | `qubit.add_point("initialize", {...})` | State macros |
 
 ## Default Pulse Wiring
@@ -267,7 +266,7 @@ qubit.xy.operations[qubit.macros["x180"].pulse_name]  # gaussian_x180
 
 ### XY Drive Pulse
 
-Five pulse families (Gaussian, Square, Kaiser, Hermite, DRAG) are loaded per qubit with the naming convention `{family}_{gate}` (e.g. `"gaussian_x90"`, `"drag_x180"`). Default length 1000 ns, amplitude 1.0. Drive-type aware: `SingleChannel` gets `axis_angle=None`; IQ/MW gets `axis_angle=0.0`. The active family is selected via `machine.pulse_family`.
+Five pulse families (Gaussian, Square, Kaiser, Hermite, DRAG) are loaded per qubit with the naming convention `{family}_{gate}` (e.g. `"gaussian_x90"`, `"drag_x180"`). Default length is 1000 ns. The x90 amplitude is 0.25 and the x180 amplitude is twice that. `SingleChannel` pulses use `axis_angle=None`; IQ and MW pulses store an `axis_angle` per operation. The active family is selected via `machine.pulse_family`.
 
 ### Readout Pulse
 
