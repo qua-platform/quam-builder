@@ -346,7 +346,6 @@ class XMacro(XYDriveMacro):
 
     _gate_suffix: ClassVar[str] = "_x90"
 
-    reference_angle: float = None
     phase: float = 0.0
 
 
@@ -387,7 +386,6 @@ class X180Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x180"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    reference_angle: float = float(np.pi)
     phase: float = 0.0
 
 
@@ -398,7 +396,6 @@ class X90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    reference_angle: float = float(np.pi / 2)
     phase: float = 0.0
 
 
@@ -409,7 +406,6 @@ class XNeg90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x_neg90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    reference_angle: float = float(np.pi / 2)
     phase: float = 0.0
 
 
@@ -420,7 +416,6 @@ class Y180Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y180"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    reference_angle: float = float(np.pi)
     phase: float = 0.0
 
 
@@ -431,7 +426,6 @@ class Y90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y90"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    reference_angle: float = float(np.pi / 2)
     phase: float = 0.0
 
 
@@ -442,7 +436,6 @@ class YNeg90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y_neg90"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    reference_angle: float = float(np.pi / 2)
     phase: float = 0.0
 
 
