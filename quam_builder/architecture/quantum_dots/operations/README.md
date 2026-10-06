@@ -254,7 +254,6 @@ qubit.xy.operations[qubit.macros["xy_drive"].reference_pulse_name]
 | Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
 | Pulse length / shape | `qubit.xy.operations["gaussian_x90"]` (`length`, `sigma_ratio`, …) | All XY gates in that family |
 | Drive frequency | `qubit.xy.intermediate_frequency` | All XY gates |
-| Reference angle | `qubit.macros["xy_drive"].reference_angle` | Scale factor (default: pi) |
 | Voltage points | `qubit.add_point("initialize", {...})` | State macros |
 
 ## Default Pulse Wiring
