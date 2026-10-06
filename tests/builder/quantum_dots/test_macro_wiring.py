@@ -336,12 +336,13 @@ def test_inferred_duration_uses_the_played_pulse_length():
     assert q1.macros["y90"].inferred_duration == pytest.approx(48e-9)
 
 
-def test_xy_play_does_not_track_sticky_duration():
-    """XY apply plays the pulse and does not update voltage-sequence tracking."""
+def test_xy_play_tracks_sticky_duration_in_ns():
+    """XY apply records the played length, in nanoseconds, for voltage tracking."""
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
+    pulse = q1.xy.operations["gaussian_x90"]
 
     with (
         patch.object(q1.xy, "play", return_value=None),
@@ -349,7 +350,15 @@ def test_xy_play_does_not_track_sticky_duration():
     ):
         q1.x90()
 
-    mock_track.assert_not_called()
+    mock_track.assert_called_once_with(pulse.length)
+
+    with (
+        patch.object(q1.xy, "play", return_value=None),
+        patch.object(q1.voltage_sequence, "track_sticky_duration") as mock_track,
+    ):
+        q1.x90(duration=10)
+
+    mock_track.assert_called_once_with(40)
 
 
 def test_xy_drive_update_duration_persists_pulse_length_in_ns():
@@ -367,10 +376,15 @@ def test_xy_drive_update_duration_persists_pulse_length_in_ns():
 
     assert x180.length == 400
     assert x180.sigma == pytest.approx(x180.length * x180.sigma_ratio)
+
+    xy_macro.update(duration=403)
+
+    assert x180.length == 404
+    assert x180.sigma == pytest.approx(404 * x180.sigma_ratio)
     assert x90.length == x90_length
     assert x90.sigma == x90_sigma
     assert q1.xy.operations["gaussian_y90"].length == x90_length
-    assert q1.xy.operations["gaussian_y180"].length == 400
+    assert q1.xy.operations["gaussian_y180"].length == 404
 
 
 def test_x180_update_writes_the_pi_pulse_only():
@@ -482,6 +496,25 @@ def test_custom_macro_update_writes_its_own_stored_pulse():
     assert custom.amplitude == pytest.approx(0.1)
     assert custom.sigma == pytest.approx(120 * 0.25)
     assert q1.xy.operations["gaussian_x90"].length == x90_length
+
+
+def test_identity_duration_is_clock_cycles():
+    """Identity duration uses QUA clock cycles, and inferred_duration is seconds."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    identity = q1.macros["I"]
+
+    assert identity.duration == 4
+    assert identity.inferred_duration == pytest.approx(16e-9)
+
+    with patch.object(q1, "idle", return_value=None) as mock_idle:
+        q1.I()
+    mock_idle.assert_called_once_with(duration=identity.duration)
+
+    with patch.object(q1, "idle", return_value=None) as mock_idle:
+        q1.I(duration=10)
+    mock_idle.assert_called_once_with(duration=10)
 
 
 def test_negative_x_rotation_uses_negative_amplitude_scale():

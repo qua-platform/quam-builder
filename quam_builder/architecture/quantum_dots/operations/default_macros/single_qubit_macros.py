@@ -56,6 +56,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 from quam.utils import string_reference
 
+from quam_builder.tools.qua_tools import is_qua_type
 from quam_builder.architecture.quantum_dots.operations.names import (
     X_NEG_90_ALIAS,
     Y_NEG_90_ALIAS,
@@ -88,8 +89,15 @@ __all__ = [
 
 
 def _quantize_ns(duration_ns: float) -> int:
-    """Quantize nanoseconds to OPX 4 ns clock boundaries."""
+    """Round nanoseconds to the nearest multiple of 4 ns."""
     return max(int(round(duration_ns / 4.0)) * 4, 0)
+
+
+def _clock_cycles_to_ns(duration):
+    """Convert a QUA ``play``/``wait`` duration to nanoseconds."""
+    if is_qua_type(duration):
+        return duration << 2
+    return int(duration) * 4
 
 
 def _reference_anchor(raw: object, field: str) -> str | None:
@@ -295,8 +303,9 @@ class XYDriveMacro(QubitMacro):
         """Persistently update the pulse this macro plays.
 
         ``amplitude_scale`` multiplies that pulse's stored amplitude.
-        ``duration`` sets its length in nanoseconds. When the pulse has
-        ``sigma_ratio``, sigma is set from that ratio.
+        ``duration`` sets its length in nanoseconds, rounded to a multiple
+        of 4 ns. When the pulse has ``sigma_ratio``, sigma is set from
+        that ratio and the quantized length.
 
         A length, amplitude, or sigma that is a QuAM reference is left
         unchanged. The call raises ``ValueError`` and names the operation
@@ -310,7 +319,8 @@ class XYDriveMacro(QubitMacro):
         Args:
             amplitude_scale: Multiply the played pulse's stored amplitude
                 by this factor.
-            duration: Set the played pulse's length in nanoseconds.
+            duration: Set the played pulse's length in nanoseconds, rounded
+                to a multiple of 4 ns.
             frequency: Set ``qubit.larmor_frequency`` to this absolute
                 value (Hz). When both this and *frequency_offset* are
                 passed, this value is the one stored.
@@ -321,6 +331,7 @@ class XYDriveMacro(QubitMacro):
         if amplitude_scale is not None:
             _require_stored_field(self.pulse_name, played, "amplitude")
         if duration is not None:
+            duration = _quantize_ns(duration)
             _require_stored_field(self.pulse_name, played, "length")
             if hasattr(played, "sigma_ratio"):
                 _require_stored_field(self.pulse_name, played, "sigma")
@@ -349,7 +360,9 @@ class XYDriveMacro(QubitMacro):
 
         ``angle`` (radians, ``x``/``y`` only) is the rotation: the π pulse
         is scaled by ``angle / π``. ``amplitude_scale`` is an extra one-shot
-        multiplier on that play. A frame shift is ``z()``.
+        multiplier on that play. A frame shift is ``z()``. ``duration`` is
+        in clock cycles. The played length, in nanoseconds, is passed to
+        ``voltage_sequence.track_sticky_duration``.
         """
         if self._scales_with_angle:
             effective_angle = np.pi if angle is None else angle
@@ -362,6 +375,14 @@ class XYDriveMacro(QubitMacro):
         self.qubit.xy.play(
             pulse_name=self.pulse_name, amplitude_scale=amplitude_scale, duration=duration
         )
+        sequence = self.qubit.voltage_sequence
+        if sequence is not None:
+            tracked_ns = (
+                self.qubit.xy.operations[self.pulse_name].length
+                if duration is None
+                else _clock_cycles_to_ns(duration)
+            )
+            sequence.track_sticky_duration(tracked_ns)
 
 
 @quam_dataclass
@@ -505,19 +526,24 @@ class ZNeg90Macro(ZMacro):
 
 @quam_dataclass
 class IdentityMacro(QubitMacro):
-    """Identity operation implemented as wait."""
+    """Identity operation implemented as a wait.
+
+    ``duration`` is in clock cycles (1 cycle = 4 ns), the same unit as
+    QUA ``wait`` and ``play(duration=…)``. The default is 4 cycles (16 ns).
+    """
 
     duration: int = DEFAULTS.misc.identity_duration
 
     @property
     def inferred_duration(self) -> float:
-        """Return configured wait duration in seconds."""
-        return self.duration * 1e-9
+        """Configured wait, in seconds."""
+        return self.duration * 4e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
     def apply(self, duration: int | None = None, **kwargs):
+        """Wait for ``duration`` clock cycles. The stored value is the default."""
         duration = self.duration if duration is None else duration
         self.qubit.idle(duration=duration)
 

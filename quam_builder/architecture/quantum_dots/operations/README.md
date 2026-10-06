@@ -237,7 +237,7 @@ Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_
 
 `amplitude_scale` is an extra multiplier on that one play. It does not select a rotation. On a fixed gate it is the only amplitude knob, so `q.x90(amplitude_scale=0.5)` plays the calibrated π/2 pulse at half amplitude. On `x` and `y` it multiplies the angle scale: `q.x(angle=π/2, amplitude_scale=0.5)` plays the π pulse at 0.25.
 
-`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the amplitude of the pulse that macro plays. `update(duration=...)` sets that pulse's length. If the field is a QuAM reference, the call raises and names the operation that stores the value, and nothing is written. `y90.length` references `{family}_x90`, so the duration is changed with `x90.update(duration=...)`. A custom `XYDriveMacro` whose pulse stores its own length and amplitude can call `update()` on that pulse. The value passed to `apply` lasts for that `play` only.
+`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the amplitude of the pulse that macro plays. `update(duration=...)` sets that pulse's length in nanoseconds, rounded to a multiple of 4 ns. If the field is a QuAM reference, the call raises and names the operation that stores the value, and nothing is written. `y90.length` references `{family}_x90`, so the duration is changed with `x90.update(duration=...)`. A custom `XYDriveMacro` whose pulse stores its own length and amplitude can call `update()` on that pulse. The value passed to `apply` lasts for that `play` only.
 
 ### Source of truth
 
