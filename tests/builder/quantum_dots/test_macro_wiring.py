@@ -1,6 +1,7 @@
 """Tests for runtime macro wiring and override behavior."""
 
 from functools import partial
+from typing import ClassVar
 from unittest.mock import patch
 
 import numpy as np
@@ -9,9 +10,12 @@ import pytest
 from qm import qua
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import pulses
+from quam.core import quam_dataclass
+from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
+    XYDriveMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
@@ -201,7 +205,7 @@ def test_fixed_gates_and_arbitrary_axes_reject_phase():
 
 
 def test_xy_drive_plays_its_calibrated_pulse():
-    """xy_drive() plays the x90 operation and does not rotate the frame."""
+    """xy_drive() plays the x180 operation and does not rotate the frame."""
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
@@ -212,7 +216,7 @@ def test_xy_drive_plays_its_calibrated_pulse():
         q1.xy_drive()
 
     mock_vz.assert_not_called()
-    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x90"
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
     assert mock_play.call_args.kwargs["amplitude_scale"] is None
 
 
@@ -349,17 +353,135 @@ def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration(
 
 
 def test_xy_drive_update_duration_persists_pulse_length_in_ns():
-    """Persisted macro duration is specified and stored in ns (samples at 1 GS/s)."""
+    """xy_drive plays x180, so duration is stored on that pulse only."""
     machine = _build_machine()
     wire_machine_macros(machine)
     q1 = machine.qubits["q1"]
     xy_macro = q1.macros["xy_drive"]
-    pulse = q1.xy.operations["gaussian_x90"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+    x90_sigma = x90.sigma
 
     xy_macro.update(duration=400)
 
-    assert pulse.length == 400
-    assert pulse.sigma == pytest.approx(pulse.length * pulse.sigma_ratio)
+    assert x180.length == 400
+    assert x180.sigma == pytest.approx(x180.length * x180.sigma_ratio)
+    assert x90.length == x90_length
+    assert x90.sigma == x90_sigma
+    assert q1.xy.operations["gaussian_y90"].length == x90_length
+    assert q1.xy.operations["gaussian_y180"].length == 400
+
+
+def test_x180_update_writes_the_pi_pulse_only():
+    """x180 and x() store duration on the x180 pulse."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+
+    q1.x180.update(duration=200)
+
+    assert x180.length == 200
+    assert x180.sigma == pytest.approx(200 * x180.sigma_ratio)
+    assert x90.length == x90_length
+    assert q1.xy.operations["gaussian_y180"].length == 200
+
+    q1.x.update(duration=240)
+
+    assert x180.length == 240
+    assert x90.length == x90_length
+
+
+def test_update_rejects_referenced_length_and_amplitude():
+    """A macro whose pulse fields are references does not write the anchor."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+    x90_amplitude = x90.amplitude
+    x180_length = x180.length
+    q1.larmor_frequency = 1.0e9
+
+    with pytest.raises(ValueError, match="gaussian_y90.length references gaussian_x90"):
+        q1.y90.update(duration=200, frequency=2.0e9)
+
+    with pytest.raises(ValueError, match="gaussian_y90.amplitude references gaussian_x90"):
+        q1.y90.update(amplitude_scale=2)
+
+    with pytest.raises(ValueError, match="gaussian_y180.length references gaussian_x180"):
+        q1.y.update(duration=200)
+
+    assert x90.length == x90_length
+    assert x90.amplitude == x90_amplitude
+    assert x180.length == x180_length
+    assert q1.larmor_frequency == 1.0e9
+
+
+def test_update_frequency_works_when_the_pulse_is_a_reference():
+    """Frequency lives on the qubit, so a referenced pulse can still set it."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    y90 = q1.xy.operations["gaussian_y90"]
+    raw_length = y90.get_raw_value("length")
+
+    q1.y90.update(frequency=2.5e9)
+
+    assert q1.larmor_frequency == 2.5e9
+    assert y90.get_raw_value("length") == raw_length
+
+
+def test_x90_update_amplitude_scale_writes_the_played_pulse():
+    """amplitude_scale multiplies the pulse this macro plays."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_amplitude = x90.amplitude
+    x180_amplitude = x180.amplitude
+
+    q1.x90.update(amplitude_scale=0.5)
+
+    assert x90.amplitude == pytest.approx(x90_amplitude * 0.5)
+    assert q1.xy.operations["gaussian_y90"].amplitude == pytest.approx(x90_amplitude * 0.5)
+    assert x180.amplitude == x180_amplitude
+
+
+@quam_dataclass
+class _CustomGateMacro(XYDriveMacro):
+    """Test macro whose operation stores its own length and amplitude."""
+
+    _gate_suffix: ClassVar[str] = "_custom"
+
+
+def test_custom_macro_update_writes_its_own_stored_pulse():
+    """A subclass can update a pulse that stores length and amplitude."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    q1.xy.operations["gaussian_custom"] = ScalableGaussianPulse(
+        id="gaussian_custom",
+        amplitude=0.05,
+        length=80,
+        sigma_ratio=0.25,
+        axis_angle=0.0,
+    )
+    q1.set_macro("custom_gate", _CustomGateMacro())
+    x90_length = q1.xy.operations["gaussian_x90"].length
+
+    q1.macros["custom_gate"].update(duration=120, amplitude_scale=2)
+
+    custom = q1.xy.operations["gaussian_custom"]
+    assert custom.length == 120
+    assert custom.amplitude == pytest.approx(0.1)
+    assert custom.sigma == pytest.approx(120 * 0.25)
+    assert q1.xy.operations["gaussian_x90"].length == x90_length
 
 
 def test_negative_x_rotation_uses_negative_amplitude_scale():

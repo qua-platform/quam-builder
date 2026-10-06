@@ -227,7 +227,7 @@ class TestPulseFamilySwitchingIntegration:
         q1 = machine.qubits["Q1"]
         xy_macro = q1.macros["xy_drive"]
         assert xy_macro.pulse_family == "kaiser"
-        assert xy_macro.pulse_name == "kaiser_x90"
+        assert xy_macro.pulse_name == "kaiser_x180"
 
     def test_set_pulse_family_invalid_raises(self):
         import pytest
@@ -256,7 +256,7 @@ class TestPulseFamilySwitchingIntegration:
         wire_machine_macros(machine)
 
         q1 = machine.qubits["Q1"]
-        assert q1.macros["xy_drive"].pulse_name == "gaussian_x90"
+        assert q1.macros["xy_drive"].pulse_name == "gaussian_x180"
 
     def test_set_pulse_family_hermite_propagates(self):
         """set_pulse_family('hermite') should switch all XY macros to the hermite family."""
@@ -267,7 +267,7 @@ class TestPulseFamilySwitchingIntegration:
 
         q1 = machine.qubits["Q1"]
         assert q1.macros["xy_drive"].pulse_family == "hermite"
-        assert q1.macros["xy_drive"].pulse_name == "hermite_x90"
+        assert q1.macros["xy_drive"].pulse_name == "hermite_x180"
         assert q1.macros["x180"].pulse_name == "hermite_x180"
         assert q1.macros["y90"].pulse_name == "hermite_y90"
         assert q1.macros["x_neg90"].pulse_name == "hermite_x_neg90"
@@ -281,7 +281,7 @@ class TestPulseFamilySwitchingIntegration:
 
         q1 = machine.qubits["Q1"]
         assert q1.macros["xy_drive"].pulse_family == "drag"
-        assert q1.macros["xy_drive"].pulse_name == "drag_x90"
+        assert q1.macros["xy_drive"].pulse_name == "drag_x180"
         assert q1.macros["x180"].pulse_name == "drag_x180"
         assert q1.macros["y90"].pulse_name == "drag_y90"
         assert q1.macros["x_neg90"].pulse_name == "drag_x_neg90"

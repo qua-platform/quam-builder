@@ -226,7 +226,7 @@ This catches configuration mistakes early.
 
 ### Two play paths
 
-Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_drive`) each play their own calibrated operation at its stored amplitude. They reject `angle`. A phase shift is `z()` followed by the gate; `phase` is not a parameter of these macros.
+Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_drive`) each play their own calibrated operation at its stored amplitude. `xy_drive` plays `{family}_x180`, the same pulse as `x180`. They reject `angle`. A phase shift is `z()` followed by the gate; `phase` is not a parameter of these macros.
 
 `x(angle)` plays `{family}_x180` and `y(angle)` plays `{family}_y180`, with amplitude scale `angle / π`. Omitting `angle` is a π rotation, equivalent to `x180` or `y180`. A negative angle is a negative scale. `z(angle)` is a virtual-Z frame rotation that stays on the element; omitting `angle` is π. `z90`, `z180`, and `z_neg90` are that same rotation at a fixed angle and reject `angle`.
 
@@ -238,23 +238,26 @@ Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_
 
 `amplitude_scale` is an extra multiplier on that one play. It does not select a rotation. On a fixed gate it is the only amplitude knob, so `q.x90(amplitude_scale=0.5)` plays the calibrated π/2 pulse at half amplitude. On `x` and `y` it multiplies the angle scale: `q.x(angle=π/2, amplitude_scale=0.5)` plays the π pulse at 0.25.
 
-`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the stored x90 and x180 amplitudes (the other XY operations follow those two by reference). The value passed to `apply` lasts for that `play` only.
+`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the amplitude of the pulse that macro plays. `update(duration=...)` sets that pulse's length. If the field is a QuAM reference, the call raises and names the operation that stores the value, and nothing is written. `y90.length` references `{family}_x90`, so the duration is changed with `x90.update(duration=...)`. A custom `XYDriveMacro` whose pulse stores its own length and amplitude can call `update()` on that pulse. The value passed to `apply` lasts for that `play` only.
 
 ### Source of truth
 
-The reference pulse is the single source of truth for all single-qubit XY rotations:
+`{family}_x90` and `{family}_x180` store length and amplitude. The other XY operations in that family reference one of those two. `update()` writes the operation the macro plays:
 
 ```python
-qubit.xy.operations[qubit.macros["xy_drive"].reference_pulse_name]
+qubit.xy.operations[qubit.macros["x90"].pulse_name]    # gaussian_x90
+qubit.xy.operations[qubit.macros["x180"].pulse_name]  # gaussian_x180
 ```
+
+`y90.update(duration=200)` raises `ValueError`: `gaussian_y90.length references gaussian_x90. Update that pulse instead.`
 
 ### What to calibrate
 
 | Parameter | Where it lives | Affects |
 |-----------|---------------|---------|
-| Pi-pulse amplitude | `qubit.xy.operations["gaussian_x180"].amplitude` | All XY gates |
+| x90 amplitude, length, shape | `qubit.xy.operations["gaussian_x90"]` | `x90`, and operations that reference it (`x_neg90`, `y90`, `y_neg90`) |
+| x180 amplitude and length | `qubit.xy.operations["gaussian_x180"]` | `x180`, `xy_drive`, `x()`, and `y180` (which references it). `y()` plays `y180` |
 | Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
-| Pulse length / shape | `qubit.xy.operations["gaussian_x90"]` (`length`, `sigma_ratio`, …) | All XY gates in that family |
 | Drive frequency | `qubit.xy.intermediate_frequency` | All XY gates |
 | Voltage points | `qubit.add_point("initialize", {...})` | State macros |
 

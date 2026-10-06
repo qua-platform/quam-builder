@@ -16,6 +16,7 @@ Two families of single-qubit rotations
 * **Dedicated-pulse macros** (``X180Macro``, ``X90Macro``, ``XNeg90Macro``,
   ``Y180Macro``, ``Y90Macro``, ``YNeg90Macro``, and ``XYDriveMacro``)
   each play their own calibrated operation at its stored amplitude.
+  ``XYDriveMacro`` plays ``{family}_x180``, the same pulse as ``x180``.
   They do not accept ``angle``.  A phase shift is ``qubit.z(...)``
   followed by the gate.
 * **Canonical macros** (``XMacro``, ``YMacro``, ``ZMacro``).  ``XMacro``
@@ -53,6 +54,7 @@ import numpy as np
 from quam.components.macro import QubitMacro
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
+from quam.utils import string_reference
 
 from quam_builder.architecture.quantum_dots.operations.names import (
     X_NEG_90_ALIAS,
@@ -88,6 +90,23 @@ __all__ = [
 def _quantize_ns(duration_ns: float) -> int:
     """Quantize nanoseconds to OPX 4 ns clock boundaries."""
     return max(int(round(duration_ns / 4.0)) * 4, 0)
+
+
+def _reference_anchor(raw: object, field: str) -> str | None:
+    """Operation name a QuAM reference points at, or ``None`` if *raw* is stored."""
+    if not string_reference.is_reference(raw):
+        return None
+    parts = [part for part in str(raw).split("/") if part not in {"#", "#.", "#..", ".", ".."}]
+    if len(parts) >= 2 and parts[-1] == field:
+        return parts[-2]
+    return parts[-1] if parts else str(raw)
+
+
+def _require_stored_field(pulse_name: str, pulse, field: str) -> None:
+    """Reject an update of *field* when the pulse stores a reference there."""
+    anchor = _reference_anchor(pulse.get_raw_value(field), field)
+    if anchor is not None:
+        raise ValueError(f"{pulse_name}.{field} references {anchor}. Update that pulse instead.")
 
 
 def _compose_amplitude_scale(
@@ -231,15 +250,16 @@ class XYDriveMacro(QubitMacro):
     """Base macro for XY-plane rotations with switchable pulse families.
 
     The active pulse envelope is determined by ``pulse_family`` combined
-    with a per-subclass ``_gate_suffix``.  Changing ``pulse_family``
-    (e.g. from ``"gaussian"`` to ``"kaiser"``) switches the envelope
-    used by all XY macros simultaneously.
+    with a per-subclass ``_gate_suffix``.  This base macro plays
+    ``{family}_x180``.  Changing ``pulse_family`` (e.g. from
+    ``"gaussian"`` to ``"kaiser"``) switches the envelope used by all XY
+    macros simultaneously.
     """
 
     pulse_family: str = DrivePulseName.GAUSSIAN.value
 
-    _gate_suffix: ClassVar[str] = "_x90"
-    _reference_gate_suffix: ClassVar[str] = "_x90"
+    _gate_suffix: ClassVar[str] = "_x180"
+    _reference_gate_suffix: ClassVar[str] = "_x180"
     _scales_with_angle: ClassVar[bool] = False
 
     @property
@@ -249,18 +269,13 @@ class XYDriveMacro(QubitMacro):
 
     @property
     def reference_pulse_name(self) -> str:
-        """Reference (x90) operation name for the active family."""
+        """Reference (x180) operation name for the active family."""
         return f"{self.pulse_family}{self._reference_gate_suffix}"
 
     @property
     def pulse(self):
-        """Return the pulse object backing this macro's XY rotations."""
+        """Return the x180 anchor for this pulse family."""
         return self.qubit.xy.operations[self.reference_pulse_name]
-
-    @property
-    def pi_pulse(self):
-        """Return the pi pulse (x180) object for the active family."""
-        return self.qubit.xy.operations[f"{self.pulse_family}_x180"]
 
     @property
     def inferred_duration(self) -> float | None:
@@ -273,49 +288,51 @@ class XYDriveMacro(QubitMacro):
     def update(
         self,
         *,
-        pi_amplitude: float | None = None,
         amplitude_scale: float | None = None,
         duration: int | None = None,
         frequency: float | None = None,
         frequency_offset: float | None = None,
     ) -> None:
-        """Persistently update calibrated pulse parameters.
+        """Persistently update the pulse this macro plays.
 
-        Changes are applied to the QuAM state objects directly and are
-        captured by subsequent serialisation (``machine.save``).
+        ``amplitude_scale`` multiplies that pulse's stored amplitude.
+        ``duration`` sets its length in nanoseconds. When the pulse has
+        ``sigma_ratio``, sigma is set from that ratio.
+
+        A length, amplitude, or sigma that is a QuAM reference is left
+        unchanged. The call raises ``ValueError`` and names the operation
+        that stores the value, before any field is written. A custom
+        subclass whose pulse stores those fields updates that pulse.
+
+        ``frequency`` and ``frequency_offset`` set
+        ``qubit.larmor_frequency`` from any XY macro. Changes are stored
+        on the QuAM objects and kept by ``machine.save``.
 
         Args:
-            pi_amplitude: Set the x180 pulse amplitude to this value and
-                the x90 pulse amplitude to half this value.
-            amplitude_scale: Multiply the current amplitudes of both
-                pulses by this factor.  Mutually exclusive with
-                *pi_amplitude*.
-            duration: Set the reference pulse length in **nanoseconds**
-                (quantised to 4 ns).  For Gaussian pulses, sigma
-                auto-scales via ``sigma_ratio``.
+            amplitude_scale: Multiply the played pulse's stored amplitude
+                by this factor.
+            duration: Set the played pulse's length in nanoseconds.
             frequency: Set ``qubit.larmor_frequency`` to this absolute
-                value (Hz).  Mutually exclusive with *frequency_offset*.
+                value (Hz). When both this and *frequency_offset* are
+                passed, this value is the one stored.
             frequency_offset: Add this offset (Hz) to the current
                 ``qubit.larmor_frequency``.
         """
-        if pi_amplitude is not None and amplitude_scale is not None:
-            raise ValueError("pi_amplitude and amplitude_scale are mutually exclusive")
-
-        if pi_amplitude is not None:
-            self.pulse.amplitude = pi_amplitude / 2
-            self.pi_pulse.amplitude = pi_amplitude
+        played = self.qubit.xy.operations[self.pulse_name]
+        if amplitude_scale is not None:
+            _require_stored_field(self.pulse_name, played, "amplitude")
+        if duration is not None:
+            _require_stored_field(self.pulse_name, played, "length")
+            if hasattr(played, "sigma_ratio"):
+                _require_stored_field(self.pulse_name, played, "sigma")
 
         if amplitude_scale is not None:
-            self.pulse.amplitude = self.pulse.amplitude * amplitude_scale
-            self.pi_pulse.amplitude = self.pi_pulse.amplitude * amplitude_scale
+            played.amplitude = played.amplitude * amplitude_scale
 
         if duration is not None:
-            self.pulse.length = duration
-            self.pi_pulse.length = duration
-
-            if hasattr(self.pulse, "sigma_ratio"):
-                self.pulse.sigma = duration * self.pulse.sigma_ratio
-                self.pi_pulse.sigma = duration * self.pi_pulse.sigma_ratio
+            played.length = duration
+            if hasattr(played, "sigma_ratio"):
+                played.sigma = duration * played.sigma_ratio
 
         if frequency is not None:
             self.qubit.larmor_frequency = float(frequency)

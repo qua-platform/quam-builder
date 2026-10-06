@@ -146,8 +146,8 @@ class TestPulseFamilySwitching:
 
         macro = XYDriveMacro.__new__(XYDriveMacro)
         macro.pulse_family = "gaussian"
-        assert macro.pulse_name == "gaussian_x90"
-        assert macro.reference_pulse_name == "gaussian_x90"
+        assert macro.pulse_name == "gaussian_x180"
+        assert macro.reference_pulse_name == "gaussian_x180"
 
     def test_x180_resolves_to_family_x180(self):
         from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
@@ -190,7 +190,7 @@ class TestPulseFamilySwitching:
         for macro in macros.values():
             macro.pulse_family = "kaiser"
 
-        assert macros["xy_drive"].pulse_name == "kaiser_x90"
+        assert macros["xy_drive"].pulse_name == "kaiser_x180"
         assert macros["x180"].pulse_name == "kaiser_x180"
         assert macros["x_neg90"].pulse_name == "kaiser_x_neg90"
         assert macros["y180"].pulse_name == "kaiser_y180"
