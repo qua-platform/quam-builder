@@ -8,10 +8,11 @@ This is INDEPENDENT of Stage 1 and works with any BaseQuamQD (file or memory).
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Union, cast, Tuple
 
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam, ExchangeOnlyQuam
+from quam_builder.architecture.quantum_dots.components import ExchangeAxis
 
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.builder.quantum_dots.build_utils import (
@@ -24,7 +25,7 @@ from quam_builder.builder.quantum_dots.build_utils import (
     _validate_drive_ports,
 )
 
-__all__ = ["_LDQubitBuilder"]
+__all__ = ["_LDQubitBuilder", "_EOQubitBuilder"]
 
 logger = logging.getLogger(__name__)
 
@@ -467,3 +468,312 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             qt = qp.qubit_target
             qc.preferred_readout_quantum_dot = qt.quantum_dot.id
             qt.preferred_readout_quantum_dot = qc.quantum_dot.id
+
+
+class _EOQubitBuilder: 
+    """Stage 2: Builds qubits from existing quantum dots.
+
+    This builder converts BaseQuamQD to ExchangeOnlyQuam and creates:
+    - ExchangeOnlyQubits (mapped to quantum dots)
+    - Qubit pairs
+
+    Requires:
+    - BaseQuamQD with quantum_dots already registered
+    """
+
+    def __init__(
+        self,
+        machine: Union[BaseQuamQD, ExchangeOnlyQuam, str, Path],
+        xy_drive_wiring: Optional[Dict[str, Dict]] = None,
+        qubits_sensor_map: Optional[Dict[str, List[str]]] = None,
+        implicit_mapping: bool = True,
+        target_quam_class: type[ExchangeOnlyQuam] = ExchangeOnlyQuam,
+    ):
+        """Initialize Stage 2 builder.
+
+        Args:
+            machine: BaseQuamQD, ExchangeOnlyQuam, or path to saved state.
+            qubits_sensor_map: Sensor mapping for qubits.
+                                  Format: {"q1": ["sensor_1"], ...}
+            implicit_mapping: If True, uses q1→virtual_dot_1 mapping.
+            target_quam_class: Root class to use after Stage 2 promotion.
+        """
+        if not issubclass(target_quam_class, ExchangeOnlyQuam):
+            raise TypeError(
+                "target_quam_class must be a ExchangeOnlyQuam subclass, "
+                f"got {target_quam_class!r}."
+            )
+
+        # Load machine if path provided
+        if isinstance(machine, (str, Path)):
+            machine = BaseQuamQD.load(machine)
+
+        self.machine = machine
+        self.xy_drive_wiring = xy_drive_wiring
+        self.qubits_sensor_map = qubits_sensor_map or {}
+        self.implicit_mapping = implicit_mapping
+        self.target_quam_class = target_quam_class
+
+        self._mapped_dots = set()
+
+    def build(self) -> ExchangeOnlyQuam:
+        """Execute Stage 2 build process.
+
+        Steps:
+        1. Convert BaseQuamQD → ExchangeOnlyQuam if needed
+        2. Validate quantum dots & quantum dot pairs exist
+        3. Register qubits (with implicit mapping, the ExchangeAxis assignments can be swapped when Quam is populated.)
+        4. Register qubit pairs
+
+        Returns:
+            ExchangeOnlyQuam with qubits registered.
+        """
+        # Convert machine class if BaseQuamQD
+        if isinstance(self.machine, BaseQuamQD) and not isinstance(
+            self.machine, ExchangeOnlyQuam
+        ):
+            self.machine.__class__ = self.target_quam_class
+            # Initialize LDQuam-specific fields
+            if not hasattr(self.machine, "qubits"):
+                self.machine.qubits = {}
+            if not hasattr(self.machine, "qubit_pairs"):
+                self.machine.qubit_pairs = {}
+            if not hasattr(self.machine, "active_qubit_names"):
+                self.machine.active_qubit_names = []
+            if not hasattr(self.machine, "active_qubit_pair_names"):
+                self.machine.active_qubit_pair_names = []
+
+        # Validate quantum dots exist
+        if not self.machine.quantum_dots:
+            raise ValueError(
+                "No quantum dots found in machine. "
+                "Please run Stage 1 (build_base_quam) first."
+            )
+
+        if not self.machine.quantum_dot_pairs: 
+            raise ValueError(
+                "No quantum dot pairs found in machine. "
+                "Please run Stage 1 (build_base_quam) first."
+            )
+        
+        # Convert QD Pairs to Exchange Axes: 
+        self._convert_pairs_to_exchange_axes()
+
+        # Register qubits and qubit pairs
+        self._register_qubits()
+        self._register_qubit_pairs()
+        self._wire_sensor_dots_to_pairs()
+
+        # Type cast: machine is guaranteed to be ExchangeOnlyQuam at this point
+        return cast(ExchangeOnlyQuam, self.machine)
+
+    def _convert_pairs_to_exchange_axes(self): 
+        """
+        Converts each QuantumDotPair object held in the machine to an ExchangeAxis object, expanding the usage.
+        """
+        for qd_pair in self.machine.quantum_dot_pairs.values():
+            if isinstance(qd_pair, ExchangeAxis):
+                continue
+            qd_pair.__class__ = ExchangeAxis
+            qd_pair.add_exchange_axis()
+
+    def _find_next_quantum_dot_pairs_with_overlapping_quantum_dot(self, available_dot_pairs: List[str]) -> Tuple[str, str]: 
+        """
+        Given a set of available QuantumDotPairs, finds the next available pair of QuantumDotPairs
+        which share a QuantumDot object.
+        """
+        for first_pair in sorted(available_dot_pairs): # See if the strings can be sorted this way
+            truncated_list = [k for k in available_dot_pairs if k != first_pair]
+            first_dots = set(self.machine.quantum_dot_pairs[first_pair].quantum_dots)
+            for second_pair in truncated_list: 
+                second_dots = set(self.machine.quantum_dot_pairs[second_pair].quantum_dots)
+
+                # If there is an overlap, then the total number of dots should b3 exactly 3
+                if (
+                    len(first_dots) == 2
+                    and len(second_dots) == 2
+                    and len(first_dots & second_dots) == 1
+                    and len(first_dots | second_dots) == 3
+                ):
+                    self._mapped_dots.update(first_dots | second_dots)
+                    return first_pair, second_pair
+            print(f"No overlapping Quantum Dot Pairs found for pair {first_pair}.")
+        raise ValueError(
+            "Could not find two available QuantumDotPairs "
+            "that share exactly one QuantumDot. "
+            f"Available pairs: {available_dot_pairs}"
+        )
+
+    def _map_qubit_to_dot_pairs(self, qubit_id: str) -> Tuple[str, str]:
+        """Map qubit ID to quantum dot ID using implicit or explicit mapping.
+
+        Args:
+            qubit_id: Qubit identifier (e.g., 'q1', 'Q2').
+
+        Returns:
+            Jn and Jz quantum dot pair virtual names (e.g., 'virtual_dot_1_virtual_dot_2_pair', 'virtual_dot_2_virtual_dot_3_pair).
+
+        Raises:
+            ValueError: If quantum dot not found.
+        """
+        if not self.implicit_mapping:
+            # TODO: Add support for explicit mapping from config
+            raise NotImplementedError("Explicit mapping not yet implemented")
+
+        # Available dot pairs are those which have zero quantum dots in the mapped dots. 
+        available_dot_pairs = [
+            pair_id
+            for pair_id, pair in self.machine.quantum_dot_pairs.items()
+            if not (set(pair.quantum_dots) & self._mapped_dots)
+        ]
+        
+        jn_pair, jz_pair = self._find_next_quantum_dot_pairs_with_overlapping_quantum_dot(available_dot_pairs)
+        print(f"{qubit_id}, mapped to {jn_pair} and {jz_pair}")
+        return jn_pair, jz_pair
+
+    def _traverse_port_reference(self, ref: str):
+        """Manually resolve a port reference like ``#/ports/mw_outputs/con1/4/1``."""
+        parts = ref.lstrip("#/").split("/")
+        obj = self.machine
+        for part in parts:
+            if isinstance(obj, Mapping):
+                if part in obj:
+                    obj = obj[part]
+                elif part.isdigit() and int(part) in obj:
+                    obj = obj[int(part)]
+                else:
+                    return None
+            elif hasattr(obj, part):
+                obj = getattr(obj, part)
+            else:
+                return None
+        return obj
+
+    def _register_qubits(self):
+        """Register qubits with the machine using implicit mapping."""
+        # Get qubit IDs from wiring or XY drive wiring
+        qubit_ids = set()
+
+        logger.info(
+            "Inferring qubits from number of quantum dots."
+        )
+        # Extract total number of qubits from the number of dots
+        num_dots = len(self.machine.quantum_dots.keys())
+        # Estimate the number of qubits for this number of dots
+        try: 
+            num_qubits = num_dots // 3
+            for qubit_index in range(num_qubits): 
+                qubit_ids.add(f"q{qubit_index + 1}")
+        except ValueError:
+            logger.warning(
+                f"Could not infer qubit ID"
+            )
+
+        # Register each qubit
+        for qubit_id in sorted(qubit_ids, key=_natural_sort_key):
+            # Map to quantum dot
+            (jn_pair, jz_pair) = self._map_qubit_to_dot_pairs(qubit_id)
+
+            # Register qubit
+            qubit_name = qubit_id
+            self.machine.register_qubit(
+                qubit_name=qubit_name,
+                jn_pair = jn_pair, 
+                jz_pair = jz_pair,
+            )
+
+            logger.info(
+                f"Registered qubit {qubit_name} → Jn {jn_pair}, Jz {jz_pair} "
+            )
+
+    def _component_id(self, component) -> str:
+        if isinstance(component, str):
+            return component.rsplit("/", 1)[-1]
+        return component.id
+
+    def _pair_dot_ids(self, pair) -> set[str]:
+        return {self._component_id(dot) for dot in pair.quantum_dots}
+
+    def _register_qubit_pairs(self):
+        """Register a qubit pair for each barrier joining two consecutive qubits.
+
+        Quantum-dot pairs already used as Jn or Jz stay inside their qubit.
+        A remaining pair whose dots belong to two different qubits is the
+        barrier between those qubits.
+        """
+        used_pair_ids = set()
+        dots_by_qubit: Dict[str, set[str]] = {}
+        for qubit_id, qubit in self.machine.qubits.items():
+            owned: set[str] = set()
+            for axis in (qubit.jn_pair, qubit.jz_pair):
+                pair_id = self._component_id(axis)
+                used_pair_ids.add(pair_id)
+                owned.update(self._pair_dot_ids(self.machine.quantum_dot_pairs[pair_id]))
+            dots_by_qubit[qubit_id] = owned
+
+        for pair_id, pair in self.machine.quantum_dot_pairs.items():
+            if pair_id in used_pair_ids:
+                continue
+            dots = self._pair_dot_ids(pair)
+            owners = sorted(
+                (
+                    qubit_id
+                    for qubit_id, owned in dots_by_qubit.items()
+                    if owned & dots
+                ),
+                key=_natural_sort_key,
+            )
+            if len(owners) != 2:
+                logger.info(
+                    "Skipping quantum dot pair %s: it does not join two qubits",
+                    pair_id,
+                )
+                continue
+            if pair.barrier_gate is None:
+                logger.warning(
+                    "Skipping quantum dot pair %s: no barrier gate", pair_id
+                )
+                continue
+
+            control_id, target_id = owners
+            barrier_name = self._component_id(pair.barrier_gate)
+            self.machine.register_qubit_pair(
+                qubit_control_name=control_id,
+                qubit_target_name=target_id,
+                barrier_gate_name=barrier_name,
+            )
+            logger.info(
+                "Registered qubit pair %s_%s via barrier %s (%s)",
+                control_id,
+                target_id,
+                barrier_name,
+                pair_id,
+            )
+
+    def _wire_sensor_dots_to_pairs(self) -> None:
+        """Populate quantum_dot_pair.sensor_dots from qubits_sensor_map.
+
+        Also initialises placeholder readout discrimination parameters
+        (threshold=0, identity projector) on each sensor dot for each
+        pair it is wired to, so the PSB measurement chain is compilable
+        before calibration.
+        """
+        for qubit_id, sensor_names in self.qubits_sensor_map.items():
+            q = self.machine.qubits.get(qubit_id)
+            if q is None:
+                continue
+            qdps = [q.jn_pair, q.jz_pair]
+            for qdp in qdps: 
+                for sname in sensor_names:
+                    for sid in self.machine.sensor_dots:
+                        if sid == sname or sid.endswith(f"_{sname.split('_')[-1]}"):
+                            ref = f"#/sensor_dots/{sid}"
+                            if ref not in qdp.sensor_dots:
+                                qdp.sensor_dots.append(ref)
+                            sd = self.machine.sensor_dots[sid]
+                            if qdp.id not in sd.readout_thresholds:
+                                sd._add_readout_params(
+                                    qdp.id,
+                                    threshold=0.0,
+                                    projector={"wI": 1.0, "wQ": 0.0, "offset": 0.0},
+                                )

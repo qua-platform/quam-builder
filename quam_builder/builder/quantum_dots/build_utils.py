@@ -11,7 +11,7 @@ This module provides helper functions for:
 
 
 import re
-from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Union, Literal
 
 from numpy import ceil, sqrt
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
@@ -30,6 +30,7 @@ from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.builder.qop_connectivity.get_digital_outputs import (
     get_digital_outputs,
 )
+from quam_builder.architecture.quantum_dots.qpu import AnyQuamQD
 from quam_builder.builder.qop_connectivity.channel_ports import (
     iq_out_channel_ports,
     mw_out_channel_ports,
@@ -45,6 +46,8 @@ _ELEMENT_TYPE_ALIASES = {
     "sensor_dots": "readout",
     "qubits": "qubits",
     "qubit_pairs": "qubit_pairs",
+    "quantum_dots": "quantum_dots",
+    "quantum_dot_pairs": "quantum_dot_pairs",
 }
 
 _ALLOWED_LINE_TYPES = {
@@ -298,7 +301,8 @@ def _build_virtual_mapping(
 def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     """Parse qubit pair identifier into control and target qubit names.
 
-    Accepts formats: 'q1_q2', 'q1-q2', '1_2', '1-2'.
+    Accepts formats: 'q1_q2', 'q1-q2', '1_2', '1-2',
+    'virtual_dot_1_virtual_dot_2_pair'.
 
     Args:
         qubit_pair_id: Pair identifier string.
@@ -309,6 +313,13 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
     Raises:
         ValueError: If pair ID format is invalid.
     """
+    named = re.fullmatch(
+        r"virtual_dot_(\d+)_virtual_dot_(\d+)_pair",
+        qubit_pair_id,
+    )
+    if named:
+        return f"q{int(named.group(1))}", f"q{int(named.group(2))}"
+
     if "-" in qubit_pair_id:
         control, target = qubit_pair_id.split("-", 1)
     elif "_" in qubit_pair_id:
@@ -319,7 +330,12 @@ def _parse_qubit_pair_ids(qubit_pair_id: str) -> Tuple[str, str]:
         )
 
     def _ensure_q_prefix(qubit_token: str) -> str:
-        return qubit_token if qubit_token.startswith("q") else f"q{qubit_token}"
+        if qubit_token.startswith("q"):
+            return qubit_token
+        match = re.search(r"(\d+)$", qubit_token)
+        if match:
+            return f"q{int(match.group(1))}"
+        return f"q{qubit_token}"
 
     control = _ensure_q_prefix(control)
     target = _ensure_q_prefix(target)
@@ -506,6 +522,86 @@ def _create_xy_drive_from_wiring(
         f"Unknown drive type: {drive_type}. Expected 'IQ', 'MW', or 'Single'."
     )
 
+QubitType = Literal["loss_divincenzo", "exchange_only"]
+
+def adjust_wiring_for_spin_type(
+    machine: AnyQuamQD,
+    qubit_type: QubitType = "loss_divincenzo",
+) -> AnyQuamQD:
+    wiring = machine.wiring
+    if qubit_type == "exchange_only":
+        _move_line(
+            wiring,
+            source="qubits",
+            destination="quantum_dots",
+            line_type=WiringLineType.PLUNGER_GATE.value,
+            rename=_dot_wiring_id,
+        )
+        _move_line(
+            wiring,
+            source="qubit_pairs",
+            destination="quantum_dot_pairs",
+            line_type=WiringLineType.BARRIER_GATE.value,
+            rename=_dot_pair_wiring_id,
+        )
+    elif qubit_type != "loss_divincenzo":
+        raise ValueError(
+            f"Unrecognized qubit type {qubit_type!r}. "
+            "Expected 'loss_divincenzo' or 'exchange_only'."
+        )
+
+    machine.wiring = wiring
+    return machine
+
+
+def _dot_wiring_id(element_id: str) -> str:
+    """``q1`` → ``virtual_dot_1``. qualang_tools names every dot with a qubit reference."""
+    return _implicit_qubit_to_dot_mapping(element_id)
+
+
+def _dot_pair_wiring_id(element_id: str) -> str:
+    """``q1-2`` → ``virtual_dot_1_virtual_dot_2_pair``."""
+    control, target = _parse_qubit_pair_ids(element_id)
+    return (
+        f"{_implicit_qubit_to_dot_mapping(control)}_"
+        f"{_implicit_qubit_to_dot_mapping(target)}_pair"
+    )
+
+
+def _move_line(
+    wiring: dict[str, Any],
+    source: str,
+    destination: str,
+    line_type: str,
+    rename=None,
+) -> None:
+    """Move one line type from ``source`` into ``destination``.
+
+    Assign back onto ``wiring[destination]``. ``setdefault`` on a QuAM wiring
+    dict returns a copy, so writing into that copy drops the lines.
+    ``rename`` replaces the element id on the way into ``destination``.
+    """
+    elements = wiring.get(source)
+    if not elements:
+        return
+    if destination not in wiring:
+        wiring[destination] = {}
+    dest = wiring[destination]
+    for element_id, lines in list(elements.items()):
+        if line_type not in lines:
+            continue
+        entry = lines.pop(line_type)
+        if getattr(entry, "parent", None) is not None:
+            entry.parent = None
+        dest_id = rename(element_id) if rename is not None else element_id
+        if dest_id not in dest:
+            dest[dest_id] = {}
+        dest[dest_id][line_type] = entry
+        if not lines:
+            del elements[element_id]
+    if not elements:
+        del wiring[source]
+
 
 # pylint: disable=undefined-all-variable
 __all__ = [
@@ -526,5 +622,6 @@ __all__ = [
     "_extract_qubit_number",
     "_implicit_qubit_to_dot_mapping",
     "_create_xy_drive_from_wiring",
+    "adjust_wiring_for_spin_type",
 ]
 # pylint: enable=undefined-all-variable

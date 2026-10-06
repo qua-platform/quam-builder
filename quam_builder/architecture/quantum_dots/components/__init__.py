@@ -19,6 +19,7 @@ from . import pulses
 from . import readout_transport
 from . import reservoir
 from . import dac_spec
+from . import exchange_axis
 
 from .pulses import *
 from .voltage_gate import *
@@ -40,6 +41,9 @@ from .qpu import *
 
 from .dac_spec import *
 
+from .exchange_axis import *
+
+
 __all__ = [
     *pulses.__all__,
     *voltage_gate.__all__,
@@ -58,4 +62,5 @@ __all__ = [
     *readout_transport.__all__,
     *reservoir.__all__,
     *dac_spec.__all__,
+    *exchange_axis.__all__,
 ]
