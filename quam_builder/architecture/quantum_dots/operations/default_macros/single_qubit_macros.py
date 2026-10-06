@@ -264,7 +264,8 @@ class XYDriveMacro(QubitMacro):
 
     @property
     def inferred_duration(self) -> float | None:
-        return self.pulse.length
+        """Length of the operation this macro plays, in nanoseconds."""
+        return self.qubit.xy.operations[self.pulse_name].length
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
