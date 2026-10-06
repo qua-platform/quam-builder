@@ -56,10 +56,14 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         for cr in self.get_all_cr_with_qt():
             self._shift_frame(cr, -phi)
 
+    def ry(self, qubit: Qubit, phase: ScalarOfAnyType) -> None:
+        """Ry(phase) = X(-pi/2) Z(phase) X(pi/2). ``phase`` is in units of 2pi."""
+        qubit.xy.play("x90")
+        self.virtual_z_2pi(qubit, phase)
+        qubit.xy.play("-x90")
+
     def _align_cr(self) -> None:
         align(*self.cr_elems)
-        # self.qc.align()
-        # self.qt.align()
 
     @staticmethod
     def _scaled_amplitude(amp_scale: Optional[AmplitudeScale], sign: int) -> AmplitudeScale:
@@ -101,14 +105,17 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
     """
     Cross-resonance two-qubit gate macro.
 
-    Drive, cancel, and duration parameters are supplied per experiment via
-    ``apply()``. Waveform and frame correction defaults live on the gate macro.
+    Drive, cancel, duration, and ZZ-suppression phase are supplied per experiment
+    via ``apply()``. Waveform, frame correction, and ``zz_supression_phase_2pi``
+    defaults live on the gate macro. ``zz_supression_phase=None`` uses the stored
+    phase. A phase of 0 skips the Ry rotations.
     """
 
     cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct+echo"
     wf_type: str = "flattop"
     qc_frame_correction_2pi: float = 0.0
     qt_frame_correction_2pi: float = 0.0
+    zz_supression_phase_2pi: float = 0.0
 
     def get_cr_operation(self, wf_type: Optional[str] = None):
         if not wf_type or wf_type == "default":
@@ -127,6 +134,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         add_cancel_phase: Optional[ScalarOfAnyType] = None,
         add_qc_frame_correction_2pi: Optional[ScalarOfAnyType] = None,
         add_qt_frame_correction_2pi: Optional[ScalarOfAnyType] = None,
+        zz_supression_phase: Optional[ScalarOfAnyType] = None,
     ) -> None:
         cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
         wf_type = wf_type if (wf_type and wf_type != "default") else self.wf_type
@@ -136,6 +144,10 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             add_drive_phase = None
         if isinstance(add_cancel_phase, float) and add_cancel_phase == 0.0:
             add_cancel_phase = None
+
+        # None uses the phase stored on the gate. 0 skips the Ry rotations.
+        if zz_supression_phase is None and self.zz_supression_phase_2pi != 0:
+            zz_supression_phase = self.zz_supression_phase_2pi
 
         # convert frame_correction_2pi to float
         if add_qc_frame_correction_2pi is None:
@@ -151,6 +163,12 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             "cr_drive_amp_scaling": drive_amp_scaling,
             "cancel_amp_scaling": cancel_amp_scaling,
         }
+
+        # Ry(phi) on the target before the CR interaction to convert ZZ to ZX
+        if zz_supression_phase is not None:
+            self._align_cr()
+            self.ry(self.qt, zz_supression_phase)
+            self._align_cr()
 
         # apply dynamic phase update
         if add_drive_phase is not None:
@@ -178,6 +196,11 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         self.qc.xy.frame_rotation_2pi(qc_frame_correction_2pi)
         self.qt.xy.frame_rotation_2pi(qt_frame_correction_2pi)
         self._align_cr()
+
+        # Revert ZZ-supression
+        if zz_supression_phase is not None:
+            self.ry(self.qt, -zz_supression_phase)
+            self._align_cr()
 
     def _direct(
         self,
