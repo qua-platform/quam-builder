@@ -998,7 +998,7 @@ class VoltageSequence:
             # pulse (above); only the bookkeeping is left to do here.
             if self._keep_levels:
                 self._keep_levels_tracker.update_tracking(zero_dict)
-            self.ramp_to_zero()
+            self._clear_sticky_offset()
 
         for tracker in self.state_trackers.values():
             tracker.reset_integrated_voltage()
