@@ -163,6 +163,34 @@ def test_vgs_ramp_to_zero_after_virtual_step(virtual_gate_set: VirtualGateSet):
     assert compare_ast_nodes(ast, expected_ast)
 
 
+def test_vgs_ramp_to_zero_with_duration_clears_virtual_levels(
+    virtual_gate_set: VirtualGateSet,
+):
+    """A timed ramp_to_zero reaches 0 V when the last command used virtual gates.
+
+    keep_levels holds v_g1 and v_g2. The ramp must not resolve those held
+    values back onto ch1 and ch2.
+    """
+    vgs = virtual_gate_set
+    add_default_virtual_layer(vgs)
+
+    with qua.program() as prog:
+        seq = vgs.new_sequence(enforce_qua_calcs=False)
+        seq.step_to_voltages(voltages={"v_g1": 0.2, "v_g2": 0.1}, duration=40)
+        seq.ramp_to_zero(ramp_duration=200)
+
+    # After the step: ch1 = 0.05 V, ch2 = 0.1 V (see the test above).
+    # The ramp runs from those levels to 0 V over 200 ns.
+    ast = ProgramTreeBuilder().build(prog)
+    with qua.program() as expected_program:
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.1), "ch1", duration=10)
+        qua.play(DEFAULT_PULSE_NAME * qua.amp(0.2), "ch2", duration=10)
+        qua.play(qua.ramp(-0.05 / 200), "ch1", duration=50)
+        qua.play(qua.ramp(-0.1 / 200), "ch2", duration=50)
+    expected_ast = ProgramTreeBuilder().build(expected_program)
+    assert compare_ast_nodes(ast, expected_ast)
+
+
 def test_ramp_to_voltages_simple(machine):
     """Tests a simple ramp_to_voltages operation."""
     with qua.program() as prog:
