@@ -171,12 +171,12 @@ Single-qubit XY rotations use a **reference pulse** (default `{pulse_family}_x18
 
 | Drive type | Waveform | Axis selection |
 |------------|----------|----------------|
-| **`XYDriveSingle`** | Real baseband (`axis_angle=None`) | Virtual-Z frame rotation (`qubit.virtual_z`) before/after `play` |
-| **`XYDriveIQ` / `XYDriveMW`** | Complex envelope (`axis_angle=0.0` on reference) | Same virtual-Z path; hardware IQ mixer carries the tone |
+| **`XYDriveSingle`** | Real baseband (`axis_angle=None`) | One real waveform; X and Y operations are not distinguished in the pulse |
+| **`XYDriveIQ` / `XYDriveMW`** | Complex envelope | `axis_angle` on each operation (Y is `π/2`) |
 
-The macro chain (`x180` → `x` → `xy_drive`) applies `virtual_z(phase)` to select X, Y, or arbitrary XY axes without redefining pulse waveforms. This is the primary **phase correction** mechanism at the experiment layer; Octave **`calibrate_octave`** handles mixer/LO calibration at the hardware layer.
+The XY macros do not call `virtual_z`. The rotation axis is the played operation (`axis_angle` on IQ and microwave drives). A frame shift is `z()`, and that rotation stays on the element. Octave **`calibrate_octave`** handles mixer/LO calibration at the hardware layer.
 
-Arbitrary-angle `x` and `y` scale the `xy_drive` reference pulse by `angle / π`. Fixed-angle gates keep their own calibrated pulses. See [operations/README.md](../operations/README.md#single-qubit-gate-composition-model).
+Arbitrary-angle `x` and `y` scale the `x180` and `y180` pulses by `angle / π`, using a negative scale for a negative angle. Fixed-angle gates play their own calibrated pulses and do not accept `angle`. See [operations/README.md](../operations/README.md#single-qubit-gate-composition-model).
 
 ### Builder auto-detection
 

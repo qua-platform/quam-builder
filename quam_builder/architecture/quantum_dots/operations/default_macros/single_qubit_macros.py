@@ -11,15 +11,22 @@ convention ``{family}_{gate}`` (e.g. ``"kaiser_x180"``).
 Changing ``machine.pulse_family`` (and propagating via
 ``machine.set_pulse_family()``) switches **all** macros simultaneously.
 
-Rescaling philosophy
---------------------
-The ``XYDriveMacro`` rescales only **amplitude** and **phase** at the
-macro level:
-
-* **Amplitude** is scaled proportionally to the requested rotation angle
-  relative to ``reference_angle`` (default π).
-* **Phase** selects the rotation axis via a virtual-Z frame rotation
-  (0 → X, π/2 → Y, arbitrary → any XY axis).
+Two families of single-qubit rotations
+---------------------------------------
+* **Dedicated-pulse macros** (``X180Macro``, ``X90Macro``, ``XNeg90Macro``,
+  ``Y180Macro``, ``Y90Macro``, ``YNeg90Macro``, and ``XYDriveMacro``)
+  each play their own calibrated operation at its stored amplitude.
+  They do not accept ``angle``.  A phase shift is ``qubit.z(...)``
+  followed by the gate.
+* **Canonical macros** (``XMacro``, ``YMacro``, ``ZMacro``).  ``XMacro``
+  plays ``{family}_x180`` and ``YMacro`` plays ``{family}_y180``, with
+  amplitude scaled by ``angle / pi``.  A negative angle is a negative
+  amplitude scale.  Omitting ``angle`` is a π rotation, the same gate as
+  ``x180`` or ``y180``.
+  ``ZMacro`` is a frame rotation with no pulse.  That rotation stays on
+  the element; it is the gate.  ``Z180Macro``, ``Z90Macro``, and
+  ``ZNeg90Macro`` are the same call at a fixed angle and do not accept
+  ``angle``.
 
 By default the pulse plays at its calibrated ``length``.  Pass
 ``duration`` (in clock cycles, 1 cycle = 4 ns) to override it at runtime,
@@ -81,13 +88,6 @@ __all__ = [
 def _quantize_ns(duration_ns: float) -> int:
     """Quantize nanoseconds to OPX 4 ns clock boundaries."""
     return max(int(round(duration_ns / 4.0)) * 4, 0)
-
-
-def _compose_phase(base_phase: float, extra_phase: float | None) -> float:
-    """Combine phase offsets across macro layers."""
-    if extra_phase is None:
-        return base_phase
-    return base_phase + extra_phase
 
 
 def _compose_amplitude_scale(
@@ -237,10 +237,10 @@ class XYDriveMacro(QubitMacro):
     """
 
     pulse_family: str = DrivePulseName.GAUSSIAN.value
-    phase: float = None
 
     _gate_suffix: ClassVar[str] = "_x90"
     _reference_gate_suffix: ClassVar[str] = "_x90"
+    _scales_with_angle: ClassVar[bool] = False
 
     @property
     def pulse_name(self) -> str:
@@ -325,15 +325,24 @@ class XYDriveMacro(QubitMacro):
 
     def apply(
         self,
-        phase: float = 0.0,
         amplitude_scale: float | None = None,
         duration=None,
-        **kwargs,
+        angle: float | None = None,
     ):
-        phase += self.phase
+        """Play this macro's operation.
 
-        if not math.isclose(phase, 0.0):
-            self.qubit.virtual_z(phase)
+        ``angle`` (radians, ``x``/``y`` only) is the rotation: the π pulse
+        is scaled by ``angle / π``. ``amplitude_scale`` is an extra one-shot
+        multiplier on that play. A frame shift is ``z()``.
+        """
+        if self._scales_with_angle:
+            effective_angle = np.pi if angle is None else angle
+            amplitude_scale = _compose_amplitude_scale(effective_angle / np.pi, amplitude_scale)
+        elif angle is not None:
+            raise TypeError(
+                f"{type(self).__name__} does not accept 'angle'. "
+                "Use x() or y() for an arbitrary angle."
+            )
         self.qubit.xy.play(
             pulse_name=self.pulse_name, amplitude_scale=amplitude_scale, duration=duration
         )
@@ -341,28 +350,42 @@ class XYDriveMacro(QubitMacro):
 
 @quam_dataclass
 class XMacro(XYDriveMacro):
-    """Canonical X-axis rotation macro."""
+    """Canonical, arbitrary-angle rotation around X.
 
-    _gate_suffix: ClassVar[str] = "_x90"
+    Plays the calibrated ``{family}_x180`` pulse with amplitude scaled by
+    ``angle / pi``. A negative angle is a negative amplitude scale.
+    Omitting ``angle`` is a π rotation, the same gate as ``x180``.
+    """
 
-    phase: float = 0.0
+    _gate_suffix: ClassVar[str] = "_x180"
+    _scales_with_angle: ClassVar[bool] = True
 
 
 @quam_dataclass
 class YMacro(XYDriveMacro):
-    """Canonical Y-axis rotation macro."""
+    """Canonical, arbitrary-angle rotation around Y.
 
-    _gate_suffix: ClassVar[str] = "_y90"
+    Plays the calibrated ``{family}_y180`` pulse, whose axis is already Y,
+    with amplitude scaled by ``angle / pi``. A negative angle is a negative
+    amplitude scale. Omitting ``angle`` is a π rotation, the same gate as
+    ``y180``.
+    """
 
-    reference_angle: float = None
-    phase: float = -np.pi
+    _gate_suffix: ClassVar[str] = "_y180"
+    _scales_with_angle: ClassVar[bool] = True
 
 
 @quam_dataclass
 class ZMacro(QubitMacro):
-    """Canonical virtual-Z rotation macro."""
+    """Canonical virtual-Z rotation macro.
+
+    ``angle`` is the rotation in radians. Omitting it uses
+    ``default_angle`` (π). The rotation stays on the element. Fixed-angle
+    subclasses set ``_accepts_angle`` to false and reject a passed angle.
+    """
 
     default_angle: float = float(np.pi)
+    _accepts_angle: ClassVar[bool] = True
 
     @property
     def inferred_duration(self) -> float:
@@ -372,9 +395,14 @@ class ZMacro(QubitMacro):
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, angle: float | None = None, **kwargs):
-        """Apply virtual-Z rotation for requested angle."""
-        target_angle = self.default_angle if angle is None else float(angle)
+    def apply(self, angle: float | None = None):
+        """Apply a virtual-Z rotation."""
+        if angle is not None and not self._accepts_angle:
+            raise TypeError(
+                f"{type(self).__name__} does not accept 'angle'. "
+                "Use z() for an arbitrary virtual-Z rotation."
+            )
+        target_angle = self.default_angle if angle is None else angle
         self.qubit.virtual_z(target_angle)
 
 
@@ -385,7 +413,6 @@ class X180Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x180"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    phase: float = 0.0
 
 
 @quam_dataclass
@@ -395,7 +422,6 @@ class X90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    phase: float = 0.0
 
 
 @quam_dataclass
@@ -405,7 +431,6 @@ class XNeg90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_x_neg90"
 
     axis_macro_name: str = SingleQubitMacroName.X.value
-    phase: float = 0.0
 
 
 @quam_dataclass
@@ -415,7 +440,6 @@ class Y180Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y180"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    phase: float = 0.0
 
 
 @quam_dataclass
@@ -425,7 +449,6 @@ class Y90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y90"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    phase: float = 0.0
 
 
 @quam_dataclass
@@ -435,31 +458,33 @@ class YNeg90Macro(XYDriveMacro):
     _gate_suffix: ClassVar[str] = "_y_neg90"
 
     axis_macro_name: str = SingleQubitMacroName.Y.value
-    phase: float = 0.0
 
 
 @quam_dataclass
 class Z180Macro(ZMacro):
-    """Apply virtual 180-degree Z rotation via canonical `z` macro."""
+    """Virtual π rotation around Z. Does not accept ``angle``."""
 
     axis_macro_name: str = SingleQubitMacroName.Z.value
     default_angle: float = float(np.pi)
+    _accepts_angle: ClassVar[bool] = False
 
 
 @quam_dataclass
 class Z90Macro(ZMacro):
-    """Apply virtual 90-degree Z rotation via canonical `z` macro."""
+    """Virtual π/2 rotation around Z. Does not accept ``angle``."""
 
     axis_macro_name: str = SingleQubitMacroName.Z.value
-    default_angle = float(np.pi / 2)
+    default_angle: float = float(np.pi / 2)
+    _accepts_angle: ClassVar[bool] = False
 
 
 @quam_dataclass
 class ZNeg90Macro(ZMacro):
-    """Apply virtual -90-degree Z rotation via canonical `z` macro."""
+    """Virtual -π/2 rotation around Z. Does not accept ``angle``."""
 
     axis_macro_name: str = SingleQubitMacroName.Z.value
-    default_angle = float(-np.pi / 2)
+    default_angle: float = float(-np.pi / 2)
+    _accepts_angle: ClassVar[bool] = False
 
 
 @quam_dataclass

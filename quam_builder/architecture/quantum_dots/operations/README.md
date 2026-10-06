@@ -71,7 +71,7 @@ From [`../../../tools/macros/default_macros.py`](../../../tools/macros/default_m
 - Fixed-angle wrappers: `x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, `z180`, `z90`
 - Identity: `I`
 
-Canonical chain: `x`/`y` delegate to `xy_drive` with phase offsets; fixed-angle wrappers delegate to canonical axes.
+`x` and `y` scale the `x180` and `y180` pulses by `angle / π`. Fixed-angle macros play their own calibrated pulse and do not accept `angle`. `z90`, `z180`, and `z_neg90` are fixed virtual-Z rotations and do not accept `angle`.
 
 ### `LDQubitPair`
 
@@ -224,19 +224,21 @@ This catches configuration mistakes early.
 
 ## Single-Qubit Gate Composition Model
 
-### Delegation chain
+### Two play paths
 
-```
-q.x90()                      # fixed-angle wrapper
-  -> q.macros["x"].apply()   # canonical axis macro (adds phase=0 for X)
-       -> q.macros["xy_drive"].apply()  # core XY drive
-            -> q.virtual_z(phase)
-            -> q.voltage_sequence.step_to_voltages(...)
-            -> q.xy.play(pulse_name, amplitude_scale, duration)
-            -> q.virtual_z(-phase)
-```
+Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_drive`) each play their own calibrated operation at its stored amplitude. They reject `angle`. A phase shift is `z()` followed by the gate; `phase` is not a parameter of these macros.
 
-Overriding one canonical macro automatically affects all wrappers above it.
+`x(angle)` plays `{family}_x180` and `y(angle)` plays `{family}_y180`, with amplitude scale `angle / π`. Omitting `angle` is a π rotation, equivalent to `x180` or `y180`. A negative angle is a negative scale. `z(angle)` is a virtual-Z frame rotation that stays on the element; omitting `angle` is π. `z90`, `z180`, and `z_neg90` are that same rotation at a fixed angle and reject `angle`.
+
+### `angle` and `amplitude_scale`
+
+`apply` takes both. They do different jobs.
+
+`angle` is the rotation, in radians. Only `x()` and `y()` accept it. They play the calibrated π pulse (`{family}_x180` or `{family}_y180`), and the scale sent to QUA is `angle / π`. Omitting `angle` means π, so the pulse plays at its stored amplitude. A negative angle is a negative scale, which reverses the rotation. Fixed-angle macros reject `angle`: `x90` is already a π/2 pulse, so there is no angle to choose.
+
+`amplitude_scale` is an extra multiplier on that one play. It does not select a rotation. On a fixed gate it is the only amplitude knob, so `q.x90(amplitude_scale=0.5)` plays the calibrated π/2 pulse at half amplitude. On `x` and `y` it multiplies the angle scale: `q.x(angle=π/2, amplitude_scale=0.5)` plays the π pulse at 0.25.
+
+`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the stored x90 and x180 amplitudes (the other XY operations follow those two by reference). The value passed to `apply` lasts for that `play` only.
 
 ### Source of truth
 
