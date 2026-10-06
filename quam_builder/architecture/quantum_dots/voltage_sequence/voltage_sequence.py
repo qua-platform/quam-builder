@@ -1059,7 +1059,11 @@ class VoltageSequence:
         self, ramp_duration: Optional[int] = None, reset_tracker: Optional[bool] = False
     ):
         """
-        Ramps the voltage on all channels in the GateSet to zero
+        Ramps every physical channel to zero.
+
+        Virtual gates are set to zero as well, including levels held by
+        ``keep_levels``. Otherwise those virtual voltages are resolved back
+        onto the physical channels and the ramp does not move.
 
         Also resets integrated voltage tracking.
 
@@ -1086,6 +1090,10 @@ class VoltageSequence:
             ...     # All channels now at 0V, optionally reset tracked integrated voltage
         """
 
+        # Include every virtual gate. keep_levels holds those voltages, and
+        # resolve_voltages would add them back onto the physical channels.
+        zero_voltages = {name: 0.0 for name in self.gate_set.valid_channel_names}
+
         if ramp_duration is None:
             if self.gate_set.adjust_for_attenuation:
                 # QUA ramp_to_zero() does not apply the same OPX scaling as _play_*_on_channel
@@ -1100,7 +1108,7 @@ class VoltageSequence:
                 ]
                 ramp_ns = max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
                 self.ramp_to_voltages(
-                    voltages={ch_name: 0.0 for ch_name in self.gate_set.channels},
+                    voltages=zero_voltages,
                     duration=0,
                     ramp_duration=ramp_ns,
                 )
@@ -1116,13 +1124,16 @@ class VoltageSequence:
                 for ch_name, channel_obj in self.gate_set.channels.items():
                     tracker = self.state_trackers[ch_name]
                     ramp_to_zero(channel_obj.name)
+                    tracker.current_level = 0.0
                     tracker.update_integrated_voltage(
                         level=0.0, duration=0, ramp_duration=channel_obj.sticky.duration
                     )
+                if self._keep_levels:
+                    self._keep_levels_tracker.update_tracking(zero_voltages)
 
         else:
             self.ramp_to_voltages(
-                voltages={ch_name: 0.0 for ch_name in self.gate_set.channels},
+                voltages=zero_voltages,
                 duration=0,
                 ramp_duration=ramp_duration,
             )
