@@ -54,11 +54,11 @@ Real `machine.connect()` and `machine.connect_to_external_source()` calls are in
 
 With a machine in hand, these scripts show how an operation becomes QUA. Each one calls `build_tutorial_machine()`, adjusts macros or pulses, builds a short program, and prints it with `generate_qua_script`. Read them in this order.
 
-1. [`macro_defaults_example.py`](macros/macro_defaults_example.py) uses the macros the machine already has. It sets a parameter on a wired macro and on its reference pulse, then calls `initialize`, `x180`, and `measure` from a QUA program. Start here. The later scripts are variations on this one.
+1. [`macro_defaults_example.py`](macros/macro_defaults_example.py) uses the macros the machine already has. It sets `initialize.ramp_duration`, `measure.buffer_duration`, the stored `gaussian_x90` amplitude, and `I.duration` (clock cycles), then calls `initialize`, `x90`, `I`, `y90`, and `measure` from a QUA program. Start here. The later scripts are variations on this one.
 
 2. [`macro_overrides_example.py`](macros/macro_overrides_example.py) replaces a default. A `TypeOverrideCatalog` changes every qubit of a type, `instance_overrides` changes one qubit, and `DISABLED` removes a macro. `macro.update(...)` writes a calibrated value onto an override that is already wired.
 
-3. [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) is about the waveform, not the macro. Each XY gate is registered for every family (gaussian, square, kaiser, hermite, drag). Editing the anchor pulse of a family updates the gates that reference it. `machine.set_pulse_family(...)` selects which family `x180` plays.
+3. [`pulse_overrides_example.py`](macros/pulse_overrides_example.py) is about the waveform, not the macro. Each XY gate is registered for every family (gaussian, square, kaiser, hermite, drag). `x90` and `x180` store length and amplitude for each family. Editing one of those two updates the gates that reference it. `machine.set_pulse_family(...)` selects which family the XY gates play.
 
 4. [`external_macro_package_example.py`](macros/external_macro_package_example.py) keeps lab macros outside this repository. [`external_macro_demo/`](macros/external_macro_demo/) is a tiny package that exports a catalog. The script passes that catalog to `wire_machine_macros`, which is how a lab catalog survives an upstream update.
 
@@ -80,7 +80,7 @@ The connectivity scripts are where the two halves meet on one machine: each gate
 
 [`rabi_chevron.py`](experiments/rabi_chevron.py) is the scripts above used together on the tutorial machine. It adds an `operate` voltage point, then sweeps drive duration and drive detuning:
 
-`initialize` → `operate` with `qubit.x180(duration=t)` → sensor `measure` → compensation pulse
+`initialize` → `operate` with `qubit.x180(duration=t)` → sensor `measure` → compensation pulse. `duration` here is in clock cycles (1 cycle = 4 ns).
 
 `x180` and `measure` are the default macros from section 3. The voltage points and the compensation pulse are the voltage sequence from section 4. The script prints the QUA program. Set `SIMULATE_ON_OPX = True` to simulate the start of the sweep on an OPX and plot the waveform report. The OPX address comes from `build_tutorial_machine()`.
 

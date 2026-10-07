@@ -4,7 +4,46 @@
 This folder contains the default operations and catalog-based macro wiring system for quantum-dot QuAM components.
 The main goal is to keep macro behavior decoupled from component classes while making defaults and user overrides explicit, composable, and serializable.
 
-You call **`qubit.x180()`** (or `initialize` / `measure`) in a QUA program. **`wire_machine_macros`** fills the default macros and pulses; the builder and `load()` already run it, so a freshly built machine is ready to use. Override recipes and catalog internals follow below.
+You call **`qubit.x180()`** (or `initialize` / `measure`) in a QUA program. The play path and duration units are the next section. **`wire_machine_macros`** fills the default macros and pulses; the builder and `load()` already run it, so a freshly built machine is ready to use. Catalogs and override recipes follow the gate model.
+
+## Single-Qubit Gate Composition Model
+
+### Two play paths
+
+Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_drive`) each play their own calibrated operation at its stored amplitude. `xy_drive` plays `{family}_x180`, the same pulse as `x180`. They reject `angle`. A phase shift is `z()` followed by the gate; `phase` is not a parameter of these macros.
+
+`x(angle)` plays `{family}_x180` and `y(angle)` plays `{family}_y180`, with amplitude scale `angle / π`. Omitting `angle` is a π rotation, equivalent to `x180` or `y180`. A negative angle is a negative scale. `z(angle)` is a virtual-Z frame rotation that stays on the element; omitting `angle` is π. `z90`, `z180`, and `z_neg90` are that same rotation at a fixed angle and reject `angle`.
+
+### `angle` and `amplitude_scale`
+
+`apply` takes both. They do different jobs.
+
+`angle` is the rotation, in radians. Only `x()` and `y()` accept it. They play the calibrated π pulse (`{family}_x180` or `{family}_y180`), and the scale sent to QUA is `angle / π`. Omitting `angle` means π, so the pulse plays at its stored amplitude. A negative angle is a negative scale, which reverses the rotation. Fixed-angle macros reject `angle`: `x90` is already a π/2 pulse, so there is no angle to choose.
+
+`amplitude_scale` is an extra multiplier on that one play. It does not select a rotation. On a fixed gate it is the only amplitude knob, so `q.x90(amplitude_scale=0.5)` plays the calibrated π/2 pulse at half amplitude. On `x` and `y` it multiplies the angle scale: `q.x(angle=π/2, amplitude_scale=0.5)` plays the π pulse at 0.25.
+
+`apply(duration=...)` on an XY macro, and `I(duration=...)`, are in clock cycles (1 cycle = 4 ns), the same unit as QUA `play(duration=...)` and `wait`. The identity default is 4 cycles (16 ns). `update(amplitude_scale=...)` is a different call with the same argument name as `apply`. It permanently multiplies the amplitude of the pulse that macro plays. `update(duration=...)` sets that pulse's length in nanoseconds, rounded to a multiple of 4 ns. If the field is a QuAM reference, the call raises and names the operation that stores the value, and nothing is written. `y90.length` references `{family}_x90`, so the duration is changed with `x90.update(duration=...)`. A custom `XYDriveMacro` whose pulse stores its own length and amplitude can call `update()` on that pulse. The value passed to `apply` lasts for that `play` only.
+
+### Source of truth
+
+`{family}_x90` and `{family}_x180` store length and amplitude. The other XY operations in that family reference one of those two. `update()` writes the operation the macro plays:
+
+```python
+qubit.xy.operations[qubit.macros["x90"].pulse_name]    # gaussian_x90
+qubit.xy.operations[qubit.macros["x180"].pulse_name]  # gaussian_x180
+```
+
+`y90.update(duration=200)` raises `ValueError`: `gaussian_y90.length references gaussian_x90. Update that pulse instead.`
+
+### What to calibrate
+
+| Parameter | Where it lives | Affects |
+|-----------|---------------|---------|
+| x90 amplitude, length, shape | `qubit.xy.operations["gaussian_x90"]` | `x90`, and operations that reference it (`x_neg90`, `y90`, `y_neg90`) |
+| x180 amplitude and length | `qubit.xy.operations["gaussian_x180"]` | `x180`, `xy_drive`, `x()`, and `y180` (which references it). `y()` plays `y180` |
+| Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
+| Drive frequency | `qubit.larmor_frequency` (`update(frequency=...)`) | All XY gates |
+| Voltage points | `qubit.add_point("initialize", {...})` | State macros |
 
 ## Architecture Overview
 
@@ -66,11 +105,7 @@ From [`../../../tools/macros/default_macros.py`](../../../tools/macros/default_m
 
 ### `LDQubit`
 
-- State macros: `initialize`, `measure`, `empty`, `exchange`
-- `xy_drive` and `x180` play `{family}_x180`. `x(angle)` scales that pulse by `angle / π`. `y(angle)` scales `{family}_y180` the same way. Omitting `angle` is a π rotation.
-- Fixed-angle pulses: `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`. Each plays its own operation and does not accept `angle`.
-- Virtual-Z: `z`, `z180`, `z90`, `z_neg90`. `z(angle)` defaults to π. The fixed rotations do not accept `angle`.
-- Identity: `I`
+State macros: `initialize`, `measure`, `empty`, `exchange`. Gate macros: `xy_drive`, `x`, `y`, `z`, `x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, `z180`, `z90`, `z_neg90`, and `I`. The play path is [above](#single-qubit-gate-composition-model).
 
 ### `LDQubitPair`
 
@@ -92,8 +127,14 @@ wire_machine_macros(machine)
 ```python
 from my_lab_macros.catalog import LabMacroCatalog
 
-wire_machine_macros(machine, catalogs=[LabMacroCatalog()])
+wire_machine_macros(
+    machine,
+    catalogs=[LabMacroCatalog()],
+    fill_only=False,
+)
 ```
+
+`fill_only=False` replaces macros the builder or `load()` already wired. With the default `fill_only=True`, a catalog only adds names that are absent.
 
 ### With instance overrides
 
@@ -138,6 +179,7 @@ from quam_builder.architecture.quantum_dots.qubit import LDQubit
 
 wire_machine_macros(
     machine,
+    fill_only=False,
     catalogs=[
         TypeOverrideCatalog({
             LDQubit: {
@@ -171,6 +213,8 @@ wire_machine_macros(
 4. Instance overrides -- per-component-path, applied last
 
 Effective: `instance override` > `catalog (highest priority)` > `default`.
+
+A catalog replaces a macro that is already on the component when `fill_only=False`. The default `fill_only=True` adds names that are absent, which is what `load()` uses so saved macros stay in place. Instance overrides replace an existing macro even when `fill_only` stays `True`.
 
 ## MacroCatalog Protocol
 
@@ -221,45 +265,6 @@ Invalid instance override paths (e.g. a typo like `"qubits.q99"`) and
 `DISABLED` removals targeting non-existent macros always raise `KeyError`.
 This catches configuration mistakes early.
 
-## Single-Qubit Gate Composition Model
-
-### Two play paths
-
-Fixed-angle macros (`x180`, `x90`, `x_neg90`, `y180`, `y90`, `y_neg90`, and `xy_drive`) each play their own calibrated operation at its stored amplitude. `xy_drive` plays `{family}_x180`, the same pulse as `x180`. They reject `angle`. A phase shift is `z()` followed by the gate; `phase` is not a parameter of these macros.
-
-`x(angle)` plays `{family}_x180` and `y(angle)` plays `{family}_y180`, with amplitude scale `angle / π`. Omitting `angle` is a π rotation, equivalent to `x180` or `y180`. A negative angle is a negative scale. `z(angle)` is a virtual-Z frame rotation that stays on the element; omitting `angle` is π. `z90`, `z180`, and `z_neg90` are that same rotation at a fixed angle and reject `angle`.
-
-### `angle` and `amplitude_scale`
-
-`apply` takes both. They do different jobs.
-
-`angle` is the rotation, in radians. Only `x()` and `y()` accept it. They play the calibrated π pulse (`{family}_x180` or `{family}_y180`), and the scale sent to QUA is `angle / π`. Omitting `angle` means π, so the pulse plays at its stored amplitude. A negative angle is a negative scale, which reverses the rotation. Fixed-angle macros reject `angle`: `x90` is already a π/2 pulse, so there is no angle to choose.
-
-`amplitude_scale` is an extra multiplier on that one play. It does not select a rotation. On a fixed gate it is the only amplitude knob, so `q.x90(amplitude_scale=0.5)` plays the calibrated π/2 pulse at half amplitude. On `x` and `y` it multiplies the angle scale: `q.x(angle=π/2, amplitude_scale=0.5)` plays the π pulse at 0.25.
-
-`update(amplitude_scale=...)` is a different call with the same argument name. It permanently multiplies the amplitude of the pulse that macro plays. `update(duration=...)` sets that pulse's length in nanoseconds, rounded to a multiple of 4 ns. If the field is a QuAM reference, the call raises and names the operation that stores the value, and nothing is written. `y90.length` references `{family}_x90`, so the duration is changed with `x90.update(duration=...)`. A custom `XYDriveMacro` whose pulse stores its own length and amplitude can call `update()` on that pulse. The value passed to `apply` lasts for that `play` only.
-
-### Source of truth
-
-`{family}_x90` and `{family}_x180` store length and amplitude. The other XY operations in that family reference one of those two. `update()` writes the operation the macro plays:
-
-```python
-qubit.xy.operations[qubit.macros["x90"].pulse_name]    # gaussian_x90
-qubit.xy.operations[qubit.macros["x180"].pulse_name]  # gaussian_x180
-```
-
-`y90.update(duration=200)` raises `ValueError`: `gaussian_y90.length references gaussian_x90. Update that pulse instead.`
-
-### What to calibrate
-
-| Parameter | Where it lives | Affects |
-|-----------|---------------|---------|
-| x90 amplitude, length, shape | `qubit.xy.operations["gaussian_x90"]` | `x90`, and operations that reference it (`x_neg90`, `y90`, `y_neg90`) |
-| x180 amplitude and length | `qubit.xy.operations["gaussian_x180"]` | `x180`, `xy_drive`, `x()`, and `y180` (which references it). `y()` plays `y180` |
-| Pulse envelope (family) | `machine.pulse_family` / `set_pulse_family()` | All XY gates |
-| Drive frequency | `qubit.larmor_frequency` (`update(frequency=...)`) | All XY gates |
-| Voltage points | `qubit.add_point("initialize", {...})` | State macros |
-
 ## Default Pulse Wiring
 
 `wire_machine_macros()` also wires default pulses onto component channels via `PulseWirer`. Pulse wiring is additive -- only pulse names not already present are added.
@@ -305,7 +310,11 @@ For **AC-coupled** gate lines, default state macros can leave a non-zero net int
 from quam_builder.architecture.quantum_dots.operations.macro_catalog import VoltageBalancedMacroCatalog
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 
-wire_machine_macros(machine, catalogs=[VoltageBalancedMacroCatalog()])
+wire_machine_macros(
+    machine,
+    catalogs=[VoltageBalancedMacroCatalog()],
+    fill_only=False,
+)
 ```
 
 **Conventions** (see [`voltage_balanced_macros/state_macros.py`](voltage_balanced_macros/state_macros.py)):
@@ -376,10 +385,14 @@ At the experiment call site:
 from my_lab_macros.catalog import LabMacroCatalog
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 
-wire_machine_macros(machine, catalogs=[LabMacroCatalog()])
+wire_machine_macros(
+    machine,
+    catalogs=[LabMacroCatalog()],
+    fill_only=False,
+)
 ```
 
-This keeps custom defaults out of `quam-builder` itself.
+This keeps custom defaults out of `quam-builder` itself. `fill_only=False` is required when the machine already has the default macros.
 
 ## Builder Integration
 
