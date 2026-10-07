@@ -3,7 +3,7 @@
 This script demonstrates:
 1. Building a machine via the combined wiring workflow.
 2. Wiring architecture defaults with ``wire_machine_macros(machine)`` only.
-3. Parameterizing instantiated default macro objects and reference pulses directly on components.
+3. Parameterizing instantiated default macros and the stored ``gaussian_x90`` pulse directly on components.
 4. Building a QUA program that calls those default macros.
 5. Printing that program with ``generate_qua_script`` so the ``play``, ``ramp``, and ``wait`` calls from each ``apply`` method are visible.
 """
