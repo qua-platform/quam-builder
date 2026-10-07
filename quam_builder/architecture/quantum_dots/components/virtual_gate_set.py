@@ -407,7 +407,7 @@ class VirtualGateSet(GateSet):
         Checks:
         - Each target gate must correspond to a lower layer source gate
           or physical channel
-        - Each target gate must not be a target gate in any previous layer
+        - Target gates may be reused across layers, enabling branching virtual-gate structures
         - Each source gate must not be a source gate in any previous layer
         - Each source gate must not be a target gate in any previous layer
         - Matrix dimensions match the number of source/target gates
@@ -456,12 +456,12 @@ class VirtualGateSet(GateSet):
                 )
 
         # Check 2: Each target gate must not be a target gate in any previous layer
-        for tg in target_gates:
-            if tg in existing_target_gates:
-                raise ValueError(
-                    f"Target gate '{tg}' in new layer is already a target gate in a "
-                    f"previous layer. Existing target gates: {existing_target_gates}"
-                )
+        # for tg in target_gates:
+        #     if tg in existing_target_gates:
+        #         raise ValueError(
+        #             f"Target gate '{tg}' in new layer is already a target gate in a "
+        #             f"previous layer. Existing target gates: {existing_target_gates}"
+        #         )
 
         # Check 3: Each source gate must not be a source gate in any previous layer
         for sg in source_gates:
@@ -571,15 +571,15 @@ class VirtualGateSet(GateSet):
             )
 
         # Check: target gates should not exist in any other layers
-        for lyr in self.layers:
-            # Skip current layer
-            if lyr.id == layer_id:
-                continue
-            conflicts = set(target_gates) & set(lyr.target_gates)
-            if conflicts:
-                raise ValueError(
-                    f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
-                )
+        # for lyr in self.layers:
+        #     # Skip current layer
+        #     if lyr.id == layer_id:
+        #         continue
+        #     conflicts = set(target_gates) & set(lyr.target_gates)
+        #     if conflicts:
+        #         raise ValueError(
+        #             f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
+        #         )
 
         # Check: matrix shape validation
         matrix_array = np.array(matrix, dtype=float)
