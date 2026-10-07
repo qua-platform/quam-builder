@@ -276,7 +276,7 @@ class DrachmaReadoutPulse(ReadoutPulse):
     device. We implement their single-pass (non-iterative) correction, Eqs. (9)-(10),
     generalized with our per-state kappa_j:
 
-        a_j~(t) = [kappa_j/2 + i*chi_j + d/dt] a_T(t) / sqrt(kappa_j)     (Eq. 9)
+        a_j~(t) = [kappa_k/2 + i*chi_k + d/dt] a_T(t) / sqrt(kappa_k),  k = 1-j  (Eq. 9)
         a_in(t) = [prod_j (kappa_j/2 + i*(chi_j + 4*zeta_j*|a_j~(t)|^2) + d/dt)]
                   a_T(t) / sqrt(kappa_ground_hz * kappa_excited_hz)        (Eq. 10)
 
@@ -330,19 +330,30 @@ class DrachmaReadoutPulse(ReadoutPulse):
         estimate of each state's intracavity field, used only to evaluate the
         self-Kerr correction chi_j -> chi_j + 4*zeta_j*|a_j~(t)|^2 (Eq. 10). No-op
         (returns the plain constant detunings) when zeta_ground_hz and
-        zeta_excited_hz are both 0."""
+        zeta_excited_hz are both 0.
+
+        The field in state j is built with the OTHER state's operator: solving
+        L_j a_j = sqrt(kappa_j) * a_in with a_in = L_0 L_1 a_T / sqrt(kappa_0 kappa_1)
+        cancels L_j, leaving a_j = L_{1-j} a_T / sqrt(kappa_{1-j}). The paper writes
+        Eq. (9) with matching indices, which gives the same |a_j~| only when kappa
+        is shared and chi_0 = -chi_1."""
         a_T_scaled = self.amplitude * a_T
+        to_per_sample = 2 * np.pi / self.sample_rate
+        kappas = (
+            self.kappa_ground_hz * to_per_sample,
+            self.kappa_excited_hz * to_per_sample,
+        )
+        detunings = (
+            self.detuning_ground_hz * to_per_sample,
+            self.detuning_excited_hz * to_per_sample,
+        )
+        zetas = (self.zeta_ground_hz * to_per_sample, self.zeta_excited_hz * to_per_sample)
         corrected_detunings = []
-        for kappa_hz, detuning_hz, zeta_hz in (
-            (self.kappa_ground_hz, self.detuning_ground_hz, self.zeta_ground_hz),
-            (self.kappa_excited_hz, self.detuning_excited_hz, self.zeta_excited_hz),
-        ):
-            kappa = 2 * np.pi * kappa_hz / self.sample_rate
-            detuning = 2 * np.pi * detuning_hz / self.sample_rate
-            a_tilde = self._apply_first_order_operator(a_T_scaled, kappa, detuning)
-            a_tilde = a_tilde / np.sqrt(kappa)
-            zeta = 2 * np.pi * zeta_hz / self.sample_rate
-            corrected_detunings.append(detuning + 4 * zeta * np.abs(a_tilde) ** 2)
+        for j in range(2):
+            other = 1 - j
+            a_tilde = self._apply_first_order_operator(a_T_scaled, kappas[other], detunings[other])
+            a_tilde = a_tilde / np.sqrt(kappas[other])
+            corrected_detunings.append(detunings[j] + 4 * zetas[j] * np.abs(a_tilde) ** 2)
         return corrected_detunings
 
     def waveform_function(self):

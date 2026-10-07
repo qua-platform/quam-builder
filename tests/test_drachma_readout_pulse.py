@@ -157,6 +157,48 @@ def test_waveform_amplitude_normalization_with_kerr_enabled():
     assert np.sum(np.abs(waveform)) == pytest.approx(0.5 * 100)
 
 
+def test_kerr_field_estimate_uses_other_state_operator():
+    """In state j the resonator cancels its own factor of a_in, so the field that
+    drives the Kerr shift is L_{1-j} a_T / sqrt(kappa_{1-j}); with asymmetric
+    kappa/detuning this differs from the same-state pairing."""
+    sample_rate = 1e9
+    params = dict(
+        kappa_ground_hz=564700.0,
+        kappa_excited_hz=300000.0,
+        detuning_ground_hz=299000.0,
+        detuning_excited_hz=-100000.0,
+        zeta_ground_hz=-175.0,
+        zeta_excited_hz=-56.0,
+    )
+    pulse = _make_pulse(**params)
+    a_T = pulse._trial_function()
+    detuning_ground_t, detuning_excited_t = pulse._kerr_shifted_detunings(a_T)
+
+    def per_sample(hz):
+        return 2 * np.pi * hz / sample_rate
+
+    def field(kappa_hz, detuning_hz):
+        kappa = per_sample(kappa_hz)
+        operator_out = (kappa / 2 + 1j * per_sample(detuning_hz)) * (0.5 * a_T) + np.gradient(
+            0.5 * a_T
+        )
+        return operator_out / np.sqrt(kappa)
+
+    field_ground = field(params["kappa_excited_hz"], params["detuning_excited_hz"])
+    field_excited = field(params["kappa_ground_hz"], params["detuning_ground_hz"])
+    expected_ground = (
+        per_sample(params["detuning_ground_hz"])
+        + 4 * per_sample(params["zeta_ground_hz"]) * np.abs(field_ground) ** 2
+    )
+    expected_excited = (
+        per_sample(params["detuning_excited_hz"])
+        + 4 * per_sample(params["zeta_excited_hz"]) * np.abs(field_excited) ** 2
+    )
+
+    assert np.allclose(detuning_ground_t, expected_ground)
+    assert np.allclose(detuning_excited_t, expected_excited)
+
+
 def test_depletion_time_ns_default_and_override():
     assert _make_pulse().depletion_time_ns == 16
     assert _make_pulse(depletion_time_ns=32).depletion_time_ns == 32
