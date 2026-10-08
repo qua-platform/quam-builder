@@ -93,13 +93,13 @@ Pick the row that matches your hardware. **MW-FEM** is what the connectivity exa
 
 - Baseband EDSR/ESR on a **single** LF-FEM analog port — no external upconversion.
 - Simplest setup; `RF_frequency` is the drive IF.
-- Pulses use **real-valued waveforms** (`axis_angle=None`); rotation axis is handled by **virtual-Z** in `XYDriveMacro`, not hardware IQ mixing.
+- Pulses use **real-valued waveforms** (`axis_angle=None`). X and Y operations share that waveform; the XY macros do not apply a virtual-Z to choose the axis.
 - No built-in `get_output_power` / `set_output_power` (only shared `XYDriveBase.calculate_voltage_scaling_factor`).
 
 ### `XYDriveIQ`
 
 - Preferred when wiring exposes **I/Q outputs and a frequency converter** (Octave path).
-- **Hardware IQ mixing** — default reference pulse gets `axis_angle=0.0`; macro applies virtual-Z for X/Y axis selection (same macro path as MW).
+- **Hardware IQ mixing.** Each operation stores its own `axis_angle` (Y is `π/2`). The XY macros do not call `virtual_z`.
 - Power helpers: `get_output_power` / `set_output_power` via IQ gain/amplitude ([`power_tools.py`](../../../tools/power_tools.py)).
 - Builder note: preferred for LF-FEM RF allocation when IQ ports are available (see `_create_xy_drive_from_wiring` in [`build_utils.py`](../../../builder/quantum_dots/build_utils.py)).
 
@@ -107,7 +107,7 @@ Pick the row that matches your hardware. **MW-FEM** is what the connectivity exa
 
 - For **MW-FEM** setups (examples: [`wiring_combined_example.py`](../examples/connectivity/wiring_combined_example.py), [`manual_qubits_example.py`](../examples/connectivity/manual_qubits_example.py), [`rabi_chevron.py`](../examples/experiments/rabi_chevron.py)).
 - Single MW port with on-module upconversion; IF + port upconverter frequency define the emitted tone.
-- Same pulse/macro model as IQ (`axis_angle=0.0`).
+- Same pulse/macro model as IQ: each operation stores its own `axis_angle`.
 - Power helpers via MW full-scale power ([`power_tools.py`](../../../tools/power_tools.py)).
 
 ### `XYDrive` parallel execution and timing
@@ -165,18 +165,18 @@ Emitted tone ≈ **LO + IF** (sign convention per channel type). The qubit's **`
 
 If validation fails, adjust `LO_frequency` or `larmor_frequency` so the required IF falls within band.
 
-### Phase control model
+### Rotation axis
 
-Single-qubit XY rotations use a **reference pulse** (default `{pulse_family}_x180`) as the amplitude/phase source of truth:
+`{pulse_family}_x90` and `{pulse_family}_x180` store length and amplitude. The other XY operations reference one of those two. `xy_drive` plays `{pulse_family}_x180`.
 
 | Drive type | Waveform | Axis selection |
 |------------|----------|----------------|
-| **`XYDriveSingle`** | Real baseband (`axis_angle=None`) | Virtual-Z frame rotation (`qubit.virtual_z`) before/after `play` |
-| **`XYDriveIQ` / `XYDriveMW`** | Complex envelope (`axis_angle=0.0` on reference) | Same virtual-Z path; hardware IQ mixer carries the tone |
+| **`XYDriveSingle`** | Real baseband (`axis_angle=None`) | One real waveform; X and Y operations are not distinguished in the pulse |
+| **`XYDriveIQ` / `XYDriveMW`** | Complex envelope | `axis_angle` on each operation (Y is `π/2`) |
 
-The macro chain (`x180` → `x` → `xy_drive`) applies `virtual_z(phase)` to select X, Y, or arbitrary XY axes without redefining pulse waveforms. This is the primary **phase correction** mechanism at the experiment layer; Octave **`calibrate_octave`** handles mixer/LO calibration at the hardware layer.
+The XY macros do not call `virtual_z`. The rotation axis is the played operation (`axis_angle` on IQ and microwave drives). A frame shift is `z()`, and that rotation stays on the element. Octave **`calibrate_octave`** handles mixer/LO calibration at the hardware layer.
 
-Arbitrary-angle `x` and `y` scale the `xy_drive` reference pulse by `angle / π`. Fixed-angle gates keep their own calibrated pulses. See [operations/README.md](../operations/README.md#single-qubit-gate-composition-model).
+Arbitrary-angle `x` and `y` scale the `x180` and `y180` pulses by `angle / π`, using a negative scale for a negative angle. Fixed-angle gates play their own calibrated pulses and do not accept `angle`. See [operations/README.md](../operations/README.md#single-qubit-macros).
 
 ### Builder auto-detection
 

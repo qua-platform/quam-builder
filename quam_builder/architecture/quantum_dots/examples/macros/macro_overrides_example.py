@@ -8,7 +8,8 @@ Demonstrates the recommended Python API for overriding macros:
 4. ``DISABLED`` sentinel -- remove a macro from a component.
 5. ``macro.update(...)`` -- calibrate a parameter on an already-wired override.
 
-``TunedX180Macro`` subclasses ``X180Macro`` to expose a calibrated phase.
+``TunedX180Macro`` subclasses ``X180Macro`` so one qubit can carry its own
+class. ``update(duration=...)`` writes that pulse's length in nanoseconds.
 ``BalancedDCz2QMacro`` (already in ``voltage_balanced_macros``) replaces
 ``cz``; it reads the pair's ``exchange`` point, which the tutorial machine
 does not define, so ``add_exchange_point()`` adds it.
@@ -21,7 +22,6 @@ The script then prints the QUA program with ``generate_qua_script``.
 from __future__ import annotations
 
 from functools import partial
-import numpy as np
 from qm import generate_qua_script, qua
 
 from quam_builder.architecture.quantum_dots.examples.tutorial_machine import build_tutorial_machine
@@ -45,18 +45,11 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 
 
 class TunedX180Macro(X180Macro):
-    """X180 whose ``phase`` is a calibrated virtual-Z offset.
+    """X180 replaced on one qubit.
 
-    ``apply`` adds ``self.phase`` to any phase passed at the call, then
-    plays it with ``qubit.virtual_z`` before the pi pulse. Set the
-    calibration with ``update(phase=...)`` after wiring. The value is
-    stored on the macro and kept by ``machine.save``.
+    The gate is the same π pulse as ``X180Macro``. ``update(duration=...)``
+    writes that pulse's length in nanoseconds.
     """
-
-    def update(self, *, phase: float | None = None, **kwargs) -> None:
-        super().update(**kwargs)
-        if phase is not None:
-            self.phase = float(phase)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -71,7 +64,7 @@ def print_macro_summary(machine: LossDiVincenzoQuam, title: str) -> None:
     print("q1.initialize:", type(q1.macros[VoltagePointName.INITIALIZE]).__name__)
     x180 = q1.macros[SingleQubitMacroName.X_180]
     print("q1.x180:", type(x180).__name__)
-    print("q1.x180.phase:", x180.phase)
+    print("q1.x180 pulse:", x180.pulse_name)
     print("q1_q2.cz:", type(pair.macros[TwoQubitMacroName.CZ]).__name__)
     print("q2.z180 present:", SingleQubitMacroName.Z_180 in q2.macros)
 
@@ -162,9 +155,10 @@ def main() -> None:
     apply_macro_overrides(machine)
     print_macro_summary(machine, "After Overrides")
 
-    # Calibrated phase for this qubit. Radians; virtual_z converts to QUA turns.
-    machine.qubits["q1"].x180.update(phase=np.pi/4)
-    print_macro_summary(machine, "After calibrating q1.x180.phase")
+    q1 = machine.qubits["q1"]
+    q1.x180.update(duration=200)
+    print_macro_summary(machine, "After calibrating q1.x180 duration")
+    print("q1.x180 length:", q1.xy.operations[q1.x180.pulse_name].length)
 
     add_exchange_point(machine)
 

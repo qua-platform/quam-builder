@@ -333,7 +333,11 @@ def wire_machine_macros(
 
         from my_lab.catalog import LabMacroCatalog
 
-        wire_machine_macros(machine, catalogs=[LabMacroCatalog()])
+        wire_machine_macros(
+            machine,
+            catalogs=[LabMacroCatalog()],
+            fill_only=False,
+        )
 
     Example -- instance override::
 

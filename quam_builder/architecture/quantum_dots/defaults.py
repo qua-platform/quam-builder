@@ -133,8 +133,11 @@ class MiscDefaults:
     sticky_duration: int = 16
     """StickyChannelAddon duration in ns."""
 
-    identity_duration: int = 16
-    """IdentityMacro wait duration in ns."""
+    identity_duration: int = 4
+    """IdentityMacro wait duration in clock cycles (4 ns each).
+
+    Four cycles is 16 ns, the shortest QUA wait.
+    """
 
 
 @dataclass

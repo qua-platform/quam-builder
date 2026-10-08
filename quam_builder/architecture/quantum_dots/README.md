@@ -139,7 +139,7 @@ with program() as prog:
     q1.align()
 ```
 
-`duration` and `ramp_duration` are in **nanoseconds**. 
+`duration` and `ramp_duration` on these voltage calls are in **nanoseconds**. `apply(duration=...)` on an XY gate, and `I(duration=...)`, are in clock cycles (1 cycle = 4 ns), the same unit as QUA `play` and `wait`. 
 For several dots at once use [`VoltageSequence.simultaneous`](voltage_sequence/README.md#Core-Methods).
 
 ## Turning pulse sequences into custom macros
@@ -242,6 +242,8 @@ Builder entry points and `load()` call `wire_machine_macros()`. Call it yourself
 - applying a lab catalog or instance override; or
 - manually assembling a machine that did not go through the builder.
 
+A catalog replaces a macro the builder already wired when `fill_only=False`. Instance overrides replace an existing macro even when `fill_only` stays at its default, `True`.
+
 Supported override API:
 
 ```python
@@ -251,6 +253,7 @@ wire_machine_macros(
     machine,
     catalogs=[...],              # lab MacroCatalog instances
     instance_overrides={...},    # e.g. {"qubits.q1": {SingleQubitMacroName.X_180: TunedX180Macro}}
+    fill_only=False,             # replace macros already on the machine
 )
 ```
 

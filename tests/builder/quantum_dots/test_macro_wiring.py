@@ -1,6 +1,7 @@
 """Tests for runtime macro wiring and override behavior."""
 
 from functools import partial
+from typing import ClassVar
 from unittest.mock import patch
 
 import numpy as np
@@ -9,9 +10,12 @@ import pytest
 from qm import qua
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam.components import pulses
+from quam.core import quam_dataclass
+from quam_builder.architecture.quantum_dots.components.pulses import ScalableGaussianPulse
 from quam_builder.architecture.quantum_dots.macro_engine import wire_machine_macros
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     X180Macro,
+    XYDriveMacro,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     InitializeStateMacro,
@@ -113,6 +117,7 @@ def test_component_type_override_applies_to_all_instances():
 
     wire_machine_macros(
         machine,
+        fill_only=False,
         catalogs=[
             TypeOverrideCatalog(
                 {
@@ -142,54 +147,103 @@ def test_default_two_qubit_crot_macro_is_wired():
     assert isinstance(pair.macros[TwoQubitMacroName.CROT], CROTMacro)
 
 
-def test_canonical_x_and_y_delegate_to_xy_drive():
-    """Canonical axis macros should delegate into `xy_drive` with proper phase."""
+def test_x_and_y_without_angle_match_the_pi_pulse():
+    """qubit.x() and qubit.y() play the pi pulse at its calibrated amplitude."""
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
-        q1.macros["x"].apply(angle=np.pi / 3)
-    mock_apply.assert_called_once_with(angle=np.pi / 3, phase=0.0)
+    with patch.object(q1.xy, "play", return_value=None) as mock_play:
+        q1.x()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] is None
 
-    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
-        q1.macros["y"].apply(angle=np.pi / 4)
-    mock_apply.assert_called_once_with(angle=np.pi / 4, phase=pytest.approx(np.pi / 2))
-
-
-def test_runtime_phase_is_added_to_axis_phase():
-    """Runtime phase should compose additively with the canonical axis phase."""
-    machine = _build_machine()
-    q1 = machine.qubits["q1"]
-
-    with patch.object(q1.macros["xy_drive"], "apply", return_value=None) as mock_apply:
-        q1.macros["y"].apply(angle=np.pi / 4, phase=0.125)
-    mock_apply.assert_called_once_with(
-        angle=np.pi / 4,
-        phase=pytest.approx(np.pi / 2 + 0.125),
-    )
+    with patch.object(q1.xy, "play", return_value=None) as mock_play:
+        q1.y()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_y180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] is None
 
 
-def test_fixed_angle_z_macros_delegate_to_canonical_z():
-    """z90/z180/z_neg90 wrappers should dispatch to the canonical `z` macro.
+def test_canonical_x_and_y_scale_the_pi_pulse():
+    """x/y play the calibrated pi pulse with amplitude scale angle/pi.
 
-    Unlike X/Y, Z rotations have no dedicated pulse to protect (they are
-    frame-only), so z90/z180/z_neg90 simply forward a fixed angle to the
-    shared canonical `z` macro.
+    The Y axis comes from the y180 operation. Neither call rotates the frame.
     """
     machine = _build_machine()
     q1 = machine.qubits["q1"]
 
-    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
-        q1.macros["z90"].apply()
-    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi / 2))
+    with (
+        patch.object(q1, "virtual_z", return_value=None) as mock_vz,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
+    ):
+        q1.macros["x"].apply(angle=np.pi / 3)
 
-    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
-        q1.macros["z180"].apply()
-    mock_apply.assert_called_once_with(angle=pytest.approx(np.pi))
+    mock_vz.assert_not_called()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(1.0 / 3.0)
 
-    with patch.object(q1.macros["z"], "apply", return_value=None) as mock_apply:
-        q1.macros["z_neg90"].apply()
-    mock_apply.assert_called_once_with(angle=pytest.approx(-np.pi / 2))
+    with (
+        patch.object(q1, "virtual_z", return_value=None) as mock_vz,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
+    ):
+        q1.macros["y"].apply(angle=np.pi / 4)
+
+    mock_vz.assert_not_called()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_y180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.25)
+
+
+def test_fixed_gates_and_arbitrary_axes_reject_phase():
+    """Phase shifts belong on z(), not on an XY macro."""
+    machine = _build_machine()
+    q1 = machine.qubits["q1"]
+
+    with pytest.raises(TypeError, match="phase"):
+        q1.x90(phase=0.1)
+    with pytest.raises(TypeError, match="angle"):
+        q1.x90(angle=np.pi / 2)
+    with pytest.raises(TypeError, match="phase"):
+        q1.y(angle=np.pi / 4, phase=0.125)
+
+
+def test_xy_drive_plays_its_calibrated_pulse():
+    """xy_drive() plays the x180 operation and does not rotate the frame."""
+    machine = _build_machine()
+    q1 = machine.qubits["q1"]
+
+    with (
+        patch.object(q1, "virtual_z", return_value=None) as mock_vz,
+        patch.object(q1.xy, "play", return_value=None) as mock_play,
+    ):
+        q1.xy_drive()
+
+    mock_vz.assert_not_called()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] is None
+
+
+def test_fixed_angle_z_macros_use_their_own_angle():
+    """z90/z180/z_neg90 rotate by their fixed angle and reject ``angle``."""
+    machine = _build_machine()
+    q1 = machine.qubits["q1"]
+
+    with patch.object(q1, "virtual_z", return_value=None) as mock_vz:
+        q1.z90()
+    mock_vz.assert_called_once_with(pytest.approx(np.pi / 2))
+
+    with patch.object(q1, "virtual_z", return_value=None) as mock_vz:
+        q1.z180()
+    mock_vz.assert_called_once_with(pytest.approx(np.pi))
+
+    with patch.object(q1, "virtual_z", return_value=None) as mock_vz:
+        q1.z_neg90()
+    mock_vz.assert_called_once_with(pytest.approx(-np.pi / 2))
+
+    with pytest.raises(TypeError, match="angle"):
+        q1.z90(angle=np.pi)
+
+    with patch.object(q1, "virtual_z", return_value=None) as mock_vz:
+        q1.z(angle=-0.3)
+    mock_vz.assert_called_once_with(-0.3)
 
 
 def test_x180_macro_produces_valid_qua_program():
@@ -266,24 +320,24 @@ def test_dedicated_x90_and_x180_pulses_are_calibrated_independently():
     )
 
 
-def test_fixed_angle_inferred_duration_uses_reference_pulse_length():
-    """Inferred duration should always equal the reference pulse length (no stretching).
-
-    Pulse lengths are reported in nanoseconds (see XYDriveMacro.inferred_duration).
-    """
+def test_inferred_duration_uses_the_played_pulse_length():
+    """Each macro reports the played pulse length in seconds."""
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
+    q1.xy.operations["gaussian_x180"].length = 80
+    q1.xy.operations["gaussian_y90"] = pulses.GaussianPulse(length=48, amplitude=0.01, sigma=12)
 
-    ref_duration = q1.xy.operations["gaussian_x90"].length
-    assert q1.macros["x"].inferred_duration == pytest.approx(ref_duration)
-    assert q1.macros["x90"].inferred_duration == pytest.approx(ref_duration)
-    assert q1.macros["y90"].inferred_duration == pytest.approx(ref_duration)
+    assert q1.macros["x"].inferred_duration == pytest.approx(80e-9)
+    assert q1.macros["x90"].inferred_duration == pytest.approx(
+        q1.xy.operations["gaussian_x90"].length * 1e-9
+    )
+    assert q1.macros["y90"].inferred_duration == pytest.approx(48e-9)
 
 
-def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration():
-    """Voltage tracking should advance by the native pulse length."""
+def test_xy_play_tracks_sticky_duration_in_ns():
+    """XY apply records the played length, in nanoseconds, for voltage tracking."""
     machine = _build_machine()
     wire_machine_macros(machine)
     _seed_reference_pulses(machine)
@@ -298,23 +352,173 @@ def test_xy_drive_native_pulse_length_is_converted_to_voltage_tracking_duration(
 
     mock_track.assert_called_once_with(pulse.length)
 
+    with (
+        patch.object(q1.xy, "play", return_value=None),
+        patch.object(q1.voltage_sequence, "track_sticky_duration") as mock_track,
+    ):
+        q1.x90(duration=10)
+
+    mock_track.assert_called_once_with(40)
+
 
 def test_xy_drive_update_duration_persists_pulse_length_in_ns():
-    """Persisted macro duration is specified and stored in ns (samples at 1 GS/s)."""
+    """xy_drive plays x180, so duration is stored on that pulse only."""
     machine = _build_machine()
     wire_machine_macros(machine)
     q1 = machine.qubits["q1"]
     xy_macro = q1.macros["xy_drive"]
-    pulse = q1.xy.operations["gaussian_x90"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+    x90_sigma = x90.sigma
 
     xy_macro.update(duration=400)
 
-    assert pulse.length == 400
-    assert pulse.sigma == pytest.approx(pulse.length * pulse.sigma_ratio)
+    assert x180.length == 400
+    assert x180.sigma == pytest.approx(x180.length * x180.sigma_ratio)
+
+    xy_macro.update(duration=403)
+
+    assert x180.length == 404
+    assert x180.sigma == pytest.approx(404 * x180.sigma_ratio)
+    assert x90.length == x90_length
+    assert x90.sigma == x90_sigma
+    assert q1.xy.operations["gaussian_y90"].length == x90_length
+    assert q1.xy.operations["gaussian_y180"].length == 404
 
 
-def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
-    """Negative X should map to +pi phase shift with positive amplitude scale."""
+def test_x180_update_writes_the_pi_pulse_only():
+    """x180 and x() store duration on the x180 pulse."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+
+    q1.x180.update(duration=200)
+
+    assert x180.length == 200
+    assert x180.sigma == pytest.approx(200 * x180.sigma_ratio)
+    assert x90.length == x90_length
+    assert q1.xy.operations["gaussian_y180"].length == 200
+
+    q1.x.update(duration=240)
+
+    assert x180.length == 240
+    assert x90.length == x90_length
+
+
+def test_update_rejects_referenced_length_and_amplitude():
+    """A macro whose pulse fields are references does not write the anchor."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_length = x90.length
+    x90_amplitude = x90.amplitude
+    x180_length = x180.length
+    q1.larmor_frequency = 1.0e9
+
+    with pytest.raises(ValueError, match="gaussian_y90.length references gaussian_x90"):
+        q1.y90.update(duration=200, frequency=2.0e9)
+
+    with pytest.raises(ValueError, match="gaussian_y90.amplitude references gaussian_x90"):
+        q1.y90.update(amplitude_scale=2)
+
+    with pytest.raises(ValueError, match="gaussian_y180.length references gaussian_x180"):
+        q1.y.update(duration=200)
+
+    assert x90.length == x90_length
+    assert x90.amplitude == x90_amplitude
+    assert x180.length == x180_length
+    assert q1.larmor_frequency == 1.0e9
+
+
+def test_update_frequency_works_when_the_pulse_is_a_reference():
+    """Frequency lives on the qubit, so a referenced pulse can still set it."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    y90 = q1.xy.operations["gaussian_y90"]
+    raw_length = y90.get_raw_value("length")
+
+    q1.y90.update(frequency=2.5e9)
+
+    assert q1.larmor_frequency == 2.5e9
+    assert y90.get_raw_value("length") == raw_length
+
+
+def test_x90_update_amplitude_scale_writes_the_played_pulse():
+    """amplitude_scale multiplies the pulse this macro plays."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    x90 = q1.xy.operations["gaussian_x90"]
+    x180 = q1.xy.operations["gaussian_x180"]
+    x90_amplitude = x90.amplitude
+    x180_amplitude = x180.amplitude
+
+    q1.x90.update(amplitude_scale=0.5)
+
+    assert x90.amplitude == pytest.approx(x90_amplitude * 0.5)
+    assert q1.xy.operations["gaussian_y90"].amplitude == pytest.approx(x90_amplitude * 0.5)
+    assert x180.amplitude == x180_amplitude
+
+
+@quam_dataclass
+class _CustomGateMacro(XYDriveMacro):
+    """Test macro whose operation stores its own length and amplitude."""
+
+    _gate_suffix: ClassVar[str] = "_custom"
+
+
+def test_custom_macro_update_writes_its_own_stored_pulse():
+    """A subclass can update a pulse that stores length and amplitude."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    q1.xy.operations["gaussian_custom"] = ScalableGaussianPulse(
+        id="gaussian_custom",
+        amplitude=0.05,
+        length=80,
+        sigma_ratio=0.25,
+        axis_angle=0.0,
+    )
+    q1.set_macro("custom_gate", _CustomGateMacro())
+    x90_length = q1.xy.operations["gaussian_x90"].length
+
+    q1.macros["custom_gate"].update(duration=120, amplitude_scale=2)
+
+    custom = q1.xy.operations["gaussian_custom"]
+    assert custom.length == 120
+    assert custom.amplitude == pytest.approx(0.1)
+    assert custom.sigma == pytest.approx(120 * 0.25)
+    assert q1.xy.operations["gaussian_x90"].length == x90_length
+
+
+def test_identity_duration_is_clock_cycles():
+    """Identity duration uses QUA clock cycles, and inferred_duration is seconds."""
+    machine = _build_machine()
+    wire_machine_macros(machine)
+    q1 = machine.qubits["q1"]
+    identity = q1.macros["I"]
+
+    assert identity.duration == 4
+    assert identity.inferred_duration == pytest.approx(16e-9)
+
+    with patch.object(q1, "idle", return_value=None) as mock_idle:
+        q1.I()
+    mock_idle.assert_called_once_with(duration=identity.duration)
+
+    with patch.object(q1, "idle", return_value=None) as mock_idle:
+        q1.I(duration=10)
+    mock_idle.assert_called_once_with(duration=10)
+
+
+def test_negative_x_rotation_uses_negative_amplitude_scale():
+    """Negative X is the x180 pulse played at a negative amplitude scale."""
     machine = _build_machine()
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
@@ -326,13 +530,13 @@ def test_negative_x_rotation_is_phase_shifted_positive_angle_drive():
     ):
         q1.x(angle=-np.pi / 2)
 
-    assert mock_vz.call_args_list[0].args[0] == pytest.approx(np.pi)
-    assert mock_vz.call_args_list[1].args[0] == pytest.approx(-np.pi)
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.5)
+    mock_vz.assert_not_called()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_x180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(-0.5)
 
 
-def test_negative_y_rotation_is_phase_shifted_positive_angle_drive():
-    """Negative Y should map to (pi/2 + pi) phase shift with positive amplitude scale."""
+def test_negative_y_rotation_uses_negative_amplitude_scale():
+    """Negative Y is the y180 pulse played at a negative amplitude scale."""
     machine = _build_machine()
     _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
@@ -344,6 +548,6 @@ def test_negative_y_rotation_is_phase_shifted_positive_angle_drive():
     ):
         q1.y(angle=-np.pi / 2)
 
-    assert mock_vz.call_args_list[0].args[0] == pytest.approx(3 * np.pi / 2)
-    assert mock_vz.call_args_list[1].args[0] == pytest.approx(-3 * np.pi / 2)
-    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(0.5)
+    mock_vz.assert_not_called()
+    assert mock_play.call_args.kwargs["pulse_name"] == "gaussian_y180"
+    assert mock_play.call_args.kwargs["amplitude_scale"] == pytest.approx(-0.5)
