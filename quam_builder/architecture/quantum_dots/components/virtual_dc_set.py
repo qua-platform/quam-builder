@@ -478,6 +478,48 @@ class VirtualDCSet(QuantumComponent):
         else:
             self._current_levels = self._populate_virtual_gate_voltages(physical_voltages)
 
+    def increment_voltages(
+        self,
+        voltages: Dict[str, float],
+        requery: bool = True,
+        resync: bool = True,
+    ) -> None:
+        """
+        Increment physical or virtual gate voltages by the specified amounts.
+
+        Unlike set_voltages(), the input values are interpreted as relative
+        voltage increments rather than absolute target voltages.
+        """
+        if requery:
+            current_volts_dict = self.all_current_voltages.copy()
+        else:
+            current_volts_dict = self._current_levels
+
+        physical_voltages = {
+            name: current_volts_dict[name]
+            for name in self.channels
+        }
+
+        physical_deltas = self.resolve_voltages(voltages)
+
+        for name, delta in physical_deltas.items():
+            if requery:
+                current_physical = self.channels[name].offset_parameter()
+            else:
+                current_physical = current_volts_dict.get(name, 0.0)
+
+            new_physical = current_physical + delta
+
+            self.channels[name].offset_parameter(new_physical)
+            physical_voltages[name] = new_physical
+
+        if resync:
+            self._current_levels = self.all_current_voltages.copy()
+        else:
+            self._current_levels = self._populate_virtual_gate_voltages(
+                physical_voltages
+            )
+
     def get_voltage(self, name: str, requery: bool = False) -> float:
         """
         Return the value of a particular voltage (physical or virtual) from the VirtualDCSet.

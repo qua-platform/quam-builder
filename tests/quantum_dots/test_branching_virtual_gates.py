@@ -43,7 +43,7 @@ def test_shared_targets_across_layers():
             )
     )
 
-    # Branch 2 — reuse nP1/nP2 as targets
+    # Branch 2 - reuse nP1/nP2 as targets
     vgs.add_layer(
         layer_id="barrier_compensation",
         source_gates=["J12", "y1", "y2"], # J12 = B12 + (-0.2)*nP1 + (-0.3)*nP2, y1 and y2 are dummy virtual gates to keep the matrix square
