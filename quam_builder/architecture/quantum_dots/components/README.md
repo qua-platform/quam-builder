@@ -81,7 +81,7 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 - **Override defaults at wiring time** — `wire_machine_macros(..., pulse_overrides=...)` or edit operations after wiring. Example: [`pulse_overrides_example.py`](../examples/macros/pulse_overrides_example.py).
 - **Add a pulse on one qubit** — `qubit.add_xy_pulse(name, pulse)` or `qubit.xy.add_pulse(name, pulse)`.
-- **Custom macro** — subclass `XYDriveMacro` and set `_gate_suffix` to the operation it plays. `update()` writes that operation when its length and amplitude are stored values (see [operations/README.md](../operations/README.md#single-qubit-gate-composition-model)).
+- **Custom macro** — subclass `XYDriveMacro` and set `_gate_suffix` to the operation it plays. `update()` writes that operation when its length and amplitude are stored values (see [operations/README.md](../operations/README.md#single-qubit-macros)).
 
 **Baseband (`XYDriveSingle`):** pulses use real waveforms (`axis_angle=None`). X and Y operations share that waveform.
 

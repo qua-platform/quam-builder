@@ -176,7 +176,7 @@ If validation fails, adjust `LO_frequency` or `larmor_frequency` so the required
 
 The XY macros do not call `virtual_z`. The rotation axis is the played operation (`axis_angle` on IQ and microwave drives). A frame shift is `z()`, and that rotation stays on the element. Octave **`calibrate_octave`** handles mixer/LO calibration at the hardware layer.
 
-Arbitrary-angle `x` and `y` scale the `x180` and `y180` pulses by `angle / π`, using a negative scale for a negative angle. Fixed-angle gates play their own calibrated pulses and do not accept `angle`. See [operations/README.md](../operations/README.md#single-qubit-gate-composition-model).
+Arbitrary-angle `x` and `y` scale the `x180` and `y180` pulses by `angle / π`, using a negative scale for a negative angle. Fixed-angle gates play their own calibrated pulses and do not accept `angle`. See [operations/README.md](../operations/README.md#single-qubit-macros).
 
 ### Builder auto-detection
 
