@@ -1,5 +1,4 @@
 import numpy as np
-
 from quam.core import quam_dataclass
 from quam.components.pulses import Pulse, ReadoutPulse
 
@@ -256,20 +255,59 @@ class DrachmaReadoutPulse(ReadoutPulse):
     ground- and excited-state resonator frequencies (detuning_{0,1} = +-chi
     in the paper's notation, where chi is the dispersive shift).
 
-    resonator_kappa_hz and detuning_*_hz are given in Hz and converted
-    internally (via a factor of 1/sample_rate) to the per-sample units used
-    by kappa/2pi, chi/2pi in the paper (e.g. for sample_rate = 1e9 Sa/s,
-    kappa/2pi = 0.5647 MHz -> resonator_kappa_hz = 564700).
+    NOTE: the paper itself uses a single shared kappa for all states in Eq. (7)
+    above -- there is no per-state kappa_j anywhere in Jerger et al. The split
+    into kappa_ground_hz / kappa_excited_hz below is OUR OWN extension, not a
+    result from the paper. It is motivated by the generic input-output equation
+    for a driven-dissipative resonator conditioned on state j,
+    da_j/dt = -(kappa_j/2 + i*chi_j)*a_j + sqrt(kappa_j)*a_in(t), which gives
+    each factor in the product its own kappa_j when the resonator linewidth is
+    state-dependent in practice (e.g. state-dependent Purcell decay or extra
+    loss channels when the qubit is excited). We generalize the normalization
+    from kappa^(N/2) in Eq. (7) to sqrt(kappa_ground_hz * kappa_excited_hz),
+    which reduces to the original formula when kappa_ground_hz == kappa_excited_hz.
+    This extension has not been validated against the paper or experimentally;
+    treat it as a heuristic, not a derived result.
+
+    SELF-KERR (zeta_ground_hz / zeta_excited_hz, optional, default 0): the paper's
+    Section II.4 documents a real state-dependent effect -- self-Kerr -- where the
+    dispersive shift becomes amplitude-dependent: chi_j -> chi_j + 4*zeta_j*|a_j(t)|^2
+    (their Eq. 8), with measured zeta_0/2pi = -175 Hz, zeta_1/2pi = -56 Hz in their
+    device. We implement their single-pass (non-iterative) correction, Eqs. (9)-(10),
+    generalized with our per-state kappa_j:
+
+        a_j~(t) = [kappa_j/2 + i*chi_j + d/dt] a_T(t) / sqrt(kappa_j)     (Eq. 9)
+        a_in(t) = [prod_j (kappa_j/2 + i*(chi_j + 4*zeta_j*|a_j~(t)|^2) + d/dt)]
+                  a_T(t) / sqrt(kappa_ground_hz * kappa_excited_hz)        (Eq. 10)
+
+    Because this codebase has no absolute photon-number calibration (amplitude is
+    an AWG-voltage convention, not physical photon number -- see the amplitude field
+    below), the amplitude-scaled trial function amplitude*a_T(t) is used as the
+    stand-in field for a_j~(t) in Eq. 9. This makes zeta_*_hz an empirical per-setup
+    tuning knob rather than a first-principles rate. Leaving zeta_ground_hz and
+    zeta_excited_hz at their default of 0 exactly recovers the no-Kerr waveform.
+
+    kappa_*_hz, detuning_*_hz, and zeta_*_hz are given in Hz and converted internally
+    (via a factor of 1/sample_rate) to the per-sample units used by kappa/2pi,
+    chi/2pi, zeta/2pi in the paper (e.g. for sample_rate = 1e9 Sa/s, kappa/2pi =
+    0.5647 MHz -> kappa_ground_hz = 564700).
 
     Args:
-        sample_rate (float): Sample rate in Hz used to convert resonator_kappa_hz
-            and detuning_*_hz to per-sample units (default 1e9, i.e. 1 sample = 1 ns).
+        sample_rate (float): Sample rate in Hz used to convert kappa_*_hz,
+            detuning_*_hz, and zeta_*_hz to per-sample units (default 1e9, i.e. 1
+            sample = 1 ns).
     """
 
     amplitude: float  # NOT a peak amplitude, determines the area under the graph similar to square pulse amplitude
-    resonator_kappa_hz: float  # kappa/(2*pi), Hz
+    kappa_ground_hz: float  # kappa_g/(2*pi), resonator linewidth for |g>, Hz
+    kappa_excited_hz: float  # kappa_e/(2*pi), resonator linewidth for |e>, Hz
     detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
     detuning_excited_hz: float  # detuning of excited state relative to carrier, Hz
+    zeta_ground_hz: float = 0.0  # ground-state self-Kerr coeff, zeta_0/(2*pi), Hz
+    zeta_excited_hz: float = 0.0  # excited-state self-Kerr coeff, zeta_1/(2*pi), Hz
+    depletion_time_ns: int = (
+        16  # extra time after the pulse to wait for the resonator to decay before measurement
+    )
     sample_rate: float = 1e9
 
     def _trial_function(self):
@@ -280,44 +318,60 @@ class DrachmaReadoutPulse(ReadoutPulse):
         theta = np.pi * np.arange(self.length) / (self.length - 1)
         return np.sin(theta) ** 3
 
-    def _differential_operator_coeffs(self):
-        """Coefficients of the polynomial in D = d/dt for
-        prod_j (kappa/2 + i*detuning_j + D). coeffs[k] multiplies the k-th
-        time derivative of a_T(t)."""
-        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
-        detunings = [
-            2 * np.pi * self.detuning_ground_hz / self.sample_rate,
-            2 * np.pi * self.detuning_excited_hz / self.sample_rate,
-        ]
+    @staticmethod
+    def _apply_first_order_operator(signal, kappa, detuning, dt=1.0):
+        """Apply (kappa/2 + i*detuning + d/dt) to signal via a centered finite
+        difference for d/dt. detuning may be a scalar (constant chi_j) or a
+        per-sample array (Kerr-corrected, time-varying chi_j(t))."""
+        return (kappa / 2 + 1j * detuning) * signal + np.gradient(signal, dt)
 
-        coeffs = np.array([1.0 + 0.0j])
-        for detuning in detunings:
-            factor = np.array([kappa / 2 + 1j * detuning, 1.0 + 0.0j])  # [D^0, D^1]
-            coeffs = np.convolve(coeffs, factor)
-        return coeffs, len(detunings)
-
-    def _time_derivatives(self, signal, max_order, dt=1.0):
-        """[signal, d(signal)/dt, d^2(signal)/dt^2, ...] via centered finite
-        differences, one sample = dt (ns)."""
-        derivatives = [signal]
-        current = signal
-        for _ in range(max_order):
-            current = np.gradient(current, dt)
-            derivatives.append(current)
-        return derivatives
+    def _kerr_shifted_detunings(self, a_T):
+        """Eq. (9) generalized with per-state kappa_j: a one-shot (non-iterative)
+        estimate of each state's intracavity field, used only to evaluate the
+        self-Kerr correction chi_j -> chi_j + 4*zeta_j*|a_j~(t)|^2 (Eq. 10). No-op
+        (returns the plain constant detunings) when zeta_ground_hz and
+        zeta_excited_hz are both 0."""
+        a_T_scaled = self.amplitude * a_T
+        corrected_detunings = []
+        for kappa_hz, detuning_hz, zeta_hz in (
+            (self.kappa_ground_hz, self.detuning_ground_hz, self.zeta_ground_hz),
+            (self.kappa_excited_hz, self.detuning_excited_hz, self.zeta_excited_hz),
+        ):
+            kappa = 2 * np.pi * kappa_hz / self.sample_rate
+            detuning = 2 * np.pi * detuning_hz / self.sample_rate
+            a_tilde = self._apply_first_order_operator(a_T_scaled, kappa, detuning)
+            a_tilde = a_tilde / np.sqrt(kappa)
+            zeta = 2 * np.pi * zeta_hz / self.sample_rate
+            corrected_detunings.append(detuning + 4 * zeta * np.abs(a_tilde) ** 2)
+        return corrected_detunings
 
     def waveform_function(self):
-        """Constructs a_in(t) per Eq. (7), applied as a direct time-domain
-        differential operator on a_T(t) = sin^3(pi t / Tp)."""
+        """Constructs a_in(t) per Eq. (7)/Eq. (10), applying the state factors
+        as first-order differential operators sequentially on a_T(t) =
+        sin^3(pi t / Tp). Sequential (rather than expanding the product into a
+        constant-coefficient polynomial in D) is required because the
+        self-Kerr-corrected chi_j(t) (see _kerr_shifted_detunings) is a
+        per-sample array, not a scalar, when zeta_ground_hz/zeta_excited_hz are
+        nonzero; with zeta=0 this reduces exactly to the plain Eq. (7) waveform.
+
+        prod_{j=0}^{1} acting on a_T means operator_0 . operator_1, so the
+        excited-state (j=1) factor is applied first, then the ground-state
+        (j=0) factor is applied to that result.
+        """
         if self.length < 2:
             raise ValueError(
                 "DrachmaReadoutPulse.length must be at least 2 samples "
                 f"(got {self.length}); the trial function is undefined for length == 1."
             )
-        if self.resonator_kappa_hz <= 0:
+        if self.kappa_ground_hz <= 0:
             raise ValueError(
-                "DrachmaReadoutPulse.resonator_kappa_hz must be positive "
-                f"(got {self.resonator_kappa_hz})"
+                "DrachmaReadoutPulse.kappa_ground_hz must be positive "
+                f"(got {self.kappa_ground_hz})"
+            )
+        if self.kappa_excited_hz <= 0:
+            raise ValueError(
+                "DrachmaReadoutPulse.kappa_excited_hz must be positive "
+                f"(got {self.kappa_excited_hz})"
             )
         if self.sample_rate <= 0:
             raise ValueError(
@@ -325,16 +379,16 @@ class DrachmaReadoutPulse(ReadoutPulse):
             )
 
         norm = self.amplitude * self.length
-        kappa = 2 * np.pi * self.resonator_kappa_hz / self.sample_rate
+        kappa_ground = 2 * np.pi * self.kappa_ground_hz / self.sample_rate
+        kappa_excited = 2 * np.pi * self.kappa_excited_hz / self.sample_rate
+        kappa_norm = np.sqrt(kappa_ground * kappa_excited)
         a_T = self._trial_function()
-        coeffs, n_states = self._differential_operator_coeffs()
 
-        derivatives = self._time_derivatives(a_T, max_order=len(coeffs) - 1)
+        detuning_ground_t, detuning_excited_t = self._kerr_shifted_detunings(a_T)
 
-        a_in = np.zeros_like(a_T, dtype=complex)
-        for k, c_k in enumerate(coeffs):
-            a_in += c_k * derivatives[k]
-        a_in /= kappa ** (n_states / 2)
+        a_in = self._apply_first_order_operator(a_T, kappa_excited, detuning_excited_t)
+        a_in = self._apply_first_order_operator(a_in, kappa_ground, detuning_ground_t)
+        a_in = a_in / kappa_norm
 
         a_in_sum = np.sum(np.abs(a_in))
         if a_in_sum == 0:
