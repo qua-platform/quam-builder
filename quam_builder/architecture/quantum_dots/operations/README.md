@@ -10,7 +10,9 @@ q1.x180()
 q1.measure()
 ```
 
-Each of those names is a macro already attached to the qubit. Building the machine, and loading a saved one, both run `wire_machine_macros`, so a machine you just built is ready for those calls. You call the qubit. The macro, which is saved with the machine, decides which pulse is played and which voltages are stepped. The amplitude and the length you calibrate are still there the next time you load the machine.
+Each of those names is a macro already attached to the qubit. Building the machine, and loading a saved one, both run `wire_machine_macros`, so a machine you just built is ready for those calls. 
+The macro, which is saved with the machine, decides which pulse is played and which voltages are stepped. 
+The amplitude and the length you calibrate are still there the next time you load the machine.
 
 The page has three parts. [Default macros](#default-macros) describes the operations a freshly built machine can already run. [The framework](#the-framework) explains how a name such as `x180` is attached to a macro, and how that macro selects the pulse it plays. [Custom macros](#custom-macros) explains why a lab replaces a default, and how to do it.
 
@@ -24,7 +26,7 @@ A state macro moves the gates to a named voltage point, either with a ramp or wi
 
 | Macro | Component | Role                                                                                                                                                                                         |
 |-------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **`InitializeStateMacro`**, **`EmptyStateMacro`**, **`ExchangeStateMacro`** | Dots, qubits, and pairs | Move between named voltage points with a ramp or a step.                                                                                                                                     |
+| **`InitializeStateMacro`**, **`EmptyStateMacro`**, **`ExchangeStateMacro`** | `QuantumDotPair`, `LDQubit`, `LDQubitPair` | Move between named voltage points with a ramp or a step.                                                                                                                                     |
 | **`MeasurePSBPairMacro`** | `QuantumDotPair`, `LDQubitPair` | Aligns the resonator with the gate channels, steps to the `"measure"` point for `buffer_duration`, then calls the sensor macro.                                                              |
 | **`SensorDotMeasureMacro`** | `SensorDot` | Plays the readout pulse. When called with `quantum_dot_pair_id`, it applies the stored threshold, and returns a QUA boolean representing the qubit state. |
 
@@ -60,7 +62,7 @@ These macros play one stored operation at the amplitude saved on that operation.
 
 #### Canonical rotations
 
-`x(angle)` and `y(angle)` take a rotation of your choosing. `x` plays `{family}_x180` and scales its amplitude by `angle / π`. `y` does the same with `{family}_y180`. If you omit `angle`, the rotation is π, so `x()` is the same gate as `x180` and `y()` is the same gate as `y180`, played at the stored amplitude. A negative angle produces a negative scale, which reverses the rotation.
+`x(angle)` and `y(angle)` take a rotation of your choosing in radian. `x` plays `{family}_x180` and scales its amplitude by `angle / π`. `y` does the same with `{family}_y180`. If you omit `angle`, the rotation is π, so `x()` is the same gate as `x180` and `y()` is the same gate as `y180`, played at the stored amplitude. A negative angle produces a negative scale, which reverses the rotation.
 
 `z(angle)` applies a virtual-Z frame rotation, and that rotation remains on the element after the call returns. If you omit `angle`, the rotation is π.
 
@@ -84,7 +86,11 @@ Power Rabi is the experiment that usually sets the drive amplitude this way.
 
 `apply(duration=...)` on an XY macro, and `I(duration=...)`, count clock cycles. One cycle is 4 ns, the same unit QUA uses for `play(duration=...)` and `wait`. The identity waits 4 cycles by default, which is 16 ns.
 
-`update(duration=...)` writes the pulse length in nanoseconds and rounds it to a multiple of 4 ns. When the field you are writing is a QuAM reference, the call raises `ValueError`, names the operation that stores the value, and writes nothing. `y90.length` references `{family}_x90`, so that duration is changed with `x90.update(duration=...)`. A custom macro whose own pulse stores its length and amplitude can call `update()` on that pulse. Writing that macro is covered in [Custom macros](#custom-macros).
+`update(duration=...)` writes the pulse length in nanoseconds and rounds it to a multiple of 4 ns. 
+When the field you are writing is a QuAM reference, the call raises `ValueError`, names the operation that stores the value, and writes nothing. 
+`y90.length` references `{family}_x90`, so that duration is changed with `x90.update(duration=...)`. 
+A custom macro whose own pulse stores its length and amplitude can call `update()` on that pulse. 
+Writing that macro is covered in [Custom macros](#custom-macros).
 
 Updating the duration like this is particularly relevant for experiments like time Rabi or T1 for instance.
 
