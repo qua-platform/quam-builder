@@ -9,6 +9,7 @@ from quam.core import quam_dataclass
 __all__ = ["CRGate", "StarkInducedCZGate"]
 
 AmplitudeScale = Union[ScalarOfAnyType, VectorOfAnyType]
+CR_TYPES = ["default", "direct", "2x direct", "direct+cancel", "2x direct+cancel", "direct+echo", "direct+cancel+echo"]
 
 
 class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
@@ -111,7 +112,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
     phase. A phase of 0 skips the Ry rotations.
     """
 
-    cr_type: Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"] = "direct+echo"
+    cr_type: Literal[tuple(CR_TYPES)] = "direct+echo"
     wf_type: str = "flattop"
     qc_frame_correction_2pi: float = 0.0
     qt_frame_correction_2pi: float = 0.0
@@ -125,7 +126,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
     def apply(
         self,
-        cr_type: Optional[Literal["direct", "direct+cancel", "direct+echo", "direct+cancel+echo"]] = None,
+        cr_type: Optional[Literal[tuple(CR_TYPES)]] = None,
         wf_type: Optional[str] = None,
         duration_clock_cycles: Optional[ScalarOfAnyType] = None,
         drive_amp_scaling: Optional[ScalarOfAnyType] = None,
@@ -136,8 +137,8 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         add_qt_frame_correction_2pi: Optional[ScalarOfAnyType] = None,
         zz_supression_phase: Optional[ScalarOfAnyType] = None,
     ) -> None:
-        cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
-        wf_type = wf_type if (wf_type and wf_type != "default") else self.wf_type
+        cr_type = self.resolve_cr_type(cr_type)
+        wf_type = self.resolve_wf_type(wf_type)
 
         # remove redundant values only for phase
         if isinstance(add_drive_phase, float) and add_drive_phase == 0.0:
@@ -179,12 +180,20 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         if cr_type == "direct":
             self._direct(**pulse_kwargs)
-        elif cr_type == "direct+echo":
-            self._direct_echo(**pulse_kwargs)
+        elif cr_type == "2x direct":
+            self._direct(**pulse_kwargs)
+            self._direct(**pulse_kwargs)
         elif cr_type == "direct+cancel":
             self._direct_cancel(**pulse_kwargs)
+        elif cr_type == "2x direct+cancel":
+            self._direct_cancel(**pulse_kwargs)
+            self._direct_cancel(**pulse_kwargs)
+        elif cr_type == "direct+echo":
+            self._direct_echo(**pulse_kwargs)
         elif cr_type == "direct+cancel+echo":
             self._direct_cancel_echo(**pulse_kwargs)
+        else:
+            raise NotImplementedError(f"CR type {cr_type} not implemented")
 
         # remove dynamic phase update
         if add_drive_phase is not None:
@@ -268,19 +277,49 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
     @property
     def inferred_duration(self) -> int:
-        return self.get_cr_duration(with_echo=True)
+        return self.get_cr_duration(cr_drive_only=False)
 
-    def get_cr_duration(self, with_echo: bool = False) -> int:
-        cr_duration = self.cr.operations[self.wf_type].length
-        if self.cr_type in ["direct", "direct+cancel"]:
-            return cr_duration
-        elif self.cr_type in ["direct+echo", "direct+cancel+echo"]:
-            if with_echo:
-                return 2 * (cr_duration + self.qc.xy.operations["x180"].length)
-            else:
-                return 2 * cr_duration
-        else:
-            raise ValueError(f"Invalid CR type: {self.cr_type}")
+    def resolve_cr_type(self, cr_type: Optional[str] = None) -> str:
+        cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
+        if cr_type not in CR_TYPES or cr_type == "default":
+            raise ValueError(f"Invalid CR type: {cr_type}")
+        return cr_type
+
+    def resolve_wf_type(self, wf_type: Optional[str] = None) -> str:
+        wf_type = wf_type if (wf_type and wf_type != "default") else self.wf_type
+        return wf_type
+
+    def num_cr_pulses(self, cr_type: Optional[str] = None) -> int:
+        """Number of CR drive pulses played by ``apply()`` for ``cr_type``."""
+        cr_type = self.resolve_cr_type(cr_type)
+        return 1 if cr_type in ("direct", "direct+cancel") else 2
+
+    def get_cr_duration(
+        self,
+        cr_drive_only: bool = True,
+        cr_type: Optional[str] = None,
+        wf_type: Optional[str] = None,
+        cr_length=None,
+    ):
+        """Total CR gate duration in ns.
+
+        Args:
+            cr_drive_only: Include the x180 pulses on the control qubit (echo types only).
+            cr_type: Overrides the stored ``cr_type``.
+            wf_type: Overrides the stored ``wf_type``.
+            cr_length: Length of a single CR pulse in ns (scalar or array). Defaults to
+                the length of the ``wf_type`` operation.
+        """
+        cr_type = self.resolve_cr_type(cr_type)
+        if cr_length is None:
+            cr_length = self.get_cr_operation(wf_type).length
+        duration = self.num_cr_pulses(cr_type) * cr_length
+        if not cr_drive_only:
+            if "echo" in cr_type:
+                duration += 2 * self.qc.xy.operations["x180"].length
+            if self.zz_supression_phase_2pi != 0:
+                duration += 2 * self.qt.xy.operations["x90"].length
+        return duration
 
 
 # ============================================================================
