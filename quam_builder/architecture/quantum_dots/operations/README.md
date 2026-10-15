@@ -216,7 +216,7 @@ The files below are the ones in that path, in the order a wiring call reads them
 
 [`voltage_balanced_macros/`](./voltage_balanced_macros) mirrors `default_macros` with three files of the same kind: state, single-qubit, and two-qubit. These classes bring the gates back to 0 V so the integrated voltage on an AC-coupled line cancels. They replace the defaults only when `VoltageBalancedMacroCatalog` is registered.
 
-[`custom_macro.py`](./custom_macro.py) is the base class a lab subclasses. Fields declared on the subclass are saved with the machine, accepted by `update()`, and exposed as a parameter model for Qualibration nodes. The QUA sequence goes in `apply()`.
+[`custom_macro.py`](./custom_macro.py) holds the base classes a lab subclasses. `CustomStateMacro` runs on a quantum dot pair, and `CustomQubitMacro` runs on a qubit. Both derive from `BaseCustomMacro`. A macro that runs on another component subclasses `BaseCustomMacro` directly and implements `owner`. Fields declared on the subclass are saved with the machine, accepted by `update()`, and exposed as a parameter model for Qualibration nodes. The QUA sequence goes in `apply()`.
 
 **How a name is matched to a class.** [`macro_catalog.py`](./macro_catalog.py) does not play gates. It maps a component type to the macro classes above. `wire_machine_macros` asks a `MacroRegistry` for the macro that belongs on each name. The registry merges the catalogs below by priority, and the highest priority wins for each name. A lab catalog is the same kind of object, added beside them.
 
