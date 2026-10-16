@@ -333,6 +333,7 @@ wire_machine_macros(
 
 ```python
 from quam_builder.architecture.quantum_dots.macro_engine import DISABLED
+from quam_builder.architecture.quantum_dots.operations.names import TwoQubitMacroName
 
 wire_machine_macros(
     machine,
