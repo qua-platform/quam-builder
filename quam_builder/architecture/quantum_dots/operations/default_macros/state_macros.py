@@ -13,7 +13,7 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
-from quam_builder.tools.qua_tools import VoltageLevelType
+from quam_builder.tools.qua_tools import VoltageLevelType, clock_cycles_to_ns
 
 __all__ = [
     "InitializeStateMacro",
@@ -103,9 +103,11 @@ def _ramp_to_target(
 class InitializeStateMacro(QuamMacro):
     """Move component to initialize voltages using a ramp transition.
 
-    ``hold_duration`` on this macro, if set, overrides the hold time; if ``None``,
+    ``ramp_duration`` and ``hold_duration`` are clock cycles (1 cycle = 4 ns).
+    The macro converts them to nanoseconds for the voltage sequence.
+    ``hold_duration``, if set, overrides the hold time; if ``None``,
     the :class:`~quam_builder.architecture.quantum_dots.components.gate_set.VoltageTuningPoint`
-    ``duration`` is used (via ``ramp_to_*`` with ``duration=None``).
+    ``duration`` is used, and that point duration stays in nanoseconds.
     """
 
     point: PointType = VoltagePointName.INITIALIZE.value
@@ -117,11 +119,13 @@ class InitializeStateMacro(QuamMacro):
         """Return inferred runtime duration in seconds, if available."""
         owner = _owner_component(self)
         hold = self.hold_duration
+        ramp_s = self.ramp_duration * 4e-9
         if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point)
-        if hold is None:
-            return None
-        return (self.ramp_duration + hold) * 1e-9
+            hold_ns = _resolve_default_point_duration_ns(owner, self.point)
+            if hold_ns is None:
+                return None
+            return ramp_s + hold_ns * 1e-9
+        return ramp_s + hold * 4e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -136,7 +140,10 @@ class InitializeStateMacro(QuamMacro):
         owner = _owner_component(self)
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         hold = self.hold_duration if hold_duration is None else hold_duration
-        _ramp_to_target(owner, self.point, ramp_duration=ramp, duration=hold)
+        hold_ns = None if hold is None else clock_cycles_to_ns(hold)
+        _ramp_to_target(
+            owner, self.point, ramp_duration=clock_cycles_to_ns(ramp), duration=hold_ns
+        )
 
     def update(
         self,
@@ -158,7 +165,8 @@ class InitializeStateMacro(QuamMacro):
 class EmptyStateMacro(QuamMacro):
     """Move component to empty voltages.
 
-    If ``hold_duration`` is ``None``, the hold uses the ``VoltageTuningPoint`` ``duration``.
+    ``hold_duration`` is in clock cycles. If it is ``None``, the hold uses the
+    ``VoltageTuningPoint`` ``duration``, which stays in nanoseconds.
     """
 
     point: PointType = VoltagePointName.EMPTY.value
@@ -170,8 +178,9 @@ class EmptyStateMacro(QuamMacro):
         owner = _owner_component(self)
         hold = self.hold_duration
         if hold is None:
-            hold = _resolve_default_point_duration_ns(owner, self.point)
-        return hold * 1e-9 if hold is not None else None
+            hold_ns = _resolve_default_point_duration_ns(owner, self.point)
+            return hold_ns * 1e-9 if hold_ns is not None else None
+        return hold * 4e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -180,7 +189,8 @@ class EmptyStateMacro(QuamMacro):
         """Step to the empty target with optional hold-duration override."""
         owner = _owner_component(self)
         hold = self.hold_duration if hold_duration is None else hold_duration
-        _step_to_target(owner, self.point, duration=hold)
+        hold_ns = None if hold is None else clock_cycles_to_ns(hold)
+        _step_to_target(owner, self.point, duration=hold_ns)
 
     def update(
         self,
@@ -200,13 +210,14 @@ class ExchangeStateMacro(QuamMacro):
     """Ramp to exchange target, hold, then ramp back to initialize.
 
     The sequence is:
-    1. Ramp to the exchange target over ``ramp_duration`` ns, then hold at that
-       voltage for ``wait_duration`` ns (post-ramp plateau on
-       ``ramp_to_voltages`` — equivalent to the former separate sticky
-       ``step_to_voltages`` wait).
-    2. Ramp back to the initialize target over ``ramp_duration`` ns (no extra
-       post-ramp hold; ``duration=0`` avoids ``None`` in integrated-voltage
-       tracking when QUA types are present).
+    1. Ramp to the exchange target over ``ramp_duration`` clock cycles, then
+       hold at that voltage for ``wait_duration`` clock cycles (post-ramp
+       plateau on ``ramp_to_voltages``).
+    2. Ramp back to the initialize target over ``ramp_duration`` clock cycles
+       (no extra post-ramp hold; ``duration=0`` avoids ``None`` in
+       integrated-voltage tracking when QUA types are present).
+
+    Both fields are clock cycles. The voltage sequence receives nanoseconds.
     """
 
     point: PointType = VoltagePointName.EXCHANGE.value
@@ -232,10 +243,13 @@ class ExchangeStateMacro(QuamMacro):
         exchange_point = self.point if point is None else point
         exchange_return_point = self.return_point if return_point is None else return_point
 
-        # Ramp to exchange; hold at plateau for wait_duration (ns after ramp completes)
-        _ramp_to_target(owner, exchange_point, ramp_duration=ramp, duration=wait)
-        # Ramp back to initialize / return point
-        _ramp_to_target(owner, exchange_return_point, ramp_duration=ramp, duration=0)
+        ramp_ns = clock_cycles_to_ns(ramp)
+        # Ramp to exchange; hold at plateau for wait_duration clock cycles.
+        _ramp_to_target(
+            owner, exchange_point, ramp_duration=ramp_ns, duration=clock_cycles_to_ns(wait)
+        )
+        # Ramp back to initialize / return point. duration=0 is nanoseconds.
+        _ramp_to_target(owner, exchange_return_point, ramp_duration=ramp_ns, duration=0)
 
 
 @quam_dataclass
@@ -368,7 +382,7 @@ class MeasurePSBPairMacro(QuamMacro):
     The timing sequence is:
 
     1. **Buffer** -- step to the measure voltage point for
-       ``buffer_duration`` ns (settling time before readout).
+       ``buffer_duration`` clock cycles (settling time before readout).
     2. **Align** -- synchronize voltage gate channels with the readout
        resonator (handled inside the sensor macro).
     3. **Readout + track** -- the sensor macro plays the readout pulse
@@ -385,7 +399,7 @@ class MeasurePSBPairMacro(QuamMacro):
     def inferred_duration(self) -> float | None:
         """Total duration = buffer + sensor readout (seconds)."""
         owner = _owner_component(self)
-        buffer_ns = self.buffer_duration or 0
+        buffer_s = (self.buffer_duration or 0) * 4e-9
         if not getattr(owner, "sensor_dots", None):
             return None
         sensor_dot = owner.sensor_dots[0]
@@ -398,7 +412,7 @@ class MeasurePSBPairMacro(QuamMacro):
             sensor_dur = sensor_macro.inferred_duration
         if sensor_dur is None:
             return None
-        return (buffer_ns * 1e-9) + sensor_dur
+        return buffer_s + sensor_dur
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -420,7 +434,8 @@ class MeasurePSBPairMacro(QuamMacro):
                 gate_names = [ch.name for ch in gate_set.channels.values()]
 
         qua.align(sensor_dot.readout_resonator.name, *gate_names)
-        _step_to_target(owner, self.point, duration=buf)
+        buffer_ns = None if buf is None else clock_cycles_to_ns(buf)
+        _step_to_target(owner, self.point, duration=buffer_ns)
 
         return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
             quantum_dot_pair_id=owner.id,
