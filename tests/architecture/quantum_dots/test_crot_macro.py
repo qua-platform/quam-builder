@@ -19,7 +19,9 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_
 )
 from quam_builder.architecture.quantum_dots.operations.names import VoltagePointName
 
-RAMP = DEFAULTS.exchange.ramp_duration
+RAMP_CYCLES = DEFAULTS.exchange.ramp_duration
+RAMP_NS = RAMP_CYCLES * 4
+HOLD_CYCLES = 100  # 400 ns on the voltage sequence
 EXCHANGE_VOLTAGES = {"virtual_dot_1": 0.09, "virtual_dot_2": 0.16}
 ZERO_VOLTAGES = {"virtual_dot_1": 0.0, "virtual_dot_2": 0.0}
 
@@ -77,13 +79,20 @@ def test_crot_apply_plays_pulse_and_records_positive_leg(pair_with_crot):
                 point=VoltagePointName.EXCHANGE.value,
                 esr_frequency=5.12e9,
                 amplitude=0.4,
-                duration=400,
+                duration=HOLD_CYCLES,
             )
 
-    mock_play.assert_called_once_with("gaussian_x180", duration=100, amplitude_scale=0.4)
+    mock_play.assert_called_once_with(
+        "gaussian_x180", duration=HOLD_CYCLES, amplitude_scale=0.4
+    )
     assert mock_ramp.call_args_list == [
-        call(EXCHANGE_VOLTAGES, duration=400, ramp_duration=RAMP, ensure_align=False),
-        call(ZERO_VOLTAGES, duration=16, ramp_duration=RAMP, ensure_align=False),
+        call(
+            EXCHANGE_VOLTAGES,
+            duration=HOLD_CYCLES * 4,
+            ramp_duration=RAMP_NS,
+            ensure_align=False,
+        ),
+        call(ZERO_VOLTAGES, duration=16, ramp_duration=RAMP_NS, ensure_align=False),
     ]
     # Frequency is set for the pulse, then restored to the Larmor frequency.
     assert mock_update_frequency.call_args_list == [call(5.12e9), call(5.1e9)]
@@ -104,15 +113,15 @@ def test_crot_balance_replays_negative_leg_and_clears_cache(pair_with_crot):
             patch.object(pair.voltage_sequence, "ramp_to_voltages") as mock_ramp,
             patch.object(target_qubit.xy, "play"),
         ):
-            crot.apply(point=VoltagePointName.EXCHANGE.value, duration=400)
+            crot.apply(point=VoltagePointName.EXCHANGE.value, duration=HOLD_CYCLES)
             assert len(crot._cache) == 1
             mock_ramp.reset_mock()
 
             crot.balance()
 
     assert mock_ramp.call_args_list == [
-        call(negative, duration=400, ramp_duration=RAMP, ensure_align=False),
-        call(ZERO_VOLTAGES, duration=16, ramp_duration=RAMP, ensure_align=False),
+        call(negative, duration=HOLD_CYCLES * 4, ramp_duration=RAMP_NS, ensure_align=False),
+        call(ZERO_VOLTAGES, duration=16, ramp_duration=RAMP_NS, ensure_align=False),
     ]
     assert len(crot._cache) == 0
 
@@ -130,12 +139,12 @@ def test_crot_drive_target_false_drives_control(pair_with_crot):
         ):
             crot.apply(
                 point=VoltagePointName.EXCHANGE.value,
-                duration=400,
+                duration=HOLD_CYCLES,
                 drive_target=False,
             )
 
     mock_target_play.assert_not_called()
-    mock_control_play.assert_called_once_with("gaussian_x180", duration=100)
+    mock_control_play.assert_called_once_with("gaussian_x180", duration=HOLD_CYCLES)
 
 
 def test_crot_defaults_to_exchange_point_and_native_pulse_length(pair_with_crot):
@@ -155,15 +164,15 @@ def test_crot_defaults_to_exchange_point_and_native_pulse_length(pair_with_crot)
 
     mock_play.assert_called_once_with("gaussian_x180", duration=native_pulse_ns // 4)
     assert mock_ramp.call_args_list[0] == call(
-        EXCHANGE_VOLTAGES, duration=native_pulse_ns, ramp_duration=RAMP, ensure_align=False
+        EXCHANGE_VOLTAGES, duration=native_pulse_ns, ramp_duration=RAMP_NS, ensure_align=False
     )
 
 
 def test_crot_inferred_duration(pair_with_crot):
     """Inferred duration = pulse duration + two ramps."""
-    crot = CROTMacro(point=VoltagePointName.EXCHANGE.value, duration=400)
+    crot = CROTMacro(point=VoltagePointName.EXCHANGE.value, duration=HOLD_CYCLES)
     pair_with_crot.set_macro("crot_duration", crot)
-    assert crot.inferred_duration == pytest.approx((400 + 2 * RAMP) * 1e-9)
+    assert crot.inferred_duration == pytest.approx((HOLD_CYCLES + 2 * RAMP_CYCLES) * 4e-9)
 
 
 def test_crot_builds_a_valid_qua_program(pair_with_crot):
@@ -173,7 +182,7 @@ def test_crot_builds_a_valid_qua_program(pair_with_crot):
             point=VoltagePointName.EXCHANGE.value,
             esr_frequency=5.12e9,
             amplitude=0.4,
-            duration=400,
+            duration=HOLD_CYCLES,
         )
         pair_with_crot.macros["crot"].balance()
 

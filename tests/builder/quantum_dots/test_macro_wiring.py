@@ -80,6 +80,9 @@ def _seed_reference_pulses(machine):
         qubit.xy.operations["gaussian_x180"] = pulses.GaussianPulse(
             length=64, amplitude=0.02, sigma=16
         )
+        qubit.xy.operations["gaussian_y180"] = pulses.GaussianPulse(
+            length=64, amplitude=0.02, sigma=16
+        )
 
 
 class TunedX180Macro(X180Macro):
@@ -150,6 +153,7 @@ def test_default_two_qubit_crot_macro_is_wired():
 def test_x_and_y_without_angle_match_the_pi_pulse():
     """qubit.x() and qubit.y() play the pi pulse at its calibrated amplitude."""
     machine = _build_machine()
+    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with patch.object(q1.xy, "play", return_value=None) as mock_play:
@@ -169,6 +173,7 @@ def test_canonical_x_and_y_scale_the_pi_pulse():
     The Y axis comes from the y180 operation. Neither call rotates the frame.
     """
     machine = _build_machine()
+    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with (
@@ -208,6 +213,7 @@ def test_fixed_gates_and_arbitrary_axes_reject_phase():
 def test_xy_drive_plays_its_calibrated_pulse():
     """xy_drive() plays the x180 operation and does not rotate the frame."""
     machine = _build_machine()
+    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with (
@@ -372,12 +378,12 @@ def test_xy_drive_update_duration_persists_pulse_length_in_ns():
     x90_length = x90.length
     x90_sigma = x90.sigma
 
-    xy_macro.update(duration=400)
+    xy_macro.update(duration=100)
 
     assert x180.length == 400
     assert x180.sigma == pytest.approx(x180.length * x180.sigma_ratio)
 
-    xy_macro.update(duration=403)
+    xy_macro.update(duration=101)
 
     assert x180.length == 404
     assert x180.sigma == pytest.approx(404 * x180.sigma_ratio)
@@ -396,14 +402,14 @@ def test_x180_update_writes_the_pi_pulse_only():
     x180 = q1.xy.operations["gaussian_x180"]
     x90_length = x90.length
 
-    q1.x180.update(duration=200)
+    q1.x180.update(duration=50)
 
     assert x180.length == 200
     assert x180.sigma == pytest.approx(200 * x180.sigma_ratio)
     assert x90.length == x90_length
     assert q1.xy.operations["gaussian_y180"].length == 200
 
-    q1.x.update(duration=240)
+    q1.x.update(duration=60)
 
     assert x180.length == 240
     assert x90.length == x90_length
@@ -422,13 +428,13 @@ def test_update_rejects_referenced_length_and_amplitude():
     q1.larmor_frequency = 1.0e9
 
     with pytest.raises(ValueError, match="gaussian_y90.length references gaussian_x90"):
-        q1.y90.update(duration=200, frequency=2.0e9)
+        q1.y90.update(duration=50, frequency=2.0e9)
 
     with pytest.raises(ValueError, match="gaussian_y90.amplitude references gaussian_x90"):
         q1.y90.update(amplitude_scale=2)
 
     with pytest.raises(ValueError, match="gaussian_y180.length references gaussian_x180"):
-        q1.y.update(duration=200)
+        q1.y.update(duration=50)
 
     assert x90.length == x90_length
     assert x90.amplitude == x90_amplitude
@@ -489,7 +495,7 @@ def test_custom_macro_update_writes_its_own_stored_pulse():
     q1.set_macro("custom_gate", _CustomGateMacro())
     x90_length = q1.xy.operations["gaussian_x90"].length
 
-    q1.macros["custom_gate"].update(duration=120, amplitude_scale=2)
+    q1.macros["custom_gate"].update(duration=30, amplitude_scale=2)
 
     custom = q1.xy.operations["gaussian_custom"]
     assert custom.length == 120
