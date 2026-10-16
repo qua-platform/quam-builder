@@ -4,16 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [0.6.0] - 2026-09-28
+## [Unreleased]
+
 > **⚠️ Quantum Dots (beta):** The quantum dots architecture and builder (`quam_builder.architecture.quantum_dots`, `quam_builder.builder.quantum_dots`) are in beta. APIs may change without a deprecation period, including in minor releases. If you plan to use them, please contact Quantum Machines first so we can support you and take your feedback into account.
 
 ### Added
 
-- `DrachmaReadoutPulse` now supports per-state resonator linewidths (`kappa_ground_hz`, `kappa_excited_hz`). Equal values reproduce the previous shared-kappa waveform (#155).
-- Optional self-Kerr correction on `DrachmaReadoutPulse` via `zeta_ground_hz` and `zeta_excited_hz` (default `0.0`, which leaves the waveform unchanged) (#155).
-- `DrachmaReadoutPulse.depletion_time_ns` (default `16`): extra wait after the pulse for the resonator to decay before measurement (#155).
-- Add support for cloud-based QMM instances in `machine.connect()`
-  - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 - Optional ``close_method`` on quantum-dot ``dac_config`` entries so
   ``disconnect_from_external_source`` can tear down any driver API (not only ``.close()``).
 - Quantum Dots - macro catalog system (`MacroCatalog` protocol with `DefaultMacroCatalog`, `VoltageBalancedMacroCatalog`, `UtilityMacroCatalog`, `TypeOverrideCatalog`), replacing the old macro registry, plus `wire_machine_macros` / `MacroWirer` / `PulseWirer` in the new `macro_engine` for wiring macros and pulses onto a machine (#124, #126, #131).
@@ -27,6 +23,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 - **BREAKING:** Quantum Dots - `VoltageSequence`, `SequenceStateTracker` and the point/measure/composable macros moved from `quam_builder.tools` into `quam_builder.architecture.quantum_dots`. The old `architecture/quantum_dots/virtual_gates` module was removed (use `components.VirtualGateSet` instead).
 
+### Fixed
+
+- Quantum Dots - fix for voltage_sequence with amplified and attenuated `VoltageGates` (#119).
+- Quantum Dots - restore amplified LF-FEM default pulse amplitude to 1.25 V (half of 2.5 V full scale) (#152).
+
+## [0.6.0] - 2026-09-28
+
+### Added
+
+- `DrachmaReadoutPulse` now supports per-state resonator linewidths (`kappa_ground_hz`, `kappa_excited_hz`). Equal values reproduce the previous shared-kappa waveform (#155).
+- Optional self-Kerr correction on `DrachmaReadoutPulse` via `zeta_ground_hz` and `zeta_excited_hz` (default `0.0`, which leaves the waveform unchanged) (#155).
+- `DrachmaReadoutPulse.depletion_time_ns` (default `16`): extra wait after the pulse for the resonator to decay before measurement (#155).
 
 ### Changed
 
@@ -41,7 +49,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Added `DrachmaReadoutPulse` readout scheme (#140).
 - Added `custom_gates` section to `architecture/superconducting/README.md` documenting single-qubit macros and the `CZGate` two-qubit macro, including pulse-naming conventions and usage examples. Gate macros are currently specific to the superconducting architecture; `CZGate` requires `FluxTunableTransmonPair`.
 - Added incremental add/remove helpers for qubits, channels, and ports, including typed port helpers ``add_mw_port`` (MW-FEM) and ``add_lf_port`` (LF-FEM / OPX+ baseband) with a required ``type="input"`` or ``type="output"`` argument (#121).
-
 
 ### Changed
 
@@ -99,8 +106,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - NV center - fix invalid `SPCM` component.
-- Quantum Dots - fix for voltage_sequence with amplified and attenuated `VoltageGates`
-- Quantum Dots - restore amplified LF-FEM default pulse amplitude to 1.25 V (half of 2.5 V full scale)
 
 ## [0.2.0] - 2025-10-29
 
