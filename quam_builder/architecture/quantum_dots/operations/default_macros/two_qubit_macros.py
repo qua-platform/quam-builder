@@ -24,7 +24,13 @@ from quam_builder.architecture.quantum_dots.operations.names import (
     TwoQubitMacroName,
     VoltagePointName,
 )
-from quam_builder.tools.qua_tools import DurationType, is_qua_type, validate_duration
+from quam_builder.tools.qua_tools import (
+    DurationType,
+    clock_cycles_to_ns,
+    is_qua_type,
+    ns_to_clock_cycles,
+    validate_duration,
+)
 
 __all__ = [
     "TWO_QUBIT_MACROS",
@@ -59,9 +65,7 @@ def _state_macro_field_names(macro_cls):
 def _duration_ns_to_cycles(duration_ns: DurationType) -> DurationType:
     """Convert a nanosecond duration into OPX clock cycles."""
     validate_duration(duration_ns, "duration")
-    if is_qua_type(duration_ns):
-        return duration_ns >> 2
-    return int(duration_ns) >> 2
+    return ns_to_clock_cycles(duration_ns)
 
 
 def _runtime_frequency_hz(qubit, esr_frequency):
@@ -334,11 +338,14 @@ class CROTMacro(QubitPairMacro):
     pulse_name: str | None = None
     point: str | None = VoltagePointName.EXCHANGE.value
     ramp_duration: int = DEFAULTS.exchange.ramp_duration
-    """Ramp duration between zero and the exchange voltage point (ns)."""
+    """Ramp duration between zero and the exchange voltage point, in clock cycles."""
     esr_frequency: float | None = None
     amplitude: float | None = None
     duration: int | None = None
-    """ESR pulse / exchange-hold duration (ns). Defaults to the x180 pulse length."""
+    """ESR pulse / exchange-hold duration in clock cycles.
+
+    ``None`` uses the x180 pulse length, converted from nanoseconds.
+    """
 
     _cache: "_CROTBalanceCache" = dataclasses.field(
         default_factory=_CROTBalanceCache,
@@ -360,8 +367,8 @@ class CROTMacro(QubitPairMacro):
             )
         return qubit
 
-    def _pulse_duration_ns(self, drive_qubit, pulse_name: str, duration) -> int:
-        """Resolve the ESR pulse duration in ns, defaulting to the pulse length."""
+    def _pulse_duration_cc(self, drive_qubit, pulse_name: str, duration):
+        """Resolve the ESR pulse duration in clock cycles."""
         if duration is not None:
             return duration
         if pulse_name not in drive_qubit.xy.operations:
@@ -373,20 +380,20 @@ class CROTMacro(QubitPairMacro):
             raise ValueError(
                 f"Pulse '{pulse_name}' on qubit '{drive_qubit.id}' does not expose a length."
             )
-        return int(length)
+        return _duration_ns_to_cycles(int(length))
 
     @property
     def inferred_duration(self) -> float | None:
         try:
             drive_qubit = self._drive_qubit(True)
-            pulse_duration = self._pulse_duration_ns(
+            pulse_cycles = self._pulse_duration_cc(
                 drive_qubit, _x180_pulse_name(drive_qubit, self.pulse_name), self.duration
             )
         except (KeyError, ValueError):
             return None
-        if is_qua_type(pulse_duration) or self.ramp_duration is None:
+        if is_qua_type(pulse_cycles) or self.ramp_duration is None:
             return None
-        return (pulse_duration + 2 * self.ramp_duration) * 1e-9
+        return (pulse_cycles + 2 * self.ramp_duration) * 4e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -394,18 +401,21 @@ class CROTMacro(QubitPairMacro):
     def _play_exchange_leg(self, *, voltages, pulse_duration, ramp) -> None:
         """Ramp 0 → ``voltages`` → hold ``pulse_duration`` → ramp back to 0.
 
-        A pure voltage excursion with no drive — used for the balancing leg.
+        ``pulse_duration`` and ``ramp`` are clock cycles. The voltage sequence
+        receives nanoseconds. The return hold of 16 is nanoseconds.
         """
         owner = self.qubit_pair
         zero = {k: 0.0 for k in voltages}
         vs = owner.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
+        pulse_ns = clock_cycles_to_ns(pulse_duration)
+        ramp_ns = clock_cycles_to_ns(ramp)
 
         qua.align(*gates)
         vs.ramp_to_voltages(
-            voltages, duration=pulse_duration, ramp_duration=ramp, ensure_align=False
+            voltages, duration=pulse_ns, ramp_duration=ramp_ns, ensure_align=False
         )
-        vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp, ensure_align=False)
+        vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp_ns, ensure_align=False)
 
     def apply(
         self,
@@ -430,14 +440,15 @@ class CROTMacro(QubitPairMacro):
             Override for the exchange voltage point name (or explicit channel
             voltages). Defaults to the stored ``point``.
         ramp_duration : int or QUA variable, optional
-            Override for the ramp duration (ns).
+            Override for the ramp duration, in clock cycles.
         esr_frequency : float or QUA variable, optional
             If given, the driven qubit's XY frequency is set to this value for
             the pulse and restored to its Larmor frequency afterwards.
         amplitude : float or QUA variable, optional
             Per-call amplitude scale for the ESR pulse.
         duration : int or QUA variable, optional
-            ESR pulse / exchange-hold duration (ns). Defaults to the pulse length.
+            ESR pulse / exchange-hold duration in clock cycles. Defaults to the
+            x180 pulse length.
         pulse_name : str, optional
             Override for the ESR pulse name.
         drive_target : bool, optional
@@ -454,18 +465,20 @@ class CROTMacro(QubitPairMacro):
         )
         pulse_amplitude = self.amplitude if amplitude is None else amplitude
         runtime_esr_frequency = self.esr_frequency if esr_frequency is None else esr_frequency
-        pulse_duration = self._pulse_duration_ns(
+        pulse_cycles = self._pulse_duration_cc(
             drive_qubit,
             resolved_pulse_name,
             self.duration if duration is None else duration,
         )
+        pulse_ns = clock_cycles_to_ns(pulse_cycles)
+        ramp_ns = clock_cycles_to_ns(ramp)
 
         positive = _point_voltages(self.qubit_pair, target_point)
         zero = {k: 0.0 for k in positive}
         vs = self.qubit_pair.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
 
-        play_kwargs = {"duration": _duration_ns_to_cycles(pulse_duration)}
+        play_kwargs = {"duration": pulse_cycles}
         if pulse_amplitude is not None:
             play_kwargs["amplitude_scale"] = pulse_amplitude
 
@@ -475,18 +488,18 @@ class CROTMacro(QubitPairMacro):
 
         qua.align(drive_qubit.xy.name, *gates)
         with qua.strict_timing_():
-            qua.wait(int((3 * ramp + pulse_duration) // 4), drive_qubit.xy.name)
+            qua.wait(int((3 * ramp_ns + pulse_ns) // 4), drive_qubit.xy.name)
             drive_qubit.xy.play(resolved_pulse_name, **play_kwargs)
             vs.ramp_to_voltages(
-                positive, duration=pulse_duration, ramp_duration=ramp, ensure_align=False
+                positive, duration=pulse_ns, ramp_duration=ramp_ns, ensure_align=False
             )
-            vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp, ensure_align=False)
+            vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp_ns, ensure_align=False)
 
         if runtime_esr_frequency is not None:
             drive_qubit.xy.update_frequency(larmor_frequency)
 
         # Record the mirror leg so balance() can cancel the net DC later.
-        self._cache.record(point=target_point, ramp_duration=ramp, duration=pulse_duration)
+        self._cache.record(point=target_point, ramp_duration=ramp, duration=pulse_cycles)
 
     def apply_inverse(
         self,
@@ -508,13 +521,13 @@ class CROTMacro(QubitPairMacro):
             raise ValueError("CROTMacro requires a voltage_point.")
         ramp = self.ramp_duration if ramp_duration is None else ramp_duration
         drive_qubit = self._drive_qubit(drive_target)
-        pulse_duration = self._pulse_duration_ns(
+        pulse_cycles = self._pulse_duration_cc(
             drive_qubit, _x180_pulse_name(drive_qubit, self.pulse_name), duration
         )
 
         positive = _point_voltages(self.qubit_pair, target_point)
         negative = {k: -v for k, v in positive.items()}
-        self._play_exchange_leg(voltages=negative, pulse_duration=pulse_duration, ramp=ramp)
+        self._play_exchange_leg(voltages=negative, pulse_duration=pulse_cycles, ramp=ramp)
 
     def balance(self) -> None:
         """Replay :meth:`apply_inverse` for every cached ``apply`` call, in
@@ -592,9 +605,9 @@ class CZMacro(QubitPairMacro):
 
     point: str = VoltagePointName.CZ.value if hasattr(VoltagePointName, "CZ") else "CZ"
     wait_duration: int = DEFAULTS.exchange.cz_duration
-    """Hold duration at the CZ voltage point (ns)."""
+    """Hold duration at the CZ voltage point, in clock cycles."""
     ramp_duration: int = DEFAULTS.exchange.ramp_duration
-    """Ramp duration between zero and the CZ voltage point (ns)."""
+    """Ramp duration between zero and the CZ voltage point, in clock cycles."""
     phase_shift_control: float = 0.0
     """Frame rotation on control qubit after CZ (units of 2pi)."""
     phase_shift_target: float = 0.0
@@ -631,7 +644,7 @@ class CZMacro(QubitPairMacro):
     def inferred_duration(self) -> float | None:
         if self.wait_duration is None:
             return None
-        return (self.wait_duration + 2 * self.ramp_duration) * 1e-9
+        return (self.wait_duration + 2 * self.ramp_duration) * 4e-9
 
     def t_2pi(self, amplitude: float) -> float:
         """Evaluate the calibrated T_2π(V) model (ns).
@@ -660,7 +673,7 @@ class CZMacro(QubitPairMacro):
             return result
         raise ValueError(f"Unknown exchange_decay_model type: {model_type!r}")
 
-    def t_cz(self, amplitude: float) -> float:
+    def t_cz(self, amplitude: float) -> int:
         """Return T_2π(V) / 2 — the CZ wait_duration for a π conditional phase.
 
         Parameters
@@ -670,24 +683,31 @@ class CZMacro(QubitPairMacro):
 
         Returns
         -------
-        float
-            Half-period in nanoseconds (round to 4 ns for the QUA clock).
+        int
+            Half-period in clock cycles, for assignment to ``wait_duration``.
+            ``t_2pi`` stays in nanoseconds because that is the unit of the fit.
         """
-        return self.t_2pi(amplitude) / 2.0
+        return int(round(self.t_2pi(amplitude) / 8.0))
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
     def _play_exchange_leg(self, *, voltages, wait, ramp) -> None:
-        """Ramp every channel 0 → ``voltages`` → hold ``wait`` → ramp back to 0."""
+        """Ramp every channel 0 → ``voltages`` → hold ``wait`` → ramp back to 0.
+
+        ``wait`` and ``ramp`` are clock cycles. The 16 ns return hold is a
+        voltage-sequence duration and stays in nanoseconds.
+        """
         owner = self.qubit_pair
         zero = {k: 0.0 for k in voltages}
         vs = owner.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
+        wait_ns = clock_cycles_to_ns(wait)
+        ramp_ns = clock_cycles_to_ns(ramp)
 
         qua.align(*gates)
-        vs.ramp_to_voltages(voltages, duration=wait, ramp_duration=ramp, ensure_align=False)
-        vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp, ensure_align=False)
+        vs.ramp_to_voltages(voltages, duration=wait_ns, ramp_duration=ramp_ns, ensure_align=False)
+        vs.ramp_to_voltages(zero, duration=16, ramp_duration=ramp_ns, ensure_align=False)
 
     def apply(
         self,
@@ -710,9 +730,9 @@ class CZMacro(QubitPairMacro):
             Override for the CZ voltage point name (or explicit channel
             voltages). Defaults to the stored ``point``.
         wait_duration : int or QUA variable, optional
-            Override for the hold duration (ns).
+            Override for the hold duration, in clock cycles.
         ramp_duration : int or QUA variable, optional
-            Override for the ramp duration (ns).
+            Override for the ramp duration, in clock cycles.
         phase_shift_control : float or QUA variable, optional
             Per-call override for control qubit frame rotation (units of 2pi).
             If None, uses the stored ``phase_shift_control`` attribute.

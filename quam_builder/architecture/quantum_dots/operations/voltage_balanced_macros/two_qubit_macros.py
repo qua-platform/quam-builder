@@ -10,6 +10,7 @@ from quam.components.macro import QubitPairMacro
 from quam.core import quam_dataclass
 
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
+from quam_builder.tools.qua_tools import clock_cycles_to_ns, ns_to_clock_cycles
 from quam_builder.architecture.quantum_dots.operations.names import (
     DrivePulseName,
     SingleQubitMacroName,
@@ -62,7 +63,7 @@ class BalancedCz2QMacro(QubitPairMacro):
 
     @property
     def inferred_duration(self) -> float | None:
-        return 2 * self.wait_duration * 1e-9 + 4 * self.ramp_duration * 1e-9
+        return 2 * self.wait_duration * 4e-9 + 4 * self.ramp_duration * 4e-9
 
     def t_2pi(self, amplitude: float) -> float:
         """Evaluate the calibrated T_2π(V) model (ns).
@@ -91,7 +92,7 @@ class BalancedCz2QMacro(QubitPairMacro):
             return result
         raise ValueError(f"Unknown exchange_decay_model type: {model_type!r}")
 
-    def t_cz(self, amplitude: float) -> float:
+    def t_cz(self, amplitude: float) -> int:
         """Return T_2π(V) / 2 — the CZ wait_duration for a π conditional phase.
 
         Parameters
@@ -101,10 +102,11 @@ class BalancedCz2QMacro(QubitPairMacro):
 
         Returns
         -------
-        float
-            Half-period in nanoseconds (round to 4 ns for QUA clock).
+        int
+            Half-period in clock cycles, for assignment to ``wait_duration``.
+            ``t_2pi`` stays in nanoseconds because that is the unit of the fit.
         """
-        return self.t_2pi(amplitude) / 2.0
+        return int(round(self.t_2pi(amplitude) / 8.0))
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -159,13 +161,17 @@ class BalancedCz2QMacro(QubitPairMacro):
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
 
         qua.align(*gates)
+        wait_ns = clock_cycles_to_ns(wait)
+        ramp_ns = clock_cycles_to_ns(ramp)
         # with qua.strict_timing_():
-        vs.ramp_to_voltages(negative, duration=wait, ramp_duration=ramp, ensure_align=False)
-        vs.ramp_to_voltages(positive, duration=wait, ramp_duration=2 * ramp, ensure_align=False)
+        vs.ramp_to_voltages(negative, duration=wait_ns, ramp_duration=ramp_ns, ensure_align=False)
+        vs.ramp_to_voltages(
+            positive, duration=wait_ns, ramp_duration=clock_cycles_to_ns(2 * ramp), ensure_align=False
+        )
         vs.ramp_to_voltages(
             zero,
             duration=16,
-            ramp_duration=ramp,
+            ramp_duration=ramp_ns,
             ensure_align=False,
         )
 
@@ -332,32 +338,36 @@ class BalancedCROTMacro(QubitPairMacro):
         vs = owner.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
 
-        pulse_duration = (
-            drive_qubit.xy.operations[pulse_name].length if duration is None else duration
-        )
+        if duration is None:
+            pulse_ns = drive_qubit.xy.operations[pulse_name].length
+            pulse_cycles = ns_to_clock_cycles(pulse_ns)
+        else:
+            pulse_cycles = duration
+            pulse_ns = clock_cycles_to_ns(duration)
+        ramp_ns = clock_cycles_to_ns(ramp_duration)
         qua.align(drive_qubit.xy.name, *gates)
         with qua.strict_timing_():
-            qua.wait(int((3 * ramp_duration + pulse_duration) // 4), drive_qubit.xy.name)
+            qua.wait(int((3 * ramp_ns + pulse_ns) // 4), drive_qubit.xy.name)
 
             drive_qubit.xy.play(
                 pulse_name,
                 amplitude_scale=amplitude,
-                duration=int(pulse_duration // 4),
+                duration=pulse_cycles,
             )
 
             vs.ramp_to_voltages(
-                negative, duration=pulse_duration, ramp_duration=ramp_duration, ensure_align=False
+                negative, duration=pulse_ns, ramp_duration=ramp_ns, ensure_align=False
             )
             vs.ramp_to_voltages(
                 positive,
-                duration=pulse_duration,
-                ramp_duration=2 * ramp_duration,
+                duration=pulse_ns,
+                ramp_duration=clock_cycles_to_ns(2 * ramp_duration),
                 ensure_align=False,
             )
             vs.ramp_to_voltages(
                 zero,
                 duration=16,
-                ramp_duration=ramp_duration,
+                ramp_duration=ramp_ns,
                 ensure_align=False,
             )
 
