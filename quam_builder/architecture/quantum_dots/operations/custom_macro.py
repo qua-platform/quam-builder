@@ -58,6 +58,7 @@ class _MacroParameters:
             )
         return self._cache[owner]
 
+
 @quam_dataclass
 class BaseCustomMacro(QuamMacro, ABC): 
     """
@@ -244,6 +245,7 @@ class CustomStateMacro(BaseCustomMacro):
         full_name = owner._create_point_name(point)
         tuning_point = owner.voltage_sequence.gate_set.macros.get(full_name)
         return dict(tuning_point.voltages)
+
 
 @quam_dataclass
 class CustomQubitMacro(XYDriveMacro, BaseCustomMacro):
