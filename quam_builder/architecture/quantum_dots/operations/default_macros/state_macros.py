@@ -21,11 +21,7 @@ __all__ = [
     "ExchangeStateMacro",
     "SensorDotMeasureMacro",
     "MeasurePSBPairMacro",
-    "QPUInitializeMacro",
-    "QPUMeasureMacro",
-    "QPUEmptyMacro",
     "STATE_POINT_MACROS",
-    "QPU_STATE_MACROS",
 ]
 
 PointType = str | dict[str, VoltageLevelType]
@@ -256,17 +252,14 @@ class ExchangeStateMacro(QuamMacro):
 class SensorDotMeasureMacro(QuamMacro):
     """PSB readout via the SensorDot readout resonator with state assignment.
 
-    When called with a ``quantum_dot_pair_id``, applies the stored
-    projector and threshold for that pair to perform state discrimination,
-    returning a QUA boolean suitable for ``Cast.to_int()``.
+    When called with a ``quantum_dot_pair_id``, compares I against the stored
+    threshold for that pair, returning a QUA boolean suitable for
+    ``Cast.to_int()``.
 
     Without a pair ID, falls back to a raw resonator measurement.
 
-    When ``gate_channel_names`` and ``voltage_sequence`` are provided
-    (typically by ``MeasurePSBPairMacro``), the macro aligns the voltage
-    gates with the resonator before measuring and tracks the elapsed
-    readout time on the voltage sequencer so integrated-voltage
-    bookkeeping stays correct.
+    The macro does no gate alignment or voltage tracking; the calling
+    measure macro (e.g. ``MeasurePSBPairMacro``) owns the timing.
     """
 
     pulse_name: str = "readout"
@@ -325,14 +318,13 @@ class SensorDotMeasureMacro(QuamMacro):
         """Measure the readout resonator and optionally perform state assignment.
 
         Args:
-            quantum_dot_pair_id: If provided, apply the projector and threshold
+            quantum_dot_pair_id: If provided, compare I against the threshold
                 stored on this sensor dot for the given pair, returning a QUA
-                boolean (projected_value > threshold).
-            voltage_sequence: Voltage sequencer for integrated-voltage tracking.
-            gate_channel_names: QUA element names of voltage gate channels to
-                align with the readout resonator before measuring.
-            *args, **kwargs: Forwarded to ``readout_resonator.measure()`` when
-                no pair ID is given.
+                boolean (I > threshold).
+            voltage_sequence: Unused; kept for call compatibility.
+            gate_channel_names: Unused; kept for call compatibility.
+            return_iq: If True (with a pair ID), return ``(i_qua, q_qua, state)``.
+            *args, **kwargs: Ignored.
 
         Returns:
             QUA boolean expression when ``quantum_dot_pair_id`` is set,
@@ -345,14 +337,6 @@ class SensorDotMeasureMacro(QuamMacro):
         if readout_pulse_name is None:
             raise ValueError("Sensor dot has no readout resonator configured.")
 
-        # if gate_channel_names:
-        #     qua.align(*gate_channel_names, resonator.name)
-
-        # if voltage_sequence is not None:
-        #     pulse_length_ns = self.readout_pulse_length_ns_for_pair(quantum_dot_pair_id)
-        #     if pulse_length_ns is not None:
-        #         voltage_sequence.step_to_voltages({}, pulse_length_ns, ensure_align=False)
-
         i_qua = qua.declare(qua.fixed)
         q_qua = qua.declare(qua.fixed)
         resonator.measure(readout_pulse_name, qua_vars=(i_qua, q_qua))
@@ -360,13 +344,7 @@ class SensorDotMeasureMacro(QuamMacro):
         if quantum_dot_pair_id is None:
             return (i_qua, q_qua)
 
-        threshold, projector = owner._readout_params(quantum_dot_pair_id)
-        # wI = float(projector.get("wI", 1.0))
-        # wQ = float(projector.get("wQ", 0.0))
-        # offset = float(projector.get("offset", 0.0))
-
-        # projected = declare(fixed)
-        # assign(projected, i_qua * wI + q_qua * wQ + offset)
+        threshold, _ = owner._readout_params(quantum_dot_pair_id)
 
         state = i_qua > threshold  # Assuming that the readout projects onto the I axis
         if return_iq:
@@ -380,25 +358,29 @@ class MeasurePSBPairMacro(QuamMacro):
 
     The timing sequence is:
 
-    1. **Buffer** -- step to the measure voltage point for
-       ``buffer_duration`` clock cycles (settling time before readout).
-    2. **Align** -- synchronize voltage gate channels with the readout
-       resonator (handled inside the sensor macro).
-    3. **Readout + track** -- the sensor macro plays the readout pulse
-       and calls ``track_sticky_duration`` on the voltage sequencer so
-       integrated-voltage bookkeeping stays correct.
+    1. **Align** -- synchronize the voltage gate channels with the readout
+       resonator.
+    2. **Ramp + buffer** -- ramp to the measure voltage point over
+       ``ramp_duration`` clock cycles, then hold for ``buffer_duration``
+       clock cycles (settling time before readout). The resonator waits
+       for the same ``ramp + buffer`` cycles.
+    3. **Readout** -- the sensor macro plays the readout pulse while the
+       gates keep holding the measure point, so the readout time is
+       included in integrated-voltage tracking.
 
     Returns a QUA boolean for state discrimination.
     """
 
     point: PointType = VoltagePointName.MEASURE.value
     buffer_duration: int | None = DEFAULTS.state_macro.buffer_duration
+    ramp_duration: int | None = DEFAULTS.state_macro.ramp_duration
 
     @property
     def inferred_duration(self) -> float | None:
-        """Total duration = buffer + sensor readout (seconds)."""
+        """Total duration = ramp + buffer + sensor readout (seconds)."""
         owner = _owner_component(self)
         buffer_s = (self.buffer_duration or 0) * 4e-9
+        ramp_s = (self.ramp_duration or 0) * 4e-9
         if not getattr(owner, "sensor_dots", None):
             return None
         sensor_dot = owner.sensor_dots[0]
@@ -411,21 +393,24 @@ class MeasurePSBPairMacro(QuamMacro):
             sensor_dur = sensor_macro.inferred_duration
         if sensor_dur is None:
             return None
-        return buffer_s + sensor_dur
+        return buffer_s + sensor_dur + ramp_s
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
-    def apply(self, buffer_duration: int | None = None, **kwargs):
+    def apply(self, buffer_duration: int | None = None, ramp_duration: int | None = None, **kwargs):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
+
         buf = self.buffer_duration if buffer_duration is None else buffer_duration
-        buffer_ns = None if buf is None else clock_cycles_to_ns(buf)
+        ramp = self.ramp_duration if ramp_duration is None else ramp_duration
+        ramp_ns = clock_cycles_to_ns(ramp)
+        buffer_ns = clock_cycles_to_ns(buf)
 
         if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
         sensor_dot = owner.sensor_dots[0]
-
+        rr = sensor_dot.readout_resonator
         gate_names = []
         vs = getattr(owner, "voltage_sequence", None)
         if vs is not None:
@@ -433,10 +418,18 @@ class MeasurePSBPairMacro(QuamMacro):
             if gate_set is not None:
                 gate_names = [ch.name for ch in gate_set.channels.values()]
 
-        qua.align(sensor_dot.readout_resonator.name, *gate_names)
-        _step_to_target(owner, self.point, duration=buffer_ns)
+        # Align the readout resonator to the gates of the VoltageSequence
+        qua.align(rr.name, *gate_names)
+        sensor_macro = sensor_dot.macros[TwoQubitMacroName.MEASURE]
+        readout_duration_ns = sensor_macro.readout_pulse_length_ns_for_pair(owner.id)
+        if readout_duration_ns is None: 
+            raise ValueError("Readout duration not found. Please double check Quam state.")
 
-        return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
+        # Step to the point. The readout resonator should wait for the ramp + buffer, and then start reading
+        _ramp_to_target(owner, self.point, ramp_duration = ramp_ns, duration=buffer_ns + readout_duration_ns)
+        qua.wait((buf + ramp), rr.name) # QUA's wait command in clock cycles
+
+        return sensor_macro.apply(
             quantum_dot_pair_id=owner.id,
             voltage_sequence=vs,
             gate_channel_names=None,
@@ -447,92 +440,19 @@ class MeasurePSBPairMacro(QuamMacro):
         self,
         *,
         buffer_duration: int | None = None,
+        ramp_duration: int | None = None,
         point: PointType | None = None,
     ) -> None:
         """Persistently update calibrated measure parameters."""
         if buffer_duration is not None:
             self.buffer_duration = buffer_duration
+        if ramp_duration is not None: 
+            self.ramp_duration = ramp_duration
         if point is not None:
             self.point = point
-
-
-def _iter_qpu_targets(machine: Any):
-    """Yield components targeted by QPU-level state macros.
-
-    Priority order:
-        1. Active qubits/pairs if explicitly set.
-        2. All registered qubits/pairs.
-        3. Fallback to quantum dots/pairs for stage-1 machines.
-    """
-    if getattr(machine, "active_qubit_names", None):
-        for name in machine.active_qubit_names:
-            yield machine.qubits[name]
-    elif getattr(machine, "qubits", None):
-        yield from machine.qubits.values()
-    elif getattr(machine, "quantum_dots", None):
-        yield from machine.quantum_dots.values()
-
-    if getattr(machine, "active_qubit_pair_names", None):
-        for name in machine.active_qubit_pair_names:
-            yield machine.qubit_pairs[name]
-    elif getattr(machine, "qubit_pairs", None):
-        yield from machine.qubit_pairs.values()
-    elif getattr(machine, "quantum_dot_pairs", None):
-        yield from machine.quantum_dot_pairs.values()
-
-
-@quam_dataclass
-class _QPUStateDispatchMacro(QuamMacro):
-    """Dispatch a state macro to active machine components."""
-
-    macro_name: str
-
-    def __call__(self, *args, **kwargs):
-        return self.apply(*args, **kwargs)
-
-    def apply(self, **kwargs):
-        """Dispatch configured state macro to each selected machine target."""
-        owner = _owner_component(self)
-        machine = getattr(owner, "machine", None)
-        if machine is None:
-            raise ValueError("QPU macro owner has no machine.")
-
-        results = {}
-        for component in _iter_qpu_targets(machine):
-            results[component.id] = component.macros[self.macro_name].apply(**kwargs)
-        return results
-
-
-@quam_dataclass
-class QPUInitializeMacro(_QPUStateDispatchMacro):
-    """QPU-level dispatch macro for ``initialize`` state transition."""
-
-    macro_name: str = VoltagePointName.INITIALIZE.value
-
-
-@quam_dataclass
-class QPUMeasureMacro(_QPUStateDispatchMacro):
-    """QPU-level dispatch macro for ``measure`` state transition."""
-
-    macro_name: str = VoltagePointName.MEASURE.value
-
-
-@quam_dataclass
-class QPUEmptyMacro(_QPUStateDispatchMacro):
-    """QPU-level dispatch macro for ``empty`` state transition."""
-
-    macro_name: str = VoltagePointName.EMPTY.value
-
 
 STATE_POINT_MACROS = {
     VoltagePointName.INITIALIZE.value: InitializeStateMacro,
     VoltagePointName.EMPTY.value: EmptyStateMacro,
 }
 # Default state-macro factories for point-capable components.
-
-QPU_STATE_MACROS = {
-    VoltagePointName.INITIALIZE.value: QPUInitializeMacro,
-    VoltagePointName.MEASURE.value: QPUMeasureMacro,
-    VoltagePointName.EMPTY.value: QPUEmptyMacro,
-}
-# Default state-macro factories for the machine-level QPU component.

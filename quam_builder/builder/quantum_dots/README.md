@@ -1,5 +1,7 @@
 # Quantum-dot QuAM builder
 
+> **⚠️ Beta:** This builder is part of the quantum dots stack, which is in beta. See the [architecture README](../../architecture/quantum_dots/README.md) before using it.
+
 This package (`quam_builder.builder.quantum_dots`) turns **connectivity / wiring** into a serialized QuAM tree: sticky `VoltageGate` channels, a virtual gate set, dots and sensors, then (optionally) Loss-DiVincenzo qubits and XY drives.
 
 Architecture classes, macros, and voltage sequences live under [`quam_builder.architecture.quantum_dots`](../../architecture/quantum_dots/README.md). This document is only the **build path**.

@@ -1,5 +1,7 @@
 # Quantum-dot QuAM architecture
 
+> **⚠️ Beta:** The quantum dots architecture and builder (`quam_builder.architecture.quantum_dots`, `quam_builder.builder.quantum_dots`) are in beta. APIs may change without a deprecation period, including in minor releases. If you plan to use them, please contact Quantum Machines first so we can support you and take your feedback into account.
+
 This package (`quam_builder.architecture.quantum_dots`) provides QuAM components, voltage-control tooling, default operations and macros, and wiring helpers for **quantum-dot and spin-qubit** processors.
 
 It is aimed at:

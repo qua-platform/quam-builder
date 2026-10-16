@@ -224,7 +224,6 @@ class DefaultMacroCatalog:
     # -- built-in defaults --------------------------------------------------
 
     def _register_defaults(self) -> None:
-        from quam_builder.architecture.quantum_dots.components import QPU
         from quam_builder.architecture.quantum_dots.components.quantum_dot import (
             QuantumDot,
         )
@@ -235,7 +234,6 @@ class DefaultMacroCatalog:
             SensorDot,
         )
         from quam_builder.architecture.quantum_dots.operations.default_macros import (
-            QPU_STATE_MACROS,
             SINGLE_QUBIT_MACROS,
             STATE_POINT_MACROS,
             TWO_QUBIT_MACROS,
@@ -250,7 +248,6 @@ class DefaultMacroCatalog:
         from quam_builder.architecture.quantum_dots.qubit import LDQubit
         from quam_builder.architecture.quantum_dots.qubit_pair import LDQubitPair
 
-        self.register(QPU, QPU_STATE_MACROS)
         self.register(LDQubit, SINGLE_QUBIT_MACROS)
         self.register(LDQubitPair, TWO_QUBIT_MACROS)
         self.register(QuantumDot, STATE_POINT_MACROS)
