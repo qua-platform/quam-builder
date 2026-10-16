@@ -1,9 +1,16 @@
 """Transport readout channel components."""
 
 from quam.core import quam_dataclass
-from quam.components.channels import InSingleChannel, InOutSingleChannel, InMWChannel, InIQChannel
+from quam.components.channels import InSingleChannel, InOutSingleChannel
+from typing import Union
 
-__all__ = ["ReadoutTransportBase", "ReadoutTransportSingle", "ReadoutTransportSingleIO"]
+
+__all__ = [
+    "ReadoutTransportBase",
+    "ReadoutTransportSingle",
+    "ReadoutTransportSingleIO",
+    "ANY_READOUT_TRANSPORT",
+]
 
 
 @quam_dataclass
@@ -38,3 +45,8 @@ class ReadoutTransportSingleIO(
     """
 
     pass
+
+
+ANY_READOUT_TRANSPORT = Union[
+    ReadoutTransportBase, ReadoutTransportSingle, ReadoutTransportSingleIO
+]
