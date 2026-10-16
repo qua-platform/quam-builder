@@ -4,9 +4,8 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [Unreleased]
-
 ## [0.6.0] - 2026-09-28
+> **⚠️ Quantum Dots (beta):** The quantum dots architecture and builder (`quam_builder.architecture.quantum_dots`, `quam_builder.builder.quantum_dots`) are in beta. APIs may change without a deprecation period, including in minor releases. If you plan to use them, please contact Quantum Machines first so we can support you and take your feedback into account.
 
 ### Added
 
@@ -17,6 +16,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   - A custom QMM class can be specified in the network configuration, and enabled/disabled with the `use_custom_qmm` flag.
 - Optional ``close_method`` on quantum-dot ``dac_config`` entries so
   ``disconnect_from_external_source`` can tear down any driver API (not only ``.close()``).
+- Quantum Dots - macro catalog system (`MacroCatalog` protocol with `DefaultMacroCatalog`, `VoltageBalancedMacroCatalog`, `UtilityMacroCatalog`, `TypeOverrideCatalog`), replacing the old macro registry, plus `wire_machine_macros` / `MacroWirer` / `PulseWirer` in the new `macro_engine` for wiring macros and pulses onto a machine (#124, #126, #131).
+- Quantum Dots - default single-qubit gate macros (`X/Y/Z` 180/90/-90, `IdentityMacro`, `XYDriveMacro` with a macro-level API to update pulse parameters and frequency) and two-qubit gate macros (`CROTMacro`, `CZMacro`, `Exchange2QMacro`), along with initialize, measure and empty state macros at the qubit and pair level (`SensorDotMeasureMacro`, `MeasurePSBPairMacro`) (#125, #161).
+- Quantum Dots - user-defined macros via `CustomStateMacro` and `CustomQubitMacro`, which can declare their own parameters (#147).
+- Quantum Dots - machine-level voltage tracking: `reset_voltage_sequence`, a `limit_play_commands` option that only plays to the gates actually affected, a DAC voltage-limit check, and `ramp_to_zero` that handles virtual gates correctly (#127, #144, #156, #157).
+- Quantum Dots - DAC integration: `DacSpec` / `QdacSpec`, QDAC2 wiring (`builder/qop_connectivity/qdac_wiring.py`), USB support, global and sensor gates driven only by the QDAC, and `connect_to_external_source` / `disconnect_from_external_source` (#97, #98, #103, #145).
+- Quantum Dots - new READMEs (components, operations, QPU, voltage sequence, builder) and a reorganised `examples/` folder split into connectivity, voltages, macros and experiments (#120, #133).
+
+### Changed
+
+- **BREAKING:** Quantum Dots - `VoltageSequence`, `SequenceStateTracker` and the point/measure/composable macros moved from `quam_builder.tools` into `quam_builder.architecture.quantum_dots`. The old `architecture/quantum_dots/virtual_gates` module was removed (use `components.VirtualGateSet` instead).
 
 
 ### Changed

@@ -7,7 +7,6 @@ from quam_builder.architecture.quantum_dots.operations.default_macros.single_qub
     SINGLE_QUBIT_MACROS,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
-    QPU_STATE_MACROS,
     STATE_POINT_MACROS,
 )
 from quam_builder.architecture.quantum_dots.operations.default_macros.two_qubit_macros import (
@@ -34,7 +33,6 @@ def test_state_macro_enum_values_are_default_keys():
     state_keys = {name.value for name in VoltagePointName}
 
     assert set(STATE_POINT_MACROS.keys()).issubset(state_keys)
-    assert set(QPU_STATE_MACROS.keys()).issubset(state_keys)
 
 
 def test_single_qubit_enum_values_are_default_keys():

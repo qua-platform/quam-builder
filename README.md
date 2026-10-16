@@ -42,7 +42,7 @@ Note that several tools can be found in `quam_builder/tools`:
 
 Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md), [architecture/nv_center/README.md](./quam_builder/architecture/nv_center/README.md), or [architecture/quantum_dots/README.md](./quam_builder/architecture/quantum_dots/README.md) and in the docstrings of the components.
 
-Quantum-dot and spin-qubit components live under `quam_builder.architecture.quantum_dots` (voltage sequences, macros, `LossDiVincenzoQuam`). Start at that hub.
+Quantum-dot and spin-qubit components live under `quam_builder.architecture.quantum_dots` (voltage sequences, macros, `LossDiVincenzoQuam`). Start at that hub. **This stack is in beta. Please contact Quantum Machines before using it (see the hub README).**
 
 ### 2. QUAM Construction (`quam_builder.builder`)
 
