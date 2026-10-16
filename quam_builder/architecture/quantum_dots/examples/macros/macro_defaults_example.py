@@ -27,8 +27,8 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
     """Tune parameters on already-wired default macro instances and pulses."""
     for qubit in machine.qubits.values():
-        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
-        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 240
+        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 16  # cycles = 64 ns
+        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 60  # cycles = 240 ns
         qubit.xy.operations[f"{DrivePulseName.GAUSSIAN}_x90"].amplitude = 0.0085
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 

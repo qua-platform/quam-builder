@@ -90,8 +90,8 @@ def apply_macro_overrides(machine: LossDiVincenzoQuam) -> None:
                     LDQubit: {
                         SingleQubitMacroName.INITIALIZE: partial(
                             InitializeStateMacro,
-                            ramp_duration=64,
-                            hold_duration=1000
+                            ramp_duration=16,  # clock cycles = 64 ns
+                            hold_duration=250,  # clock cycles = 1000 ns
                         ),
                     },
                     LDQubitPair: {

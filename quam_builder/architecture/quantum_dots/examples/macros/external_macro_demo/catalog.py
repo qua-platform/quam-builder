@@ -37,7 +37,7 @@ class LabInitializeMacro(InitializeStateMacro):
     Demonstrates parametrization via an extra serializable field.
     """
 
-    lab_ramp_duration: int = 64
+    lab_ramp_duration: int = 16  # clock cycles = 64 ns
 
     def apply(
         self,
@@ -66,7 +66,7 @@ class LabMacroCatalog:
             return {
                 SingleQubitMacroName.INITIALIZE: partial(
                     LabInitializeMacro,
-                    lab_ramp_duration=80,
+                    lab_ramp_duration=20,  # clock cycles = 80 ns
                 ),
             }
         return {}

@@ -29,7 +29,7 @@ class _MacroParameters:
 
     >>> @quam_dataclass
     ... class CustomInitializeMacro(CustomStateMacro):
-    ...     point_duration: int = 100
+    ...     point_duration: int = 25
     ...     voltage: float = 0.1
     ...
     >>> CustomInitializeMacro.Parameters().model_dump()
@@ -178,7 +178,7 @@ class CustomStateMacro(BaseCustomMacro):
     >>> @quam_dataclass
     ... class CustomInitializeMacro(CustomStateMacro):
     ...     # Add default values to the macro dataclass itself
-    ...     point_duration: int = 100
+    ...     point_duration: int = 25  # clock cycles; step_to_voltages takes nanoseconds
     ...     voltage: float = 0.1
     ...
     ...     def apply(self, *args, **kwargs):
@@ -188,18 +188,18 @@ class CustomStateMacro(BaseCustomMacro):
     ...         qd_pair = self.owner
     ...         qd_pair.step_to_voltages(
     ...             voltages = {qd_pair.name : voltage},
-    ...             duration = point_duration
+    ...             duration = point_duration * 4
     ...         )
     ...
     ...     @property
     ...     def inferred_duration(self):
-    ...         return self.point_duration * 1e-9
+    ...         return self.point_duration * 4e-9
 
     Pattern 2: spell out the fallback logic directly in ``apply(...)``.
     >>> @quam_dataclass
     ... class CustomInitializeMacro(CustomStateMacro):
     ...     # Add default values to the macro dataclass itself
-    ...     point_duration: int = 100
+    ...     point_duration: int = 25  # clock cycles; step_to_voltages takes nanoseconds
     ...     voltage: float = 0.1
     ...
     ...     def apply(
@@ -214,12 +214,12 @@ class CustomStateMacro(BaseCustomMacro):
     ...         qd_pair = self.owner
     ...         qd_pair.step_to_voltages(
     ...             voltages = {qd_pair.name : voltage},
-    ...             duration = point_duration
+    ...             duration = point_duration * 4
     ...         )
     ...
     ...     @property
     ...     def inferred_duration(self):
-    ...         return self.point_duration * 1e-9
+    ...         return self.point_duration * 4e-9
 
     It is also good practice to implement :attr:`inferred_duration`, in seconds, when you
     can estimate how long the macro takes to run.
