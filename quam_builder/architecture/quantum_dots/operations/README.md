@@ -39,12 +39,12 @@ These are the fields a readout calibration writes.
 | Parameter | Macro | Notes |
 |-----------|-------|-------|
 | Measure voltage point | `MeasurePSBPairMacro.point` | Named point or explicit voltage dict |
-| Pre-readout buffer | `MeasurePSBPairMacro.buffer_duration` | Hold at the measure point before the RF pulse, in nanoseconds |
+| Pre-readout buffer | `MeasurePSBPairMacro.buffer_duration` | Hold at the measure point before the RF pulse, in clock cycles (1 cycle = 4 ns) |
 | Threshold | `SensorDot.readout_thresholds` | Per pair; assign the dict field directly |
 | Integration weights | `SquareReadoutPulse.integration_weights_angle` (on the sensor `"readout"` pulse) | Rotates which IQ axis is used before the I-threshold comparison |
 | Pulse name | `SensorDotMeasureMacro.pulse_name` | Default `"readout"`. A pair-specific `"readout_{pair_id}"` is used when that operation is registered |
 
-`MeasurePSBPairMacro.inferred_duration` returns seconds: `(buffer_duration_ns * 1e-9) + sensor_macro.inferred_duration`. The contract is in [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract).
+`MeasurePSBPairMacro.inferred_duration` returns seconds: `(buffer_duration_cycles * 4e-9) + sensor_macro.inferred_duration`. The contract is in [voltage_sequence/README.md — Custom Macro Duration Contract](../voltage_sequence/README.md#custom-macro-duration-contract).
 
 The resonator for RF-reflectometry, the threshold, and the pulse setup are covered in [components/README.md](../components/README.md). The pulse catalog in [The files](#the-files) is what places the readout waveform on the sensor.
 
@@ -86,7 +86,7 @@ Power Rabi is the experiment that usually sets the drive amplitude this way.
 
 `apply(duration=...)` on an XY macro, and `I(duration=...)`, count clock cycles. One cycle is 4 ns, the same unit QUA uses for `play(duration=...)` and `wait`. The identity waits 4 cycles by default, which is 16 ns.
 
-`update(duration=...)` writes the pulse length in nanoseconds and rounds it to a multiple of 4 ns. 
+`update(duration=...)` takes clock cycles, the same unit as `apply(duration=...)`. It writes `pulse.length` in nanoseconds, `cycles * 4`. 
 When the field you are writing is a QuAM reference, the call raises `ValueError`, names the operation that stores the value, and writes nothing. 
 `y90.length` references `{family}_x90`, so that duration is changed with `x90.update(duration=...)`. 
 A custom macro whose own pulse stores its length and amplitude can call `update()` on that pulse. 
@@ -103,11 +103,11 @@ Updating the duration like this is particularly relevant for experiments like ti
 `update()` modifies the parameters of the pulse that the macro you called actually plays. Two pulses in each family hold their own length and amplitude: `{family}_x90` and `{family}_x180`. The other XY pulses point at one of those two, so they share the number instead of storing a second copy. `{family}_y90`, `{family}_y_neg90`, and `{family}_x_neg90` point at `{family}_x90`. `{family}_y180` points at `{family}_x180`.
 
 ```python
-q1.x90.update(duration=200)     # updates gaussian_x90; y90, y_neg90, and x_neg90 follow
-q1.x180.update(duration=400)    # updates gaussian_x180; xy_drive and x() play this pulse
+q1.x90.update(duration=50)      # 50 cycles → gaussian_x90.length = 200 ns; y90, y_neg90, and x_neg90 follow
+q1.x180.update(duration=100)    # 100 cycles → gaussian_x180.length = 400 ns; xy_drive and x() play this pulse
 ```
 
-`q1.y90.update(duration=200)` targets `gaussian_y90`. That pulse's length is a reference to `gaussian_x90.length`, and writing 200 over it would replace the reference with a separate number. QuAM raises before anything is written:
+`q1.y90.update(duration=50)` targets `gaussian_y90`. That pulse's length is a reference to `gaussian_x90.length`, and writing over it would replace the reference with a separate number. QuAM raises before anything is written:
 
 `ValueError: gaussian_y90.length references gaussian_x90. Update that pulse instead.`
 
@@ -307,7 +307,7 @@ wire_machine_macros(
     catalogs=[
         TypeOverrideCatalog({
             LDQubit: {
-                SingleQubitMacroName.INITIALIZE: partial(InitMacro, ramp_duration=64),
+                SingleQubitMacroName.INITIALIZE: partial(InitMacro, ramp_duration=16),
             },
         }),
     ],
@@ -351,7 +351,7 @@ If the override should be part of construction, pass `catalogs` and `instance_ov
 A catalog is any object with an integer `priority` and a `get_factories(component_type)` method that returns a `MacroFactoryMap`. The registry calls that method once per component type. Return an empty map for types your lab does not customize. Each value in the map is a factory. Wiring calls it with no arguments to build the macro that gets stored on the component.
 
 - A `QuamMacro` subclass is called with no arguments.
-- A zero-argument callable may return a `QuamMacro`. `functools.partial(InitMacro, ramp_duration=64)` stores a calibrated default in the factory.
+- A zero-argument callable may return a `QuamMacro`. `functools.partial(InitMacro, ramp_duration=16)` stores a calibrated default in the factory. `ramp_duration` is in clock cycles.
 
 The file that puts this class in its own package is [Adding a new set of macros](#adding-a-new-set-of-macros).
 

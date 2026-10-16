@@ -139,7 +139,7 @@ with program() as prog:
     q1.align()
 ```
 
-`duration` and `ramp_duration` on these voltage calls are in **nanoseconds**. `apply(duration=...)` on an XY gate, and `I(duration=...)`, are in clock cycles (1 cycle = 4 ns), the same unit as QUA `play` and `wait`. 
+`duration` and `ramp_duration` on these voltage calls are in **nanoseconds**. Macro fields are clock cycles (1 cycle = 4 ns), the same unit as QUA `play` and `wait`: state-macro `ramp_duration`, `hold_duration`, `buffer_duration`, and `wait_duration`, XY `apply(duration=...)` and `update(duration=...)`, and `I(duration=...)`. A macro converts its own fields to nanoseconds when it calls the voltage sequence. `update(duration=...)` writes the pulse length as `cycles * 4` nanoseconds. 
 For several dots at once use [`VoltageSequence.simultaneous`](voltage_sequence/README.md#Core-Methods).
 
 ## Turning pulse sequences into custom macros
@@ -163,13 +163,13 @@ from quam_builder.architecture.quantum_dots.operations.names import SingleQubitM
 class EmptyThenLoadInitialize(QubitMacro):
     empty_point: str = "empty"
     load_point: str = "load"
-    ramp_duration: int = 64
-    empty_hold_ns: int = 200
-    load_hold_ns: int = 200
+    ramp_duration: int = 16  # clock cycles (64 ns on the voltage sequence)
+    empty_hold: int = 50  # clock cycles (200 ns)
+    load_hold: int = 50
 
     @property
     def inferred_duration(self) -> float:
-        return (self.empty_hold_ns + self.ramp_duration + self.load_hold_ns) * 1e-9
+        return (self.empty_hold + self.ramp_duration + self.load_hold) * 4e-9
 
     def update(
         self,
@@ -177,8 +177,8 @@ class EmptyThenLoadInitialize(QubitMacro):
         empty_point: str | None = None,
         load_point: str | None = None,
         ramp_duration: int | None = None,
-        empty_hold_ns: int | None = None,
-        load_hold_ns: int | None = None,
+        empty_hold: int | None = None,
+        load_hold: int | None = None,
     ) -> None:
         if empty_point is not None:
             self.empty_point = empty_point
@@ -186,17 +186,17 @@ class EmptyThenLoadInitialize(QubitMacro):
             self.load_point = load_point
         if ramp_duration is not None:
             self.ramp_duration = ramp_duration
-        if empty_hold_ns is not None:
-            self.empty_hold_ns = empty_hold_ns
-        if load_hold_ns is not None:
-            self.load_hold_ns = load_hold_ns
+        if empty_hold is not None:
+            self.empty_hold = empty_hold
+        if load_hold is not None:
+            self.load_hold = load_hold
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
 
     def apply(self, **kwargs):
         self.qubit.step_to_point(self.empty_point)
-        self.qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration)
+        self.qubit.ramp_to_point(self.load_point, ramp_duration=self.ramp_duration * 4)
 
 machine = build_tutorial_machine()
 q1 = machine.qubits["q1"]
@@ -212,7 +212,7 @@ wire_machine_macros(
     },
 )
 
-q1.initialize.update(ramp_duration=80)  # persist a calibrated ramp
+q1.initialize.update(ramp_duration=20)  # 20 cycles = 80 ns, persisted on the macro
 
 with program() as prog:
     q1.initialize()

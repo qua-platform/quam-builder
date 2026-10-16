@@ -54,7 +54,7 @@ Real `machine.connect()` and `machine.connect_to_external_source()` calls are in
 
 With a machine in hand, these scripts show how an operation becomes QUA. Each one calls `build_tutorial_machine()`, adjusts macros or pulses, builds a short program, and prints it with `generate_qua_script`. Read them in this order.
 
-1. [`macro_defaults_example.py`](macros/macro_defaults_example.py) uses the macros the machine already has. It sets `initialize.ramp_duration`, `measure.buffer_duration`, the stored `gaussian_x90` amplitude, and `I.duration` (clock cycles), then calls `initialize`, `x90`, `I`, `y90`, and `measure` from a QUA program. Start here. The later scripts are variations on this one.
+1. [`macro_defaults_example.py`](macros/macro_defaults_example.py) uses the macros the machine already has. It sets `initialize.ramp_duration` and `measure.buffer_duration` in clock cycles, the stored `gaussian_x90` amplitude, and `I.duration` (also clock cycles), then calls `initialize`, `x90`, `I`, `y90`, and `measure` from a QUA program. Start here. The later scripts are variations on this one.
 
 2. [`macro_overrides_example.py`](macros/macro_overrides_example.py) replaces a default. A `TypeOverrideCatalog` changes every qubit of a type, `instance_overrides` changes one qubit, and `DISABLED` removes a macro. `macro.update(...)` writes a calibrated value onto an override that is already wired.
 
