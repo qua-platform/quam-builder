@@ -39,6 +39,9 @@ length (time-Rabi, Rabi chevron) on the OPX.
 (``length * 1e-9``) and ignores a runtime ``duration`` override.  When
 sweeping the duration, size any surrounding voltage hold from the swept
 value rather than from ``inferred_duration``.
+
+``update(duration=...)`` takes the same clock cycles and writes
+``pulse.length`` in nanoseconds (``cycles * 4``).
 """
 
 # Framework macro base classes introduce deep inheritance chains by design.
@@ -56,7 +59,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 from quam.utils import string_reference
 
-from quam_builder.tools.qua_tools import is_qua_type
+from quam_builder.tools.qua_tools import clock_cycles_to_ns
 from quam_builder.architecture.quantum_dots.operations.names import (
     X_NEG_90_ALIAS,
     Y_NEG_90_ALIAS,
@@ -86,18 +89,6 @@ __all__ = [
     "ZNeg90Macro",
     "IdentityMacro",
 ]
-
-
-def _quantize_ns(duration_ns: float) -> int:
-    """Round nanoseconds to the nearest multiple of 4 ns."""
-    return max(int(round(duration_ns / 4.0)) * 4, 0)
-
-
-def _clock_cycles_to_ns(duration):
-    """Convert a QUA ``play``/``wait`` duration to nanoseconds."""
-    if is_qua_type(duration):
-        return duration << 2
-    return int(duration) * 4
 
 
 def _reference_anchor(raw: object, field: str) -> str | None:
@@ -303,9 +294,9 @@ class XYDriveMacro(QubitMacro):
         """Persistently update the pulse this macro plays.
 
         ``amplitude_scale`` multiplies that pulse's stored amplitude.
-        ``duration`` sets its length in nanoseconds, rounded to a multiple
-        of 4 ns. When the pulse has ``sigma_ratio``, sigma is set from
-        that ratio and the quantized length.
+        ``duration`` is in clock cycles (1 cycle = 4 ns). It is stored on
+        the pulse as nanoseconds (``cycles * 4``). When the pulse has
+        ``sigma_ratio``, sigma is set from that ratio and the new length.
 
         A length, amplitude, or sigma that is a QuAM reference is left
         unchanged. The call raises ``ValueError`` and names the operation
@@ -319,8 +310,8 @@ class XYDriveMacro(QubitMacro):
         Args:
             amplitude_scale: Multiply the played pulse's stored amplitude
                 by this factor.
-            duration: Set the played pulse's length in nanoseconds, rounded
-                to a multiple of 4 ns.
+            duration: Played-pulse length in clock cycles. The pulse stores
+                ``cycles * 4`` nanoseconds.
             frequency: Set ``qubit.larmor_frequency`` to this absolute
                 value (Hz). When both this and *frequency_offset* are
                 passed, this value is the one stored.
@@ -330,8 +321,9 @@ class XYDriveMacro(QubitMacro):
         played = self.qubit.xy.operations[self.pulse_name]
         if amplitude_scale is not None:
             _require_stored_field(self.pulse_name, played, "amplitude")
+        duration_ns = None
         if duration is not None:
-            duration = _quantize_ns(duration)
+            duration_ns = clock_cycles_to_ns(duration)
             _require_stored_field(self.pulse_name, played, "length")
             if hasattr(played, "sigma_ratio"):
                 _require_stored_field(self.pulse_name, played, "sigma")
@@ -339,10 +331,10 @@ class XYDriveMacro(QubitMacro):
         if amplitude_scale is not None:
             played.amplitude = played.amplitude * amplitude_scale
 
-        if duration is not None:
-            played.length = duration
+        if duration_ns is not None:
+            played.length = duration_ns
             if hasattr(played, "sigma_ratio"):
-                played.sigma = duration * played.sigma_ratio
+                played.sigma = duration_ns * played.sigma_ratio
 
         if frequency is not None:
             self.qubit.larmor_frequency = float(frequency)
@@ -380,7 +372,7 @@ class XYDriveMacro(QubitMacro):
             tracked_ns = (
                 self.qubit.xy.operations[self.pulse_name].length
                 if duration is None
-                else _clock_cycles_to_ns(duration)
+                else clock_cycles_to_ns(duration)
             )
             sequence.track_sticky_duration(tracked_ns)
 
