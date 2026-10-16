@@ -14,6 +14,8 @@ elements, same order, same QDAC constraints), so the saved machine and the
 combined build land on the same ports.
 """
 
+#TODO: FIX
+
 from __future__ import annotations
 
 import os
@@ -22,17 +24,18 @@ from pathlib import Path
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 from qualang_tools.wirer.wirer.channel_specs import lf_fem_spec, qdac2_spec
 
-from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
+from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, ExchangeOnlyQuam
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.qop_connectivity.create_wiring import create_wiring
-from quam_builder.builder.quantum_dots import build_base_quam, build_loss_divincenzo_quam
+from quam_builder.builder.quantum_dots.build_utils import adjust_wiring_for_spin_type
+from quam_builder.builder.quantum_dots import build_base_quam, build_exchange_only_quam
 
-from quam_builder.architecture.quantum_dots.examples.connectivity.wiring_combined_example import (
+from quam_builder.architecture.quantum_dots.examples.connectivity.wiring_combined_EO_example import (
     QUANTUM_DOTS,
     QUANTUM_DOT_PAIRS,
     SENSOR_DOTS,
     TRIGGERED_DOTS,
-    QUBIT_PAIR_SENSOR_MAP,
+    QUBITS_SENSOR_MAP,
     configure_sensor_readout,
     qdac_config,
 )
@@ -40,6 +43,7 @@ from quam_builder.architecture.quantum_dots.examples.connectivity.wiring_combine
 EXAMPLES_DIR = Path(__file__).resolve().parents[1]
 STATE_PATH = EXAMPLES_DIR / "quam_state" / "wiring_two_stage"
 
+QUBIT_TYPE = "exchange_only"
 
 def declare_dot_layer_connectivity() -> Connectivity:
     """Stage 1 connectivity: dots, barriers, sensors, QDAC. No drive lines."""
@@ -82,6 +86,7 @@ def build_stage1() -> Path:
         dac_config={"qdac1": qdac_config("127.0.0.2")},
         path=str(STATE_PATH),
     )
+    adjust_wiring_for_spin_type(machine = machine, qubit_type = QUBIT_TYPE)
     machine = build_base_quam(machine, save=False)
     configure_sensor_readout(machine)
     machine.save(str(STATE_PATH))
@@ -89,34 +94,12 @@ def build_stage1() -> Path:
     print(f"  {list(machine.quantum_dots)}, {list(machine.sensor_dots)} (no qubits yet)")
     return STATE_PATH
 
-
-def attach_drive_lines(machine: BaseQuamQD) -> None:
-    """Allocate MW drive lines and add them to the loaded machine's wiring.
-
-    The dot-layer wiring (plungers, barriers, sensors, QDAC) stays as it was
-    saved. Only the new drive entries are written in.
-    """
-    connectivity = Connectivity()
-    connectivity.add_quantum_dot_drive_lines(QUANTUM_DOTS, shared_line=False, use_mw_fem=True)
-
-    instruments = Instruments()
-    instruments.add_mw_fem(controller=1, slots=[1])
-    allocate_wiring(connectivity, instruments)
-
-    drive_wiring = create_wiring(connectivity)
-    for qubit_id, lines in drive_wiring["qubits"].items():
-        qubit_wiring = machine.wiring["qubits"][qubit_id]
-        for line_type, ports in lines.items():
-            qubit_wiring[line_type] = ports
-
-
-def build_stage2(state_path: Path) -> LossDiVincenzoQuam:
+def build_stage2(state_path: Path) -> ExchangeOnlyQuam:
     """Stage 2: load the saved dot machine, add drive lines, promote to qubits."""
     machine = BaseQuamQD.load(str(state_path))
-    attach_drive_lines(machine)
-    machine = build_loss_divincenzo_quam(
+    machine = build_exchange_only_quam(
         machine,
-        qubit_pair_sensor_map=QUBIT_PAIR_SENSOR_MAP,
+        qubits_sensor_map=QUBITS_SENSOR_MAP,
         save=False,
     )
     # Stage 2 wires pair-specific readout pulses. Re-apply the tank settings
@@ -126,7 +109,7 @@ def build_stage2(state_path: Path) -> LossDiVincenzoQuam:
     return machine
 
 
-def main() -> LossDiVincenzoQuam:
+def main() -> ExchangeOnlyQuam:
     state_path = build_stage1()
     machine_stage2 = build_stage2(state_path)
 

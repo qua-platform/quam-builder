@@ -32,7 +32,7 @@ def load_dot_machine() -> LossDiVincenzoQuam:
 
 def register_qubits(machine: LossDiVincenzoQuam) -> None:
     """Step 2: one XYDriveMW per dot, on MW-FEM ports 1-4 (matches the wirer path)."""
-    for i in range(1, 5):
+    for i in range(1, 7):
         xy = XYDriveMW(
             id=f"Q{i}_xy",
             opx_output=MWFEMAnalogOutputPort(
@@ -51,6 +51,8 @@ def register_qubits(machine: LossDiVincenzoQuam) -> None:
     machine.qubits["q2"].preferred_readout_quantum_dot = "virtual_dot_1"
     machine.qubits["q3"].preferred_readout_quantum_dot = "virtual_dot_4"
     machine.qubits["q4"].preferred_readout_quantum_dot = "virtual_dot_3"
+    machine.qubits["q5"].preferred_readout_quantum_dot = "virtual_dot_6"
+    machine.qubits["q6"].preferred_readout_quantum_dot = "virtual_dot_5"
 
 
 def register_qubit_pairs(machine: LossDiVincenzoQuam) -> None:
@@ -62,6 +64,7 @@ def register_qubit_pairs(machine: LossDiVincenzoQuam) -> None:
     """
     machine.register_qubit_pair(id="q1_q2", qubit_control_name="q1", qubit_target_name="q2")
     machine.register_qubit_pair(id="q3_q4", qubit_control_name="q3", qubit_target_name="q4")
+    machine.register_qubit_pair(id="q5_q6", qubit_control_name="q5", qubit_target_name="q6")
 
 
 def main() -> LossDiVincenzoQuam:

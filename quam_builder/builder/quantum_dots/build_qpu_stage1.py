@@ -105,7 +105,11 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
             self._wiring_by_type.get("readout", {}), self.resonator_cls
         )
         self._collect_qubits(self._wiring_by_type.get("qubits", {}))
+        self._collect_qubits(self._wiring_by_type.get("quantum_dots", {}), section="quantum_dots")
         self._collect_qubit_pairs(self._wiring_by_type.get("qubit_pairs", {}))
+        self._collect_qubit_pairs(
+            self._wiring_by_type.get("quantum_dot_pairs", {}), section="quantum_dot_pairs"
+        )
 
     def _collect_global_gates(self, wiring_by_element: Mapping[str, Any]):
         """Collect global gate channels with QDAC support."""
@@ -153,15 +157,15 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
                 self.assembly.resonators.append(resonator)
                 self.assembly.sensor_id_to_resonator[sensor_gate_id] = resonator
 
-    def _collect_qubits(self, wiring_by_element: Mapping[str, Any]):
+    def _collect_qubits(self, wiring_by_element: Mapping[str, Any], section: str = "qubits"):
         """Collect plunger gates (quantum dots) with QDAC support.
 
         Note: XY drives are NOT collected in Stage 1.
         """
         for qubit_id, wiring_by_line_type in wiring_by_element.items():
             for line_type, ports in wiring_by_line_type.items():
-                _validate_line_type("qubits", line_type)
-                wiring_path = f"#/wiring/qubits/{qubit_id}/{line_type}"
+                _validate_line_type(section, line_type)
+                wiring_path = f"#/wiring/{section}/{qubit_id}/{line_type}"
 
                 if line_type == WiringLineType.PLUNGER_GATE.value:
                     # Extract QDAC channel if present
@@ -178,12 +182,14 @@ class _BaseQpuBuilder:  # pylint: disable=too-few-public-methods
 
                 # Note: XY drives (DRIVE line type) are NOT collected here
 
-    def _collect_qubit_pairs(self, wiring_by_element: Mapping[str, Any]):
+    def _collect_qubit_pairs(
+        self, wiring_by_element: Mapping[str, Any], section: str = "qubit_pairs"
+    ):
         """Collect barrier gates with QDAC support."""
         for pair_id, wiring_by_line_type in wiring_by_element.items():
             for line_type, ports in wiring_by_line_type.items():
-                _validate_line_type("qubit_pairs", line_type)
-                wiring_path = f"#/wiring/qubit_pairs/{pair_id}/{line_type}"
+                _validate_line_type(section, line_type)
+                wiring_path = f"#/wiring/{section}/{pair_id}/{line_type}"
 
                 if line_type == WiringLineType.BARRIER_GATE.value:
                     # Extract QDAC channel if present
