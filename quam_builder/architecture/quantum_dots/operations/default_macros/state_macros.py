@@ -338,7 +338,6 @@ class SensorDotMeasureMacro(QuamMacro):
             QUA boolean expression when ``quantum_dot_pair_id`` is set,
             otherwise ``(i_qua, q_qua)`` tuple (raw measurement).
         """
-        from qm.qua import declare, fixed
 
         owner = _owner_component(self)
         resonator = owner.readout_resonator
@@ -354,8 +353,8 @@ class SensorDotMeasureMacro(QuamMacro):
         #     if pulse_length_ns is not None:
         #         voltage_sequence.step_to_voltages({}, pulse_length_ns, ensure_align=False)
 
-        i_qua = declare(fixed)
-        q_qua = declare(fixed)
+        i_qua = qua.declare(qua.fixed)
+        q_qua = qua.declare(qua.fixed)
         resonator.measure(readout_pulse_name, qua_vars=(i_qua, q_qua))
 
         if quantum_dot_pair_id is None:
@@ -421,6 +420,7 @@ class MeasurePSBPairMacro(QuamMacro):
         """Step to measure target, then perform PSB readout via sensor dot."""
         owner = _owner_component(self)
         buf = self.buffer_duration if buffer_duration is None else buffer_duration
+        buffer_ns = None if buf is None else clock_cycles_to_ns(buf)
 
         if not owner.sensor_dots:
             raise ValueError(f"QuantumDotPair '{owner.id}' has no sensor dots for readout.")
@@ -434,7 +434,6 @@ class MeasurePSBPairMacro(QuamMacro):
                 gate_names = [ch.name for ch in gate_set.channels.values()]
 
         qua.align(sensor_dot.readout_resonator.name, *gate_names)
-        buffer_ns = None if buf is None else clock_cycles_to_ns(buf)
         _step_to_target(owner, self.point, duration=buffer_ns)
 
         return sensor_dot.macros[TwoQubitMacroName.MEASURE].apply(
