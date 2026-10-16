@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 
-- **BREAKING:** Quantum Dots - `VoltageSequence`, `SequenceStateTracker` and the point/measure/composable macros moved from `quam_builder.tools` into `quam_builder.architecture.quantum_dots`. The old `architecture/quantum_dots/virtual_gates` module was removed (use `components.VirtualGateSet` instead), and the fluent voltage-point API and `call_macro` were also removed.
+- **BREAKING:** Quantum Dots - `VoltageSequence`, `SequenceStateTracker` and the point/measure/composable macros moved from `quam_builder.tools` into `quam_builder.architecture.quantum_dots`. The old `architecture/quantum_dots/virtual_gates` module was removed (use `components.VirtualGateSet` instead).
 
 ## [0.5.0] - 2026-08-19
 
