@@ -119,7 +119,7 @@ def make_xy_pulse_factories(drive_channel: object) -> dict:
     """Build the default XY drive pulses for *drive_channel*.
 
     Generates operations for all registered pulse families (Gaussian,
-    Square, Kaiser).  Each family produces 6 operations following the
+    Square, Kaiser, Hermite, DRAG).  Each family produces 6 operations following the
     naming convention ``{family}_{gate}``:
 
     - ``{family}_x90``  -- calibration anchor (x90 amplitude)

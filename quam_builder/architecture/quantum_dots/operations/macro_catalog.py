@@ -338,6 +338,7 @@ class TypeOverrideCatalog:
 
         wire_machine_macros(
             machine,
+            fill_only=False,
             catalogs=[
                 TypeOverrideCatalog({
                     LDQubit: {SingleQubitMacroName.INITIALIZE: LabInitMacro},

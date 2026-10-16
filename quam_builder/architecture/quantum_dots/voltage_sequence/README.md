@@ -824,8 +824,8 @@ Consolidated constraints when mixing voltage sequences, XY drives, and readout.
 
 ### OPX clock and units
 
-- **1 clock cycle = 4 ns.** QUA `wait(n, *elements)` takes **cycles**; voltage macro `duration` / `ramp_duration` arguments are in **nanoseconds**.
-- Convert: `wait_cycles = duration_ns // 4` (or `duration_ns >> 2`). Examples use both conventions — check the API you are calling.
+- **1 clock cycle = 4 ns.** QUA `wait(n, *elements)` and macro fields (`ramp_duration`, `hold_duration`, `buffer_duration`, `wait_duration`, XY `duration`) take **cycles**. `VoltageSequence` methods take **nanoseconds**. A macro converts with `cycles * 4` at that call.
+- Convert: `duration_ns = cycles * 4` (or `cycles << 2`). Pulse `length` and voltage-point `duration` stay in nanoseconds.
 
 ### Sample grid (multiples of 4 ns)
 

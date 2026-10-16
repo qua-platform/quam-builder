@@ -3,8 +3,8 @@
 In the balanced catalog the idle state is 0 V on every channel, so the
 XY drive does not need to hold the voltage gates or update the sticky
 voltage-sequence bookkeeping during the microwave pulse. The macro
-plays the XY pulse at its native length with angle-to-amplitude and
-phase rescaling identical to :class:`XYDriveMacro`.
+plays ``{family}_x180`` at its stored amplitude, the same pulse as
+:class:`XYDriveMacro`.
 """
 
 # pylint: disable=too-many-ancestors

@@ -17,6 +17,33 @@ def is_qua_type(var: Any) -> bool:
     return isinstance(var, (QuaScalarExpression, QuaVariable))
 
 
+def clock_cycles_to_ns(duration: Optional[DurationType]):
+    """Convert a macro duration in clock cycles to nanoseconds.
+
+    One cycle is 4 ns. A QUA value is shifted left by 2, which multiplies by 4
+    inside the program. ``None`` stays ``None`` so a voltage call can fall
+    through to the point's own duration.
+    """
+    if duration is None:
+        return None
+    if is_qua_type(duration):
+        return duration << 2
+    return int(duration) * CLOCK_CYCLE_NS
+
+
+def ns_to_clock_cycles(duration_ns: Optional[DurationType]):
+    """Convert nanoseconds to clock cycles.
+
+    A QUA value is shifted right by 2. Python integers use the same shift, so
+    a length that is not a multiple of 4 ns is truncated toward zero.
+    """
+    if duration_ns is None:
+        return None
+    if is_qua_type(duration_ns):
+        return duration_ns >> 2
+    return int(duration_ns) >> 2
+
+
 def validate_duration(duration: Optional[DurationType], param_name: str):
     """
     Checks if a duration value is valid (non-negative, multiple of 4ns).

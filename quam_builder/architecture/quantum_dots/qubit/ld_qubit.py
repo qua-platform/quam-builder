@@ -175,10 +175,19 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         self.xy.add_pulse(name=pulse_name, pulse=pulse)
 
     def virtual_z(self, phase: float) -> None:
-        """Apply a virtual Z rotation"""
+        """Apply a virtual Z rotation using `qua.frame_rotation`.
+
+        Args:
+            phase: Rotation angle in radian.
+        """
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
 
     def idle(self, duration: int) -> None:
+        """Wait on the plunger and the XY drive.
+
+        Args:
+            duration: Wait length in clock cycles (1 cycle = 4 ns), the same unit as QUA ``wait``.
+        """
         wait(duration, self.physical_channel.name, self.xy.name)
 
     def _validate_readout_quantum_dot(self, qd_name):

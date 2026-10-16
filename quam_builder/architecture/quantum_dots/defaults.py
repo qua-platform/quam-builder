@@ -72,39 +72,45 @@ class FrequencyDefaults:
 
 @dataclass
 class StateMacroDefaults:
-    """Default timing for state macros (initialize, measure, empty)."""
+    """Default timing for state macros (initialize, measure, empty).
 
-    ramp_duration: int = 524
-    """Ramp time in ns."""
+    Macro fields are clock cycles (1 cycle = 4 ns). The macro converts them
+    to nanoseconds when it calls the voltage sequence. ``point_duration`` is
+    the exception: it is the default hold stored on a voltage point, and that
+    API stays in nanoseconds.
+    """
 
-    hold_duration: int = 524
-    """Hold time in ns for macros that still source it (e.g. voltage-balanced round-trips).
+    ramp_duration: int = 131
+    """Ramp time in clock cycles (131 cycles = 524 ns)."""
+
+    hold_duration: int = 131
+    """Hold time in clock cycles for macros that still source it (e.g. voltage-balanced round-trips).
 
     Canonical :class:`~quam_builder.architecture.quantum_dots.operations.default_macros.state_macros.EmptyStateMacro`
     and :class:`~quam_builder.architecture.quantum_dots.operations.default_macros.state_macros.InitializeStateMacro`
     default ``hold_duration`` to ``None`` so the :class:`~quam_builder.architecture.quantum_dots.components.gate_set.VoltageTuningPoint`
-    duration applies unless the macro field is set.
+    duration, in nanoseconds, applies unless the macro field is set.
     """
 
-    buffer_duration: int = 524
-    """Buffer time in ns.  ``None`` means no extra buffer."""
+    buffer_duration: int = 131
+    """Buffer time in clock cycles.  ``None`` means no extra buffer."""
 
     point_duration: int = 524
-    """Default voltage-point duration in ns."""
+    """Default voltage-point duration in ns. Not a macro field."""
 
 
 @dataclass
 class ExchangeDefaults:
-    """Default timing for exchange macros."""
+    """Default timing for exchange macros, in clock cycles (1 cycle = 4 ns)."""
 
-    ramp_duration: int = 524
-    """Ramp time in ns."""
+    ramp_duration: int = 131
+    """Ramp time in clock cycles (131 cycles = 524 ns)."""
 
-    wait_duration: int = 524
-    """Wait/hold time at the exchange point in ns."""
+    wait_duration: int = 131
+    """Wait/hold time at the exchange point in clock cycles."""
 
-    cz_duration: int = 524
-    """Default hold time at the CZ voltage point in ns."""
+    cz_duration: int = 131
+    """Default hold time at the CZ voltage point in clock cycles."""
 
 
 @dataclass
@@ -133,8 +139,11 @@ class MiscDefaults:
     sticky_duration: int = 16
     """StickyChannelAddon duration in ns."""
 
-    identity_duration: int = 16
-    """IdentityMacro wait duration in ns."""
+    identity_duration: int = 4
+    """IdentityMacro wait duration in clock cycles (4 ns each).
+
+    Four cycles is 16 ns, the shortest QUA wait.
+    """
 
 
 @dataclass
