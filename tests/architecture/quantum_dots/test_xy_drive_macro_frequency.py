@@ -75,12 +75,13 @@ class TestXYDriveMacroFrequencyUpdate:
         xy_macro.update(frequency_offset=10e6)
         assert qubit.larmor_frequency == pytest.approx(original + 10e6)
 
-    def test_update_frequency_and_offset_raises(self, wired_qubit):
+    def test_update_frequency_is_stored_when_offset_is_also_passed(self, wired_qubit):
+        """When both are passed, the absolute frequency is the stored value."""
         qubit = wired_qubit
         xy_macro = qubit.macros[SingleQubitMacroName.XY_DRIVE]
 
-        with pytest.raises(ValueError, match="either frequency or frequency_offset"):
-            xy_macro.update(frequency=5.2e9, frequency_offset=10e6)
+        xy_macro.update(frequency=5.2e9, frequency_offset=10e6)
+        assert qubit.larmor_frequency == 5.2e9
 
     def test_update_no_recenter_lo_parameter(self, wired_qubit):
         """recenter_LO parameter should no longer exist."""

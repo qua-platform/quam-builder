@@ -48,18 +48,19 @@ class WaitMacro(QuamMacro):
     """Macro for inserting wait/delay periods.
 
     Attributes:
-        duration: Wait duration in nanoseconds (default: 16)
+        duration: Wait duration in clock cycles (default: 4, which is 16 ns).
+            ``qua.wait`` takes this unit directly.
         elements: Optional list of elements to wait on
     """
 
-    duration: Scalar[int] = 16
+    duration: Scalar[int] = 4
     elements: Optional[List[QuaVariable]] = None
 
     def apply(self, duration: Optional[int] = None, **kwargs) -> Any:
         """Execute wait operation.
 
         Args:
-            duration: Optional override for wait duration (nanoseconds)
+            duration: Optional override for the wait, in clock cycles.
             **kwargs: Additional keyword arguments
         """
         t = duration if duration is not None else self.duration
@@ -68,7 +69,7 @@ class WaitMacro(QuamMacro):
     @property
     def inferred_duration(self) -> Optional[float]:
         """Wait duration in seconds."""
-        return self.duration * 1e-9
+        return self.duration * 4e-9
 
 
 UTILITY_MACRO_FACTORIES = {

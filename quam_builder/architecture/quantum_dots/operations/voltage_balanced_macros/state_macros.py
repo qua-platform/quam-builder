@@ -23,6 +23,7 @@ from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
 
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
+from quam_builder.tools.qua_tools import clock_cycles_to_ns, ns_to_clock_cycles
 from quam_builder.architecture.quantum_dots.operations.default_macros.state_macros import (
     _owner_component,
     _pulse_length_samples_to_ns,
@@ -144,7 +145,8 @@ class _BalancedRoundTripMacro(QuamMacro):
 
     @property
     def inferred_duration(self) -> float | None:
-        return (2 * self.ramp_duration + 2 * self.hold_duration + 16) * 1e-9
+        # Ramp and hold are clock cycles. The closing 16 ns dwell is a voltage-sequence literal.
+        return (2 * self.ramp_duration + 2 * self.hold_duration) * 4e-9 + 16e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -167,24 +169,26 @@ class _BalancedRoundTripMacro(QuamMacro):
         vs = owner.voltage_sequence
         gates = [ch_name for ch_name in vs.gate_set.channels.keys()]
         qua.align(*gates)
+        ramp_ns = clock_cycles_to_ns(ramp)
+        hold_ns = clock_cycles_to_ns(hold)
 
         # with qua.strict_timing_():
         vs.ramp_to_voltages(
             negative,
-            duration=hold,
-            ramp_duration=ramp,
+            duration=hold_ns,
+            ramp_duration=ramp_ns,
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             positive,
-            duration=hold,
-            ramp_duration=2 * ramp,
+            duration=hold_ns,
+            ramp_duration=clock_cycles_to_ns(2 * ramp),
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             zero,
             duration=DEFAULTS.state_macro.point_duration,
-            ramp_duration=ramp,
+            ramp_duration=ramp_ns,
             ensure_align=False,
         )
 
@@ -424,6 +428,8 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
         xy_channel = qubit_pair.xy
         xy_channel.update_frequency(xy_channel.intermediate_frequency + frequency_detuning_Hz)
         op_length = xy_channel.operations[pulse].length
+        ramp_ns = clock_cycles_to_ns(ramp)
+        hold_ns = clock_cycles_to_ns(hold)
 
         def _conditional_drive(result_int):
             if state == "less_than_one":
@@ -466,6 +472,8 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
         measure_macro = owner.macros[TwoQubitMacroName.MEASURE]
         measure_ramp_duration = getattr(measure_macro, "ramp_duration", ramp)
         measure_buffer_duration = getattr(measure_macro, "buffer_duration", buffer_duration)
+        measure_ramp_ns = clock_cycles_to_ns(measure_ramp_duration)
+        measure_buffer_ns = clock_cycles_to_ns(measure_buffer_duration)
 
         measure_positive = _point_voltages(owner, measure_point)
         measure_negative = {k: -v for k, v in measure_positive.items()}
@@ -479,38 +487,38 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
             # 1) Ramp to negative drive point and hold for operation window.
             vs.ramp_to_voltages(
                 drive_negative,
-                duration=op_length + hold,
-                ramp_duration=ramp,
+                duration=op_length + hold_ns,
+                ramp_duration=ramp_ns,
                 ensure_align=False,
             )
-            qua.wait((ramp + op_length + hold) // 4, xy_channel.name)
-            qua.wait((ramp + op_length + hold) // 4, sensor_dot.readout_resonator.name)
+            qua.wait(ramp + ns_to_clock_cycles(op_length) + hold, xy_channel.name)
+            qua.wait(ramp + ns_to_clock_cycles(op_length) + hold, sensor_dot.readout_resonator.name)
 
             # 2) Ramp to negative measure point, wait buffer and readout window.
             vs.ramp_to_voltages(
                 measure_negative,
-                duration=measure_buffer_duration + readout_len,
-                ramp_duration=measure_ramp_duration,
+                duration=measure_buffer_ns + readout_len,
+                ramp_duration=measure_ramp_ns,
                 ensure_align=False,
             )
             qua.wait(
-                (measure_ramp_duration + measure_buffer_duration + readout_len) // 4,
+                measure_ramp_duration + measure_buffer_duration + ns_to_clock_cycles(readout_len),
                 xy_channel.name,
             )
             qua.wait(
-                (measure_ramp_duration + measure_buffer_duration + readout_len) // 4,
+                measure_ramp_duration + measure_buffer_duration + ns_to_clock_cycles(readout_len),
                 sensor_dot.readout_resonator.name,
             )
 
             # 3) Ramp to positive measure point, wait buffer, then measure.
             vs.ramp_to_voltages(
                 measure_positive,
-                duration=measure_buffer_duration + readout_len,
-                ramp_duration=2 * measure_ramp_duration,
+                duration=measure_buffer_ns + readout_len,
+                ramp_duration=clock_cycles_to_ns(2 * measure_ramp_duration),
                 ensure_align=False,
             )
             qua.wait(
-                (2 * measure_ramp_duration + measure_buffer_duration) // 4,
+                2 * measure_ramp_duration + measure_buffer_duration,
                 sensor_dot.readout_resonator.name,
             )
 
@@ -520,21 +528,23 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
             )
             result_int = qua.Cast.to_int(result)
             qua.wait(
-                (2 * measure_ramp_duration + measure_buffer_duration + readout_len) // 4,
+                2 * measure_ramp_duration
+                + measure_buffer_duration
+                + ns_to_clock_cycles(readout_len),
                 xy_channel.name,
             )
 
             # 4) Ramp to drive point, conditionally drive, then hold.
             vs.ramp_to_voltages(
                 drive_positive,
-                duration=op_length + hold,
-                ramp_duration=ramp,
+                duration=op_length + hold_ns,
+                ramp_duration=ramp_ns,
                 ensure_align=False,
             )
-            qua.wait((ramp + op_length + hold) // 4, sensor_dot.readout_resonator.name)
-            qua.wait(ramp // 4, xy_channel.name)
+            qua.wait(ramp + ns_to_clock_cycles(op_length) + hold, sensor_dot.readout_resonator.name)
+            qua.wait(ramp, xy_channel.name)
             _conditional_drive(result_int)
-            qua.wait(hold // 4, xy_channel.name)
+            qua.wait(hold, xy_channel.name)
 
             # 5) Ramp to zero point.
             # vs.ramp_to_voltages(
@@ -543,7 +553,7 @@ class BalancedEmptyMacro(_BalancedRoundTripMacro):
             #     ramp_duration=ramp,
             #     ensure_align=False,
             # )
-            vs.ramp_to_zero(ramp_duration=ramp)
+            vs.ramp_to_zero(ramp_duration=ramp_ns)
 
         return result
 
@@ -572,7 +582,8 @@ class TwoStageBalancedInitializeMacro(QuamMacro):
     point_2: str = VoltagePointName.EMPTY.value
     ramp_duration_1: int = DEFAULTS.state_macro.ramp_duration
     ramp_duration_2: int = DEFAULTS.state_macro.ramp_duration
-    ramp_duration_mid: int = 16
+    ramp_duration_mid: int = 4
+    """Middle ramp in clock cycles. 4 cycles is the previous 16 ns default."""
     hold_duration: int = DEFAULTS.state_macro.hold_duration
 
     @property
@@ -581,14 +592,8 @@ class TwoStageBalancedInitializeMacro(QuamMacro):
         rd2 = self.ramp_duration_2
         rd_mid = self.ramp_duration_mid
         hold = self.hold_duration
-        total_ns = (
-            2 * rd1  # segments 1 + 5
-            + 2 * rd2  # segments 2 + 4
-            + rd_mid  # segment 3
-            + 2 * hold  # holds at -V1 and +V1
-            + DEFAULTS.state_macro.point_duration  # final dwell at 0
-        )
-        return total_ns * 1e-9
+        macro_s = (2 * rd1 + 2 * rd2 + rd_mid + 2 * hold) * 4e-9
+        return macro_s + DEFAULTS.state_macro.point_duration * 1e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -632,34 +637,35 @@ class TwoStageBalancedInitializeMacro(QuamMacro):
         qua.align(*gates)
 
         # with qua.strict_timing_():
+        hold_ns = clock_cycles_to_ns(hold)
         vs.ramp_to_voltages(
             neg_v2,
             duration=16,
-            ramp_duration=rd1,
+            ramp_duration=clock_cycles_to_ns(rd1),
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             neg_v1,
-            duration=hold,
-            ramp_duration=rd2,
+            duration=hold_ns,
+            ramp_duration=clock_cycles_to_ns(rd2),
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             pos_v1,
-            duration=hold,
-            ramp_duration=rd_mid,
+            duration=hold_ns,
+            ramp_duration=clock_cycles_to_ns(rd_mid),
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             pos_v2,
             duration=16,
-            ramp_duration=rd2,
+            ramp_duration=clock_cycles_to_ns(rd2),
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             zero,
             duration=DEFAULTS.state_macro.point_duration,
-            ramp_duration=rd1,
+            ramp_duration=clock_cycles_to_ns(rd1),
             ensure_align=False,
         )
 
@@ -718,10 +724,11 @@ class BalancedMeasurePSBPairMacro(QuamMacro):
             readout_len = sensor_macro.readout_pulse_length_ns
         if readout_len is None:
             return None
-        h = self.buffer_duration + readout_len
-        r = self.ramp_duration
-        # Match apply(): (r+buf) + readout + (2*r+h) + (r+return_hold) ns
-        return (16 + 2 * r + 2 * h + DEFAULTS.state_macro.point_duration) * 1e-9
+        h_ns = clock_cycles_to_ns(self.buffer_duration) + readout_len
+        r_ns = clock_cycles_to_ns(self.ramp_duration)
+        # Match apply(): macro ramps and buffer are clock cycles; 16 ns and the
+        # point duration stay nanoseconds. readout_len is pulse length in ns.
+        return (16 + 2 * r_ns + 2 * h_ns + DEFAULTS.state_macro.point_duration) * 1e-9
 
     def __call__(self, *args, **kwargs):
         return self.apply(*args, **kwargs)
@@ -753,14 +760,14 @@ class BalancedMeasurePSBPairMacro(QuamMacro):
                 "requires a fixed readout duration."
             )
 
-        hold = buf + readout_len
-        # `ramp` / `buf` may be QUA variables (e.g. when scanned via input streams),
-        # so avoid Python int() casting. Right-shift by 2 == integer division by 4
-        # (clock cycles), and works for both Python ints and QUA int expressions.
+        buf_ns = clock_cycles_to_ns(buf)
+        ramp_ns = clock_cycles_to_ns(ramp)
+        hold_ns = buf_ns + readout_len
+        # ramp and buf are already clock cycles, including when they are QUA variables.
         if isinstance(ramp, (int, float)) and isinstance(buf, (int, float)):
-            wait_cycles = int((ramp + buf) // 4)
+            wait_cycles = int(ramp + buf)
         else:
-            wait_cycles = (ramp + buf) >> 2
+            wait_cycles = ramp + buf
         positive = _point_voltages(owner, target_point)
         negative = {k: -v for k, v in positive.items()}
         zero = {k: 0.0 for k, _ in positive.items()}
@@ -774,8 +781,8 @@ class BalancedMeasurePSBPairMacro(QuamMacro):
         # with qua.strict_timing_():
         vs.ramp_to_voltages(
             positive,
-            duration=hold,
-            ramp_duration=ramp,
+            duration=hold_ns,
+            ramp_duration=ramp_ns,
             ensure_align=False,
         )
         qua.wait(wait_cycles, sensor_dot.readout_resonator.name)
@@ -787,14 +794,14 @@ class BalancedMeasurePSBPairMacro(QuamMacro):
 
         vs.ramp_to_voltages(
             negative,
-            duration=hold,
+            duration=hold_ns,
             ramp_duration=16,
             ensure_align=False,
         )
         vs.ramp_to_voltages(
             zero,
             duration=16,
-            ramp_duration=ramp,
+            ramp_duration=ramp_ns,
             ensure_align=False,
         )
 
@@ -946,14 +953,15 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
                 "requires a fixed readout duration."
             )
 
-        hold = buf + readout_len
-        # `ramp` / `buf` may be QUA variables (e.g. when scanned via input streams),
-        # so avoid Python int() casting. Right-shift by 2 == integer division by 4
-        # (clock cycles), and works for both Python ints and QUA int expressions.
+        buf_ns = clock_cycles_to_ns(buf)
+        ramp_ns = clock_cycles_to_ns(ramp)
+        hold_dur_ns = clock_cycles_to_ns(hold_dur)
+        hold_ns = buf_ns + readout_len
+        # ramp and buf are already clock cycles, including when they are QUA variables.
         if isinstance(ramp, (int, float)) and isinstance(buf, (int, float)):
-            wait_cycles = int((ramp + buf) // 4)
+            wait_cycles = int(ramp + buf)
         else:
-            wait_cycles = (ramp + buf) >> 2
+            wait_cycles = ramp + buf
         positive = _point_voltages(owner, target_point)
         negative = {k: -v for k, v in positive.items()}
         zero = {k: 0.0 for k, _ in positive.items()}
@@ -979,47 +987,48 @@ class BalancedInitializeMacroWithConditionalDrive(BalancedInitializeMacro):
         with qua.strict_timing_():
             vs.ramp_to_voltages(
                 negative,
-                duration=hold + op_length + hold_dur,
-                ramp_duration=ramp,
+                duration=hold_ns + op_length + hold_dur_ns,
+                ramp_duration=ramp_ns,
                 ensure_align=False,
             )
             qua.wait(
-                wait_cycles + readout_len // 4 + hold_dur // 4, sensor_dot.readout_resonator.name
+                wait_cycles + ns_to_clock_cycles(readout_len) + hold_dur,
+                sensor_dot.readout_resonator.name,
             )
 
             if xy_exists:
-                qua.wait(wait_cycles + readout_len // 4, xy_channel.id)
-                qua.wait(op_length // 4, xy_channel.id)
-                qua.wait(hold_dur // 4, xy_channel.id)
-                qua.wait(op_length // 4, sensor_dot.readout_resonator.name)
+                qua.wait(wait_cycles + ns_to_clock_cycles(readout_len), xy_channel.id)
+                qua.wait(ns_to_clock_cycles(op_length), xy_channel.id)
+                qua.wait(hold_dur, xy_channel.id)
+                qua.wait(ns_to_clock_cycles(op_length), sensor_dot.readout_resonator.name)
 
             vs.ramp_to_voltages(
                 positive,
-                duration=hold + op_length + hold_dur,
-                ramp_duration=2 * ramp,
+                duration=hold_ns + op_length + hold_dur_ns,
+                ramp_duration=clock_cycles_to_ns(2 * ramp),
                 ensure_align=False,
             )
 
-            qua.wait(wait_cycles + ramp // 4, sensor_dot.readout_resonator.name)
+            qua.wait(wait_cycles + ramp, sensor_dot.readout_resonator.name)
 
             result = sensor_macro.apply(
                 quantum_dot_pair_id=owner.id,
                 return_iq=return_iq,
             )
             if xy_exists:
-                qua.wait(wait_cycles + ramp // 4 + readout_len // 4, xy_channel.id)
+                qua.wait(wait_cycles + ramp + ns_to_clock_cycles(readout_len), xy_channel.id)
                 with qua.if_(result < 1):
                     xy_channel.play(pulse_name, amplitude_scale=amplitude_scale)
                 with qua.else_():
-                    qua.wait(op_length // 4, xy_channel.id)
-                qua.wait(hold_dur // 4, xy_channel.id)
+                    qua.wait(ns_to_clock_cycles(op_length), xy_channel.id)
+                qua.wait(hold_dur, xy_channel.id)
 
-            qua.wait(hold_dur // 4, sensor_dot.readout_resonator.name)
+            qua.wait(hold_dur, sensor_dot.readout_resonator.name)
 
             vs.ramp_to_voltages(
                 zero,
-                duration=ramp,
-                ramp_duration=ramp,
+                duration=ramp_ns,
+                ramp_duration=ramp_ns,
                 ensure_align=False,
             )
 

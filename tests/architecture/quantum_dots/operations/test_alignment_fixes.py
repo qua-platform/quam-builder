@@ -216,7 +216,7 @@ class TestStateMacroPointDispatch:
             macro.apply()
 
         owner.ramp_to_point.assert_called_once_with(
-            "custom_init", ramp_duration=48, duration=64
+            "custom_init", ramp_duration=48 * 4, duration=64 * 4
         )
         owner.ramp_to_voltages.assert_not_called()
 
@@ -232,7 +232,7 @@ class TestStateMacroPointDispatch:
             macro.apply()
 
         owner.ramp_to_voltages.assert_called_once_with(
-            voltages, duration=64, ramp_duration=48
+            voltages, duration=64 * 4, ramp_duration=48 * 4
         )
         owner.ramp_to_point.assert_not_called()
 
@@ -255,8 +255,8 @@ class TestStateMacroPointDispatch:
 
         owner.ramp_to_voltages.assert_has_calls(
             [
-                call(exchange_voltages, duration=80, ramp_duration=32),
-                call(return_voltages, duration=0, ramp_duration=32),
+                call(exchange_voltages, duration=80 * 4, ramp_duration=32 * 4),
+                call(return_voltages, duration=0, ramp_duration=32 * 4),
             ]
         )
         owner.ramp_to_point.assert_not_called()
@@ -277,7 +277,7 @@ class TestStateMacroPointDispatch:
         ):
             macro.apply()
 
-        owner.step_to_voltages.assert_called_once_with(voltages, duration=96)
+        owner.step_to_voltages.assert_called_once_with(voltages, duration=96 * 4)
         owner.step_to_point.assert_not_called()
         sensor_dot.macros[VoltagePointName.MEASURE.value].apply.assert_called_once_with(
             quantum_dot_pair_id="dot1_dot2_pair",

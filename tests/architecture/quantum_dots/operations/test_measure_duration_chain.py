@@ -182,7 +182,7 @@ class TestMeasurePSBPairDuration:
         with patch(_OWNER_PATCH, return_value=owner):
             dur = macro.inferred_duration
 
-        assert dur == pytest.approx(200e-9 + 2e-6)
+        assert dur == pytest.approx(200 * 4e-9 + 2e-6)
 
     def test_inferred_duration_zero_buffer(self):
         """When buffer_duration is None, buffer contribution is 0."""

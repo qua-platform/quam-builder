@@ -3,7 +3,7 @@
 This script demonstrates:
 1. Building a machine via the combined wiring workflow.
 2. Wiring architecture defaults with ``wire_machine_macros(machine)`` only.
-3. Parameterizing instantiated default macro objects and reference pulses directly on components.
+3. Parameterizing instantiated default macros and the stored ``gaussian_x90`` pulse directly on components.
 4. Building a QUA program that calls those default macros.
 5. Printing that program with ``generate_qua_script`` so the ``play``, ``ramp``, and ``wait`` calls from each ``apply`` method are visible.
 """
@@ -27,8 +27,8 @@ from quam_builder.architecture.quantum_dots.qpu import LossDiVincenzoQuam
 def parameterize_default_macros(machine: LossDiVincenzoQuam) -> None:
     """Tune parameters on already-wired default macro instances and pulses."""
     for qubit in machine.qubits.values():
-        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 64
-        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 240
+        qubit.macros[VoltagePointName.INITIALIZE].ramp_duration = 16  # cycles = 64 ns
+        qubit.macros[VoltagePointName.MEASURE].buffer_duration = 60  # cycles = 240 ns
         qubit.xy.operations[f"{DrivePulseName.GAUSSIAN}_x90"].amplitude = 0.0085
         qubit.macros[SingleQubitMacroName.IDENTITY].duration = 24
 
