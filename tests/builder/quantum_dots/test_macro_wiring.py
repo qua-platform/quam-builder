@@ -80,9 +80,6 @@ def _seed_reference_pulses(machine):
         qubit.xy.operations["gaussian_x180"] = pulses.GaussianPulse(
             length=64, amplitude=0.02, sigma=16
         )
-        qubit.xy.operations["gaussian_y180"] = pulses.GaussianPulse(
-            length=64, amplitude=0.02, sigma=16
-        )
 
 
 class TunedX180Macro(X180Macro):
@@ -153,7 +150,6 @@ def test_default_two_qubit_crot_macro_is_wired():
 def test_x_and_y_without_angle_match_the_pi_pulse():
     """qubit.x() and qubit.y() play the pi pulse at its calibrated amplitude."""
     machine = _build_machine()
-    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with patch.object(q1.xy, "play", return_value=None) as mock_play:
@@ -173,7 +169,6 @@ def test_canonical_x_and_y_scale_the_pi_pulse():
     The Y axis comes from the y180 operation. Neither call rotates the frame.
     """
     machine = _build_machine()
-    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with (
@@ -213,7 +208,6 @@ def test_fixed_gates_and_arbitrary_axes_reject_phase():
 def test_xy_drive_plays_its_calibrated_pulse():
     """xy_drive() plays the x180 operation and does not rotate the frame."""
     machine = _build_machine()
-    _seed_reference_pulses(machine)
     q1 = machine.qubits["q1"]
 
     with (

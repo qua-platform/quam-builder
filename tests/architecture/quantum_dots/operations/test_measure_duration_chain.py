@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.operations.default_macros.single_qubit_macros import (
     Measure1QMacro,
 )
@@ -163,7 +162,7 @@ class TestMeasurePSBPairDuration:
     def test_buffer_duration_field_exists(self):
         macro = MeasurePSBPairMacro()
         assert hasattr(macro, "buffer_duration")
-        assert macro.buffer_duration == DEFAULTS.state_macro.buffer_duration
+        assert macro.buffer_duration is None
 
     def test_buffer_duration_settable(self):
         macro = MeasurePSBPairMacro(buffer_duration=500)
@@ -171,7 +170,7 @@ class TestMeasurePSBPairDuration:
 
     def test_inferred_duration_buffer_plus_sensor(self):
         macro = MeasurePSBPairMacro(buffer_duration=200)
-        sensor_macro = MagicMock(spec=["inferred_duration"])
+        sensor_macro = MagicMock()
         sensor_macro.inferred_duration = 2e-6
 
         sensor_dot = MagicMock()
@@ -188,7 +187,7 @@ class TestMeasurePSBPairDuration:
     def test_inferred_duration_zero_buffer(self):
         """When buffer_duration is None, buffer contribution is 0."""
         macro = MeasurePSBPairMacro(buffer_duration=None)
-        sensor_macro = MagicMock(spec=["inferred_duration"])
+        sensor_macro = MagicMock()
         sensor_macro.inferred_duration = 2e-6
 
         sensor_dot = MagicMock()
@@ -212,7 +211,7 @@ class TestMeasurePSBPairDuration:
 
     def test_inferred_duration_none_when_sensor_has_no_duration(self):
         macro = MeasurePSBPairMacro(buffer_duration=100)
-        sensor_macro = MagicMock(spec=["inferred_duration"])
+        sensor_macro = MagicMock()
         sensor_macro.inferred_duration = None
 
         sensor_dot = MagicMock()
@@ -225,14 +224,9 @@ class TestMeasurePSBPairDuration:
             assert macro.inferred_duration is None
 
     def test_apply_passes_voltage_context_to_sensor(self):
-        """Verify apply() forwards the voltage sequence to the sensor macro.
-
-        Gate names are used for the align in this macro. The sensor call
-        receives ``gate_channel_names=None``.
-        """
+        """Verify apply() forwards voltage_sequence and gate_channel_names."""
         macro = MeasurePSBPairMacro(buffer_duration=100)
         sensor_dot = MagicMock()
-        sensor_dot.readout_resonator.name = "rr1"
 
         ch1 = MagicMock()
         ch1.name = "gate_P1"
@@ -244,18 +238,13 @@ class TestMeasurePSBPairDuration:
         owner.sensor_dots = [sensor_dot]
         owner.voltage_sequence.gate_set.channels.values.return_value = [ch1, ch2]
 
-        with (
-            patch(_OWNER_PATCH, return_value=owner),
-            patch(
-                "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros.qua.align"
-            ),
-        ):
+        with patch(_OWNER_PATCH, return_value=owner):
             macro.apply()
 
         sensor_dot.macros[VoltagePointName.MEASURE.value].apply.assert_called_once_with(
             quantum_dot_pair_id="pair1",
             voltage_sequence=owner.voltage_sequence,
-            gate_channel_names=None,
+            gate_channel_names=["gate_P1", "gate_P2"],
         )
 
 

@@ -266,20 +266,14 @@ class TestStateMacroPointDispatch:
         voltages = {"virtual_dot_1": -0.1}
         macro = MeasurePSBPairMacro(point=voltages, buffer_duration=96)
         sensor_dot = MagicMock()
-        sensor_dot.readout_resonator.name = "rr1"
         owner = MagicMock()
         owner.id = "dot1_dot2_pair"
         owner.sensor_dots = [sensor_dot]
         owner.voltage_sequence = None
 
-        with (
-            patch(
-                "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
-                return_value=owner,
-            ),
-            patch(
-                "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros.qua.align"
-            ),
+        with patch(
+            "quam_builder.architecture.quantum_dots.operations.default_macros.state_macros._owner_component",
+            return_value=owner,
         ):
             macro.apply()
 
