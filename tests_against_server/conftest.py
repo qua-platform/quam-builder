@@ -8,8 +8,10 @@ Switch backend without editing tests:
 - Env: ``QM_TEST_BACKEND=on_prem pytest -m server tests_against_server/``
 
 Allowed values: ``saas`` (default), ``on_prem``.
-SaaS needs ``.qm_saas_credentials.json`` at the repo root and outbound ports 443 + 9510.
-On-prem needs LAN/VPN access to the lab cluster.
+Connection settings live next to this file (copy the ``.example`` files and fill in):
+
+- SaaS: ``.qm_saas_credentials.json``, plus outbound ports 443 + 9510.
+- On-prem: ``.qm_cluster_config.json``, plus LAN/VPN access to the cluster.
 """
 
 from __future__ import annotations
@@ -21,9 +23,17 @@ from pathlib import Path
 import pytest
 from qm import QuantumMachinesManager
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_SAAS_CREDENTIALS_PATH = _REPO_ROOT / ".qm_saas_credentials.json"
+_SERVER_DIR = Path(__file__).resolve().parent
+_SAAS_CREDENTIALS_PATH = _SERVER_DIR / ".qm_saas_credentials.json"
+_CLUSTER_CONFIG_PATH = _SERVER_DIR / ".qm_cluster_config.json"
 _VALID_BACKENDS = frozenset({"saas", "on_prem"})
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Auto-mark every test under tests_against_server/ with ``@pytest.mark.server``."""
+    for item in items:
+        if Path(item.fspath).resolve().is_relative_to(_SERVER_DIR):
+            item.add_marker(pytest.mark.server)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -46,14 +56,10 @@ def _selected_backend(config: pytest.Config) -> str:
     return env
 
 
-def _load_saas_credentials() -> dict[str, str]:
-    if not _SAAS_CREDENTIALS_PATH.exists():
-        pytest.skip(
-            f"QM SaaS credentials not found at {_SAAS_CREDENTIALS_PATH}. "
-            "Copy .qm_saas_credentials.json.example to .qm_saas_credentials.json "
-            "and fill in your credentials."
-        )
-    with open(_SAAS_CREDENTIALS_PATH) as f:
+def _load_json_config(path: Path) -> dict[str, str]:
+    if not path.exists():
+        pytest.skip(f"{path} not found. Copy {path.name}.example to {path.name} and fill it in.")
+    with open(path) as f:
         return json.load(f)
 
 
@@ -70,7 +76,7 @@ def _saas_cluster_config():
 def qmm_saas():
     """Session-scoped QuantumMachinesManager connected to QM SaaS."""
     qm_saas = pytest.importorskip("qm_saas")
-    creds = _load_saas_credentials()
+    creds = _load_json_config(_SAAS_CREDENTIALS_PATH)
     client = qm_saas.QmSaas(
         email=creds["email"],
         password=creds["password"],
@@ -96,8 +102,9 @@ def qmm_saas():
 
 @pytest.fixture(scope="session")
 def qmm_on_prem():
-    """Session-scoped QuantumMachinesManager for the lab on-prem cluster."""
-    return QuantumMachinesManager(host="172.16.33.115", cluster_name="CS_3")
+    """Session-scoped QuantumMachinesManager for the on-prem cluster."""
+    cluster = _load_json_config(_CLUSTER_CONFIG_PATH)
+    return QuantumMachinesManager(host=cluster["host"], cluster_name=cluster["cluster_name"])
 
 
 @pytest.fixture(scope="session")
