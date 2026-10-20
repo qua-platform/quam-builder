@@ -529,3 +529,84 @@ class VirtualDCSet(QuantumComponent):
             )
         point = self.macros[name]
         self.set_voltages(point.voltages)
+
+    @staticmethod
+    def _print_voltage_move(result: Dict) -> None:
+        print("\nVirtual gate move")
+        print("-" * 32)
+
+        for gate, delta in result["virtual_move"].items():
+            print(f"{gate:<12} {delta * 1e3:>+10.3f} mV")
+
+        print("\nResolved physical gate changes")
+        print("-" * 32)
+
+        for gate, delta in result["physical_delta"].items():
+            print(f"{gate:<12} {delta * 1e3:>+10.3f} mV")
+
+        print(f"\nApplied: {result['applied']}")
+
+    def increment_voltages(
+        self,
+        deltas: Dict[str, float],
+        *,
+        apply: bool = True,
+        requery: bool = True,
+        report: bool = False,
+    ) -> Dict:
+        """
+        Increment physical or virtual DC coordinates by the requested deltas.
+
+        Parameters
+        ----------
+        deltas
+            Requested voltage increments in volts.
+            Example: {"vP1": 1e-3} moves vP1 by +1 mV.
+        apply
+            If True, apply the move.
+        requery
+            If True, query the current hardware state before calculating targets.
+        report
+            If True, print the requested virtual move and resolved physical deltas.
+
+        Returns
+        -------
+        dict
+            Information about the requested and resolved voltage move.
+        """
+
+        if requery:
+            current = self.all_current_voltages.copy()
+        else:
+            current = self._current_levels.copy()
+
+        invalid = set(deltas) - set(self.valid_channel_names)
+        if invalid:
+            raise ValueError(
+                f"Unknown voltage channels: {invalid}"
+            )
+        
+        targets = {
+            name: current[name] + delta
+            for name, delta in deltas.items()
+        }
+
+        physical_deltas = self.resolve_voltages(deltas)
+
+        result = {
+            "virtual_move": dict(deltas),
+            "physical_delta": physical_deltas,
+            "applied": False,
+        }
+
+        if apply:
+            self.set_voltages(
+                targets,
+                requery=requery,
+            )
+            result["applied"] = True
+
+        if report:
+            self._print_voltage_move(result)
+
+        return result
