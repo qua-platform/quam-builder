@@ -8,8 +8,6 @@ import numpy as np
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam.utils import string_reference
-
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
 from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
@@ -194,22 +192,16 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
         if qd_name not in self.machine.quantum_dots:
             raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
-        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
-        if qd_pair is None:
+        if self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name) is None:
             raise ValueError(
                 f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
             )
 
     def __setattr__(self, name, value):
-        if (
-            name == "preferred_readout_quantum_dot"
-            and value is not None
-            and self.get_root() is not None
-        ):
-            if hasattr(self, "quantum_dot") and not string_reference.is_reference(
-                self.get_raw_value("quantum_dot")
-            ):
-                self._validate_readout_quantum_dot(value)
+        # Until the qubit is attached to a machine (construction, loading), its
+        # quantum_dot reference cannot be resolved, so validation is skipped.
+        if name == "preferred_readout_quantum_dot" and value is not None and self.parent is not None:
+            self._validate_readout_quantum_dot(value)
         # if name == "larmor_frequency" and value is not None:
         #     if hasattr(self, "xy") and self.xy is not None:
         #         try:
