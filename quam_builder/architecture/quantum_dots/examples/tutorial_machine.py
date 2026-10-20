@@ -40,7 +40,8 @@ def build_tutorial_machine(
         mw_fem_slots: MW FEM slot indices (OPX+), default ``[1]``.
         lf_fem_slots: LF FEM slot indices, default ``[2]`` (single module).
         cluster_config_path: If set, read ``host`` and ``cluster_name`` for
-            :func:`build_quam_wiring` from this JSON (e.g. ``.qm_cluster_config.json``).
+            :func:`build_quam_wiring` from this JSON (same format as
+            ``tests_against_server/.qm_cluster_config.json.example``).
             Otherwise use ``127.0.0.1`` and ``"tutorial"``.
 
     Returns a machine with:

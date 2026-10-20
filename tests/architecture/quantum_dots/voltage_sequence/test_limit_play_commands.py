@@ -33,13 +33,16 @@ def _approx(value):
 
 
 def _play_elements(script: str) -> list[str]:
-    """Element names passed as the play target in ``generate_qua_script`` output."""
-    return re.findall(r'play\([^;]*?,\s*"([^"]+)"', script)
+    """Element names passed as the play target in ``generate_qua_script`` output.
+
+    Newer qm versions quote element names with ``'`` instead of ``"``.
+    """
+    return re.findall(r"""play\([^;]*?,\s*["']([^"']+)["']""", script)
 
 
 def _ramp_elements(script: str) -> list[str]:
     """Element names passed as the ramp target in ``generate_qua_script`` output."""
-    return re.findall(r'ramp\([^;]*?,\s*"([^"]+)"', script)
+    return re.findall(r"""ramp\([^;]*?,\s*["']([^"']+)["']""", script)
 
 
 def _scaled_area(level: float, duration: int) -> int:

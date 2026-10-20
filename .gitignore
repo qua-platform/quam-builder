@@ -200,8 +200,8 @@ quam_builder/architecture/quantum_dots/examples/configs.py
 quam_builder/architecture/quantum_dots/examples/data/
 
 # QM connection configs (contain credentials)
-.qm_cluster_config.json
-.qm_saas_credentials.json
+tests_against_server/.qm_cluster_config.json
+tests_against_server/.qm_saas_credentials.json
 
 # Local-only tooling and IDE metadata
 /.claude/

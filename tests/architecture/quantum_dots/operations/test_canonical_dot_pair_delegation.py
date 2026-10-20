@@ -114,7 +114,7 @@ class TestMeasurePSBPairMacroUpdate:
 
 
 def _mock_qubit_with_pair(pair_macros=None):
-    """Build a mock qubit whose preferred readout dot resolves to a pair."""
+    """Build a mock qubit whose preferred readout dot resolves to an LDQubitPair."""
     pair = MagicMock()
     if pair_macros is not None:
         pair.macros = pair_macros
@@ -128,8 +128,9 @@ def _mock_qubit_with_pair(pair_macros=None):
     qubit = MagicMock()
     qubit.preferred_readout_quantum_dot = "dot2"
     qubit.quantum_dot.id = "dot1"
-    qubit.machine.find_quantum_dot_pair.return_value = "dot1_dot2_pair"
-    qubit.machine.quantum_dot_pairs = {"dot1_dot2_pair": pair}
+    pair.qubit_control = qubit
+    pair.qubit_target.quantum_dot.id = "dot2"
+    qubit.machine.qubit_pairs = {"Q1_Q2": pair}
     return qubit, pair
 
 
@@ -143,7 +144,9 @@ class TestInitialize1QMacroDelegation:
         ):
             macro.apply(ramp_duration=32)
 
-        pair.macros["initialize"].apply.assert_called_once_with(ramp_duration=32)
+        pair.macros["initialize"].apply.assert_called_once_with(
+            ramp_duration=32, qubit_name=qubit.name
+        )
 
     def test_apply_raises_without_preferred_dot(self):
         qubit = MagicMock()
@@ -160,13 +163,13 @@ class TestInitialize1QMacroDelegation:
         qubit = MagicMock()
         qubit.preferred_readout_quantum_dot = "dot2"
         qubit.quantum_dot.id = "dot1"
-        qubit.machine.find_quantum_dot_pair.return_value = None
+        qubit.machine.qubit_pairs = {}
         macro = Initialize1QMacro()
 
         with patch.object(
             type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
         ):
-            with pytest.raises(ValueError, match="No QuantumDotPair"):
+            with pytest.raises(ValueError, match="No QubitPair found"):
                 macro.apply()
 
     def test_update_delegates_to_pair(self):
@@ -262,7 +265,7 @@ class TestEmpty1QMacroDelegation:
             assert macro.inferred_duration == pytest.approx(3e-7)
 
 
-class TestMeasure1QMacroProxy:
+class TestMeasure1QMacroDelegation:
     def test_update_delegates_to_pair(self):
         measure_macro = MeasurePSBPairMacro()
         qubit, pair = _mock_qubit_with_pair({"measure": measure_macro})
@@ -274,28 +277,6 @@ class TestMeasure1QMacroProxy:
             macro.update(buffer_duration=500)
 
         assert measure_macro.buffer_duration == 500
-
-    def test_getattr_reads_from_pair_macro(self):
-        measure_macro = MeasurePSBPairMacro(buffer_duration=250)
-        qubit, pair = _mock_qubit_with_pair({"measure": measure_macro})
-        macro = Measure1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            assert macro.buffer_duration == 250
-
-    def test_setattr_writes_to_pair_macro(self):
-        measure_macro = MeasurePSBPairMacro(buffer_duration=100)
-        qubit, pair = _mock_qubit_with_pair({"measure": measure_macro})
-        macro = Measure1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            macro.buffer_duration = 999
-
-        assert measure_macro.buffer_duration == 999
 
 
 _2Q_OWNER_PATCH = (
@@ -330,7 +311,12 @@ class TestInitialize2QMacroDelegation:
         with patch(_2Q_OWNER_PATCH, return_value=owner):
             macro.apply(ramp_duration=32)
 
-        qd_pair.macros["initialize"].apply.assert_called_once_with(ramp_duration=32)
+        qd_pair.macros["initialize"].apply.assert_called_once_with(
+            xy_channel=owner.xy,
+            ramp_duration=32,
+            qubit_name=owner.qubit_control.name,
+            target_state=owner.heralded_initialize_target_state,
+        )
 
     def test_apply_raises_without_quantum_dot_pair(self):
         owner = MagicMock()
@@ -411,7 +397,7 @@ class TestEmpty2QMacroDelegation:
         qd_pair.macros["empty"].apply.assert_called_once()
 
 
-class TestMeasure2QMacroProxy:
+class TestMeasure2QMacroDelegation:
     def test_update_delegates_to_pair(self):
         measure_macro = MeasurePSBPairMacro()
         owner, qd_pair = _mock_qubit_pair_owner({"measure": measure_macro})
@@ -421,104 +407,6 @@ class TestMeasure2QMacroProxy:
             macro.update(buffer_duration=800)
 
         assert measure_macro.buffer_duration == 800
-
-
-class TestParameterProxy1Q:
-    """Verify __getattr__/__setattr__ proxy for 1Q macros."""
-
-    def test_init_getattr_reads_ramp_duration(self):
-        init_macro = InitializeStateMacro(ramp_duration=48)
-        qubit, pair = _mock_qubit_with_pair({"initialize": init_macro})
-        macro = Initialize1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            assert macro.ramp_duration == 48
-
-    def test_init_setattr_writes_ramp_duration(self):
-        init_macro = InitializeStateMacro(ramp_duration=16)
-        qubit, pair = _mock_qubit_with_pair({"initialize": init_macro})
-        macro = Initialize1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            macro.ramp_duration = 96
-
-        assert init_macro.ramp_duration == 96
-
-    def test_empty_getattr_reads_hold_duration(self):
-        empty_macro = EmptyStateMacro(hold_duration=300)
-        qubit, pair = _mock_qubit_with_pair({"empty": empty_macro})
-        macro = Empty1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            assert macro.hold_duration == 300
-
-    def test_empty_setattr_writes_hold_duration(self):
-        empty_macro = EmptyStateMacro(hold_duration=100)
-        qubit, pair = _mock_qubit_with_pair({"empty": empty_macro})
-        macro = Empty1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            macro.hold_duration = 500
-
-        assert empty_macro.hold_duration == 500
-
-    def test_getattr_raises_for_unknown_attr(self):
-        qubit, pair = _mock_qubit_with_pair()
-        macro = Initialize1QMacro()
-
-        with patch.object(
-            type(macro), "qubit", new_callable=lambda: property(lambda self: qubit)
-        ):
-            with pytest.raises(AttributeError, match="no_such_field"):
-                _ = macro.no_such_field
-
-
-class TestParameterProxy2Q:
-    """Verify __getattr__/__setattr__ proxy for 2Q macros."""
-
-    def test_init_getattr_reads_ramp_duration(self):
-        init_macro = InitializeStateMacro(ramp_duration=64)
-        owner, qd_pair = _mock_qubit_pair_owner({"initialize": init_macro})
-        macro = Initialize2QMacro()
-
-        with patch(_2Q_OWNER_PATCH, return_value=owner):
-            assert macro.ramp_duration == 64
-
-    def test_init_setattr_writes_ramp_duration(self):
-        init_macro = InitializeStateMacro(ramp_duration=16)
-        owner, qd_pair = _mock_qubit_pair_owner({"initialize": init_macro})
-        macro = Initialize2QMacro()
-
-        with patch(_2Q_OWNER_PATCH, return_value=owner):
-            macro.ramp_duration = 128
-
-        assert init_macro.ramp_duration == 128
-
-    def test_empty_getattr_reads_hold_duration(self):
-        empty_macro = EmptyStateMacro(hold_duration=250)
-        owner, qd_pair = _mock_qubit_pair_owner({"empty": empty_macro})
-        macro = Empty2QMacro()
-
-        with patch(_2Q_OWNER_PATCH, return_value=owner):
-            assert macro.hold_duration == 250
-
-    def test_empty_setattr_writes_hold_duration(self):
-        empty_macro = EmptyStateMacro(hold_duration=100)
-        owner, qd_pair = _mock_qubit_pair_owner({"empty": empty_macro})
-        macro = Empty2QMacro()
-
-        with patch(_2Q_OWNER_PATCH, return_value=owner):
-            macro.hold_duration = 600
-
-        assert empty_macro.hold_duration == 600
 
 
 class TestSerializationPersistence:

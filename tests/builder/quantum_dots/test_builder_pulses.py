@@ -16,6 +16,7 @@ from quam_builder.architecture.quantum_dots.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
 )
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
 from quam_builder.builder.qop_connectivity import build_quam_wiring
 from quam_builder.builder.quantum_dots import (
@@ -142,7 +143,7 @@ class TestAddDefaultLDVQubitPulsesIQ:
 
         gaussian = qubit.xy.operations["gaussian_x90"]
         assert gaussian.length > 0
-        assert gaussian.amplitude == 1.0
+        assert gaussian.amplitude == DEFAULTS.xy_pulse.amplitude
         assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_iq_pulses):
@@ -182,7 +183,7 @@ class TestAddDefaultLDVQubitPulsesMW:
 
         gaussian = qubit.xy.operations["gaussian_x90"]
         assert gaussian.length > 0
-        assert gaussian.amplitude == 1.0
+        assert gaussian.amplitude == DEFAULTS.xy_pulse.amplitude
         assert gaussian.axis_angle == pytest.approx(0.0)
 
     def test_readout_pulse_present_on_resonators(self, machine_with_mw_pulses):
@@ -190,7 +191,8 @@ class TestAddDefaultLDVQubitPulsesMW:
             if hasattr(qubit, "resonator") and qubit.resonator is not None:
                 assert "readout" in qubit.resonator.operations
 
-    def test_one_xy_operation_per_qubit(self, machine_with_mw_pulses):
+    def test_all_families_present_on_qubits(self, machine_with_mw_pulses):
         for qubit in machine_with_mw_pulses.qubits.values():
             if qubit.xy is not None:
-                assert len(qubit.xy.operations) == 1
+                for family in ("gaussian", "square", "kaiser"):
+                    assert f"{family}_x90" in qubit.xy.operations
