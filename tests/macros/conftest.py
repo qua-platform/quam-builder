@@ -128,18 +128,6 @@ def machine():
         barrier_gate_id="virtual_barrier_3",
     )
 
-    # Define detuning axes for both QuantumDotPairs
-    machine.quantum_dot_pairs["dot1_dot2_pair"].define_detuning_axis(
-        matrix=[[1, -1]],
-        detuning_axis_name="dot1_dot2_epsilon",
-        set_dc_virtual_axis=False,
-    )
-    machine.quantum_dot_pairs["dot3_dot4_pair"].define_detuning_axis(
-        matrix=[[1, -1]],
-        detuning_axis_name="dot3_dot4_epsilon",
-        set_dc_virtual_axis=False,
-    )
-
     # Register Qubit Pairs
     machine.register_qubit_pair(
         qubit_control_name="Q1",
