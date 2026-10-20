@@ -384,15 +384,27 @@ class VirtualGateSet(GateSet):
                 ]
         self._influence_map = influence_map
 
+    # @property
+    # def valid_channel_names(self) -> list[str]:
+    #     """
+    #     Returns a list of valid channel names for the VirtualGateSet.
+    #     """
+    #     # Collect all virtual gate names from all layers
+    #     virtual_channels = set(ch for layer in self.layers for ch in layer.source_gates)
+    #     # Combine physical and virtual gate names
+    #     return list(self.channels) + list(virtual_channels)
     @property
     def valid_channel_names(self) -> list[str]:
-        """
-        Returns a list of valid channel names for the VirtualGateSet.
-        """
-        # Collect all virtual gate names from all layers
-        virtual_channels = set(ch for layer in self.layers for ch in layer.source_gates)
-        # Combine physical and virtual gate names
-        return list(self.channels) + list(virtual_channels)
+        virtual_channels = []
+        seen = set()
+
+        for layer in self.layers:
+            for name in layer.source_gates:
+                if name not in seen:
+                    virtual_channels.append(name)
+                    seen.add(name)
+
+        return list(self.channels) + virtual_channels
 
     def _validate_new_layer(
         self,

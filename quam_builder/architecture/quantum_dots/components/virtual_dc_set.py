@@ -127,7 +127,21 @@ class VirtualDCSet(QuantumComponent):
         # Combine physical and virtual gate names
         return list(self.channels) + list(virtual_channels)
 
-    def add_point(self, name: str, voltages: Dict[str, float], duration: int) -> None:
+    def add_point(
+        self,
+        name: str,
+        voltages: Dict[str, float],
+        duration: int,
+        relative_to_current: bool = False,
+    ) -> None:
+        """Register a named DC tuning point.
+
+        By default, ``voltages`` are stored as absolute DC values. If
+        ``relative_to_current`` is True, each supplied value is interpreted as
+        an offset from the current DC level of that physical or virtual gate.
+        The resulting absolute voltages are stored in the point so that
+        ``go_to_point`` can restore the saved operating point later.
+        """
         invalid_channel_names = set(voltages) - set(self.valid_channel_names)
 
         if invalid_channel_names:
@@ -136,11 +150,26 @@ class VirtualDCSet(QuantumComponent):
                 f"'{name}' are not part of this VirtualDCSet."
             )
 
+        if relative_to_current:
+            current_voltages = self.all_current_voltages
+            point_voltages = {
+                gate: current_voltages[gate] + float(delta)
+                for gate, delta in voltages.items()
+            }
+        else:
+            point_voltages = {
+                gate: float(value)
+                for gate, value in voltages.items()
+            }
+
         # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
         if not hasattr(self, "macros") or self.macros is None:
             self.macros: Dict[str, macro.QuamMacro] = {}
 
-        self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
+        self.macros[name] = VoltageTuningPoint(
+            voltages=point_voltages,
+            duration=duration,
+        )
 
     def _validate_new_layer(
         self,
@@ -204,12 +233,12 @@ class VirtualDCSet(QuantumComponent):
                 )
 
         # Check 2: Each target gate must not be a target gate in any previous layer
-        # for tg in target_gates:
-        #     if tg in existing_target_gates:
-        #         raise ValueError(
-        #             f"Target gate '{tg}' in new layer is already a target gate in a "
-        #             f"previous layer. Existing target gates: {existing_target_gates}"
-        #         )
+        for tg in target_gates:
+            if tg in existing_target_gates:
+                raise ValueError(
+                    f"Target gate '{tg}' in new layer is already a target gate in a "
+                    f"previous layer. Existing target gates: {existing_target_gates}"
+                )
 
         # Check 3: Each source gate must not be a source gate in any previous layer
         for sg in source_gates:
@@ -316,15 +345,15 @@ class VirtualDCSet(QuantumComponent):
             )
 
         # Check: target gates should not exist in any other layers
-        # for lyr in self.layers:
-        #     # Skip current layer
-        #     if lyr.id == layer_id:
-        #         continue
-        #     conflicts = set(target_gates) & set(lyr.target_gates)
-        #     if conflicts:
-        #         raise ValueError(
-        #             f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
-        #         )
+        for lyr in self.layers:
+            # Skip current layer
+            if lyr.id == layer_id:
+                continue
+            conflicts = set(target_gates) & set(lyr.target_gates)
+            if conflicts:
+                raise ValueError(
+                    f"Target gates {conflicts} already exists as a target gate in layer {lyr.id}"
+                )
 
         # Check: matrix shape validation
         matrix_array = np.array(matrix, dtype=float)
@@ -477,48 +506,6 @@ class VirtualDCSet(QuantumComponent):
             self._current_levels = self.all_current_voltages.copy()
         else:
             self._current_levels = self._populate_virtual_gate_voltages(physical_voltages)
-
-    def increment_voltages(
-        self,
-        voltages: Dict[str, float],
-        requery: bool = True,
-        resync: bool = True,
-    ) -> None:
-        """
-        Increment physical or virtual gate voltages by the specified amounts.
-
-        Unlike set_voltages(), the input values are interpreted as relative
-        voltage increments rather than absolute target voltages.
-        """
-        if requery:
-            current_volts_dict = self.all_current_voltages.copy()
-        else:
-            current_volts_dict = self._current_levels
-
-        physical_voltages = {
-            name: current_volts_dict[name]
-            for name in self.channels
-        }
-
-        physical_deltas = self.resolve_voltages(voltages)
-
-        for name, delta in physical_deltas.items():
-            if requery:
-                current_physical = self.channels[name].offset_parameter()
-            else:
-                current_physical = current_volts_dict.get(name, 0.0)
-
-            new_physical = current_physical + delta
-
-            self.channels[name].offset_parameter(new_physical)
-            physical_voltages[name] = new_physical
-
-        if resync:
-            self._current_levels = self.all_current_voltages.copy()
-        else:
-            self._current_levels = self._populate_virtual_gate_voltages(
-                physical_voltages
-            )
 
     def get_voltage(self, name: str, requery: bool = False) -> float:
         """
