@@ -61,12 +61,6 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
         return self.quantum_dot_pair.physical_channel
 
     @property
-    def detuning_axis_name(self):
-        if self.quantum_dot_pair is None:
-            raise ValueError("No QuantumDotPair in LDQubitPair")
-        return self.quantum_dot_pair.detuning_axis_name
-
-    @property
     def voltage_sequence(self):
         if self.quantum_dot_pair is None:
             raise ValueError("No QuantumDotPair in LDQubitPair")
@@ -81,9 +75,11 @@ class LDQubitPair(VoltageMacroMixin, QubitPair):
         Override to use the detuning axis for voltage operations on the qubit pair.
 
         Returns:
-            str: The detuning axis name to use for voltage operations
+            str: The detuning axis name (the quantum dot pair id) to use for voltage operations
         """
-        return self.detuning_axis_name
+        if self.quantum_dot_pair is None:
+            raise ValueError("No QuantumDotPair in LDQubitPair")
+        return self.quantum_dot_pair.id
 
     def _create_point_name(self, point_name: str) -> str:
         """Delegate point naming to the quantum_dot_pair so keys match the gate set."""

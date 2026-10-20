@@ -31,7 +31,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods:
-        define_detuning_axis (args: matrix, detuning_axis_name): Adds to the QuantumDotPair Detuning VirtualizationLayer in the VirtualGateSet, expanding the matrix with the input submatrix.
+        define_detuning_axis (args: matrix, set_dc_virtual_axis): Adds to the QuantumDotPair Detuning VirtualizationLayer in the VirtualGateSet, expanding the matrix with the input submatrix.
         go_to_detuning: In a simultaneous block, registers a dict input to the VoltageSequence to step or ramp the detuning to specified voltage.
         step_to_detuning: Step the voltage to the specified detuning value. Can only be used after the detuning axis is defined.
         ramp_to_detuning: Ramp the voltage to the specified detuning value. Can only be used after the detuning axis is defined.
@@ -126,9 +126,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         duration: int = DEFAULTS.state_macro.point_duration,
     ) -> None:
         """To be used in a simultaneous block to step/ramp detuning to specified value. Can only be used after define_detuning_axis."""
-        return self.voltage_sequence.step_to_voltages(
-            {self.detuning_axis_name: voltage}, duration=duration
-        )
+        return self.voltage_sequence.step_to_voltages({self.id: voltage}, duration=duration)
 
     def step_to_detuning(
         self,
@@ -136,9 +134,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         duration: int = DEFAULTS.state_macro.point_duration,
     ) -> None:
         """Steps the detuning to the specified value. Can only be used after define_detuning_axis."""
-        return self.voltage_sequence.step_to_voltages(
-            {self.detuning_axis_name: voltage}, duration=duration
-        )
+        return self.voltage_sequence.step_to_voltages({self.id: voltage}, duration=duration)
 
     def ramp_to_detuning(
         self,
@@ -148,7 +144,7 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
     ):
         """Ramps the detuning to the specified value. Can only be used after define_detuning_axis."""
         return self.voltage_sequence.ramp_to_voltages(
-            {self.detuning_axis_name: voltage},
+            {self.id: voltage},
             duration=duration,
             ramp_duration=ramp_duration,
         )
@@ -158,9 +154,9 @@ class QuantumDotPair(VoltageMacroMixin):  # pylint: disable=too-many-ancestors
         Override to use the detuning axis for voltage operations on the pair.
 
         Returns:
-            str: The detuning axis name to use for voltage operations
+            str: The detuning axis name (the pair id) to use for voltage operations
         """
-        return self.detuning_axis_name
+        return self.id
 
     def readout_state(
         self,
