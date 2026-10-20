@@ -78,12 +78,12 @@ def test_two_qubit_enum_values_are_default_keys():
 
 
 def test_default_operations_match_canonical_enums():
-    """Default operation registry names should match canonical enum names.
-
-    ``VoltagePointName.CZ`` is only a voltage point stepped to by ``CZMacro``;
-    the operation is ``TwoQubitMacroName.CZ`` (``"cz"``).
-    """
+    """Default operation registry names should match canonical enum names."""
     expected_operation_names = {
+        # Every voltage point doubles as an operation name except VoltagePointName.CZ
+        # ("CZ"): it is only the default point CZMacro steps to during the exchange
+        # pulse. The CZ operation itself is TwoQubitMacroName.CZ ("cz"), and registry
+        # names are case-sensitive, so "CZ" has no matching operation.
         *(name.value for name in VoltagePointName if name is not VoltagePointName.CZ),
         *(name.value for name in SingleQubitMacroName),
         *(name.value for name in TwoQubitMacroName),
