@@ -52,14 +52,14 @@ def _to_plain_mapping(obj: Any, max_depth: int = 6) -> Any:
         return obj
     if obj is None or isinstance(obj, (str, bytes, int, float, bool)):
         return obj
-    if isinstance(obj, Mapping):
-        return {k: _to_plain_mapping(v, max_depth - 1) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return type(obj)(_to_plain_mapping(x, max_depth - 1) for x in obj)
     if hasattr(obj, "get_unreferenced_value") and hasattr(obj, "keys"):
         return {
             k: _to_plain_mapping(obj.get_unreferenced_value(k), max_depth - 1) for k in obj.keys()
         }
+    if isinstance(obj, Mapping):
+        return {k: _to_plain_mapping(v, max_depth - 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_to_plain_mapping(x, max_depth - 1) for x in obj)
     return obj
 
 
