@@ -39,7 +39,10 @@ class SensorDot(QuantumDot):  # pylint: disable=too-many-ancestors
     readout_reservoir: DrainSingle = None
 
     def _add_readout_params(
-        self, quantum_dot_pair_id: str, threshold: float, projector: Union[dict, Projector] = None
+        self,
+        quantum_dot_pair_id: str,
+        threshold: float,
+        projector: Union[dict, Projector] = None,
     ) -> None:
         if projector is None:
             projector = Projector()

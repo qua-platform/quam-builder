@@ -1,12 +1,15 @@
-from typing import Optional, Dict, Union
+from typing import Any, Dict, Generator, Optional, Sequence, Union
 
-from quam.components import SingleChannel, Channel
-from quam.core import quam_dataclass, QuamComponent
+from quam.components import SingleChannel
+from quam.core import quam_dataclass
+from quam.core.quam_classes import QuamBase
 
-from .readout_resonator import ReadoutResonatorBase
-from .readout_transport import ReadoutTransportBase
+from .readout_transport import ANY_READOUT_TRANSPORT
+from .readout_resonator import ANY_READOUT_RESONATOR
 
-__all__ = ["VoltageGate", "QdacSpec"]
+from .dac_spec import DacSpec, QdacSpec
+
+__all__ = ["VoltageGate"]
 
 
 @quam_dataclass
@@ -20,6 +23,10 @@ class VoltageGate(SingleChannel):
             automatically. Default is None.
         offset_parameter: The optional DC offset of the voltage gate
             Can be e.g. a QDAC channel.
+        opx_output: When ``None``, the gate is **QDAC-only** (no OPX/LF analog port). It is omitted from
+            :meth:`~quam.core.quam_classes.QuamRoot.generate_config` (no ``elements`` entry, no sticky);
+            use :attr:`dac_spec` / external drivers for DC.
+        dac_spec: An object containing all the relevant information about the DAC channel associated with this VoltageGate. 
 
     Example:
         >>>
@@ -38,12 +45,13 @@ class VoltageGate(SingleChannel):
         >>> gate.offset_parameter() # Returns 0.1V
     """
 
+    opx_output: Any = None
     attenuation: float = 0.0
     settling_time: float = None
     # current_external_voltage, an attribute to help with serialising the experimental state
     current_external_voltage: Optional[float] = None
-    qdac_spec: "QdacSpec" = None
-    readout: Union[ReadoutTransportBase, ReadoutResonatorBase] = None
+    dac_spec: DacSpec = None
+    readout: Union[ANY_READOUT_RESONATOR, ANY_READOUT_TRANSPORT] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -53,6 +61,11 @@ class VoltageGate(SingleChannel):
     @property
     def physical_channel(self):
         return self
+
+    @property
+    def qdac_spec(self):
+        if self.dac_spec is not None and isinstance(self.dac_spec, QdacSpec):
+            return self.dac_spec
 
     @property
     def offset_parameter(self):
@@ -69,17 +82,25 @@ class VoltageGate(SingleChannel):
         if self.settling_time is not None:
             self.wait(int(self.settling_time) // 4 * 4)
 
+    def iterate_components(
+        self, skip_elems: Optional[Sequence[QuamBase]] = None
+    ) -> Generator[QuamBase, None, None]:
+        """QDAC-only gates are excluded from QUA config generation (no OPX element conflicts)."""
+        if self.opx_output is None:
+            return
+        yield from super().iterate_components(skip_elems=skip_elems)
 
-@quam_dataclass
-class QdacSpec(QuamComponent):
-    """
-    Quam Component for a QDAC Channel, to be parented by VoltageGate.
-    Attributes:
-        - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the Qdac.
-        - qdac_trigger_in: The QDAC external trigger port associated with the VoltageGate DC component.
-        - qdac_output_port: The QDAC port associated with the VoltageGate DC component.
-    """
+    def apply_to_config(self, config: Dict[str, dict]) -> None:
+        """Only OPX-backed gates contribute to ``elements``; QDAC-only gates skip via :meth:`iterate_components`."""
+        if self.opx_output is None:
+            return
+        super().apply_to_config(config)
 
-    opx_trigger_out: Channel = None
-    qdac_trigger_in: int = None
-    qdac_output_port: int
+    def set_dc_offset(self, offset):  # noqa: ANN001 — match SingleChannel API
+        """Raise for QDAC-only gates; OPX has no DC line to offset."""
+        if self.opx_output is None:
+            raise RuntimeError(
+                "VoltageGate has no OPX analog output (QDAC-only wiring); "
+                "cannot use set_dc_offset on the OPX. Control DC via dac_spec / external DAC."
+            )
+        super().set_dc_offset(offset)
