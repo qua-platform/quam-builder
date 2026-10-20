@@ -785,10 +785,11 @@ pair = machine.quantum_dot_pairs["virtual_dot_1_virtual_dot_2_pair"]
 # Example: ε = V_dot1 - V_dot2  →  [[1, -1]]
 pair.define_detuning_axis(
     matrix=[[1, -1]],
-    detuning_axis_name="dot1_dot2_pair_epsilon",
     set_dc_virtual_axis=True,  # mirror layer onto VirtualDCSet for Python-side DAC
 )
 ```
+
+The detuning axis is named after the pair id (here `"virtual_dot_1_virtual_dot_2_pair"`). `register_quantum_dot_pair` already defines a default `[[1, -1]]` axis, so calling `define_detuning_axis` yourself is only needed for a custom matrix.
 
 **Physics:** a detuning ε (in volts or arbitrary units) maps to plunger contributions via the matrix row. For `[[1, -1]]`, increasing ε raises dot 1 and lowers dot 2 symmetrically — the natural axis for exchange oscillations.
 
@@ -798,7 +799,7 @@ pair.define_detuning_axis(
 with program() as prog:
     pair.step_to_detuning(0.05, duration=1000)   # step ε = 50 mV
     pair.ramp_to_detuning(0.0, ramp_duration=40, duration=500)
-    pair.add_point("exchange_point", voltages={pair.detuning_axis_name: 0.12})
+    pair.add_point("exchange_point", voltages={pair.id: 0.12})
     pair.step_to_point("exchange_point")
 ```
 
