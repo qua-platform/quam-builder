@@ -74,8 +74,11 @@ class FlatTopGaussianPulse(Pulse):
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_gaussian_waveform
 
-        assert self.flat_length is not None or self.rise_fall_length is not None, (
+        assert (self.flat_length is None) and (self.rise_fall_length is None), (
             "Either flat_length or rise_fall_length must be provided"
+        )
+        assert (self.flat_length is not None) and (self.rise_fall_length is not None), (
+            "Provide either flat_length and rise_fall_length, not both"
         )
         if self.flat_length is None:
             self.flat_length = (self.length - self.rise_fall_length) // 2
@@ -122,8 +125,11 @@ class FlatTopCosinePulse(Pulse):
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_cosine_waveform
 
-        assert self.flat_length is not None or self.rise_fall_length is not None, (
+        assert (self.flat_length is None) and (self.rise_fall_length is None), (
             "Either flat_length or rise_fall_length must be provided"
+        )
+        assert (self.flat_length is not None) and (self.rise_fall_length is not None), (
+            "Provide either flat_length and rise_fall_length, not both"
         )
         if self.flat_length is None:
             self.flat_length = (self.length - self.rise_fall_length) // 2
