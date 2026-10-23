@@ -29,6 +29,10 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
     def cr_elems(self):
         return [self.qc.xy.name, self.qt.xy.name, self.cr.name]
 
+    @property
+    def control_target_qubit_detuning(self):
+        return self.qc.xy.RF_frequency - self.qt.xy.RF_frequency
+
     @staticmethod
     def pair_target_wf(prefix: str, wf_type: str, pair_name: str) -> str:
         return f"{prefix}_{wf_type}_{pair_name}"
@@ -181,13 +185,11 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         if cr_type == "direct":
             self._direct(**pulse_kwargs)
         elif cr_type == "2x direct":
-            self._direct(**pulse_kwargs)
-            self._direct(**pulse_kwargs)
+            self._2x_direct(**pulse_kwargs)
         elif cr_type == "direct+cancel":
             self._direct_cancel(**pulse_kwargs)
         elif cr_type == "2x direct+cancel":
-            self._direct_cancel(**pulse_kwargs)
-            self._direct_cancel(**pulse_kwargs)
+            self._2x_direct_cancel(**pulse_kwargs)
         elif cr_type == "direct+echo":
             self._direct_echo(**pulse_kwargs)
         elif cr_type == "direct+cancel+echo":
@@ -221,6 +223,24 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
         self._align_cr()
 
+    def _2x_direct(
+        self,
+        wf_type: str,
+        cr_duration_clock_cycles,
+        cr_drive_amp_scaling,
+        **kwargs,
+    ) -> None:
+        # wait equivalent to x180 pulse length is added to match the timing of echo type
+        x180_duration = self.qc.xy.operations["x180"].length // 4
+
+        self._direct(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling)
+        self.qc.xy.wait(x180_duration)
+        self._align_cr()
+
+        self._direct(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling)
+        self.qc.xy.wait(x180_duration)
+        self._align_cr()
+
     def _direct_echo(
         self,
         wf_type: str,
@@ -251,6 +271,25 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
         self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles)
+
+    def _2x_direct_cancel(
+        self,
+        wf_type: str,
+        cr_duration_clock_cycles,
+        cr_drive_amp_scaling,
+        cancel_amp_scaling,
+        **kwargs,
+    ) -> None:
+        # wait equivalent to x180 pulse length is added to match the timing of echo type
+        x180_duration = self.qc.xy.operations["x180"].length // 4
+
+        self._direct_cancel(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling, cancel_amp_scaling)
+        self.qc.xy.wait(x180_duration)
+        self._align_cr()
+
+        self._direct_cancel(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling, cancel_amp_scaling)
+        self.qc.xy.wait(x180_duration)
+        self._align_cr()
 
     def _direct_cancel_echo(
         self,
