@@ -317,7 +317,7 @@ def add_default_transmon_pair_pulses(
             transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,
-                flat_length=50,
+                rise_fall_length=20,
                 axis_angle=0.0,
             )
 
@@ -328,16 +328,16 @@ def add_default_transmon_pair_pulses(
             target_qubit.xy.operations[f"cr_{pair_id}_flattop"] = FlatTopGaussianPulse(
                 amplitude=0.2,
                 length=100,
-                flat_length=50,
+                rise_fall_length=20,
                 axis_angle=0.0,
             )
     if hasattr(transmon_pair, "zz"):
         if transmon_pair.zz is not None:
             transmon_pair.zz.operations["square"] = SquarePulse(amplitude=1.0, length=100)
-            transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
+            transmon_pair.zz.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,
-                flat_length=50,
+                rise_fall_length=20,
                 axis_angle=0.0,
             )
 
