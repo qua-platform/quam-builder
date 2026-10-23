@@ -74,25 +74,24 @@ class FlatTopGaussianPulse(Pulse):
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_gaussian_waveform
 
-        assert (self.flat_length is None) and (self.rise_fall_length is None), (
-            "Either flat_length or rise_fall_length must be provided"
-        )
-        assert (self.flat_length is not None) and (self.rise_fall_length is not None), (
-            "Provide either flat_length and rise_fall_length, not both"
-        )
-        if self.flat_length is None:
-            self.flat_length = (self.length - self.rise_fall_length) // 2
-        if self.rise_fall_length is None:
-            self.rise_fall_length = (self.length - self.flat_length) // 2
-        if not self.flat_length + 2 * self.rise_fall_length == self.length:
+        if self.flat_length is None and self.rise_fall_length is None:
+            raise ValueError("Either flat_length or rise_fall_length must be provided")
+        if self.flat_length is not None and self.rise_fall_length is not None:
+            raise ValueError("Provide either flat_length or rise_fall_length, not both")
+        flat_length, rise_fall_length = self.flat_length, self.rise_fall_length
+        if flat_length is None:
+            flat_length = self.length - rise_fall_length * 2
+        if rise_fall_length is None:
+            rise_fall_length = (self.length - flat_length) // 2
+        if not flat_length + 2 * rise_fall_length == self.length:
             raise ValueError(
-                f"FlatTopGaussianPulse flat_length + 2 * rise_fall_length must be equal to length ({self.length} - {self.flat_length} = {self.length - self.flat_length})"
+                f"FlatTopGaussianPulse flat_length + 2 * rise_fall_length must be equal to length ({self.length} - {flat_length} = {self.length - flat_length})"
             )
 
         waveform = flattop_gaussian_waveform(
             amplitude=self.amplitude,
-            flat_length=self.flat_length,
-            rise_fall_length=self.rise_fall_length,
+            flat_length=flat_length,
+            rise_fall_length=rise_fall_length,
             return_part="all",
         )
         waveform = np.array(waveform)
@@ -125,25 +124,24 @@ class FlatTopCosinePulse(Pulse):
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_cosine_waveform
 
-        assert (self.flat_length is None) and (self.rise_fall_length is None), (
-            "Either flat_length or rise_fall_length must be provided"
-        )
-        assert (self.flat_length is not None) and (self.rise_fall_length is not None), (
-            "Provide either flat_length and rise_fall_length, not both"
-        )
-        if self.flat_length is None:
-            self.flat_length = (self.length - self.rise_fall_length) // 2
-        if self.rise_fall_length is None:
-            self.rise_fall_length = (self.length - self.flat_length) // 2
-        if self.flat_length + 2 * self.rise_fall_length != self.length:
+        if self.flat_length is None and self.rise_fall_length is None:
+            raise ValueError("Either flat_length or rise_fall_length must be provided")
+        if self.flat_length is not None and self.rise_fall_length is not None:
+            raise ValueError("Provide either flat_length or rise_fall_length, not both")
+        flat_length, rise_fall_length = self.flat_length, self.rise_fall_length
+        if flat_length is None:
+            flat_length = self.length - rise_fall_length * 2
+        if rise_fall_length is None:
+            rise_fall_length = (self.length - flat_length) // 2
+        if flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                f"FlatTopCosinePulse requires (length - flat_length) to be even ({self.length=} {self.flat_length=})"
+                f"FlatTopCosinePulse requires (length - flat_length) to be even ({self.length=} {flat_length=})"
             )
 
         wf = flattop_cosine_waveform(
             amplitude=self.amplitude,
-            flat_length=self.flat_length,
-            rise_fall_length=self.rise_fall_length,
+            flat_length=flat_length,
+            rise_fall_length=rise_fall_length,
             return_part="all",
         )
         wf = np.array(wf)
