@@ -45,7 +45,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
             elif line_type in [
                 WiringLineType.COUPLER,
                 WiringLineType.CROSS_RESONANCE,
-                WiringLineType.ZZ,
+                WiringLineType.ZZ_DRIVE,
             ]:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
                     set_nested_value_with_path(wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v)

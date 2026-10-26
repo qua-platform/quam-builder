@@ -128,7 +128,7 @@ def add_transmons(machine: AnyQuam):
                         add_transmon_pair_tunable_coupler_component(transmon_pair, wiring_path, ports)
                     elif line_type == WiringLineType.CROSS_RESONANCE.value:
                         add_transmon_pair_cross_resonance_component(transmon_pair, wiring_path, ports)
-                    elif line_type == WiringLineType.ZZ.value:
+                    elif line_type == WiringLineType.ZZ_DRIVE.value:
                         add_transmon_pair_zz_component(transmon_pair, wiring_path, ports)
                     else:
                         raise ValueError(f"Unknown line type: {line_type}")
