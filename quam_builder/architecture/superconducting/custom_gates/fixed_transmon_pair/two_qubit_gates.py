@@ -132,7 +132,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         self,
         cr_type: Optional[Literal[tuple(CR_TYPES)]] = None,
         wf_type: Optional[str] = None,
-        duration_clock_cycles: Optional[ScalarOfAnyType] = None,
+        duration: Optional[ScalarOfAnyType] = None,
         drive_amp_scaling: Optional[ScalarOfAnyType] = None,
         add_drive_phase: Optional[ScalarOfAnyType] = None,
         cancel_amp_scaling: Optional[ScalarOfAnyType] = None,
@@ -164,8 +164,8 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         pulse_kwargs = {
             "wf_type": wf_type,
-            "cr_duration_clock_cycles": duration_clock_cycles,
-            "cr_drive_amp_scaling": drive_amp_scaling,
+            "duration": duration,
+            "drive_amp_scaling": drive_amp_scaling,
             "cancel_amp_scaling": cancel_amp_scaling,
         }
 
@@ -216,45 +216,45 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
     def _direct(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         **kwargs,
     ) -> None:
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration)
         self._align_cr()
 
     def _2x_direct(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         **kwargs,
     ) -> None:
         # wait equivalent to x180 pulse length is added to match the timing of echo type
         x180_duration = self.qc.xy.operations["x180"].length // 4
 
-        self._direct(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling)
+        self._direct(wf_type, duration, drive_amp_scaling)
         self.qc.xy.wait(x180_duration)
         self._align_cr()
 
-        self._direct(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling)
+        self._direct(wf_type, duration, drive_amp_scaling)
         self.qc.xy.wait(x180_duration)
         self._align_cr()
 
     def _direct_echo(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         **kwargs,
     ) -> None:
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration)
         self._align_cr()
 
         self.qc.xy.play("x180")
         self._align_cr()
 
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles, sign=-1)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration, sign=-1)
         self._align_cr()
 
         self.qc.xy.play("x180")
@@ -262,61 +262,61 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
     def _direct_cancel(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         cancel_amp_scaling,
         **kwargs,
     ) -> None:
         cancel_wf = self.pair_target_wf("cr", wf_type, self.qubit_pair.name)
 
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
-        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration)
+        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, duration)
 
     def _2x_direct_cancel(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         cancel_amp_scaling,
         **kwargs,
     ) -> None:
         # wait equivalent to x180 pulse length is added to match the timing of echo type
         x180_duration = self.qc.xy.operations["x180"].length // 4
 
-        self._direct_cancel(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling, cancel_amp_scaling)
+        self._direct_cancel(wf_type, duration, drive_amp_scaling, cancel_amp_scaling)
         self.qc.xy.wait(x180_duration)
         self._align_cr()
 
-        self._direct_cancel(wf_type, cr_duration_clock_cycles, cr_drive_amp_scaling, cancel_amp_scaling)
+        self._direct_cancel(wf_type, duration, drive_amp_scaling, cancel_amp_scaling)
         self.qc.xy.wait(x180_duration)
         self._align_cr()
 
     def _direct_cancel_echo(
         self,
         wf_type: str,
-        cr_duration_clock_cycles,
-        cr_drive_amp_scaling,
+        duration,
+        drive_amp_scaling,
         cancel_amp_scaling,
         **kwargs,
     ) -> None:
         cancel_wf = self.pair_target_wf("cr", wf_type, self.qubit_pair.name)
 
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles)
-        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration)
+        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, duration)
         self._align_cr()
 
         self.qc.xy.play("x180")
         self._align_cr()
 
-        self._play_pulse(self.cr, wf_type, cr_drive_amp_scaling, cr_duration_clock_cycles, sign=-1)
-        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, cr_duration_clock_cycles, sign=-1)
+        self._play_pulse(self.cr, wf_type, drive_amp_scaling, duration, sign=-1)
+        self._play_pulse(self.qt.xy, cancel_wf, cancel_amp_scaling, duration, sign=-1)
         self._align_cr()
 
         self.qc.xy.play("x180")
 
     @property
     def inferred_duration(self) -> int:
-        return self.get_cr_duration(cr_drive_only=False)
+        return self.get_duration(cr_drive_only=False)
 
     def resolve_cr_type(self, cr_type: Optional[str] = None) -> str:
         cr_type = cr_type if (cr_type and cr_type != "default") else self.cr_type
@@ -333,7 +333,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         cr_type = self.resolve_cr_type(cr_type)
         return 1 if cr_type in ("direct", "direct+cancel") else 2
 
-    def get_cr_duration(
+    def get_duration(
         self,
         cr_drive_only: bool = True,
         cr_type: Optional[str] = None,
@@ -376,7 +376,7 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
     def apply(
         self,
         wf_type: Optional[Literal["square", "flattop"]] = "flattop",
-        zz_duration_clock_cycles: Optional[ScalarOfAnyType] = None,
+        duration: Optional[ScalarOfAnyType] = None,
         zz_control_amp_scaling: Optional[AmplitudeScale] = None,
         zz_target_amp_scaling: Optional[AmplitudeScale] = None,
         zz_relative_phase: Optional[AmplitudeScale] = None,
@@ -390,12 +390,12 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
             self._shift_frame(self.qt.xyd, zz_relative_phase)
 
         align(self._zz.name, self.qt.xyd.name)
-        self._play_pulse(self._zz, wf_type, zz_control_amp_scaling, zz_duration_clock_cycles)
+        self._play_pulse(self._zz, wf_type, zz_control_amp_scaling, duration)
         self._play_pulse(
             self.qt.xyd,
             self.pair_target_wf("zz", wf_type, self.qubit_pair.name),
             zz_target_amp_scaling,
-            zz_duration_clock_cycles,
+            duration,
         )
 
         align(self._zz.name, self.qt.xyd.name, self.qc.xy.name, self.qt.xy.name)
