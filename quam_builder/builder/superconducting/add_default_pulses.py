@@ -324,8 +324,8 @@ def add_default_transmon_pair_pulses(
             # add cancel pulse
             pair_id = transmon_pair.id
             target_qubit = transmon_pair.qubit_target
-            target_qubit.xy.operations[f"cr_{pair_id}_square"] = SquarePulse(amplitude=0.2, length=100)
-            target_qubit.xy.operations[f"cr_{pair_id}_flattop"] = FlatTopGaussianPulse(
+            target_qubit.xy.operations[f"cr_square_{pair_id}"] = SquarePulse(amplitude=0.2, length=100)
+            target_qubit.xy.operations[f"cr_flattop_{pair_id}"] = FlatTopGaussianPulse(
                 amplitude=0.2,
                 length=100,
                 rise_fall_length=20,
