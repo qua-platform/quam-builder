@@ -26,4 +26,10 @@ class CrossResonanceDriveMW(MWChannel, CrossResonanceDriveBase):
     @property
     def upconverter_frequency(self):
         """Returns the up-converter/LO frequency in Hz."""
-        return self.opx_output.upconverter_frequency
+        if self.opx_output.upconverter_frequency is not None:
+            return self.opx_output.upconverter_frequency
+        elif self.opx_output.upconverters is not None:
+            upconverter_idx = self.upconverter
+            return self.opx_output.upconverters[upconverter_idx].frequency
+        else:
+            raise ValueError("No upconverter frequency found")
