@@ -552,6 +552,7 @@ class VirtualDCSet(QuantumComponent):
         *,
         apply: bool = True,
         requery: bool = True,
+        resync: bool = True,
         report: bool = False,
     ) -> Dict:
         """
@@ -562,10 +563,20 @@ class VirtualDCSet(QuantumComponent):
         deltas
             Requested voltage increments in volts.
             Example: {"vP1": 1e-3} moves vP1 by +1 mV.
+
         apply
             If True, apply the move.
+
         requery
             If True, query the current hardware state before calculating targets.
+
+        resync
+            If True, query the hardware again after applying the move
+            to synchronize the internal voltage cache.
+
+            If False, update the cache from the calculated target voltages
+            without an additional hardware query.
+
         report
             If True, print the requested virtual move and resolved physical deltas.
 
@@ -577,15 +588,17 @@ class VirtualDCSet(QuantumComponent):
 
         if requery:
             current = self.all_current_voltages.copy()
+            self._current_levels = current
         else:
             current = self._current_levels.copy()
 
         invalid = set(deltas) - set(self.valid_channel_names)
+
         if invalid:
             raise ValueError(
                 f"Unknown voltage channels: {invalid}"
             )
-        
+
         targets = {
             name: current[name] + delta
             for name, delta in deltas.items()
@@ -602,8 +615,10 @@ class VirtualDCSet(QuantumComponent):
         if apply:
             self.set_voltages(
                 targets,
-                requery=requery,
+                requery=False,
+                resync=resync,
             )
+
             result["applied"] = True
 
         if report:
