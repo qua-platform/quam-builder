@@ -1,9 +1,9 @@
 from typing import Union
 
 import numpy as np
+
 from qualang_tools.units import unit
 from quam.components.pulses import Pulse, SquarePulse, SquareReadoutPulse
-
 from quam_builder.architecture.nv_center.qubit import NVCenter
 from quam_builder.architecture.nv_center.qubit_pair import NVCenterPair
 
@@ -81,15 +81,11 @@ def add_default_nv_center_pulses(nv_center: NVCenter):
     """
     if hasattr(nv_center, "xy"):
         if nv_center.xy is not None:
-            nv_center.xy.operations["cw"] = SquarePulse(
-                amplitude=0.25, length=20 * u.us, axis_angle=0
-            )
+            nv_center.xy.operations["cw"] = SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
 
     if hasattr(nv_center, "laser"):
         if nv_center.laser.trigger is not None:
-            nv_center.laser.trigger.operations["laser_on"] = Pulse(
-                length=3000 * u.ns, digital_marker="ON"
-            )
+            nv_center.laser.trigger.operations["laser_on"] = Pulse(length=3000 * u.ns, digital_marker="ON")
             nv_center.laser.trigger.operations["laser_off"] = Pulse(
                 length="#../laser_on/length", digital_marker=[[0, 0]]
             )
@@ -107,7 +103,7 @@ def add_default_nv_center_pair_pulses(nv_center_pair: NVCenterPair):
     """Adds default pulses to a nv_center qubit pair depending on its attributes:
         * nv_center_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
         * nv_center_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=0.1, length=100)
-        * nv_center_pair.zz_drive.operations["square"] = SquarePulse(amplitude=0.1, length=100)
+        * nv_center_pair.zz.operations["square"] = SquarePulse(amplitude=0.1, length=100)
 
     Args:
         nv_center_pair (NVCenterPair): The nv_center qubit pair to which the pulses will be added.

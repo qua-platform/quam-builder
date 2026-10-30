@@ -1,14 +1,15 @@
-from typing import List, Dict, Any
 from functools import reduce
+from typing import Any, Dict, List
+
 from qualang_tools.wirer import Connectivity
 from qualang_tools.wirer.connectivity.element import QubitPairReference, QubitReference
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from qualang_tools.wirer.instruments.instrument_channel import AnyInstrumentChannel
 from quam_builder.builder.qop_connectivity.create_analog_ports import (
-    create_octave_port,
-    create_mw_fem_port,
-    create_lf_opx_plus_port,
     create_external_mixer_reference,
+    create_lf_opx_plus_port,
+    create_mw_fem_port,
+    create_octave_port,
 )
 from quam_builder.builder.qop_connectivity.create_digital_ports import (
     create_digital_output_port,
@@ -39,9 +40,7 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.SPCM,
             ]:
                 for k, v in qubit_wiring(channels, element_id, line_type).items():
-                    set_nested_value_with_path(
-                        wiring, f"qubits/{element_id}/{line_type.value}/{k}", v
-                    )
+                    set_nested_value_with_path(wiring, f"qubits/{element_id}/{line_type.value}/{k}", v)
 
             elif line_type in [
                 WiringLineType.COUPLER,
@@ -49,18 +48,14 @@ def create_wiring(connectivity: Connectivity) -> dict:
                 WiringLineType.ZZ_DRIVE,
             ]:
                 for k, v in qubit_pair_wiring(channels, element_id).items():
-                    set_nested_value_with_path(
-                        wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v
-                    )
+                    set_nested_value_with_path(wiring, f"qubit_pairs/{element_id}/{line_type.value}/{k}", v)
 
             elif line_type in [
                 WiringLineType.TWPA_PUMP,
                 WiringLineType.TWPA_ISOLATION,
             ]:
                 for k, v in twpa_wiring(channels).items():
-                    set_nested_value_with_path(
-                        wiring, f"twpas/{element_id}/{line_type.value}/{k}", v
-                    )
+                    set_nested_value_with_path(wiring, f"twpas/{element_id}/{line_type.value}/{k}", v)
             else:
                 raise ValueError(f"Unknown line type {line_type}")
 

@@ -1,9 +1,25 @@
-from typing import Callable, Dict, Any, Union, Optional, Literal, Tuple
 from dataclasses import field
 from logging import getLogger
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
-from quam.core import quam_dataclass
+from qm import QuantumMachine, logger
+from qm.octave.octave_mixer_calibration import MixerCalibrationResults
+from qm.qua import (
+    Cast,
+    Math,
+    StreamType,
+    assign,
+    declare,
+    fixed,
+    if_,
+    save,
+    update_frequency,
+    wait,
+    while_,
+)
+from qm.qua.type_hints import QuaVariable
 from quam.components.quantum_components import Qubit
+from quam.core import quam_dataclass
 from quam_builder.architecture.superconducting.components.readout_resonator import (
     ReadoutResonatorIQ,
     ReadoutResonatorMW,
@@ -11,23 +27,6 @@ from quam_builder.architecture.superconducting.components.readout_resonator impo
 from quam_builder.architecture.superconducting.components.xy_drive import (
     XYDriveIQ,
     XYDriveMW,
-)
-
-from qm import QuantumMachine, logger
-from qm.qua.type_hints import QuaVariable
-from qm.octave.octave_mixer_calibration import MixerCalibrationResults
-from qm.qua import (
-    save,
-    declare,
-    fixed,
-    assign,
-    wait,
-    while_,
-    StreamType,
-    if_,
-    update_frequency,
-    Math,
-    Cast,
 )
 
 __all__ = ["BaseTransmon"]
@@ -99,13 +98,9 @@ class BaseTransmon(Qubit):
         """The 0-2 (e-f) transition frequency in Hz, derived from f_01 and anharmonicity"""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(
-                f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number"
-            )
+            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number")
         if not isinstance(self.anharmonicity, (float, int)):
-            raise AttributeError(
-                f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number"
-            )
+            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number")
         return self.f_01 + self.anharmonicity
 
     @property
@@ -113,20 +108,19 @@ class BaseTransmon(Qubit):
         """The transmon anharmonicity in Hz, derived from f_01 and f_12."""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(
-                f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number"
-            )
+            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number")
         if not isinstance(self.f_12, (float, int)):
-            raise AttributeError(
-                f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number"
-            )
+            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number")
         return self.f_12 - self.f_01
 
     @property
     def thermalization_time(self):
         """The transmon thermalization time in ns."""
         if self.T1 is not None:
-            return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
+            thermalize_time = int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
+            # 100 us minimum
+            min_time = int(100e3 // 4)
+            return max(thermalize_time, min_time)
         else:
             return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
 
@@ -152,11 +146,7 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.resonator.name}")
                 resonator_calibration_output = QM.calibrate_element(
                     self.resonator.name,
-                    {
-                        self.resonator.frequency_converter_up.LO_frequency: (
-                            self.resonator.intermediate_frequency,
-                        )
-                    },
+                    {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)},
                 )
             else:
                 raise RuntimeError(
@@ -171,11 +161,7 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.xy.name}")
                 xy_drive_calibration_output = QM.calibrate_element(
                     self.xy.name,
-                    {
-                        self.xy.frequency_converter_up.LO_frequency: (
-                            self.xy.intermediate_frequency,
-                        )
-                    },
+                    {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)},
                 )
             else:
                 raise RuntimeError(
@@ -240,8 +226,6 @@ class BaseTransmon(Qubit):
             simulate (bool): If True, the qubit reset is skipped for simulation purposes. Default is False.
             log_callable (optional): Logger instance to log warnings. If None, a default logger is used.
             **kwargs: Additional keyword arguments passed to the active reset methods.
-                For ``reset_type="active"``, ``max_attempts=1`` selects a single-shot
-                active reset (one measure-and-conditional-pi cycle, no retry loop).
 
         Returns:
             None
@@ -282,59 +266,46 @@ class BaseTransmon(Qubit):
         """
         Perform an active reset of the qubit.
 
-        Measures the qubit state and applies a conditional pi pulse. When
-        ``max_attempts > 1``, this measure-and-pulse cycle is repeated in a
-        ``while_`` loop until the qubit is in the ground state or the attempt
-        limit is reached. When ``max_attempts`` is ``1``, only a single
-        measure-and-conditional-pi cycle is emitted (no ``while_`` loop), which
-        avoids the extra QUA complexity of iterative active reset.
+        This function performs an active reset of the qubit by repeatedly measuring the qubit state and applying a pi pulse
+        until the qubit is in the ground state or the maximum number of attempts is reached.
 
         Args:
-            save_qua_var (Optional[StreamType]): The QUA variable to save the number of
-                attempts to. Ignored when ``max_attempts`` is ``1`` (no attempt counter
-                is declared).
+            save_qua_var (Optional[StreamType]): The QUA variable to save the number of attempts to.
             pi_pulse_name (str): The name of the pi pulse to use for the reset. Default is "x180".
             readout_pulse_name (str): The name of the readout pulse to use for measuring the qubit state. Default is "readout".
-            max_attempts (int): Maximum number of reset attempts. Default is 15.
-                Must be a strictly positive integer. Use ``1`` for a single-shot active
-                reset with no retry loop.
+            max_attempts (int): The maximum number of attempts to reset the qubit. Default is 15.
 
         Returns:
             None
 
-        The function measures the qubit state using the specified readout pulse and
-        applies a pi pulse if the qubit is not in the ground state. For
-        ``max_attempts > 1``, this process is repeated until the qubit is in the
-        ground state or the maximum number of attempts is reached. If
-        ``save_qua_var`` is provided and ``max_attempts > 1``, the number of
-        attempts is saved to this variable.
+        The function measures the qubit state using the specified readout pulse, applies a pi pulse if the qubit is not in the ground state,
+        and repeats this process until the qubit is in the ground state or the maximum number of attempts is reached.
+        If `save_qua_var` is provided, the number of attempts is saved to this variable.
         """
-
         pulse = self.resonator.operations[readout_pulse_name]
 
         I = declare(fixed)
         Q = declare(fixed)
         state = declare(bool)
+        attempts = declare(int, value=1)
+        assign(attempts, 1)
         self.align()
-        self.resonator.measure(readout_pulse_name, qua_vars=(I, Q))
+        self.resonator.measure("readout", qua_vars=(I, Q))
         assign(state, I > pulse.threshold)
         wait(self.resonator.depletion_time // 2, self.resonator.name)
         self.xy.play(pi_pulse_name, condition=state)
-        if max_attempts > 1:
-            attempts = declare(int, value=1)
-            assign(attempts, 1)
-            with while_((I > pulse.rus_exit_threshold) & (attempts < max_attempts)):
-                self.xy.align(self.resonator.name)
-                self.resonator.measure(readout_pulse_name, qua_vars=(I, Q))
-                assign(state, I > pulse.threshold)
-                wait(self.resonator.depletion_time // 2, self.resonator.name)
-                self.xy.play(pi_pulse_name, condition=state)
-                self.xy.align(self.resonator.name)
-                assign(attempts, attempts + 1)
-            if save_qua_var is not None:
-                save(attempts, save_qua_var)
+        with while_((I > pulse.rus_exit_threshold) & (attempts < max_attempts)):
+            self.xy.align(self.resonator.name)
+            self.resonator.measure("readout", qua_vars=(I, Q))
+            assign(state, I > pulse.threshold)
+            wait(self.resonator.depletion_time // 2, self.resonator.name)
+            self.xy.play(pi_pulse_name, condition=state)
+            self.xy.align(self.resonator.name)
+            assign(attempts, attempts + 1)
         wait(500, self.xy.name)
         self.xy.align(self.resonator.name)
+        if save_qua_var is not None:
+            save(attempts, save_qua_var)
 
     def reset_qubit_active_gef(
         self,
@@ -369,9 +340,7 @@ class BaseTransmon(Qubit):
             wait(self.rr.res_deplete_time // 4, self.xy.name)
             self.align()
             with if_(res_ar == 0):
-                assign(
-                    success, success + 1
-                )  # we need to measure 'g' two times in a row to increase our confidence
+                assign(success, success + 1)  # we need to measure 'g' two times in a row to increase our confidence
             with if_(res_ar == 1):
                 update_frequency(self.xy.name, int(self.xy.intermediate_frequency), keep_phase=True)
                 self.xy.play(pi_01_pulse_name)
@@ -409,9 +378,7 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         diff = declare(fixed, size=3)
 
-        self.resonator.update_frequency(
-            int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift)
-        )
+        self.resonator.update_frequency(int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift))
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)
 

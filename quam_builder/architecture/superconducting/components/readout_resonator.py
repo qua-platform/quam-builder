@@ -1,15 +1,15 @@
 from typing import Optional, Dict, Any
 from dataclasses import field
 
-from quam.core import quam_dataclass
 from quam.components.channels import InOutIQChannel, InOutMWChannel
+from quam.core import quam_dataclass
 
 from quam_builder.tools.power_tools import (
     calculate_voltage_scaling_factor,
-    set_output_power_mw_channel,
+    get_output_power_iq_channel,
     get_output_power_mw_channel,
     set_output_power_iq_channel,
-    get_output_power_iq_channel,
+    set_output_power_mw_channel,
 )
 
 __all__ = ["ReadoutResonatorIQ", "ReadoutResonatorMW"]
@@ -146,7 +146,7 @@ class ReadoutResonatorMW(InOutMWChannel, ReadoutResonatorBase):
         """
         Sets the power level in dBm for a specified operation, increasing the full-scale power
         in 3 dB steps if necessary until it covers the target power level, then scaling the
-        given operation’s amplitude to match exactly the target power level.
+        given operation's amplitude to match exactly the target power level.
 
         Parameters:
             power_in_dbm (float): The target power level in dBm for the operation.

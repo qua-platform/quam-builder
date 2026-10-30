@@ -1,11 +1,10 @@
-import numpy as np
-
 from typing import Optional
 
-from quam.components import IQChannel
-from quam.components.channels import MWChannel
+import numpy as np
 
 from qualang_tools.units import unit
+from quam.components import IQChannel
+from quam.components.channels import MWChannel
 
 __all__ = [
     "set_output_power_mw_channel",
@@ -32,60 +31,44 @@ def set_output_power_mw_channel(
         channel: A MW-FEM channel.
         power_in_dbm (float): The target power level in dBm for the operation.
         operation (str): The operation for which the power setting is applied.
-        full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
+        full_scale_power_dbm (Optional[int]): The full-scale power in dBm within -11 and 19 in 1 dB increments.
         max_amplitude (Optional[float]):
 
     """
-    allowed_full_scale_power_in_dbm_values = np.arange(-11, 17, 3)
+    min_full_scale_power_dbm = -11
+    max_full_scale_power_dbm = 16
+    allowed_full_scale_power_in_dbm_values = np.arange(
+        min_full_scale_power_dbm, max_full_scale_power_dbm + 1, 1
+    ).astype(int)
 
     if full_scale_power_dbm is not None:
-        if (
-            full_scale_power_dbm < -20
-            or full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values
-        ):
-            raise ValueError(
-                f"Expected full_scale_power_dbm to be > -20 in QOP3.2.0, or "
-                f"in range [-41, 10] in steps of 3 dB, got {full_scale_power_dbm}."
-            )
-
         if power_in_dbm > full_scale_power_dbm:
             raise ValueError(
                 f"Can't fix full_scale_power_dbm to {full_scale_power_dbm} dBm since it is "
                 f"less than the target power {power_in_dbm} dBm."
             )
-
-        channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
-
-    if power_in_dbm > 10:
-        raise ValueError(f"Expected `power_in_dbm` to be <10 dBm, got {power_in_dbm}")
-
-    # use a temporary variable for node.record_state_updates
-    temp_full_scale_power_dbm = channel.opx_output.full_scale_power_dbm
+    else:
+        full_scale_power_dbm = min_full_scale_power_dbm
 
     while (
-        calculate_voltage_scaling_factor(
-            fixed_power_dBm=temp_full_scale_power_dbm,
+        current_amplitude := calculate_voltage_scaling_factor(
+            fixed_power_dBm=full_scale_power_dbm,
             target_power_dBm=power_in_dbm,
         )
-        > max_amplitude
-    ):
-        temp_full_scale_power_dbm = temp_full_scale_power_dbm + 3
+    ) > max_amplitude:
+        full_scale_power_dbm = full_scale_power_dbm + 1
 
-    if temp_full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
+    if full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
         raise ValueError(
-            f"Expected full_scale_power_dbm to be in range [-41, 10] "
-            f"in steps of 3 dB, got {temp_full_scale_power_dbm}."
+            f"Expected full_scale_power_dbm to be in range [{min_full_scale_power_dbm}, {max_full_scale_power_dbm}] in steps of 1 dB, got {full_scale_power_dbm}."
         )
 
-    channel.operations[operation].amplitude = calculate_voltage_scaling_factor(
-        fixed_power_dBm=temp_full_scale_power_dbm, target_power_dBm=power_in_dbm
-    )
-
-    channel.opx_output.full_scale_power_dbm = temp_full_scale_power_dbm
+    channel.operations[operation].amplitude = current_amplitude
+    channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
 
     return {
-        "full_scale_power_dbm": temp_full_scale_power_dbm,
-        "amplitude": channel.operations[operation].amplitude,
+        "full_scale_power_dbm": full_scale_power_dbm,
+        "amplitude": current_amplitude,
     }
 
 
@@ -197,5 +180,6 @@ def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: f
     """
     power_difference = target_power_dBm - fixed_power_dBm
     voltage_scaling_factor = 10 ** (power_difference / 20)
+    print(f"Voltage scaling factor: {voltage_scaling_factor} @ {fixed_power_dBm} dBm to {target_power_dBm} dBm")
 
     return voltage_scaling_factor
