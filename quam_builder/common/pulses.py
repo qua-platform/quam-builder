@@ -310,6 +310,11 @@ class DrachmaReadoutPulse(ReadoutPulse):
         sample_rate (float): Sample rate in Hz used to convert kappa_*_hz,
             detuning_*_hz, and zeta_*_hz to per-sample units (default 1e9, i.e. 1
             sample = 1 ns).
+        padding (tuple): ``(value, length_ns)`` (default ``(0, 0)``, i.e. none). The
+            last ``length_ns`` of the pulse is a constant ``value`` (|value| <= 1)
+            appended after the DRACHMA waveform. ``length`` remains the TOTAL
+            length, so the DRACHMA core spans ``length - length_ns`` samples and
+            the amplitude normalization applies to the core only.
     """
 
     amplitude: float  # peak of |a_in| of the no-Kerr waveform, within [0, 0.99]; with self-Kerr the actual peak can drift slightly
@@ -322,11 +327,37 @@ class DrachmaReadoutPulse(ReadoutPulse):
     depletion_time_ns: int = (
         16  # extra time after the pulse to wait for the resonator to decay before measurement
     )
+    padding: tuple = (0, 0)  # (value, length_ns): constant padding appended to the end of the pulse
     sample_rate: float = 1e9
 
     def __post_init__(self) -> None:
         self._validate_amplitude()
+        self._validate_padding()
         return super().__post_init__()
+
+    def _padding_samples(self):
+        """Return ``(value, n_pad)``: the padding level and its length in samples.
+        ``padding`` may be a tuple or a list (JSON round-trip)."""
+        try:
+            value, length_ns = self.padding
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding must be (value, length_ns) (got {self.padding!r})"
+            ) from None
+        return value, int(round(length_ns * self.sample_rate / 1e9))
+
+    def _validate_padding(self):
+        if isinstance(self.padding, str) or any(isinstance(x, str) for x in (self.padding or ())):
+            return  # unresolved QUAM reference
+        value, n_pad = self._padding_samples()
+        if n_pad < 0:
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding length_ns must be non-negative (got {self.padding})"
+            )
+        if abs(value) > 1:
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding value must be within [-1, 1] (got {value})"
+            )
 
     def _validate_amplitude(self):
         if isinstance(self.amplitude, str):
@@ -337,12 +368,13 @@ class DrachmaReadoutPulse(ReadoutPulse):
                 f"(got {self.amplitude})"
             )
 
-    def _trial_function(self):
+    def _trial_function(self, n_samples=None):
         """sin^3(pi t / Tp), sampled so BOTH endpoints are exactly zero.
         (Needed because the smoothness condition requires a_T and its first
-        N-1 derivatives to vanish at t=0 and t=Tp; np.arange(length)/length
+        N-1 derivatives to vanish at t=0 and t=Tp; np.arange(n)/n
         never actually reaches the second boundary.)"""
-        theta = np.pi * np.arange(self.length) / (self.length - 1)
+        n_samples = self.length if n_samples is None else n_samples
+        theta = np.pi * np.arange(n_samples) / (n_samples - 1)
         return np.sin(theta) ** 3
 
     @staticmethod
@@ -413,10 +445,13 @@ class DrachmaReadoutPulse(ReadoutPulse):
         excited-state (j=1) factor is applied first, then the ground-state
         (j=0) factor is applied to that result.
         """
-        if self.length < 2:
+        self._validate_padding()
+        pad_value, n_pad = self._padding_samples()
+        n_core = self.length - n_pad
+        if n_core < 2:
             raise ValueError(
-                "DrachmaReadoutPulse.length must be at least 2 samples "
-                f"(got {self.length}); the trial function is undefined for length == 1."
+                "DrachmaReadoutPulse core length (length - padding) must be at least 2 samples "
+                f"(got {n_core}); the trial function is undefined for length == 1."
             )
         if self.kappa_ground_hz <= 0:
             raise ValueError(
@@ -434,10 +469,11 @@ class DrachmaReadoutPulse(ReadoutPulse):
             )
 
         self._validate_amplitude()
+        padding = np.full(n_pad, pad_value, dtype=complex)
         if self.amplitude == 0:
-            return np.zeros(self.length, dtype=complex)
+            return np.concatenate([np.zeros(n_core, dtype=complex), padding])
 
-        a_T = self._trial_function()
+        a_T = self._trial_function(n_core)
         linear_peak = np.max(np.abs(self._waveform_at_scale(a_T, 1.0, include_kerr=False)))
         if linear_peak == 0:
             raise ValueError(
@@ -456,4 +492,4 @@ class DrachmaReadoutPulse(ReadoutPulse):
                 "the peak above the no-Kerr estimate used to scale the pulse. Reduce zeta "
                 "or the amplitude."
             )
-        return a_in
+        return np.concatenate([a_in, padding])

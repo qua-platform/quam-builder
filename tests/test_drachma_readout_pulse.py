@@ -266,3 +266,37 @@ def test_kerr_field_estimate_uses_other_state_operator():
 def test_depletion_time_ns_default_and_override():
     assert _make_pulse().depletion_time_ns == 16
     assert _make_pulse(depletion_time_ns=32).depletion_time_ns == 32
+
+
+def test_default_padding_is_noop():
+    explicit = _make_pulse(padding=(0, 0)).waveform_function()
+    default = _make_pulse().waveform_function()
+    np.testing.assert_array_equal(explicit, default)
+    assert default.shape == (100,)
+
+
+def test_padding_appended_and_core_shortened():
+    padded = _make_pulse(length=100, padding=(0.1, 20)).waveform_function()
+    core = _make_pulse(length=80).waveform_function()
+    assert padded.shape == (100,)
+    np.testing.assert_allclose(padded[:80], core)
+    np.testing.assert_allclose(padded[80:], 0.1)
+
+
+def test_padding_accepts_list():
+    as_list = _make_pulse(padding=[0.1, 20]).waveform_function()
+    as_tuple = _make_pulse(padding=(0.1, 20)).waveform_function()
+    np.testing.assert_array_equal(as_list, as_tuple)
+
+
+def test_padding_with_zero_amplitude():
+    wf = _make_pulse(amplitude=0.0, padding=(0.2, 10)).waveform_function()
+    assert wf.shape == (100,)
+    np.testing.assert_allclose(wf[:90], 0)
+    np.testing.assert_allclose(wf[90:], 0.2)
+
+
+@pytest.mark.parametrize("padding", [(0.1, -5), (1.5, 10), (0.1, 99), (0.1,), (0.1, 5, 3)])
+def test_invalid_padding_raises(padding):
+    with pytest.raises(ValueError):
+        _make_pulse(padding=padding).waveform_function()
