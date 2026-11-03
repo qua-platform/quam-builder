@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- `FixedFrequencyTransmonPair` now has an optional `coupler` attribute, so a tunable coupler added by `build_quam` is kept when the state is saved (#100).
+
 ## [0.6.0] - 2026-09-28
 
 ### Added
