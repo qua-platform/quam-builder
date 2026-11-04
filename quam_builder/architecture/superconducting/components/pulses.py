@@ -537,6 +537,9 @@ class SmoothFlatTopPulse(Pulse):
             to the carrier. The control subclass includes it in its gaps.
         axis_angle: Constant envelope phase in radians, independently
             calibrated on the control and target channels.
+        pi_area: Positive reference area in V*s, or the driven qubit's
+            calibrated resonant pi Pulse. Optional; see
+            MultiderivativeCRPulse for how a Pulse is evaluated.
 
     The attached channel supplies fs; QuAM defaults to 1 GS/s when
     unattached. N = length*1e-9*fs must be an integer. Samples are at n/fs,
@@ -563,6 +566,45 @@ class SmoothFlatTopPulse(Pulse):
     rise_fall_length: float
     detuning: float = 0.0
     axis_angle: float = 0.0
+    pi_area: Optional[Union[float, Pulse]] = None
+
+    def __setattr__(self, name, value):
+        if name == "pi_area" and isinstance(value, Pulse):
+            if value is self:
+                raise ValueError("pi_area cannot refer to the pulse itself")
+            # A calibration pulse already belongs to its channel.
+            # Store a live reference rather than trying to reparent it.
+            if value.parent is not None:
+                value = value.get_reference()
+        super().__setattr__(name, value)
+
+    def _get_pi_area(self) -> float:
+        reference = self.pi_area  # QuAM resolves string references here.
+        area = reference
+        if isinstance(reference, Pulse):
+            if reference is self:
+                raise ValueError("pi_area cannot refer to the pulse itself")
+            waveform = reference.calculate_waveform()
+            if waveform is None:
+                raise ValueError("The reference pi pulse has no analog waveform")
+            w = np.asarray(waveform, dtype=complex)
+            if w.ndim > 1 or w.size == 0 or not np.all(np.isfinite(w)):
+                raise ValueError("The reference waveform must be finite and scalar or 1D")
+            if w.ndim == 0:
+                area = abs(w.item()) * reference.length * 1e-9
+            else:
+                fs = reference._get_sampling_rate()
+                # These attributes use the same positive phase-ramp convention.
+                freq = getattr(reference, "detuning", getattr(reference, "drive_detuning", 0.0))
+                if not np.all(np.isfinite([fs, freq])) or fs <= 0:
+                    raise ValueError("Invalid reference sample rate or detuning")
+                w = w * np.exp(-2j * np.pi * freq * np.arange(w.size) / fs)
+                area = abs(np.sum(w)) / fs
+        if isinstance(area, bool) or not isinstance(area, Real):
+            raise ValueError("pi_area must be a positive number or a resolved pi Pulse")
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError("The reference pi area must be finite and positive, in V*s")
+        return float(area)
 
     def _time(self) -> np.ndarray:
         fs = self._get_sampling_rate()
@@ -612,21 +654,20 @@ class DragFlatTopPulse(SmoothFlatTopPulse):
     Uses the shared integrated-sin^3 seed v(t), NOT the control's final
     multiderivative waveform. Before inherited phase/frequency modulation:
 
-        D_target = 2*pi*(anharmonicity - detuning)  # rad/s
+        D_target = 2*pi*(-abs(anharmonicity) - detuning) # rad/s
         c_iy = alpha/D_target                           # seconds
         w_target = v + 1j*c_iy*dv/dt                     # volts
 
     Args:
-        anharmonicity: TARGET f12 - f01, in Hz. Same typical definition as
-            qualang_tools.config.waveform_tools.drag_gaussian_pulse_waveforms
-            / drag_cosine_pulse_waveforms (there spelled f_21 - f_10, the same
-            quantity). Physically always negative for a transmon; only the
-            magnitude of the stored value is used and the sign is fixed
-            internally, guarding against calibration data that stores the
-            magnitude as positive.
+        anharmonicity: TARGET f12 - f01 in Hz (normally negative).
+            Positive-magnitude input is also accepted and treated as f01 - f12.
         alpha: Signed, dimensionless derivative strength, default 0 (off).
             Uses the same coefficient convention as the Gaussian/cosine
             DRAG helpers. It is NOT a time in seconds or nanoseconds.
+            With pi_area set (the TARGET's pi pulse), alpha is instead the
+            ZZ/ZX angle beta = arctan2(ZZ, ZX) in radians, bounded to [-1, 1],
+            and the DRAG coefficient is estimated as
+            2*abs(anharmonicity)*pi_area/abs(amplitude)*alpha.
         Inherited parameters retain SmoothFlatTopPulse's definitions.
 
     The denominator only PARAMETERIZES the empirical coefficient c_iy;
@@ -638,8 +679,8 @@ class DragFlatTopPulse(SmoothFlatTopPulse):
 
     Migration from the old time-valued coefficient:
 
-        alpha = 2*pi*(anharmonicity - detuning)*c_iy
-        alpha = 2*pi*(anharmonicity - detuning)*c_iy_ns*1e-9
+        alpha = 2*pi*(-abs(anharmonicity) - detuning)*c_iy
+        alpha = 2*pi*(-abs(anharmonicity) - detuning)*c_iy_ns*1e-9
 
     The old c_iy/c_iy_ns constructor arguments are replaced, not aliased.
     Changing detuning with fixed alpha changes c_iy as well; use the
@@ -671,19 +712,18 @@ class DragFlatTopPulse(SmoothFlatTopPulse):
     def _envelope(self, t) -> np.ndarray:
         if not np.all(np.isfinite([self.alpha, self.anharmonicity])):
             raise ValueError("alpha and target anharmonicity must be finite")
+        if self.anharmonicity == 0:
+            raise ValueError("anharmonicity must be nonzero")
         v, dv, *_ = self._seed(t, t[-1])
-        if self.alpha == 0:
+        if self.alpha == 0 or (self.pi_area is not None and self.amplitude == 0):
             return v.astype(complex)
-        # A transmon's anharmonicity (f12 - f01) is always negative; only the
-        # magnitude of the stored value is physically meaningful, so the sign
-        # is fixed here rather than trusted from the input. See the typical
-        # definition in
-        # qualang_tools.config.waveform_tools.drag_gaussian_pulse_waveforms.
-        anharmonicity = -abs(self.anharmonicity)
-        delta = 2 * np.pi * (anharmonicity - self.detuning)
+        alpha = self.alpha
+        if self.pi_area is not None:
+            alpha = 2 * abs(self.anharmonicity) * self._get_pi_area() / abs(self.amplitude) * alpha
+        delta = 2 * np.pi * (-abs(self.anharmonicity) - self.detuning)
         if delta == 0:
-            raise ValueError("Nonzero alpha requires anharmonicity != detuning")
-        return v + 1j * (self.alpha / delta) * dv
+            raise ValueError("Nonzero alpha requires -abs(anharmonicity) != detuning")
+        return v + 1j * (alpha / delta) * dv
 
 
 @quam_dataclass
@@ -697,18 +737,12 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
 
     Args:
         qubit_detuning: f_control_01 - f_target_01 in Hz, signed.
-        anharmonicity: f_control_12 - f_control_01 in Hz. This is the same
-            typical definition used throughout this module and by
-            qualang_tools.config.waveform_tools.drag_gaussian_pulse_waveforms /
-            drag_cosine_pulse_waveforms (there spelled f_21 - f_10, the same
-            quantity). A transmon's 1-2 transition always sits below its 0-1
-            transition, so this is physically always negative; only its
-            magnitude is taken from the stored value and the sign is fixed
-            internally to match that physical convention, guarding against
-            calibration data that stores the magnitude as positive.
+        anharmonicity: CONTROL f12 - f01 in Hz (normally negative).
+            Positive-magnitude input is also accepted and treated as f01 - f12.
         method: "perturbative" or "givens" for the single-photon steps.
         alphas: Three signed dimensionless multipliers (a01, a12, a02),
-            default (1, 1, 1). Adjustable ONLY for method="perturbative".
+            default (1, 1, 1). Only perturbative mode supports non-unity values.
+            `alpha` is a convenient alias for the first multiplier, a01.
             Zero disables the corresponding correction; unity retains its
             analytical value. This is not overall amplitude scaling.
             Givens requires (1, 1, 1); non-unity values raise ValueError
@@ -721,7 +755,7 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
     The signed angular-frequency gaps include detuning:
 
         D10 = 2*pi*(qubit_detuning - detuning)
-        D21 = D10 + 2*pi*anharmonicity
+        D21 = D10 - 2*pi*abs(anharmonicity)
         D20 = D10 + D21
 
     Starting from the real seed v, apply the two-photon step first:
@@ -748,8 +782,9 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
         calculate_waveform(). Constant waveforms use abs(V)*length*1e-9;
         sampled waveforms use abs(sum(V))/fs at the REFERENCE sample rate,
         not sum(abs(V))/fs or the CR channel's rate. Known positive phase
-        ramps are removed using detuning, or detuning if detuning
-        is absent. A constant axis rotation does not change this area.
+        ramps are removed using the reference pulse's detuning (or legacy
+        drive_detuning if the reference uses that field). A constant axis
+        rotation does not change this area.
 
         This assumes a resonant, approximately fixed-axis pi calibration;
         ordinary DRAG with zero net derivative-quadrature area is allowed.
@@ -765,8 +800,12 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
         Unattached reference pulses default to QuAM's 1 GS/s sample rate.
         The area is recomputed on waveform generation, not cached.
 
-    All derivatives are analytic; there is no oversampling or final
-    normalization. Regenerate after changing amplitude or duration:
+    All derivatives are analytic, as in the authors' automatic-differentiation
+    code, not finite differences on DAC samples. Spectral FFT zeros can be
+    masked by sampling aliases when the uncorrected spectral amplitude is
+    already near the floating-point floor; assess absolute levels as well as
+    ratios, and compare higher sampling rates for spectral validation.
+    Regenerate after changing amplitude or duration:
     scaling a generated Givens waveform with QUA amp(...) or stretching
     it does not recompute the nonlinear corrections. This class neither
     calibrates the ZX gate angle nor supplies the separate target pulse.
@@ -784,54 +823,23 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
     anharmonicity: float
     method: Literal["perturbative", "givens"] = "perturbative"
     alphas: tuple[float, float, float] = (1.0, 1.0, 1.0)
-    pi_area: Optional[Union[float, Pulse]] = None
 
     def __setattr__(self, name, value):
-        if name == "pi_area" and isinstance(value, Pulse):
-            if value is self:
-                raise ValueError("pi_area cannot refer to the CR pulse itself")
-            # A calibration pulse already belongs to its control channel.
-            # Store a live reference rather than trying to reparent it.
-            if value.parent is not None:
-                value = value.get_reference()
+        if name == "alphas":
+            try:
+                value = tuple(value)
+            except TypeError as exc:
+                raise ValueError("alphas must contain (a01, a12, a02)") from exc
         super().__setattr__(name, value)
-
-    def _get_pi_area(self) -> float:
-        reference = self.pi_area  # QuAM resolves string references here.
-        area = reference
-        if isinstance(reference, Pulse):
-            if reference is self:
-                raise ValueError("pi_area cannot refer to the CR pulse itself")
-            waveform = reference.calculate_waveform()
-            if waveform is None:
-                raise ValueError("The reference pi pulse has no analog waveform")
-            w = np.asarray(waveform, dtype=complex)
-            if w.ndim > 1 or w.size == 0 or not np.all(np.isfinite(w)):
-                raise ValueError("The reference waveform must be finite and scalar or 1D")
-            if w.ndim == 0:
-                area = abs(w.item()) * reference.length * 1e-9
-            else:
-                fs = reference._get_sampling_rate()
-                # These attributes use the same positive phase-ramp convention.
-                freq = getattr(reference, "detuning", getattr(reference, "detuning", 0.0))
-                if not np.all(np.isfinite([fs, freq])) or fs <= 0:
-                    raise ValueError("Invalid reference sample rate or detuning")
-                w = w * np.exp(-2j * np.pi * freq * np.arange(w.size) / fs)
-                area = abs(np.sum(w)) / fs
-        if isinstance(area, bool) or not isinstance(area, Real):
-            raise ValueError("pi_area must be a positive number or a resolved pi Pulse")
-        if not np.isfinite(area) or area <= 0:
-            raise ValueError("The reference pi area must be finite and positive, in V*s")
-        return float(area)
 
     @property
     def alpha(self) -> float:
-        # convential alpha definition refers to a_10
+        """Conventional first-derivative scaling coefficient a01."""
         return self.alphas[0]
 
     @alpha.setter
     def alpha(self, value: float):
-        self.alphas = (value, self.alphas[1], self.alphas[2])
+        self.alphas = (value, *self.alphas[1:])
 
     @staticmethod
     def _drag(z, dz, delta, gain=None, ddz=None, scale=1.0):
@@ -855,6 +863,8 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
     def _envelope(self, t) -> np.ndarray:
         if not np.all(np.isfinite([self.qubit_detuning, self.anharmonicity])):
             raise ValueError("qubit_detuning and anharmonicity must be finite")
+        if self.anharmonicity == 0:
+            raise ValueError("anharmonicity must be nonzero")
         if self.method not in ("perturbative", "givens"):
             raise ValueError("method must be 'perturbative' or 'givens'")
         try:
@@ -868,14 +878,8 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
         if self.method == "givens" and scales != (1.0, 1.0, 1.0):
             raise ValueError("Givens requires alphas=(1, 1, 1)")
         a01, a12, a02 = scales
-        # A transmon's anharmonicity (f_control_12 - f_control_01) is always
-        # negative; only the magnitude of the stored value is physically
-        # meaningful, so the sign is fixed here rather than trusted from the
-        # input. See the typical definition in
-        # qualang_tools.config.waveform_tools.drag_gaussian_pulse_waveforms.
-        anharmonicity = -abs(self.anharmonicity)
         d10 = 2 * np.pi * (self.qubit_detuning - self.detuning)
-        d21 = d10 + 2 * np.pi * anharmonicity
+        d21 = d10 - 2 * np.pi * abs(self.anharmonicity)
         d20 = d10 + d21
         if min(abs(d10), abs(d21), abs(d20)) == 0:
             raise ValueError("A transition is resonant; the recursion is singular")
