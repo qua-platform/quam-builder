@@ -116,7 +116,8 @@ def add_transmons(machine: AnyQuam):
             machine.active_qubit_pair_names = []
             for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
                 qc, qt = qubit_pair_id.split("-")
-                qt = f"q{qt}"
+                if not qt.startswith("q"):
+                    qt = f"q{qt}"
                 transmon_pair = machine.qubit_pair_type(
                     id=qubit_pair_id,
                     qubit_control=f"#/qubits/{qc}",
