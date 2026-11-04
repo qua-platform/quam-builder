@@ -42,7 +42,7 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
     def _shift_frame(elem, phi: Optional[ScalarOfAnyType]) -> None:
         elem.frame_rotation_2pi(phi)
 
-    def get_all_cr_with_qt(self, active_qubit_pairs_only: bool = True) -> list:
+    def get_all_cr_with_qubit_as_target(self, qubit: Qubit, active_qubit_pairs_only: bool = True) -> list:
         if active_qubit_pairs_only:
             valid_qubit_pairs = self.get_root().active_qubit_pairs
         else:
@@ -52,14 +52,14 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         for qubit_pair in valid_qubit_pairs:
             if qubit_pair.cross_resonance is None:
                 continue
-            if qubit_pair.qubit_target.name == self.qt.name:
+            if qubit_pair.qubit_target.name == qubit.name:
                 cr_list.append(qubit_pair.cross_resonance)
         return cr_list
 
     def virtual_z_2pi(self, qubit: Qubit, phi: Optional[ScalarOfAnyType]) -> None:
         # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
         self._shift_frame(qubit.xy, -phi)
-        for cr in self.get_all_cr_with_qt():
+        for cr in self.get_all_cr_with_qubit_as_target(qubit):
             self._shift_frame(cr, -phi)
 
     def ry(self, qubit: Qubit, phase: ScalarOfAnyType) -> None:
@@ -186,15 +186,14 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         if zz_supression_phase is not None:
             self._align_cr()
             self.ry(self.qt, zz_supression_phase)
-            self._align_cr()
 
         # apply dynamic phase update
         if add_drive_phase is not None:
             self._shift_frame(self.cr, add_drive_phase)
         if add_cancel_phase is not None:
             self._shift_frame(self.qt.xy, add_cancel_phase)
-        self._align_cr()
 
+        self._align_cr()
         if cr_type == "direct":
             self._direct(**pulse_kwargs)
         elif cr_type == "2x direct":
@@ -216,15 +215,14 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         if add_cancel_phase is not None:
             self._shift_frame(self.qt.xy, -add_cancel_phase)
 
-        # apply static phase correction
-        self.qc.xy.frame_rotation_2pi(qc_frame_correction_2pi)
-        self.qt.xy.frame_rotation_2pi(qt_frame_correction_2pi)
-        self._align_cr()
+        # apply static phase correction, propagating to any cr elements that target qc/qt
+        self.virtual_z_2pi(self.qc, qc_frame_correction_2pi)
+        self.virtual_z_2pi(self.qt, qt_frame_correction_2pi)
 
         # Revert ZZ-supression
         if zz_supression_phase is not None:
-            self.ry(self.qt, -zz_supression_phase)
             self._align_cr()
+            self.ry(self.qt, -zz_supression_phase)
 
     def _direct(
         self,
@@ -323,6 +321,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             duration=duration,
             truncate=truncate,
         )
+        self._align_cr()
 
     def _2x_direct_cancel(
         self,
@@ -355,7 +354,6 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             truncate=truncate,
         )
         self.qc.xy.wait(x180_duration)
-        self._align_cr()
 
     def _direct_cancel_echo(
         self,
@@ -458,7 +456,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             cr_length = self.get_cr_operation(wf_type).length
         duration = self.num_cr_pulses(cr_type) * cr_length
         if not cr_drive_only:
-            if "echo" in cr_type:
+            if "echo" in cr_type or cr_type.startswith("2x"):
                 duration += 2 * self.qc.xy.operations["x180"].length
             if self.zz_supression_phase_2pi != 0:
                 duration += 2 * self.qt.xy.operations["x90"].length
