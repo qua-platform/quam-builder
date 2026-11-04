@@ -68,7 +68,6 @@ def add_transmon_pair_cross_resonance_component(
             id=cross_resonance_name,
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
-            intermediate_frequency="#./inferred_intermediate_frequency",
             frequency_converter_up=ports.data["control_qubit"] + "/xy/frequency_converter_up",
             RF_frequency=None,
         )
@@ -106,7 +105,6 @@ def add_transmon_pair_zz_component(
             id=zz_name,
             opx_output_I=f"{wiring_path}/opx_output_I",
             opx_output_Q=f"{wiring_path}/opx_output_Q",
-            intermediate_frequency="#./inferred_intermediate_frequency",
             frequency_converter_up=ports.data["control_qubit"] + "/xy/frequency_converter_up",
             RF_frequency=None,
             detuning=0,
