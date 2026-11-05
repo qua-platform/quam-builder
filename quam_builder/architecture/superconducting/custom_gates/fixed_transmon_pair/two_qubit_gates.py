@@ -38,10 +38,6 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
     def pair_target_wf(prefix: str, wf_type: str, pair_name: str) -> str:
         return f"{prefix}_{wf_type}_{pair_name}"
 
-    @staticmethod
-    def _shift_frame(elem, phi: Optional[ScalarOfAnyType]) -> None:
-        elem.frame_rotation_2pi(phi)
-
     def get_all_cr_with_qubit_as_target(self, qubit: Qubit, active_qubit_pairs_only: bool = True) -> list:
         if active_qubit_pairs_only:
             valid_qubit_pairs = self.get_root().active_qubit_pairs
@@ -58,9 +54,9 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
 
     def virtual_z_2pi(self, qubit: Qubit, phi: Optional[ScalarOfAnyType]) -> None:
         # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
-        self._shift_frame(qubit.xy, -phi)
+        qubit.xy.frame_rotation_2pi(-phi)
         for cr in self.get_all_cr_with_qubit_as_target(qubit):
-            self._shift_frame(cr, -phi)
+            cr.frame_rotation_2pi(-phi)
 
     def ry(self, qubit: Qubit, phase: ScalarOfAnyType) -> None:
         """Ry(phase) = X(-pi/2) Z(phase) X(pi/2). ``phase`` is in units of 2pi."""
@@ -68,7 +64,7 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         self.virtual_z_2pi(qubit, phase)
         qubit.xy.play("-x90")
 
-    def _align_cr(self) -> None:
+    def align(self) -> None:
         align(*self.cr_elems)
 
     @staticmethod
@@ -184,16 +180,16 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         # Ry(phi) on the target before the CR interaction to convert ZZ to ZX
         if zz_supression_phase is not None:
-            self._align_cr()
+            self.align()
             self.ry(self.qt, zz_supression_phase)
 
         # apply dynamic phase update
         if add_drive_phase is not None:
-            self._shift_frame(self.cr, add_drive_phase)
+            self.cr.frame_rotation_2pi(add_drive_phase)
         if add_cancel_phase is not None:
-            self._shift_frame(self.qt.xy, add_cancel_phase)
+            self.qt.xy.frame_rotation_2pi(add_cancel_phase)
 
-        self._align_cr()
+        self.align()
         if cr_type == "direct":
             self._direct(**pulse_kwargs)
         elif cr_type == "2x direct":
@@ -211,9 +207,9 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         # remove dynamic phase update
         if add_drive_phase is not None:
-            self._shift_frame(self.cr, -add_drive_phase)
+            self.cr.frame_rotation_2pi(-add_drive_phase)
         if add_cancel_phase is not None:
-            self._shift_frame(self.qt.xy, -add_cancel_phase)
+            self.qt.xy.frame_rotation_2pi(-add_cancel_phase)
 
         # apply static phase correction, propagating to any cr elements that target qc/qt
         self.virtual_z_2pi(self.qc, qc_frame_correction_2pi)
@@ -221,7 +217,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         # Revert ZZ-supression
         if zz_supression_phase is not None:
-            self._align_cr()
+            self.align()
             self.ry(self.qt, -zz_supression_phase)
 
     def _direct(
@@ -240,7 +236,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             duration=duration,
             truncate=truncate,
         )
-        self._align_cr()
+        self.align()
 
     def _2x_direct(
         self,
@@ -256,11 +252,11 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
 
         self._direct(wf_type, drive_amp_scaling, duration=duration, truncate=truncate)
         self.qc.xy.wait(x180_duration)
-        self._align_cr()
+        self.align()
 
         self._direct(wf_type, drive_amp_scaling, duration=duration, truncate=truncate)
         self.qc.xy.wait(x180_duration)
-        self._align_cr()
+        self.align()
 
     def _direct_echo(
         self,
@@ -278,10 +274,10 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             duration=duration,
             truncate=truncate,
         )
-        self._align_cr()
+        self.align()
 
         self.qc.xy.play("x180")
-        self._align_cr()
+        self.align()
 
         self._play_pulse(
             self.cr,
@@ -291,7 +287,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             truncate=truncate,
             sign=-1,
         )
-        self._align_cr()
+        self.align()
 
         self.qc.xy.play("x180")
 
@@ -321,7 +317,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             duration=duration,
             truncate=truncate,
         )
-        self._align_cr()
+        self.align()
 
     def _2x_direct_cancel(
         self,
@@ -344,7 +340,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             truncate=truncate,
         )
         self.qc.xy.wait(x180_duration)
-        self._align_cr()
+        self.align()
 
         self._direct_cancel(
             wf_type,
@@ -381,10 +377,10 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             duration=duration,
             truncate=truncate,
         )
-        self._align_cr()
+        self.align()
 
         self.qc.xy.play("x180")
-        self._align_cr()
+        self.align()
 
         self._play_pulse(
             self.cr,
@@ -402,7 +398,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             truncate=truncate,
             sign=-1,
         )
-        self._align_cr()
+        self.align()
 
         self.qc.xy.play("x180")
 
@@ -489,7 +485,7 @@ class StarkInducedCZGate(_QubitPairCrossResonanceDriveHelpers):
         qt_corr = qt_correction_phase if qt_correction_phase else self.qt_correction_phase
 
         if zz_relative_phase is not None:
-            self._shift_frame(self.qt.xyd, zz_relative_phase)
+            self.qt.xyd.frame_rotation_2pi(zz_relative_phase)
 
         align(self._zz.name, self.qt.xyd.name)
         self._play_pulse(self._zz, wf_type, zz_control_amp_scaling, duration=duration)
