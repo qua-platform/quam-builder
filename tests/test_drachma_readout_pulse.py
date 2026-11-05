@@ -1,7 +1,16 @@
+from typing import Dict
+
 import numpy as np
 import pytest
+from quam.components.pulses import Pulse
+from quam.core import QuamRoot, quam_dataclass
 
 from quam_builder.common.pulses import DrachmaReadoutPulse
+
+
+@quam_dataclass
+class _PulseRoot(QuamRoot):
+    operations: Dict[str, Pulse]
 
 
 def _make_pulse(**overrides):
@@ -300,3 +309,27 @@ def test_padding_with_zero_amplitude():
 def test_invalid_padding_raises(padding):
     with pytest.raises(ValueError):
         _make_pulse(padding=padding).waveform_function()
+
+
+@pytest.mark.parametrize("padding", [(0, 0), (0.1, 20), [0, 0], [0.1, 20]])
+def test_padding_survives_state_save_and_load(tmp_path, padding):
+    """Tuples are saved as JSON lists; loading a state with a list (or without
+    the key) must not fail type validation."""
+    root = _PulseRoot(operations={"readout": _make_pulse(padding=padding)})
+    path = tmp_path / "state.json"
+    root.save(path)
+    loaded = _PulseRoot.load(path)
+    assert list(loaded.operations["readout"].padding) == list(padding)
+    np.testing.assert_allclose(
+        loaded.operations["readout"].waveform_function(),
+        _make_pulse(padding=padding).waveform_function(),
+    )
+
+
+def test_state_without_padding_key_loads(tmp_path):
+    path = tmp_path / "state.json"
+    _PulseRoot(operations={"readout": _make_pulse()}).save(path)
+    text = path.read_text()
+    assert "padding" not in text or '"padding": [0, 0]' in text
+    loaded = _PulseRoot.load(path)
+    assert list(loaded.operations["readout"].padding) == [0, 0]

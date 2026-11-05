@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 from quam.core import quam_dataclass
 from quam.components.pulses import Pulse, ReadoutPulse
@@ -327,7 +329,9 @@ class DrachmaReadoutPulse(ReadoutPulse):
     depletion_time_ns: int = (
         16  # extra time after the pulse to wait for the resonator to decay before measurement
     )
-    padding: tuple = (0, 0)  # (value, length_ns): constant padding appended to the end of the pulse
+    # (value, length_ns): constant padding appended to the end of the pulse. A list is accepted
+    # because tuples are stored as JSON lists in the QUAM state.
+    padding: Union[tuple, list] = (0, 0)
     sample_rate: float = 1e9
 
     def __post_init__(self) -> None:
