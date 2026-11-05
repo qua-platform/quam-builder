@@ -546,12 +546,32 @@ class VirtualDCSet(QuantumComponent):
 
         print(f"\nApplied: {result['applied']}")
 
+    def sync_from_parameter_cache(self) -> Dict[str, float]:
+        """Synchronize VirtualDCSet from the QCoDeS parameter cache.
+
+        This avoids querying the instrument on every virtual-gate action.
+        A hardware query is used only as a fallback when a parameter has no
+        cached value yet.
+        """
+        physical_voltages = {}
+
+        for name, channel in self.channels.items():
+            param = channel.offset_parameter
+            value = param.get_latest()
+
+            if value is None:
+                value = param.get()
+
+            physical_voltages[name] = float(value)
+
+        return self._populate_virtual_gate_voltages(physical_voltages)
+    
     def increment_voltages(
         self,
         deltas: Dict[str, float],
         *,
         apply: bool = True,
-        requery: bool = True,
+        requery: bool = False,
         resync: bool = True,
         report: bool = False,
     ) -> Dict:
