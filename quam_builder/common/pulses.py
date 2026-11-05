@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 from quam.core import quam_dataclass
 from quam.components.pulses import Pulse, ReadoutPulse
@@ -9,6 +11,8 @@ __all__ = [
     "GaussianFilteredSquarePulse",
     "DrachmaReadoutPulse",
 ]
+
+MAX_DRACHMA_AMPLITUDE = 0.99
 
 
 @quam_dataclass
@@ -276,16 +280,28 @@ class DrachmaReadoutPulse(ReadoutPulse):
     device. We implement their single-pass (non-iterative) correction, Eqs. (9)-(10),
     generalized with our per-state kappa_j:
 
-        a_j~(t) = [kappa_j/2 + i*chi_j + d/dt] a_T(t) / sqrt(kappa_j)     (Eq. 9)
+        a_j~(t) = [kappa_k/2 + i*chi_k + d/dt] a_T(t) / sqrt(kappa_k),  k = 1-j  (Eq. 9)
         a_in(t) = [prod_j (kappa_j/2 + i*(chi_j + 4*zeta_j*|a_j~(t)|^2) + d/dt)]
                   a_T(t) / sqrt(kappa_ground_hz * kappa_excited_hz)        (Eq. 10)
 
-    Because this codebase has no absolute photon-number calibration (amplitude is
-    an AWG-voltage convention, not physical photon number -- see the amplitude field
-    below), the amplitude-scaled trial function amplitude*a_T(t) is used as the
-    stand-in field for a_j~(t) in Eq. 9. This makes zeta_*_hz an empirical per-setup
-    tuning knob rather than a first-principles rate. Leaving zeta_ground_hz and
-    zeta_excited_hz at their default of 0 exactly recovers the no-Kerr waveform.
+    AMPLITUDE AND FIELD SCALE: the target cavity envelope is s*a_T(t), and the
+    played waveform a_in is built from it with no rescaling afterwards. s is chosen
+    in closed form so that the no-Kerr waveform has max|a_in| = amplitude. The same
+    s*a_T(t) feeds the field estimate a_j~(t) of Eq. 9, so that estimate is the
+    field the played waveform produces, in AWG-amplitude units. The unknown line
+    gain G between the AWG and the resonator therefore only enters through
+    zeta_phys * G^2: zeta_*_hz is an effective per-setup value that must be fitted
+    (as in the paper), but once fitted it transfers across amplitude and length.
+    Leaving zeta_ground_hz and zeta_excited_hz at their default of 0 exactly
+    recovers the no-Kerr waveform. If self-Kerr pushes max|I| or max|Q| above 1,
+    waveform_function raises.
+
+    OPTIONAL EXTENSION (not implemented): with self-Kerr the actual peak drifts from
+    amplitude, since s ignores the Kerr term. With paper-like kappa/chi this stays
+    within ~0.1% for Kerr shifts of tens of kHz and ~1% near 100 kHz. If an exact
+    peak is ever needed, solve max|a_in(s)| = amplitude for s with a bracketed
+    root-find (e.g. scipy.optimize.brentq), at ~0.4 ms per pulse plus a one-time
+    scipy import of ~200 ms.
 
     kappa_*_hz, detuning_*_hz, and zeta_*_hz are given in Hz and converted internally
     (via a factor of 1/sample_rate) to the per-sample units used by kappa/2pi,
@@ -296,9 +312,14 @@ class DrachmaReadoutPulse(ReadoutPulse):
         sample_rate (float): Sample rate in Hz used to convert kappa_*_hz,
             detuning_*_hz, and zeta_*_hz to per-sample units (default 1e9, i.e. 1
             sample = 1 ns).
+        padding (tuple): ``(value, length_ns)`` (default ``(0, 0)``, i.e. none). The
+            last ``length_ns`` of the pulse is a constant ``value`` (|value| <= 1)
+            appended after the DRACHMA waveform. ``length`` remains the TOTAL
+            length, so the DRACHMA core spans ``length - length_ns`` samples and
+            the amplitude normalization applies to the core only.
     """
 
-    amplitude: float  # NOT a peak amplitude, determines the area under the graph similar to square pulse amplitude
+    amplitude: float  # peak of |a_in| of the no-Kerr waveform, within [0, 0.99]; with self-Kerr the actual peak can drift slightly
     kappa_ground_hz: float  # kappa_g/(2*pi), resonator linewidth for |g>, Hz
     kappa_excited_hz: float  # kappa_e/(2*pi), resonator linewidth for |e>, Hz
     detuning_ground_hz: float  # detuning of ground state relative to carrier, Hz
@@ -308,14 +329,56 @@ class DrachmaReadoutPulse(ReadoutPulse):
     depletion_time_ns: int = (
         16  # extra time after the pulse to wait for the resonator to decay before measurement
     )
+    # (value, length_ns): constant padding appended to the end of the pulse. A list is accepted
+    # because tuples are stored as JSON lists in the QUAM state.
+    padding: Union[tuple, list] = (0, 0)
     sample_rate: float = 1e9
 
-    def _trial_function(self):
+    def __post_init__(self) -> None:
+        self._validate_amplitude()
+        self._validate_padding()
+        return super().__post_init__()
+
+    def _padding_samples(self):
+        """Return ``(value, n_pad)``: the padding level and its length in samples.
+        ``padding`` may be a tuple or a list (JSON round-trip)."""
+        try:
+            value, length_ns = self.padding
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding must be (value, length_ns) (got {self.padding!r})"
+            ) from None
+        return value, int(round(length_ns * self.sample_rate / 1e9))
+
+    def _validate_padding(self):
+        if isinstance(self.padding, str) or any(isinstance(x, str) for x in (self.padding or ())):
+            return  # unresolved QUAM reference
+        value, n_pad = self._padding_samples()
+        if n_pad < 0:
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding length_ns must be non-negative (got {self.padding})"
+            )
+        if abs(value) > 1:
+            raise ValueError(
+                f"DrachmaReadoutPulse.padding value must be within [-1, 1] (got {value})"
+            )
+
+    def _validate_amplitude(self):
+        if isinstance(self.amplitude, str):
+            return
+        if not 0 <= self.amplitude <= MAX_DRACHMA_AMPLITUDE:
+            raise ValueError(
+                f"DrachmaReadoutPulse.amplitude must be within [0, {MAX_DRACHMA_AMPLITUDE}] "
+                f"(got {self.amplitude})"
+            )
+
+    def _trial_function(self, n_samples=None):
         """sin^3(pi t / Tp), sampled so BOTH endpoints are exactly zero.
         (Needed because the smoothness condition requires a_T and its first
-        N-1 derivatives to vanish at t=0 and t=Tp; np.arange(length)/length
+        N-1 derivatives to vanish at t=0 and t=Tp; np.arange(n)/n
         never actually reaches the second boundary.)"""
-        theta = np.pi * np.arange(self.length) / (self.length - 1)
+        n_samples = self.length if n_samples is None else n_samples
+        theta = np.pi * np.arange(n_samples) / (n_samples - 1)
         return np.sin(theta) ** 3
 
     @staticmethod
@@ -325,25 +388,53 @@ class DrachmaReadoutPulse(ReadoutPulse):
         per-sample array (Kerr-corrected, time-varying chi_j(t))."""
         return (kappa / 2 + 1j * detuning) * signal + np.gradient(signal, dt)
 
-    def _kerr_shifted_detunings(self, a_T):
+    def _kerr_shifted_detunings(self, a_T, scale):
         """Eq. (9) generalized with per-state kappa_j: a one-shot (non-iterative)
         estimate of each state's intracavity field, used only to evaluate the
         self-Kerr correction chi_j -> chi_j + 4*zeta_j*|a_j~(t)|^2 (Eq. 10). No-op
         (returns the plain constant detunings) when zeta_ground_hz and
-        zeta_excited_hz are both 0."""
-        a_T_scaled = self.amplitude * a_T
+        zeta_excited_hz are both 0.
+
+        The field in state j is built with the OTHER state's operator: solving
+        L_j a_j = sqrt(kappa_j) * a_in with a_in = L_0 L_1 a_T / sqrt(kappa_0 kappa_1)
+        cancels L_j, leaving a_j = L_{1-j} a_T / sqrt(kappa_{1-j}). The paper writes
+        Eq. (9) with matching indices, which gives the same |a_j~| only when kappa
+        is shared and chi_0 = -chi_1.
+
+        ``scale`` must be the same factor applied to a_T when building the played
+        waveform, so the field estimate is the field that waveform produces."""
+        a_T_scaled = scale * a_T
+        to_per_sample = 2 * np.pi / self.sample_rate
+        kappas = (
+            self.kappa_ground_hz * to_per_sample,
+            self.kappa_excited_hz * to_per_sample,
+        )
+        detunings = (
+            self.detuning_ground_hz * to_per_sample,
+            self.detuning_excited_hz * to_per_sample,
+        )
+        zetas = (self.zeta_ground_hz * to_per_sample, self.zeta_excited_hz * to_per_sample)
         corrected_detunings = []
-        for kappa_hz, detuning_hz, zeta_hz in (
-            (self.kappa_ground_hz, self.detuning_ground_hz, self.zeta_ground_hz),
-            (self.kappa_excited_hz, self.detuning_excited_hz, self.zeta_excited_hz),
-        ):
-            kappa = 2 * np.pi * kappa_hz / self.sample_rate
-            detuning = 2 * np.pi * detuning_hz / self.sample_rate
-            a_tilde = self._apply_first_order_operator(a_T_scaled, kappa, detuning)
-            a_tilde = a_tilde / np.sqrt(kappa)
-            zeta = 2 * np.pi * zeta_hz / self.sample_rate
-            corrected_detunings.append(detuning + 4 * zeta * np.abs(a_tilde) ** 2)
+        for j in range(2):
+            other = 1 - j
+            a_tilde = self._apply_first_order_operator(a_T_scaled, kappas[other], detunings[other])
+            a_tilde = a_tilde / np.sqrt(kappas[other])
+            corrected_detunings.append(detunings[j] + 4 * zetas[j] * np.abs(a_tilde) ** 2)
         return corrected_detunings
+
+    def _waveform_at_scale(self, a_T, scale, include_kerr=True):
+        """a_in for the target cavity envelope ``scale * a_T``, with no rescaling."""
+        kappa_ground = 2 * np.pi * self.kappa_ground_hz / self.sample_rate
+        kappa_excited = 2 * np.pi * self.kappa_excited_hz / self.sample_rate
+        if include_kerr:
+            detuning_ground_t, detuning_excited_t = self._kerr_shifted_detunings(a_T, scale)
+        else:
+            detuning_ground_t = 2 * np.pi * self.detuning_ground_hz / self.sample_rate
+            detuning_excited_t = 2 * np.pi * self.detuning_excited_hz / self.sample_rate
+
+        a_in = self._apply_first_order_operator(scale * a_T, kappa_excited, detuning_excited_t)
+        a_in = self._apply_first_order_operator(a_in, kappa_ground, detuning_ground_t)
+        return a_in / np.sqrt(kappa_ground * kappa_excited)
 
     def waveform_function(self):
         """Constructs a_in(t) per Eq. (7)/Eq. (10), applying the state factors
@@ -358,10 +449,13 @@ class DrachmaReadoutPulse(ReadoutPulse):
         excited-state (j=1) factor is applied first, then the ground-state
         (j=0) factor is applied to that result.
         """
-        if self.length < 2:
+        self._validate_padding()
+        pad_value, n_pad = self._padding_samples()
+        n_core = self.length - n_pad
+        if n_core < 2:
             raise ValueError(
-                "DrachmaReadoutPulse.length must be at least 2 samples "
-                f"(got {self.length}); the trial function is undefined for length == 1."
+                "DrachmaReadoutPulse core length (length - padding) must be at least 2 samples "
+                f"(got {n_core}); the trial function is undefined for length == 1."
             )
         if self.kappa_ground_hz <= 0:
             raise ValueError(
@@ -378,24 +472,28 @@ class DrachmaReadoutPulse(ReadoutPulse):
                 f"DrachmaReadoutPulse.sample_rate must be positive (got {self.sample_rate})"
             )
 
-        norm = self.amplitude * self.length
-        kappa_ground = 2 * np.pi * self.kappa_ground_hz / self.sample_rate
-        kappa_excited = 2 * np.pi * self.kappa_excited_hz / self.sample_rate
-        kappa_norm = np.sqrt(kappa_ground * kappa_excited)
-        a_T = self._trial_function()
+        self._validate_amplitude()
+        padding = np.full(n_pad, pad_value, dtype=complex)
+        if self.amplitude == 0:
+            return np.concatenate([np.zeros(n_core, dtype=complex), padding])
 
-        detuning_ground_t, detuning_excited_t = self._kerr_shifted_detunings(a_T)
-
-        a_in = self._apply_first_order_operator(a_T, kappa_excited, detuning_excited_t)
-        a_in = self._apply_first_order_operator(a_in, kappa_ground, detuning_ground_t)
-        a_in = a_in / kappa_norm
-
-        a_in_sum = np.sum(np.abs(a_in))
-        if a_in_sum == 0:
+        a_T = self._trial_function(n_core)
+        linear_peak = np.max(np.abs(self._waveform_at_scale(a_T, 1.0, include_kerr=False)))
+        if linear_peak == 0:
             raise ValueError(
                 "DrachmaReadoutPulse waveform_function produced an all-zero waveform "
                 "before normalization; cannot normalize to the requested amplitude."
             )
-        a_in = norm * a_in / a_in_sum  # normalize to desired amplitude
+        a_in = self._waveform_at_scale(a_T, self.amplitude / linear_peak)
 
-        return a_in
+        peak_i = np.max(np.abs(a_in.real))
+        peak_q = np.max(np.abs(a_in.imag))
+        if peak_i > 1 or peak_q > 1:
+            raise ValueError(
+                f"DrachmaReadoutPulse waveform exceeds the [-1, 1] output range "
+                f"(max|I| = {peak_i:.4f}, max|Q| = {peak_q:.4f}, amplitude = {self.amplitude}). "
+                "Self-Kerr (zeta_ground_hz / zeta_excited_hz) is the likely cause: it pushes "
+                "the peak above the no-Kerr estimate used to scale the pulse. Reduce zeta "
+                "or the amplitude."
+            )
+        return np.concatenate([a_in, padding])
