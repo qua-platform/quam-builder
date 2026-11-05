@@ -1,5 +1,5 @@
 import warnings
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Sequence, Union
 
 from qm.qua import *
 from qm.qua._expressions import ScalarOfAnyType, VectorOfAnyType
@@ -7,10 +7,124 @@ from quam.components.macro import QubitPairMacro
 from quam.components.quantum_components import Qubit
 from quam.core import quam_dataclass
 
-__all__ = ["CRGate", "StarkInducedCZGate"]
+__all__ = ["CRGate", "StarkInducedCZGate", "CR_DerivedGates"]
 
 AmplitudeScale = Union[ScalarOfAnyType, VectorOfAnyType]
 CR_TYPES = ["default", "direct", "2x direct", "direct+cancel", "2x direct+cancel", "direct+echo", "direct+cancel+echo"]
+
+
+# ============================================================================
+# CR derived gates: composed from native pulses / frame shifts, independent of any one CR macro
+# ============================================================================
+class CR_DerivedGates:
+    """Namespace of static gate sequences (virtual Z, Ry, Hadamard, CNOT, SWAP) built on ``CRGate``."""
+
+    @staticmethod
+    def get_all_cr_with_qubit_as_target(qubit: Qubit, active_qubit_pairs_only: bool = True) -> list:
+        root = qubit.get_root()
+        valid_qubit_pairs = root.active_qubit_pairs if active_qubit_pairs_only else root.qubit_pairs
+        if isinstance(valid_qubit_pairs, dict):
+            valid_qubit_pairs = valid_qubit_pairs.values()
+        return [
+            qp.cross_resonance
+            for qp in valid_qubit_pairs
+            if qp.cross_resonance is not None and qp.qubit_target.name == qubit.name
+        ]
+
+    @staticmethod
+    def virtual_z_2pi(qubit: Qubit, phi: Optional[ScalarOfAnyType]) -> None:
+        # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
+        qubit.xy.frame_rotation_2pi(-phi)
+        for cr in CR_DerivedGates.get_all_cr_with_qubit_as_target(qubit):
+            cr.frame_rotation_2pi(-phi)
+
+    @staticmethod
+    def ry(qubit: Qubit, phase: ScalarOfAnyType) -> None:
+        """Ry(phase) = X(-pi/2) Z(phase) X(pi/2). ``phase`` is in units of 2pi."""
+        qubit.xy.play("x90")
+        CR_DerivedGates.virtual_z_2pi(qubit, phase)
+        qubit.xy.play("-x90")
+
+    @staticmethod
+    def hadamard(qubit: Qubit, decomposition_type: Literal["XY", "YZ"] = "XY") -> None:
+        if decomposition_type == "XY":
+            qubit.xy.play("y90")
+            qubit.xy.play("x180")
+        elif decomposition_type == "YZ":
+            qubit.xy.play("-y90")
+            CR_DerivedGates.virtual_z_2pi(qubit, 0.5)
+        else:
+            raise ValueError(f"Invalid hadamard decomposition type: {decomposition_type}")
+
+    @staticmethod
+    def _resolve_cnot_pair(qc: Qubit, qt: Qubit, qubit_pairs: Sequence, allow_reverse: str):
+        """Return ``(qp, use_reverse)`` for a logical CNOT qc->qt.
+
+        ``allow_reverse``: ``"auto"`` prefers native, ``"forced"`` requires reverse, ``"error"`` requires native.
+        """
+        native = reverse = None
+        for qp in qubit_pairs:
+            cr_gate: CRGate = qp.macros["cr"]
+            if (cr_gate.qc.name, cr_gate.qt.name) == (qc.name, qt.name):
+                native = native or qp
+            elif (cr_gate.qc.name, cr_gate.qt.name) == (qt.name, qc.name):
+                reverse = reverse or qp
+
+        names = [qp.name for qp in qubit_pairs]
+        pairs_str = ", ".join(names[:5] + (["..."] if len(names) > 5 else []))
+        if allow_reverse == "forced":
+            if reverse is None:
+                raise ValueError(f"No reverse pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}")
+            return reverse, True
+        if native is not None:
+            return native, False
+        if allow_reverse == "auto" and reverse is not None:
+            return reverse, True
+        raise ValueError(f"No direct pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}")
+
+    @staticmethod
+    def cnot(
+        qc: Qubit,
+        qt: Qubit,
+        qubit_pairs: Sequence,
+        virtual_z: bool = True,
+        allow_reverse: Literal["auto", "forced", "error"] = "auto",
+        **cr_kwargs,
+    ) -> None:
+        """Logical CNOT qc->qt; uses the reverse pair with a Hadamard sandwich when needed."""
+        qp, use_reverse = CR_DerivedGates._resolve_cnot_pair(qc, qt, qubit_pairs, allow_reverse)
+        cr_gate: CRGate = qp.macros["cr"]
+        qc, qt = cr_gate.qc, cr_gate.qt
+        hadamard_type = "YZ" if virtual_z else "XY"
+
+        if use_reverse:
+            cr_gate.align()
+            CR_DerivedGates.hadamard(qc, hadamard_type)
+            CR_DerivedGates.hadamard(qt, hadamard_type)
+
+        # CNOT decomposition into [Z(-pi/2) x I] * [I x X(-pi/2)] * ZX(pi/2)
+        qt.xy.play("-x90")
+        if virtual_z:
+            CR_DerivedGates.virtual_z_2pi(qc, 0.25)
+        else:
+            # Z(theta) = X(-x90) Y(-theta) X(x90)
+            qc.xy.play("x90")
+            qc.xy.play("y90")
+            qc.xy.play("-x90")
+        cr_gate.align()
+        qp.apply("cr", **cr_kwargs)
+        cr_gate.align()
+
+        if use_reverse:
+            CR_DerivedGates.hadamard(qc, hadamard_type)
+            CR_DerivedGates.hadamard(qt, hadamard_type)
+            cr_gate.align()
+
+    @staticmethod
+    def swap(qc: Qubit, qt: Qubit, qubit_pairs: Sequence, **cr_kwargs) -> None:
+        CR_DerivedGates.cnot(qc, qt, qubit_pairs, **cr_kwargs)
+        CR_DerivedGates.cnot(qt, qc, qubit_pairs, **cr_kwargs)
+        CR_DerivedGates.cnot(qc, qt, qubit_pairs, **cr_kwargs)
 
 
 class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
@@ -37,32 +151,6 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
     @staticmethod
     def pair_target_wf(prefix: str, wf_type: str, pair_name: str) -> str:
         return f"{prefix}_{wf_type}_{pair_name}"
-
-    def get_all_cr_with_qubit_as_target(self, qubit: Qubit, active_qubit_pairs_only: bool = True) -> list:
-        if active_qubit_pairs_only:
-            valid_qubit_pairs = self.get_root().active_qubit_pairs
-        else:
-            valid_qubit_pairs = self.get_root().qubit_pairs
-
-        cr_list = []
-        for qubit_pair in valid_qubit_pairs:
-            if qubit_pair.cross_resonance is None:
-                continue
-            if qubit_pair.qubit_target.name == qubit.name:
-                cr_list.append(qubit_pair.cross_resonance)
-        return cr_list
-
-    def virtual_z_2pi(self, qubit: Qubit, phi: Optional[ScalarOfAnyType]) -> None:
-        # virtual z (phi) meant that we need to be shift all the corresponding elements frame by -phi
-        qubit.xy.frame_rotation_2pi(-phi)
-        for cr in self.get_all_cr_with_qubit_as_target(qubit):
-            cr.frame_rotation_2pi(-phi)
-
-    def ry(self, qubit: Qubit, phase: ScalarOfAnyType) -> None:
-        """Ry(phase) = X(-pi/2) Z(phase) X(pi/2). ``phase`` is in units of 2pi."""
-        qubit.xy.play("x90")
-        self.virtual_z_2pi(qubit, phase)
-        qubit.xy.play("-x90")
 
     def align(self) -> None:
         align(*self.cr_elems)
@@ -181,7 +269,7 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         # Ry(phi) on the target before the CR interaction to convert ZZ to ZX
         if zz_supression_phase is not None:
             self.align()
-            self.ry(self.qt, zz_supression_phase)
+            CR_DerivedGates.ry(self.qt, zz_supression_phase)
 
         # apply dynamic phase update
         if add_drive_phase is not None:
@@ -212,13 +300,13 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             self.qt.xy.frame_rotation_2pi(-add_cancel_phase)
 
         # apply static phase correction, propagating to any cr elements that target qc/qt
-        self.virtual_z_2pi(self.qc, qc_frame_correction_2pi)
-        self.virtual_z_2pi(self.qt, qt_frame_correction_2pi)
+        CR_DerivedGates.virtual_z_2pi(self.qc, qc_frame_correction_2pi)
+        CR_DerivedGates.virtual_z_2pi(self.qt, qt_frame_correction_2pi)
 
         # Revert ZZ-supression
         if zz_supression_phase is not None:
             self.align()
-            self.ry(self.qt, -zz_supression_phase)
+            CR_DerivedGates.ry(self.qt, -zz_supression_phase)
 
     def _direct(
         self,
