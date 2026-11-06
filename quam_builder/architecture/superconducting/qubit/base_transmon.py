@@ -98,9 +98,13 @@ class BaseTransmon(Qubit):
         """The 0-2 (e-f) transition frequency in Hz, derived from f_01 and anharmonicity"""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.anharmonicity, (float, int)):
-            raise AttributeError(f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number")
+            raise AttributeError(
+                f"Error inferring f_12 for channel {name}: {self.anharmonicity=} is not a number"
+            )
         return self.f_01 + self.anharmonicity
 
     @property
@@ -108,17 +112,22 @@ class BaseTransmon(Qubit):
         """The transmon anharmonicity in Hz, derived from f_01 and f_12."""
         name = getattr(self, "name", self.__class__.__name__)
         if not isinstance(self.f_01, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_01=} is not a number"
+            )
         if not isinstance(self.f_12, (float, int)):
-            raise AttributeError(f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number")
+            raise AttributeError(
+                f"Error inferring anharmonicity for channel {name}: {self.f_12=} is not a number"
+            )
         return self.f_12 - self.f_01
 
     @property
     def thermalization_time(self):
         """The transmon thermalization time in ns."""
         default_thermalization_time = int(100e3)
-        if self.T1 is not None:
-            thermalize_time = int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
+        if self.T1 is None:
+            return default_thermalization_time
+        thermalize_time = int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
         return max(thermalize_time, default_thermalization_time)
 
     def calibrate_octave(
@@ -143,7 +152,11 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.resonator.name}")
                 resonator_calibration_output = QM.calibrate_element(
                     self.resonator.name,
-                    {self.resonator.frequency_converter_up.LO_frequency: (self.resonator.intermediate_frequency,)},
+                    {
+                        self.resonator.frequency_converter_up.LO_frequency: (
+                            self.resonator.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
@@ -158,7 +171,11 @@ class BaseTransmon(Qubit):
                 logger.info(f"Calibrating {self.xy.name}")
                 xy_drive_calibration_output = QM.calibrate_element(
                     self.xy.name,
-                    {self.xy.frequency_converter_up.LO_frequency: (self.xy.intermediate_frequency,)},
+                    {
+                        self.xy.frequency_converter_up.LO_frequency: (
+                            self.xy.intermediate_frequency,
+                        )
+                    },
                 )
             else:
                 raise RuntimeError(
@@ -352,7 +369,9 @@ class BaseTransmon(Qubit):
             wait(self.rr.res_deplete_time // 4, self.xy.name)
             self.align()
             with if_(res_ar == 0):
-                assign(success, success + 1)  # we need to measure 'g' two times in a row to increase our confidence
+                assign(
+                    success, success + 1
+                )  # we need to measure 'g' two times in a row to increase our confidence
             with if_(res_ar == 1):
                 update_frequency(self.xy.name, int(self.xy.intermediate_frequency), keep_phase=True)
                 self.xy.play(pi_01_pulse_name)
@@ -390,7 +409,9 @@ class BaseTransmon(Qubit):
         Q = declare(fixed)
         diff = declare(fixed, size=3)
 
-        self.resonator.update_frequency(int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift))
+        self.resonator.update_frequency(
+            int(self.resonator.intermediate_frequency + self.resonator.GEF_frequency_shift)
+        )
         self.resonator.measure(pulse_name, qua_vars=(I, Q))
         self.resonator.update_frequency(self.resonator.intermediate_frequency)
 

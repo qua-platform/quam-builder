@@ -1,21 +1,23 @@
+from dataclasses import field
+from typing import List, Dict, ClassVar, Optional, Union
 import importlib
 import logging
-from dataclasses import field
-from typing import ClassVar, Dict, List, Optional, Union
 
-from qm import QuantumMachine, QuantumMachinesManager
+from qm import QuantumMachinesManager, QuantumMachine
 from qm.octave import QmOctaveConfig
-from qm.qua import align, declare, declare_stream, fixed
 from qm.qua.type_hints import QuaVariable, StreamType
+from qm.qua import declare_stream, declare, fixed, align
+
 from quam.components import FrequencyConverter
-from quam.components.octave import Octave
-from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.components.quantum_components import Qubit
 from quam.core import QuamRoot, quam_dataclass
+from quam.components.octave import Octave
+from quam.components.ports import FEMPortsContainer, OPXPlusPortsContainer
 from quam.serialisation import JSONSerialiser
+
 from quam_builder.architecture.superconducting.components.twpa import TWPA
-from quam_builder.architecture.superconducting.qubit import AnyTransmon
 from quam_builder.architecture.superconducting.qubit_pair import AnyTransmonPair
+from quam_builder.architecture.superconducting.qubit import AnyTransmon
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +156,8 @@ class BaseQuam(QuamRoot):
         """
         if "qmm_settings" not in self.network:
             raise ValueError(
-                "qmm_settings is required for custom QMM but is not specified in network configuration"
+                "qmm_settings is required for custom QMM but is not "
+                "specified in network configuration"
             )
 
         settings = dict(self.network["qmm_settings"])
@@ -190,7 +193,8 @@ class BaseQuam(QuamRoot):
         if use_custom_qmm is True:
             if "qmm_class" not in self.network:
                 raise ValueError(
-                    "use_custom_qmm is True but qmm_class is not specified in network configuration"
+                    "use_custom_qmm is True but qmm_class is not specified "
+                    "in network configuration"
                 )
 
         # If flag is undefined, check if qmm_class exists

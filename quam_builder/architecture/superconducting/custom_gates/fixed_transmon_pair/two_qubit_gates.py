@@ -10,7 +10,15 @@ from quam.core import quam_dataclass
 __all__ = ["CRGate", "StarkInducedCZGate", "CR_DerivedGates"]
 
 AmplitudeScale = Union[ScalarOfAnyType, VectorOfAnyType]
-CR_TYPES = ["default", "direct", "2x direct", "direct+cancel", "2x direct+cancel", "direct+echo", "direct+cancel+echo"]
+CR_TYPES = [
+    "default",
+    "direct",
+    "2x direct",
+    "direct+cancel",
+    "2x direct+cancel",
+    "direct+echo",
+    "direct+cancel+echo",
+]
 
 
 # ============================================================================
@@ -74,13 +82,17 @@ class CR_DerivedGates:
         pairs_str = ", ".join(names[:5] + (["..."] if len(names) > 5 else []))
         if allow_reverse == "forced":
             if reverse is None:
-                raise ValueError(f"No reverse pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}")
+                raise ValueError(
+                    f"No reverse pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}"
+                )
             return reverse, True
         if native is not None:
             return native, False
         if allow_reverse == "auto" and reverse is not None:
             return reverse, True
-        raise ValueError(f"No direct pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}")
+        raise ValueError(
+            f"No direct pair for {qc.name}->{qt.name} in active qubit pairs: {pairs_str}"
+        )
 
     @staticmethod
     def cnot(
@@ -180,7 +192,9 @@ class _QubitPairCrossResonanceDriveHelpers(QubitPairMacro):
         truncate: Optional[ScalarOfAnyType] = None,
         sign: int = 1,
     ) -> None:
-        scaled_amp: AmplitudeScale = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(amp_scale, sign)
+        scaled_amp: AmplitudeScale = _QubitPairCrossResonanceDriveHelpers._scaled_amplitude(
+            amp_scale, sign
+        )
         if duration is not None and truncate is not None:
             raise ValueError("duration and truncate cannot be both provided")
 
@@ -247,7 +261,9 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
             zz_supression_phase = self.zz_supression_phase_2pi
 
         if duration_clock_cycles is not None:
-            warnings.warn("duration_clock_cycles is deprecated. Use duration instead.", DeprecationWarning)
+            warnings.warn(
+                "duration_clock_cycles is deprecated. Use duration instead.", DeprecationWarning
+            )
             duration = duration_clock_cycles
 
         # convert frame_correction_2pi to float
@@ -516,7 +532,9 @@ class CRGate(_QubitPairCrossResonanceDriveHelpers):
         wf_type: Optional[str] = None,
         cr_length=None,
     ):
-        warnings.warn("get_cr_duration is deprecated. Use get_duration instead.", DeprecationWarning)
+        warnings.warn(
+            "get_cr_duration is deprecated. Use get_duration instead.", DeprecationWarning
+        )
         return self.get_duration(cr_drive_only, cr_type, wf_type, cr_length)
 
     def get_duration(

@@ -287,7 +287,9 @@ class CosineBipolarPulse(Pulse):
         if F > L:
             raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
-            raise ValueError(f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves.")
+            raise ValueError(
+                f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves."
+            )
 
         remaining = L - F
         if remaining == 0:
@@ -367,13 +369,17 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
         if self.pulse_length % 2 != 0:
             raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
-            raise ValueError("GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative")
+            raise ValueError(
+                "GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative"
+            )
         if self.gaussian_filter_frequency_mhz <= 0:
             raise ValueError(
                 "GaussianFilteredSymmetricBipolarPulse.gaussian_filter_frequency_mhz must be positive (MHz)"
             )
         if self.sample_rate <= 0:
-            raise ValueError("GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)")
+            raise ValueError(
+                "GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)"
+            )
 
         if self.amplitude == 0:
             return np.zeros(self.length, dtype=np.float64)
@@ -855,7 +861,11 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
             projection = np.real(z.conj() * dz) / den
             slope = dz - z * projection
             if ddz is not None:
-                dp = (np.abs(dz) ** 2 + np.real(z.conj() * ddz) - 2 * projection * np.real(z.conj() * dz)) / den
+                dp = (
+                    np.abs(dz) ** 2
+                    + np.real(z.conj() * ddz)
+                    - 2 * projection * np.real(z.conj() * dz)
+                ) / den
                 curvature = ddz - dz * projection - z * dp
         out = z - 1j * slope / delta * scale
         return out if ddz is None else (out, dz - 1j * curvature / delta * scale)
@@ -894,8 +904,8 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
             ddr = 2 * (dv * dv + v * ddv) - 2j * (3 * dv * ddv + v * dddv) / d20 * a02
             # Re(r) >= 0: principal root is continuous; preserve amplitude sign.
             z = np.sign(self.amplitude) * np.sqrt(r)
-            dz = np.divide(dr, 2 * z, out=np.zeros_like(z), where=(z != 0))
-            ddz = np.divide(ddr - 2 * dz * dz, 2 * z, out=np.zeros_like(z), where=(z != 0))
+            dz = np.divide(dr, 2 * z, out=np.zeros_like(z), where=z != 0)
+            ddz = np.divide(ddr - 2 * dz * dz, 2 * z, out=np.zeros_like(z), where=z != 0)
         z, dz = self._drag(z, dz, d10, gain, ddz, scale=a01)
         z = self._drag(z, dz, d21, None if gain is None else np.sqrt(2) * gain, scale=a12)
         return z.conj()  # Paper's raising-operator convention -> I+1j*Q.

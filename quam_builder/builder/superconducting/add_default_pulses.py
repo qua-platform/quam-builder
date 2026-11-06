@@ -281,7 +281,9 @@ def add_default_transmon_pulses(transmon: Union[FixedFrequencyTransmon, FluxTuna
     """
     if hasattr(transmon, "xy"):
         if transmon.xy is not None:
-            transmon.xy.operations["saturation"] = SquarePulse(amplitude=0.25, length=20 * u.us, axis_angle=0)
+            transmon.xy.operations["saturation"] = SquarePulse(
+                amplitude=0.25, length=20 * u.us, axis_angle=0
+            )
 
     if hasattr(transmon, "z"):
         if transmon.z is not None:
@@ -313,7 +315,9 @@ def add_default_transmon_pair_pulses(
             transmon_pair.coupler.operations["const"] = SquarePulse(amplitude=0.1, length=100)
     if hasattr(transmon_pair, "cross_resonance"):
         if transmon_pair.cross_resonance is not None:
-            transmon_pair.cross_resonance.operations["square"] = SquarePulse(amplitude=1.0, length=100)
+            transmon_pair.cross_resonance.operations["square"] = SquarePulse(
+                amplitude=1.0, length=100
+            )
             transmon_pair.cross_resonance.operations["flattop"] = FlatTopGaussianPulse(
                 amplitude=1.0,
                 length=100,
@@ -324,7 +328,9 @@ def add_default_transmon_pair_pulses(
             # add cancel pulse
             pair_id = transmon_pair.id
             target_qubit = transmon_pair.qubit_target
-            target_qubit.xy.operations[f"cr_square_{pair_id}"] = SquarePulse(amplitude=0.2, length=100)
+            target_qubit.xy.operations[f"cr_square_{pair_id}"] = SquarePulse(
+                amplitude=0.2, length=100
+            )
             target_qubit.xy.operations[f"cr_flattop_{pair_id}"] = FlatTopGaussianPulse(
                 amplitude=0.2,
                 length=100,
@@ -365,4 +371,6 @@ def add_default_twpa_pulses(twpa: TWPA):
 
     if hasattr(twpa, "isolation_"):
         if twpa.isolation_ is not None:
-            twpa.isolation_.operations["pump"] = SquarePulse(amplitude=0.5, length=2000, axis_angle=0)
+            twpa.isolation_.operations["pump"] = SquarePulse(
+                amplitude=0.5, length=2000, axis_angle=0
+            )

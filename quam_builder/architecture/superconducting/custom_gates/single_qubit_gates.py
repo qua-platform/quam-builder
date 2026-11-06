@@ -47,7 +47,9 @@ class MeasureMacro(QubitMacro):
     @property
     def inferred_duration(self) -> float:
         readout_pulse: ReadoutPulse = (
-            self.pulse if isinstance(self.pulse, ReadoutPulse) else get_pulse(self.pulse, self.qubit)
+            self.pulse
+            if isinstance(self.pulse, ReadoutPulse)
+            else get_pulse(self.pulse, self.qubit)
         )
         return readout_pulse.length * 1e-9
 
@@ -70,14 +72,20 @@ class ResetMacro(QubitMacro):
     max_attempts: int = 5
 
     def __post_init__(self) -> None:
-        if not isinstance(self.max_attempts, int) or isinstance(self.max_attempts, bool) or self.max_attempts < 1:
+        if (
+            not isinstance(self.max_attempts, int)
+            or isinstance(self.max_attempts, bool)
+            or self.max_attempts < 1
+        ):
             raise ValueError("max_attempts must be a strictly positive integer")
 
     def apply(self, **kwargs) -> None:
 
         qubit: AnyTransmon = self.qubit
         pi_pulse = get_pulse(self.pi_pulse, self.qubit)
-        pi_12_pulse = get_pulse(self.pi_12_pulse, self.qubit) if self.pi_12_pulse is not None else None
+        pi_12_pulse = (
+            get_pulse(self.pi_12_pulse, self.qubit) if self.pi_12_pulse is not None else None
+        )
         readout_pulse = get_pulse(self.readout_pulse, self.qubit)
         if self.reset_type == "thermalize":
             qubit.reset_qubit_thermal()
@@ -109,7 +117,9 @@ class ResetMacro(QubitMacro):
         if self.reset_type == "active":
             pi_pulse_duration = get_pulse(self.pi_pulse, self.qubit).length
             readout_pulse_duration = get_pulse(self.readout_pulse, self.qubit).length
-            return (pi_pulse_duration + readout_pulse_duration) * self.max_attempts * 1e-9  # convert to seconds
+            return (
+                (pi_pulse_duration + readout_pulse_duration) * self.max_attempts * 1e-9
+            )  # convert to seconds
         elif self.reset_type == "thermalize":
             return self.qubit.thermalization_time * 1e-9  # convert to seconds
         else:  # active_gef

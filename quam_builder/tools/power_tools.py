@@ -79,7 +79,9 @@ def set_output_power_mw_channel(
         raise ValueError(
             f"Expected full_scale_power_dbm to be in range [{min_full_scale_power_dbm}, {max_full_scale_power_dbm}] in steps of 1 dB, got {full_scale_power_dbm}."
         )
-    print(f"Voltage scaling factor: {current_amplitude} @ {full_scale_power_dbm} dBm to {power_in_dbm} dBm")
+    print(
+        f"Voltage scaling factor: {current_amplitude} @ {full_scale_power_dbm} dBm to {power_in_dbm} dBm"
+    )
 
     channel.operations[operation].amplitude = current_amplitude
     channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
