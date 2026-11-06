@@ -72,7 +72,7 @@ def test_thermalization_time():
     transmon = BaseTransmon(id=1)
     assert transmon.thermalization_time == 100000
     transmon.T1 = 60e-6  # 60 us
-    assert transmon.thermalization_time == 300e-6  # 300 us when multiplied by default thermalization time factor
+    assert transmon.thermalization_time == 300000  # 300 us when multiplied by default thermalization time factor
 
 
 def test_set_gate_shape():
