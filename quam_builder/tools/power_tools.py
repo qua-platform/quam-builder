@@ -23,20 +23,37 @@ def set_output_power_mw_channel(
     max_amplitude: Optional[float] = 1,
 ):
     """
-    Sets the power level in dBm for a specified operation, increasing the full-scale power
-    in 3 dB steps if necessary until it covers the target power level, then scaling the
-    given operation’s amplitude to match exactly the target power level.
+    Set an MW-FEM operation to `power_in_dbm` by choosing a full-scale power and
+    scaling the operation amplitude.
+
+    The full-scale power is an integer in [-11, 18] dBm. The search starts at
+    `full_scale_power_dbm` when given, otherwise at -11 dBm, and increases in
+    1 dB steps while the voltage scaling factor
+    `10 ** ((power_in_dbm - full_scale_power_dbm) / 20)` is greater than
+    `max_amplitude`. The chosen full-scale power is written to
+    `channel.opx_output.full_scale_power_dbm` and the scaling factor to
+    `channel.operations[operation].amplitude`.
 
     Parameters:
         channel: A MW-FEM channel.
-        power_in_dbm (float): The target power level in dBm for the operation.
-        operation (str): The operation for which the power setting is applied.
-        full_scale_power_dbm (Optional[int]): The full-scale power in dBm within -11 and 19 in 1 dB increments.
-        max_amplitude (Optional[float]):
+        power_in_dbm (float): Target output power in dBm.
+        operation (str): Operation whose amplitude is set.
+        full_scale_power_dbm (Optional[int]): Starting full-scale power in dBm.
+            When omitted, the search starts at -11 dBm. When given, it must be
+            at least `power_in_dbm`; the search can still raise it if the
+            resulting amplitude exceeds `max_amplitude`.
+        max_amplitude (Optional[float]): Maximum allowed operation amplitude.
+            Defaults to 1.
 
+    Returns:
+        dict: `full_scale_power_dbm` and `amplitude` written to the channel.
+
+    Raises:
+        ValueError: If a given `full_scale_power_dbm` is below `power_in_dbm`,
+            or if the required full-scale power is outside [-11, 18] dBm.
     """
     min_full_scale_power_dbm = -11
-    max_full_scale_power_dbm = 16
+    max_full_scale_power_dbm = 18
     allowed_full_scale_power_in_dbm_values = np.arange(
         min_full_scale_power_dbm, max_full_scale_power_dbm + 1, 1
     ).astype(int)
@@ -62,6 +79,7 @@ def set_output_power_mw_channel(
         raise ValueError(
             f"Expected full_scale_power_dbm to be in range [{min_full_scale_power_dbm}, {max_full_scale_power_dbm}] in steps of 1 dB, got {full_scale_power_dbm}."
         )
+    print(f"Voltage scaling factor: {current_amplitude} @ {full_scale_power_dbm} dBm to {power_in_dbm} dBm")
 
     channel.operations[operation].amplitude = current_amplitude
     channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
@@ -180,6 +198,5 @@ def calculate_voltage_scaling_factor(fixed_power_dBm: float, target_power_dBm: f
     """
     power_difference = target_power_dBm - fixed_power_dBm
     voltage_scaling_factor = 10 ** (power_difference / 20)
-    print(f"Voltage scaling factor: {voltage_scaling_factor} @ {fixed_power_dBm} dBm to {target_power_dBm} dBm")
 
     return voltage_scaling_factor
