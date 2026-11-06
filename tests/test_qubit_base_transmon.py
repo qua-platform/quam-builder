@@ -1,4 +1,5 @@
 import pytest
+
 from quam.components.channels import IQChannel
 from quam_builder.architecture.superconducting.qubit.base_transmon import BaseTransmon
 
@@ -69,9 +70,9 @@ def test_inferred_frequencies():
 
 def test_thermalization_time():
     transmon = BaseTransmon(id=1)
-    assert transmon.thermalization_time == 50000
-    transmon.T1 = 120e-9
-    assert transmon.thermalization_time == 600
+    assert transmon.thermalization_time == 100000
+    transmon.T1 = 60e-6  # 60 us
+    assert transmon.thermalization_time == 300e-6  # 300 us when multiplied by default thermalization time factor
 
 
 def test_set_gate_shape():
