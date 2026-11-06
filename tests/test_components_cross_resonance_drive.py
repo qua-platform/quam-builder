@@ -68,8 +68,8 @@ def test_default_cross_resonance_pulses():
         assert "square" in pair.cross_resonance.operations
         assert "flattop" in pair.cross_resonance.operations
 
-        assert f"cr_{pair_id}_square" in pair.qubit_target.xy.operations
-        assert f"cr_{pair_id}_flattop" in pair.qubit_target.xy.operations
+        assert f"cr_square_{pair_id}" in pair.qubit_target.xy.operations
+        assert f"cr_flattop_{pair_id}" in pair.qubit_target.xy.operations
 
 
 def test_default_cross_resonance_pulses_skipped_when_none():
