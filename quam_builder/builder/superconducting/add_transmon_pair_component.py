@@ -38,7 +38,9 @@ def add_transmon_pair_tunable_coupler_component(
         qubit_pair_name = f"{qubit_control_name}_{qubit_target_name}"
         coupler_name = f"coupler_{qubit_pair_name}"
 
-        transmon_pair.coupler = TunableCoupler(id=coupler_name, opx_output=f"{wiring_path}/opx_output")
+        transmon_pair.coupler = TunableCoupler(
+            id=coupler_name, opx_output=f"{wiring_path}/opx_output"
+        )
 
     else:
         raise ValueError(f"Unimplemented mapping of port keys to channel for ports: {ports}")

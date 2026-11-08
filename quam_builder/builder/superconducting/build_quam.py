@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from numpy import ceil, sqrt
 
@@ -64,7 +64,9 @@ def add_ports(machine: AnyQuam):
             for ports in wiring_by_line_type.values():
                 for port in ports:
                     if "ports" in ports.get_unreferenced_value(port):
-                        machine.ports.reference_to_port(ports.get_unreferenced_value(port), create=True)
+                        machine.ports.reference_to_port(
+                            ports.get_unreferenced_value(port), create=True
+                        )
 
 
 def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -> str:
@@ -83,6 +85,21 @@ def _set_default_grid_location(qubit_number: int, total_number_of_qubits: int) -
     return f"{x},{y}"
 
 
+def _parse_qubit_pair_id(qubit_pair_id: str) -> Tuple[str, str]:
+    """Splits a qubit pair id into the control and target qubit names.
+
+    Args:
+        qubit_pair_id (str): The qubit pair id in the format "qc-qt" or "qc-t".
+
+    Returns:
+        Tuple[str, str]: The control and target qubit names, with the target prefixed by "q" if missing.
+    """
+    qc, qt = qubit_pair_id.split("-")
+    if not qt.startswith("q"):
+        qt = f"q{qt}"
+    return qc, qt
+
+
 def add_transmons(machine: AnyQuam):
     """Adds transmon qubits and qubit pairs to the machine based on the wiring configuration.
 
@@ -98,7 +115,9 @@ def add_transmons(machine: AnyQuam):
                 qubit_class = machine.qubit_type
                 transmon = qubit_class(id=qubit_id)
                 machine.qubits[qubit_id] = transmon
-                machine.qubits[qubit_id].grid_location = _set_default_grid_location(qubit_number, number_of_qubits)
+                machine.qubits[qubit_id].grid_location = _set_default_grid_location(
+                    qubit_number, number_of_qubits
+                )
                 qubit_number += 1
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{qubit_id}/{line_type}"
@@ -115,9 +134,7 @@ def add_transmons(machine: AnyQuam):
         elif element_type == "qubit_pairs":
             machine.active_qubit_pair_names = []
             for qubit_pair_id, wiring_by_line_type in wiring_by_element.items():
-                qc, qt = qubit_pair_id.split("-")
-                if not qt.startswith("q"):
-                    qt = f"q{qt}"
+                qc, qt = _parse_qubit_pair_id(qubit_pair_id)
                 transmon_pair = machine.qubit_pair_type(
                     id=qubit_pair_id,
                     qubit_control=f"#/qubits/{qc}",
@@ -126,9 +143,13 @@ def add_transmons(machine: AnyQuam):
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{qubit_pair_id}/{line_type}"
                     if line_type == WiringLineType.COUPLER.value:
-                        add_transmon_pair_tunable_coupler_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_tunable_coupler_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     elif line_type == WiringLineType.CROSS_RESONANCE.value:
-                        add_transmon_pair_cross_resonance_component(transmon_pair, wiring_path, ports)
+                        add_transmon_pair_cross_resonance_component(
+                            transmon_pair, wiring_path, ports
+                        )
                     elif line_type == WiringLineType.ZZ_DRIVE.value:
                         add_transmon_pair_zz_component(transmon_pair, wiring_path, ports)
                     else:
@@ -142,7 +163,9 @@ def add_transmons(machine: AnyQuam):
             for twpa_id, wiring_by_line_type in wiring_by_element.items():
                 twpa = TWPA(id=twpa_id)
                 machine.twpas[twpa_id] = twpa
-                machine.twpas[twpa_id].grid_location = _set_default_grid_location(twpa_number, number_of_twpas)
+                machine.twpas[twpa_id].grid_location = _set_default_grid_location(
+                    twpa_number, number_of_twpas
+                )
                 twpa_number += 1
                 for line_type, ports in wiring_by_line_type.items():
                     wiring_path = f"#/wiring/{element_type}/{twpa_id}/{line_type}"
@@ -173,7 +196,9 @@ def add_pulses(machine: AnyQuam):
             add_default_twpa_pulses(twpa)
 
 
-def add_octaves(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuam:
+def add_octaves(
+    machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None
+) -> AnyQuam:
     """Adds octave components to the machine based on the wiring configuration and initializes their frequency converters.
 
     Args:
