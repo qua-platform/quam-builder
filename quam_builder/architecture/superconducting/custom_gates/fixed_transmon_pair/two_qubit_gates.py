@@ -105,9 +105,10 @@ class CR_DerivedGates:
         # CNOT decomposition into [Z(-pi/2) x I] * [I x X(-pi/2)] * ZX(pi/2)
         qt.xy.play("-x90")
         if virtual_z:
-            CR_DerivedGates.virtual_z_2pi(qc, 0.25)
+            CR_DerivedGates.virtual_z_2pi(qc, -0.25)
         else:
-            # Z(theta) = X(-x90) Y(-theta) X(x90)
+            # Z(theta) = X(-pi/2) Y(-theta) X(pi/2)
+            # Z(-pi/2) = X(-pi/2) Y(pi/2) X(pi/2)
             qc.xy.play("x90")
             qc.xy.play("y90")
             qc.xy.play("-x90")
