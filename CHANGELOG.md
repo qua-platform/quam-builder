@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 
+- **BREAKING:** Dropped support for Python 3.9; the minimum is now 3.10. `requires-python` is now `>=3.10,<3.14`, which also allows 3.13 patch releases (previously excluded by `<=3.13`).
 - **BREAKING:** `FixedFrequencyTransmonPair.zz_drive` is renamed to `zz`, and `FixedFrequencyTransmonPair.xy_detuned` is removed. Saved states that contain these keys must be updated before they load (#146).
 - **BREAKING:** `CrossResonanceIQ`/`CrossResonanceMW` (module `components/cross_resonance.py`) are replaced by `CrossResonanceDriveIQ`/`CrossResonanceDriveMW` (module `components/cross_resonance_drive.py`); the unused `bell_state_fidelity` field is dropped. The `components/zz_drive.py` module is renamed to `components/zz.py` (#146).
 - `set_output_power_mw_channel` now accepts full-scale powers in `[-11, 18]` dBm in 1 dB steps (previously 3 dB steps), and no longer needs the current value to compute the power (#146).
