@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 - **BREAKING:** `DrachmaReadoutPulse.amplitude` is now the peak of the no-Kerr waveform magnitude (previously the area divided by length). Existing saved states and calibration scripts still load but play a weaker waveform for the same stored value, so recalibrate the amplitude after upgrading. The amplitude is accepted in `[0, 0.99]` and validated at creation, so a stored value above 0.99 now fails at load time. The waveform raises if the I or Q peak goes above 1, which can happen with large self-Kerr, and the self-Kerr field estimate now uses the same scale as the played waveform.
 
+### Fixed
+
+- `BaseTransmon.reset_qubit_active_gef` no longer crashes with `AttributeError`: it now waits for `resonator.depletion_time` on the resonator channel instead of reading the non-existent `rr.res_deplete_time` (#166).
+- `BaseTransmon.reset_qubit_active_gef` now stops after `max_attempts` rounds (new argument, default 15) instead of looping forever, and its `readout_pulse_name` defaults to `"readout_GEF"` (#166).
+
 ## [0.6.0] - 2026-09-28
 
 ### Added

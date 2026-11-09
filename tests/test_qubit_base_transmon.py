@@ -90,3 +90,29 @@ def test_set_gate_shape():
     for gate in ["x180", "x90", "-x90", "y180", "y90", "-y90"]:
         transmon.xy.operations[f"{gate}_registered_shape"] = "registered_shape"
     transmon.set_gate_shape("registered_shape")
+
+
+def test_reset_qubit_active_gef_builds_program():
+    """The GEF reset loop uses ``resonator.depletion_time`` and the ``readout_GEF`` pulse."""
+    from types import SimpleNamespace
+
+    from qm.qua import program
+
+    calls = {"readout": [], "pulses": []}
+    qubit = SimpleNamespace(
+        resonator=SimpleNamespace(name="q1.resonator", depletion_time=400),
+        xy=SimpleNamespace(
+            name="q1.xy",
+            intermediate_frequency=50e6,
+            play=lambda pulse: calls["pulses"].append(pulse),
+        ),
+        anharmonicity=200e6,
+        align=lambda: None,
+        readout_state_gef=lambda state, pulse_name: calls["readout"].append(pulse_name),
+    )
+
+    with program():
+        BaseTransmon.reset_qubit_active_gef(qubit)
+
+    assert calls["readout"] == ["readout_GEF"]
+    assert calls["pulses"] == ["x180", "EF_x180", "x180"]
