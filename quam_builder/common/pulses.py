@@ -1,6 +1,7 @@
 import numpy as np
-from quam.core import quam_dataclass
+
 from quam.components.pulses import Pulse, ReadoutPulse
+from quam.core import quam_dataclass
 
 __all__ = [
     "GaussianPulse",
@@ -67,22 +68,29 @@ class FlatTopGaussianPulse(Pulse):
 
     amplitude: float
     axis_angle: float = None
-    flat_length: int
+    flat_length: int = None
+    rise_fall_length: int = None
 
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_gaussian_waveform
 
-        rise_fall_length = (self.length - self.flat_length) // 2
-        if not self.flat_length + 2 * rise_fall_length == self.length:
+        if self.flat_length is None and self.rise_fall_length is None:
+            self.flat_length = 0
+        if self.flat_length is not None and self.rise_fall_length is not None:
+            raise ValueError("Provide either flat_length or rise_fall_length, not both")
+        flat_length, rise_fall_length = self.flat_length, self.rise_fall_length
+        if flat_length is None:
+            flat_length = self.length - rise_fall_length * 2
+        if rise_fall_length is None:
+            rise_fall_length = (self.length - flat_length) // 2
+        if not flat_length + 2 * rise_fall_length == self.length:
             raise ValueError(
-                "FlatTopGaussianPulse rise_fall_length (=length-flat_length) must be"
-                f" a multiple of 2 ({self.length} - {self.flat_length} ="
-                f" {self.length - self.flat_length})"
+                f"FlatTopGaussianPulse flat_length + 2 * rise_fall_length must be equal to length ({self.length} - {flat_length} = {self.length - flat_length})"
             )
 
         waveform = flattop_gaussian_waveform(
             amplitude=self.amplitude,
-            flat_length=self.flat_length,
+            flat_length=flat_length,
             rise_fall_length=rise_fall_length,
             return_part="all",
         )
@@ -110,21 +118,29 @@ class FlatTopCosinePulse(Pulse):
 
     amplitude: float
     axis_angle: float = None
-    flat_length: int = 0
+    flat_length: int = None
+    rise_fall_length: int = None
 
     def waveform_function(self):
         from qualang_tools.config.waveform_tools import flattop_cosine_waveform
 
-        rise_fall_length = (self.length - self.flat_length) // 2
-        if self.flat_length + 2 * rise_fall_length != self.length:
+        if self.flat_length is None and self.rise_fall_length is None:
+            self.flat_length = 0
+        if self.flat_length is not None and self.rise_fall_length is not None:
+            raise ValueError("Provide either flat_length or rise_fall_length, not both")
+        flat_length, rise_fall_length = self.flat_length, self.rise_fall_length
+        if flat_length is None:
+            flat_length = self.length - rise_fall_length * 2
+        if rise_fall_length is None:
+            rise_fall_length = (self.length - flat_length) // 2
+        if flat_length + 2 * rise_fall_length != self.length:
             raise ValueError(
-                "FlatTopCosinePulse requires (length - flat_length) to be even "
-                f"({self.length=} {self.flat_length=})"
+                f"FlatTopCosinePulse requires (length - flat_length) to be even ({self.length=} {flat_length=})"
             )
 
         wf = flattop_cosine_waveform(
             amplitude=self.amplitude,
-            flat_length=self.flat_length,
+            flat_length=flat_length,
             rise_fall_length=rise_fall_length,
             return_part="all",
         )
@@ -365,13 +381,11 @@ class DrachmaReadoutPulse(ReadoutPulse):
             )
         if self.kappa_ground_hz <= 0:
             raise ValueError(
-                "DrachmaReadoutPulse.kappa_ground_hz must be positive "
-                f"(got {self.kappa_ground_hz})"
+                f"DrachmaReadoutPulse.kappa_ground_hz must be positive (got {self.kappa_ground_hz})"
             )
         if self.kappa_excited_hz <= 0:
             raise ValueError(
-                "DrachmaReadoutPulse.kappa_excited_hz must be positive "
-                f"(got {self.kappa_excited_hz})"
+                f"DrachmaReadoutPulse.kappa_excited_hz must be positive (got {self.kappa_excited_hz})"
             )
         if self.sample_rate <= 0:
             raise ValueError(
