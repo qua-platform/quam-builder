@@ -16,8 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Fixed
 
-- `BaseTransmon.reset_qubit_active_gef` no longer crashes with `AttributeError`: it now waits for `resonator.depletion_time` on the resonator channel instead of reading the non-existent `rr.res_deplete_time` (#166).
+- `BaseTransmon.reset_qubit_active_gef` no longer crashes with `AttributeError`: the extra wait that read the non-existent `rr.res_deplete_time` is removed, because `readout_state_gef` already waits for `resonator.depletion_time` (#166).
 - `BaseTransmon.reset_qubit_active_gef` now stops after `max_attempts` rounds (new argument, default 15) instead of looping forever, and its `readout_pulse_name` defaults to `"readout_GEF"` (#166).
+- `ResetMacro` now forwards `max_attempts` for `reset_type="active_gef"`, as it already did for `"active"` (#166).
 
 ## [0.6.0] - 2026-09-28
 

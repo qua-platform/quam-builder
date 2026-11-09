@@ -92,13 +92,21 @@ def test_set_gate_shape():
     transmon.set_gate_shape("registered_shape")
 
 
-def test_reset_qubit_active_gef_builds_program():
-    """The GEF reset loop uses ``resonator.depletion_time`` and the ``readout_GEF`` pulse."""
+def test_reset_qubit_active_gef_builds_program(monkeypatch):
+    """The GEF reset loop uses the ``readout_GEF`` pulse and adds no extra resonator wait.
+
+    ``readout_state_gef`` already waits for the resonator depletion time, so the
+    reset loop itself must not emit a second wait on the resonator channel.
+    """
     from types import SimpleNamespace
 
     from qm.qua import program
+    from quam_builder.architecture.superconducting.qubit import base_transmon
 
-    calls = {"readout": [], "pulses": []}
+    calls = {"readout": [], "pulses": [], "waits": []}
+    monkeypatch.setattr(
+        base_transmon, "wait", lambda duration, *elements: calls["waits"].append(elements)
+    )
     qubit = SimpleNamespace(
         resonator=SimpleNamespace(name="q1.resonator", depletion_time=400),
         xy=SimpleNamespace(
@@ -116,3 +124,4 @@ def test_reset_qubit_active_gef_builds_program():
 
     assert calls["readout"] == ["readout_GEF"]
     assert calls["pulses"] == ["x180", "EF_x180", "x180"]
+    assert all("q1.resonator" not in elements for elements in calls["waits"])

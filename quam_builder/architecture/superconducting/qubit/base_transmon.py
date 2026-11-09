@@ -367,8 +367,8 @@ class BaseTransmon(Qubit):
         assign(attempts, 0)
         self.align()
         with while_((success < 2) & (attempts < max_attempts)):
+            # readout_state_gef already waits for the resonator depletion time.
             self.readout_state_gef(res_ar, readout_pulse_name)
-            wait(self.resonator.depletion_time // 4, self.resonator.name)
             self.align()
             with if_(res_ar == 0):
                 assign(
