@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 
-- `DrachmaReadoutPulse.amplitude` is now the peak of the no-Kerr waveform magnitude (previously the area divided by length), accepted in `[0, 0.99]` and validated at creation. The waveform raises if the I or Q peak goes above 1, which can happen with large self-Kerr, and the self-Kerr field estimate now uses the same scale as the played waveform.
+- **BREAKING:** `DrachmaReadoutPulse.amplitude` is now the peak of the no-Kerr waveform magnitude (previously the area divided by length). Existing saved states and calibration scripts still load but play a weaker waveform for the same stored value, so recalibrate the amplitude after upgrading. The amplitude is accepted in `[0, 0.99]` and validated at creation, so a stored value above 0.99 now fails at load time. The waveform raises if the I or Q peak goes above 1, which can happen with large self-Kerr, and the self-Kerr field estimate now uses the same scale as the played waveform.
 
 ## [0.6.0] - 2026-09-28
 
