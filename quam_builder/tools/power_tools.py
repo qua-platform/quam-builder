@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+from qualibration_libs.core.trackable_object import TrackableObject
 
 from qualang_tools.units import unit
 from quam.components import IQChannel
@@ -78,7 +79,19 @@ def set_output_power_mw_channel(
         raise ValueError(
             f"Expected full_scale_power_dbm to be in range [{min_full_scale_power_dbm}, {max_full_scale_power_dbm}] in steps of 1 dB, got {full_scale_power_dbm}."
         )
-    print(f"Voltage scaling factor: {current_amplitude} @ {full_scale_power_dbm} dBm to {power_in_dbm} dBm")
+
+    if isinstance(channel, MWChannel):
+        opx_output = channel.opx_output
+        channel_name = channel.name
+    elif isinstance(channel, TrackableObject):
+        opx_output = channel._obj.opx_output
+        channel_name = channel._obj.name
+    else:
+        raise ValueError(f"Expected a MWChannel or TrackableObject, got {type(channel)}")
+    port_id = (opx_output.controller_id, opx_output.fem_id, opx_output.port_id)
+    print(
+        f"Voltage scaling factor: {current_amplitude:.5f} @ {full_scale_power_dbm} dBm (target: {power_in_dbm} dBm) on {channel_name} - {port_id}"
+    )
 
     channel.operations[operation].amplitude = current_amplitude
     channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
