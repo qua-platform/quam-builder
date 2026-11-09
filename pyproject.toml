@@ -1,10 +1,10 @@
 [project]
 name = "quam-builder"
-version = "0.6.0"
+version = "0.7.0"
 description = "A Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP)."
 readme = "README.md"
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
-requires-python = ">=3.9,<=3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "qualang-tools>=0.22.0",
     "quam>=0.4.0",
@@ -130,7 +130,7 @@ max-line-length = 120
 # -----------------------------
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.6.0"
+version = "0.7.0"
 tag_format = "v$version"
 version_files = ["pyproject.toml:version"]
 update_changelog_on_bump = true
