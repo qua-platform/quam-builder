@@ -63,6 +63,12 @@ class ResetMacro(QubitMacro):
     :meth:`~BaseTransmon.reset_qubit_active`. Use ``max_attempts=1`` for a
     single-shot active reset (one measure-and-conditional-pi cycle, no retry
     loop).
+
+    For ``reset_type="active_gef"``, ``max_attempts`` is forwarded to
+    :meth:`~BaseTransmon.reset_qubit_active_gef`. The macro always passes
+    ``readout_pulse`` explicitly, so the ``"readout_GEF"`` default of
+    ``reset_qubit_active_gef`` does not apply here: set
+    ``readout_pulse="readout_GEF"`` (or another GEF readout pulse) yourself.
     """
 
     reset_type: Literal["thermalize", "active", "active_gef"] = "active"
@@ -103,6 +109,7 @@ class ResetMacro(QubitMacro):
                 readout_pulse_name=get_pulse_name(readout_pulse),
                 pi_01_pulse_name=get_pulse_name(pi_pulse),
                 pi_12_pulse_name=get_pulse_name(pi_12_pulse),
+                max_attempts=self.max_attempts,
             )
 
     @property

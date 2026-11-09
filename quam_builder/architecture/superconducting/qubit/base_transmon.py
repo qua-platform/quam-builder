@@ -338,9 +338,10 @@ class BaseTransmon(Qubit):
 
     def reset_qubit_active_gef(
         self,
-        readout_pulse_name: str = "readout",
+        readout_pulse_name: str = "readout_GEF",
         pi_01_pulse_name: str = "x180",
         pi_12_pulse_name: str = "EF_x180",
+        max_attempts: int = 15,
     ):
         """
         Reset the qubit to the ground state ('g') using active reset with GEF state readout.
@@ -348,12 +349,13 @@ class BaseTransmon(Qubit):
         This function performs an active reset of the qubit by repeatedly measuring its state
         and applying appropriate pulses to bring it back to the ground state ('g'). The process
         continues until the qubit is measured in the ground state twice in a row to ensure high
-        confidence in the reset.
+        confidence in the reset, or until ``max_attempts`` measurements have been made.
 
         Args:
-            readout_pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout".
+            readout_pulse_name (str, optional): The name of the pulse to use for the readout. Defaults to "readout_GEF".
             pi_01_pulse_name (str, optional): The name of the pulse to use for the 0-1 transition. Defaults to "x180".
             pi_12_pulse_name (str, optional): The name of the pulse to use for the 1-2 transition. Defaults to "EF_x180".
+            max_attempts (int, optional): The maximum number of measurement rounds before giving up. Defaults to 15.
 
         Returns:
             None
@@ -364,9 +366,9 @@ class BaseTransmon(Qubit):
         attempts = declare(int)
         assign(attempts, 0)
         self.align()
-        with while_(success < 2):
+        with while_((success < 2) & (attempts < max_attempts)):
+            # readout_state_gef already waits for the resonator depletion time.
             self.readout_state_gef(res_ar, readout_pulse_name)
-            wait(self.rr.res_deplete_time // 4, self.xy.name)
             self.align()
             with if_(res_ar == 0):
                 assign(
