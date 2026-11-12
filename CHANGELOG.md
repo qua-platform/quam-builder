@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+- Support for Python 3.14: `requires-python` is now `>=3.10,<3.15`, and CI tests 3.10 to 3.14.
+
+### Changed
+
+- `uv.lock` now resolves `quam` 0.6.0, `qm-qua` 1.5.0 and `qm-saas` 1.2.0 (previously `quam` 0.5.0a2, `qm-qua` 1.2.3.1 and `qm-saas` 1.1.7), so CI tests the versions a fresh install gets.
+
+### Fixed
+
+- Tests now pass with `quam` 0.6.0, where `get_quam_config` is no longer cached, and on Python 3.10, where patching `builder.quantum_dots.build_quam` by dotted path resolved to the re-exported function instead of the module.
+- `test_padding_accepts_list` compares the list and tuple waveforms with a tolerance instead of exact equality, which failed intermittently on floating-point noise (~1e-17).
+
 ## [0.7.0] - 2026-11-09
 
 ### Added
