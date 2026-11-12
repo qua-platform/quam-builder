@@ -82,9 +82,8 @@ def round_amplitude(level):
     """
     Rounds an amplitude to 16-bit fractional precision.
 
-    With sticky elements, the amplitude is accumulated with 16-bit
-    fractional resolution. To avoid accumulating errors, desired voltage
-    levels are rounded to this precision.
+    With sticky elements, the amplitude is accumulated with 16-bit fractional resolution.
+    To avoid accumulating errors, desired voltage levels are rounded to this precision.
     """
     if is_qua_type(level):
         level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
