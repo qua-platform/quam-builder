@@ -133,7 +133,8 @@ class CZGate(QubitPairMacro):
     Methods
     -------
     apply(*, amplitude_scale_qubit=None, amplitude_scale_coupler=None,
-            duration_qubit=None, phase_shift_control=None, phase_shift_target=None, **kwargs) -> None
+            duration_qubit=None, phase_shift_control=None, phase_shift_target=None,
+            align_elements=True, **kwargs) -> None
          Execute the CZ gate sequence.
          Parameters:
               amplitude_scale_qubit : float | None
@@ -148,18 +149,30 @@ class CZGate(QubitPairMacro):
               phase_shift_target : float | None
                     Per‑call override for target qubit frame rotation (2π units). If None, falls back
                     to phase_shift_target attribute (when significant).
+              align_elements : bool
+                    If True (default), emit the three explicit aligns (before flux, after flux,
+                    after phase compensation). If False, skip those aligns and keep the same
+                    flux pulses and phase corrections. The caller must then guarantee that
+                    the flux pulses do not overlap XY pulses on the involved qubits, either
+                    before or after the gate, e.g. with an explicit ``align()`` or with the
+                    implicit align QUA adds on entering a ``switch_`` or loop body (each RB
+                    layer being one ``switch_`` iteration). The implicit align is absent if
+                    the program is compiled with ``skip-add-implicit-align``. This is a real
+                    keyword so a missing revision fails preflight instead of swallowing the
+                    flag via ``**kwargs``.
               **kwargs :
                     Ignored auxiliary keyword arguments (accepted for interface compatibility).
+                    Do not pass alignment control here; use ``align_elements``.
 
          Behavior:
-              - Aligns all qubits (including the coupler and spectator qubits) before playing to ensure simultaneous start.
+              - Aligns all qubits (including the coupler and spectator qubits) before playing to ensure simultaneous start, unless ``align_elements`` is False.
               - Plays the moving qubit's flux pulse (with optional amplitude scaling and duration override).
               - Plays spectator qubit flux pulses in parallel.
               - Optionally plays coupler pulse in parallel.
-              - Aligns all resources.
+              - Aligns all resources, unless ``align_elements`` is False.
               - Applies virtual Z frame rotations (overrides take precedence; negligible defaults skipped).
               - Applies spectator qubit phase shifts if configured.
-              - Performs a final align (including the coupler) to ensure deterministic end-of-gate synchronization.
+              - Performs a final align (including the coupler) to ensure deterministic end-of-gate synchronization, unless ``align_elements`` is False.
 
     Usage Notes
     -----------
@@ -213,6 +226,7 @@ class CZGate(QubitPairMacro):
         duration_qubit=None,
         phase_shift_control=None,
         phase_shift_target=None,
+        align_elements: bool = True,
         **kwargs,
     ) -> None:
 
@@ -233,7 +247,8 @@ class CZGate(QubitPairMacro):
         channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
         if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
             channel_names.add(self.qubit_pair.coupler.name)
-        align(*channel_names)
+        if align_elements:
+            align(*channel_names)
 
         # Spectator qubit flux pulses
         for qubit_name, pulse_name in spectator_pulse_names.items():
@@ -261,7 +276,10 @@ class CZGate(QubitPairMacro):
             )
 
         # Align all resources after playing pulses
-        self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
+        if align_elements:
+            self.qubit_pair.qubit_control.align(
+                [self.qubit_pair.qubit_target] + spectator_qubits_list
+            )
 
         # Apply phase shifts
         if phase_shift_control is not None:
@@ -282,7 +300,8 @@ class CZGate(QubitPairMacro):
         final_channel_names = {ch.name for qubit in all_qubits for ch in qubit.channels.values()}
         if hasattr(self.qubit_pair, "coupler") and self.qubit_pair.coupler is not None:
             final_channel_names.add(self.qubit_pair.coupler.name)
-        align(*final_channel_names)
+        if align_elements:
+            align(*final_channel_names)
 
     @property
     def inferred_duration(self) -> float:
