@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+- BSD-3-Clause `LICENSE` file, and the license in the package metadata.
+- GitHub workflow `on-released.yml` that publishes the package to PyPI when a GitHub Release is published, using PyPI trusted publishing.
+- Project URLs and classifiers in the package metadata.
+
+### Fixed
+
+- README links now point to GitHub, so they also work on PyPI. The broken link to a non-existent `nv_center` README is replaced by the `quantum_dots` README.
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

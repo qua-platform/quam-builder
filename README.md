@@ -37,10 +37,10 @@ This module defines the hierarchical structure and data types for various QUAM c
 * **Qubit Pairs (`qubit_pair`):** Defines structures for pairs of interacting qubits, including parameters for two-qubit gates or couplings (`FixedFrequencyTransmonsPair`, `FluxTunableTransmonsPair`).
 
 Note that several tools can be found in `quam_builder/tools`:
-  - [power_tools](./quam_builder/tools/power_tools.py): Functions to precisely set and retrieve the output power (in dBm) for specific operations on `MWChannel` (`set_output_power_mw_channel`, `get_output_power_mw_channel`) and `IQChannel` (`set_output_power_iq_channel`, `get_output_power_iq_channel`) components defined in QUAM. Handles adjustments to full-scale power or gain/amplitude to achieve target power levels using helpers like `calculate_voltage_scaling_factor`.
+  - [power_tools](https://github.com/qua-platform/quam-builder/blob/main/quam_builder/tools/power_tools.py): Functions to precisely set and retrieve the output power (in dBm) for specific operations on `MWChannel` (`set_output_power_mw_channel`, `get_output_power_mw_channel`) and `IQChannel` (`set_output_power_iq_channel`, `get_output_power_iq_channel`) components defined in QUAM. Handles adjustments to full-scale power or gain/amplitude to achieve target power levels using helpers like `calculate_voltage_scaling_factor`.
 
 
-Details on all the components can be found in [architecture/superconducting/README.md](./quam_builder/architecture/superconducting/README.md) or [architecture/nv_center/README.md](./quam_builder/architecture/nv_center/README.md) and in the docstrings of the components.
+Details on all the components can be found in [architecture/superconducting/README.md](https://github.com/qua-platform/quam-builder/blob/main/quam_builder/architecture/superconducting/README.md) or [architecture/quantum_dots/README.md](https://github.com/qua-platform/quam-builder/blob/main/quam_builder/architecture/quantum_dots/README.md) and in the docstrings of the components.
 
 ### 2. QUAM Construction (`quam_builder.builder`)
 
