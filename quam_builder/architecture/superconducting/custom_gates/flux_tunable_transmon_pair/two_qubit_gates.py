@@ -152,10 +152,14 @@ class CZGate(QubitPairMacro):
               align_elements : bool
                     If True (default), emit the three explicit aligns (before flux, after flux,
                     after phase compensation). If False, skip those aligns and keep the same
-                    flux pulses and phase corrections; the caller must establish timing
-                    dependencies (for example an enclosing ``align()`` or sequential play on
-                    the same elements). This is a real keyword so a missing revision fails
-                    preflight instead of swallowing the flag via ``**kwargs``.
+                    flux pulses and phase corrections. The caller must then guarantee that
+                    the flux pulses do not overlap XY pulses on the involved qubits, either
+                    before or after the gate, e.g. with an explicit ``align()`` or with the
+                    implicit align QUA adds on entering a ``switch_`` or loop body (each RB
+                    layer being one ``switch_`` iteration). The implicit align is absent if
+                    the program is compiled with ``skip-add-implicit-align``. This is a real
+                    keyword so a missing revision fails preflight instead of swallowing the
+                    flag via ``**kwargs``.
               **kwargs :
                     Ignored auxiliary keyword arguments (accepted for interface compatibility).
                     Do not pass alignment control here; use ``align_elements``.
@@ -273,7 +277,9 @@ class CZGate(QubitPairMacro):
 
         # Align all resources after playing pulses
         if align_elements:
-            self.qubit_pair.qubit_control.align([self.qubit_pair.qubit_target] + spectator_qubits_list)
+            self.qubit_pair.qubit_control.align(
+                [self.qubit_pair.qubit_target] + spectator_qubits_list
+            )
 
         # Apply phase shifts
         if phase_shift_control is not None:
