@@ -74,7 +74,7 @@ def round_amplitude(level):
     if is_qua_type(level):
         level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
     else:
-        level = float(np.float16(level))
+        level = round(level * 2**16) / 2**16
     return level
 
 
