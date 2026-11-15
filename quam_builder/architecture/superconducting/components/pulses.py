@@ -5,7 +5,7 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 
-from quam.components.pulses import Pulse
+from quam.components.pulses import Pulse, ReadoutPulse
 from quam.core import quam_dataclass
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "SmoothFlatTopPulse",
     "DragFlatTopPulse",
     "MultiderivativeCRPulse",
+    "ClearPulse",
 ]
 
 
@@ -287,9 +288,7 @@ class CosineBipolarPulse(Pulse):
         if F > L:
             raise ValueError(f"CosineBipolarPulse.flat_length={F} cannot exceed total length={L}.")
         if F % 2 != 0:
-            raise ValueError(
-                f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves."
-            )
+            raise ValueError(f"CosineBipolarPulse.flat_length={F} must be even to split equally into + and - halves.")
 
         remaining = L - F
         if remaining == 0:
@@ -369,17 +368,13 @@ class GaussianFilteredSymmetricBipolarPulse(Pulse):
         if self.pulse_length % 2 != 0:
             raise ValueError("GaussianFilteredSymmetricBipolarPulse.pulse_length must be even")
         if self.padding_length < 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.padding_length must be non-negative")
         if self.gaussian_filter_frequency_mhz <= 0:
             raise ValueError(
                 "GaussianFilteredSymmetricBipolarPulse.gaussian_filter_frequency_mhz must be positive (MHz)"
             )
         if self.sample_rate <= 0:
-            raise ValueError(
-                "GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)"
-            )
+            raise ValueError("GaussianFilteredSymmetricBipolarPulse.sample_rate must be positive (Hz)")
 
         if self.amplitude == 0:
             return np.zeros(self.length, dtype=np.float64)
@@ -861,11 +856,7 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
             projection = np.real(z.conj() * dz) / den
             slope = dz - z * projection
             if ddz is not None:
-                dp = (
-                    np.abs(dz) ** 2
-                    + np.real(z.conj() * ddz)
-                    - 2 * projection * np.real(z.conj() * dz)
-                ) / den
+                dp = (np.abs(dz) ** 2 + np.real(z.conj() * ddz) - 2 * projection * np.real(z.conj() * dz)) / den
                 curvature = ddz - dz * projection - z * dp
         out = z - 1j * slope / delta * scale
         return out if ddz is None else (out, dz - 1j * curvature / delta * scale)
@@ -909,3 +900,54 @@ class MultiderivativeCRPulse(SmoothFlatTopPulse):
         z, dz = self._drag(z, dz, d10, gain, ddz, scale=a01)
         z = self._drag(z, dz, d21, None if gain is None else np.sqrt(2) * gain, scale=a12)
         return z.conj()  # Paper's raising-operator convention -> I+1j*Q.
+
+
+@quam_dataclass
+class ClearPulse(ReadoutPulse):
+    """CLEAR readout: ring-up, plateau, two ring-down segments.
+
+    The plateau fills ``length`` after the explicit segments. A second ring-up
+    (ru2) is not part of this waveform; the single ring-up is ``ru1``.
+
+    Args:
+        length: Total pulse length in samples.
+        amplitude: Plateau amplitude in volts. Other segments are
+            ``amplitude * amp_scale``.
+        ru1_length: Ring-up length in samples.
+        ru2_length: Second ring-up length in samples.
+        rd1_length: First ring-down length in samples.
+        rd2_length: Second ring-down length in samples.
+        ru1_amp_scale: Ring-up amplitude / plateau amplitude.
+        ru2_amp_scale: Second ring-up amplitude / plateau amplitude.
+        rd1_amp_scale: First ring-down amplitude / plateau amplitude.
+        rd2_amp_scale: Second ring-down amplitude / plateau amplitude.
+    """
+
+    amplitude: float
+    ru1_length: int
+    ru2_length: int
+    rd1_length: int
+    rd2_length: int
+    ru1_amp_scale: float
+    ru2_amp_scale: float
+    rd1_amp_scale: float
+    rd2_amp_scale: float
+
+    def waveform_function(self):
+        ro_length = self.length - self.ru1_length - self.ru2_length - self.rd1_length - self.rd2_length
+        if self.ru1_length < 0 or self.rd1_length < 0 or self.rd2_length < 0 or ro_length < 0:
+            raise ValueError(
+                "ClearPulse segment lengths must be non-negative and fit in length "
+                f"({self.length=}, {self.ru1_length=}, ro_length={ro_length}, "
+                f"{self.ru2_length=}, {self.rd1_length=}, {self.rd2_length=})"
+            )
+        amp = self.amplitude
+        return np.concatenate(
+            [
+                np.full(self.ru1_length, amp * self.ru1_amp_scale),
+                np.full(self.ru2_length, amp * self.ru2_amp_scale),
+                np.full(ro_length, amp),
+                np.full(self.rd1_length, amp * self.rd1_amp_scale),
+                np.full(self.rd2_length, amp * self.rd2_amp_scale),
+            ]
+        )
