@@ -12,7 +12,7 @@ Key ideas:
 - Each physical gate should have:
   - ``offset_parameter``: a callable like a QCoDeS parameter (``param() -> float`` and ``param(v)`` sets)
   - ``dac_spec``: a :class:`~quam_builder.architecture.quantum_dots.components.dac_spec.DacSpec` (or ``QdacSpec``)
-    with ``abs_dac_voltage_limit`` set, so VirtualDCSet can enforce per-channel limits.
+    with ``min_dac_voltage`` and ``max_dac_voltage`` set, so VirtualDCSet can enforce per-channel ranges.
 
 By default this file runs without QCoDeS (it uses a small in-memory fake parameter).
 Set ``QUAM_QDAC=1`` to use a real QDAC-II via QCoDeS if available.
@@ -52,7 +52,8 @@ def create_voltage_gate(
     opx_port_id: int,
     dac_output_port: int,
     lf_fem: int = 5,
-    dac_voltage_limit: float = 2.5,
+    min_dac_voltage: float = -2.5,
+    max_dac_voltage: float = 2.5,
     offset_parameter: Callable[[float | None], float],
     use_qdac_spec: bool = False,
 ) -> VoltageGate:
@@ -67,16 +68,19 @@ def create_voltage_gate(
         QdacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            abs_dac_voltage_limit=dac_voltage_limit,
+            min_dac_voltage=min_dac_voltage,
+            max_dac_voltage=max_dac_voltage,
         )
         if use_qdac_spec
         else DacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            abs_dac_voltage_limit=dac_voltage_limit,
+            min_dac_voltage=min_dac_voltage,
+            max_dac_voltage=max_dac_voltage,
         )
     )
     return gate
+
 
 def _make_offset_parameters(use_qdac: bool):
     """Return ``(make_param, use_qdac_spec)``.
@@ -85,6 +89,7 @@ def _make_offset_parameters(use_qdac: bool):
     uses in-memory parameters and does not need an instrument.
     """
     if not use_qdac:
+
         def make_param(_port: int) -> FakeOffsetParameter:
             return FakeOffsetParameter(0.0)
 
@@ -99,9 +104,7 @@ def _make_offset_parameters(use_qdac: bool):
     try:
         qdac = Instrument.find_instrument(qdac_name)
     except KeyError:
-        qdac = QDac2(
-            qdac_name, visalib="@py", address=f"TCPIP::{qdac_ip}::5025::SOCKET"
-        )
+        qdac = QDac2(qdac_name, visalib="@py", address=f"TCPIP::{qdac_ip}::5025::SOCKET")
 
     def make_param(port: int) -> Callable[[float | None], float]:
         return qdac.channel(port).dc_constant_V
@@ -117,7 +120,8 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         gate_id="plunger_1",
         opx_port_id=1,
         dac_output_port=1,
-        dac_voltage_limit=0.5,  # unique limit for this gate
+        min_dac_voltage=-0.5,
+        max_dac_voltage=0.5,
         offset_parameter=make_param(1),
         use_qdac_spec=use_qdac_spec,
     )
@@ -153,7 +157,8 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         gate_id="barrier_2",
         opx_port_id=6,
         dac_output_port=6,
-        dac_voltage_limit=0.05,  # unique limit for this gate
+        min_dac_voltage=-0.05,
+        max_dac_voltage=0.05,
         offset_parameter=make_param(6),
         use_qdac_spec=use_qdac_spec,
     )
@@ -231,7 +236,7 @@ def main() -> None:
 
     # Names may be virtual or physical. With requery=True, VirtualDCSet reads the
     # current physical voltages, resolves the requested levels through the layers,
-    # enforces each gate's abs_dac_voltage_limit, and writes offset_parameter.
+    # enforces each gate's min/max DAC voltage, and writes offset_parameter.
     virtual_dc_set.set_voltages(
         {"det_1": 0.10, "det_2": -0.05, "barrier_2": 0.02},
         requery=True,
@@ -242,7 +247,7 @@ def main() -> None:
     for ch_name, ch in virtual_dc_set.channels.items():
         print(
             f"  {ch_name}: {ch.offset_parameter(): .4f} V "
-            f"(limit={getattr(ch.dac_spec, 'abs_dac_voltage_limit', None)} V)"
+            f"(range={ch.dac_spec.min_dac_voltage} V to {ch.dac_spec.max_dac_voltage} V)"
         )
 
     print("\nAll current virtual+physical levels (computed):")
