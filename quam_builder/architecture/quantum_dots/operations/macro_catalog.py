@@ -39,6 +39,7 @@ __all__ = [
     "UtilityMacroCatalog",
     "DefaultMacroCatalog",
     "VoltageBalancedMacroCatalog",
+    "FrameRotationXYMacroCatalog",
     "TypeOverrideCatalog",
     "DISABLED",
 ]
@@ -325,6 +326,33 @@ class VoltageBalancedMacroCatalog:
             }
         if component_type is SensorDot:
             return {VoltagePointName.MEASURE: BalancedSensorDotMeasureMacro}
+        return {}
+
+
+class FrameRotationXYMacroCatalog:
+    """Replace the dedicated-pulse X and Y macros with frame-rotation gates.
+
+    At priority 200 this overrides :class:`DefaultMacroCatalog` for the
+    X and Y names on
+    :class:`~quam_builder.architecture.quantum_dots.qubit.LDQubit`.
+    Each gate plays the calibrated X pulse and selects its axis with
+    ``frame_rotation_2pi`` before and after that pulse. ``z``,
+    ``xy_drive``, and the state macros stay on the architecture defaults.
+
+    On a machine that already has the defaults, register it with
+    ``fill_only=False``.
+    """
+
+    priority = 200
+
+    def get_factories(self, component_type: type) -> MacroFactoryMap:
+        from quam_builder.architecture.quantum_dots.operations.default_macros.frame_rotation_macros import (
+            FRAME_ROTATION_XY_MACROS,
+        )
+        from quam_builder.architecture.quantum_dots.qubit import LDQubit
+
+        if issubclass(component_type, LDQubit):
+            return dict(FRAME_ROTATION_XY_MACROS)
         return {}
 
 

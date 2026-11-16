@@ -10,13 +10,16 @@ quantum dot components, organized by operation type:
 
 from . import state_macros
 from . import single_qubit_macros
+from . import frame_rotation_macros
 from . import two_qubit_macros
 from .state_macros import *
 from .single_qubit_macros import *
+from .frame_rotation_macros import *
 from .two_qubit_macros import *
 
 __all__ = [
     *state_macros.__all__,
     *single_qubit_macros.__all__,
+    *frame_rotation_macros.__all__,
     *two_qubit_macros.__all__,
 ]
