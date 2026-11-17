@@ -21,12 +21,42 @@ class DacSpec(QuamComponent):
     opx_trigger_out: Channel = None
     dac_name: str = "main"
 
-    abs_dac_voltage_limit: Optional[float] = 2.5
+    min_dac_voltage: Optional[float] = -2.5
+    max_dac_voltage: Optional[float] = 2.5
 
     def __post_init__(self):
         super().__post_init__()
         if self.output_port is None and isinstance(self, DacSpec):
             raise ValueError("output_port is required for DacSpec")
+        if (
+            self.min_dac_voltage is not None
+            and self.max_dac_voltage is not None
+            and self.min_dac_voltage > self.max_dac_voltage
+        ):
+            raise ValueError(
+                f"min_dac_voltage ({self.min_dac_voltage} V) is above "
+                f"max_dac_voltage ({self.max_dac_voltage} V)"
+            )
+
+    def assert_voltage_within_limit(self, voltage: float, *, channel_id: str | None = None) -> None:
+        """Reject a physical DAC voltage outside this channel's allowed range.
+
+        ``None`` on either bound leaves that side open. Both bounds ``None``
+        means this channel has no software cap.
+        """
+        if self.min_dac_voltage is None and self.max_dac_voltage is None:
+            return
+        below = self.min_dac_voltage is not None and voltage < self.min_dac_voltage
+        above = self.max_dac_voltage is not None and voltage > self.max_dac_voltage
+        if not below and not above:
+            return
+        where = f" on channel {channel_id}" if channel_id else ""
+        low = "-inf" if self.min_dac_voltage is None else f"{self.min_dac_voltage}"
+        high = "+inf" if self.max_dac_voltage is None else f"{self.max_dac_voltage}"
+        raise ValueError(
+            f"Resolved physical voltage{where} is outside [{low}, {high}] V. "
+            f"Tried to apply {voltage} V"
+        )
 
     @property
     def machine(self) -> "BaseQuamQD":

@@ -45,13 +45,11 @@ def _ramp_elements(script: str) -> list[str]:
 def _scaled_area(level: float, duration: int) -> int:
     """Python-mode integrated-voltage counts for holding ``level`` for ``duration``.
 
-    ``VoltageSequence`` rounds analog targets with ``round_amplitude`` (float16)
+    ``VoltageSequence`` quantizes analog targets with ``round_amplitude`` (floor to 2^-16)
     before the tracker multiplies by duration and ``INTEGRATED_VOLTAGE_SCALING_FACTOR``.
     Using the unrounded Python float would over-count sticky hold area.
     """
-    return int(
-        np.round(round_amplitude(level) * duration * INTEGRATED_VOLTAGE_SCALING_FACTOR)
-    )
+    return int(np.round(round_amplitude(level) * duration * INTEGRATED_VOLTAGE_SCALING_FACTOR))
 
 
 def _limited_sequence(gate_set, *, track_integrated_voltage: bool = False):

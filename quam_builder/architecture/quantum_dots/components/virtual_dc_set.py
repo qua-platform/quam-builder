@@ -34,9 +34,9 @@ class VirtualDCSet(QuantumComponent):
             may use non-square matrices.
         channels: Physical channels are `VoltageGate` instances that the virtual
             gates ultimately resolve to.
-        check_max_voltage: A bool option, whether to enforce a strict absolute voltage 
-            limit on the PHYSICAL outputs of the DAC. The absolute limits are defined in 
-            each VoltageGate's DacSpec object, default ±2.5V. 
+        check_max_voltage: Whether to enforce each physical gate's
+            ``DacSpec`` voltage range before writing. The default range is
+            −2.5 V to 2.5 V. A bound left as ``None`` is open on that side.
 
     Example:
         >>> from quam.components.channels import SingleChannel
@@ -467,15 +467,15 @@ class VirtualDCSet(QuantumComponent):
         Input a dict of {name: voltage}, and internally this will resolve to a set of physical voltages
         to be applied.
 
-        Args: 
-            - voltages: A dictionary of voltages (physical or virtual) to be applied via the DAC. Any virtual 
-            gate inputs will be resolved to a set of physical channel outputs, additively. 
-            - requery: A bool option, whether to re-query the DAC for the currently applied voltages. If False, then it 
-            will calculate the virtualized value using the currently cached value. 
+        Args:
+            - voltages: A dictionary of voltages (physical or virtual) to be applied via the DAC. Any virtual
+            gate inputs will be resolved to a set of physical channel outputs, additively.
+            - requery: A bool option, whether to re-query the DAC for the currently applied voltages. If False, then it
+            will calculate the virtualized value using the currently cached value.
             - resync: A bool option, whether to re-query the DAC again AFTER applying all the voltages, in order to populate
-            the cached values. If False, then it will populate the cache using the calculated applied voltage. 
+            the cached values. If False, then it will populate the cache using the calculated applied voltage.
         """
-        # Optionally requery the actual DAC. If False, then it will use the cached values. 
+        # Optionally requery the actual DAC. If False, then it will use the cached values.
         if requery:
             current_volts_dict = self.all_current_voltages.copy()
         else:
@@ -484,30 +484,26 @@ class VirtualDCSet(QuantumComponent):
         # The current physical outputs, in order to calculate the necessary delta_v
         physical_voltages = {name: current_volts_dict[name] for name in self.channels}
 
-        # Calcualte the required voltage difference. This is specifically for virtualization - if we only cared about physical, we can skip this step. 
+        # Calcualte the required voltage difference. This is specifically for virtualization - if we only cared about physical, we can skip this step.
         deltas = {}
         for name, new_value in voltages.items():
             old_value = current_volts_dict.get(name, 0.0)
             deltas[name] = new_value - old_value
         physical_deltas = self.resolve_voltages(deltas)
 
-        # Optionally include a check for the max voltage. This has to be a separate loop to the sequential setter loop, since we do not want 
-        # an error to arise half-way, leading to incomplete DAC voltage application and potentially an unknown charge state. 
-        if self.check_max_voltage: 
-            for name, delta_v in physical_deltas.items(): 
-                # Extract the voltage limit, default to None
-                max_v = getattr(self.channels[name].dac_spec, "abs_dac_voltage_limit", None)
-                if max_v is None: 
+        # Optionally include a check for the max voltage. This has to be a separate loop to the sequential setter loop, since we do not want
+        # an error to arise half-way, leading to incomplete DAC voltage application and potentially an unknown charge state.
+        if self.check_max_voltage:
+            for name, delta_v in physical_deltas.items():
+                dac_spec = getattr(self.channels[name], "dac_spec", None)
+                if dac_spec is None:
                     continue
-
                 current_v = current_volts_dict[name]
-                applied_total = current_v + delta_v
-                if abs(applied_total) > max_v: 
-                    raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of ±{max_v}V. Tried to apply {applied_total}V")
+                dac_spec.assert_voltage_within_limit(current_v + delta_v, channel_id=name)
 
         # The setter loop
         for name, delta in physical_deltas.items():
-            # current_volts_dict contains all the physical + virtual gates, and gated for requery already above. 
+            # current_volts_dict contains all the physical + virtual gates, and gated for requery already above.
             current_physical = current_volts_dict.get(name, 0.0)
             self.channels[name].offset_parameter(current_physical + delta)
 

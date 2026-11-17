@@ -1,3 +1,4 @@
+import math
 from typing import Dict, Optional, Tuple
 from contextlib import contextmanager
 
@@ -78,17 +79,19 @@ def _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude):
         return delta_v >> (-shift)
     return delta_v * inv_wf_amplitude
 
-def round_amplitude(level):
-    """
-    Rounds an amplitude to 16-bit fractional precision.
 
-    With sticky elements, the amplitude is accumulated with 16-bit fractional resolution.
-    To avoid accumulating errors, desired voltage levels are rounded to this precision.
+def round_amplitude(level):
+    """Quantize an amplitude onto the sticky-element grid of ``2 ** -16`` V.
+
+    QUA does this with ``(level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT``.
+    On a signed fixed, that shift drops the low bits toward negative infinity.
+    ``math.floor`` is the same cut on a Python float. ``round`` is not: it
+    moves negative values and half-steps the other way.
     """
     if is_qua_type(level):
         level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
     else:
-        level = round(level * 2**16) / 2**16
+        level = math.floor(level * 2**16) / 2**16
     return level
 
 
@@ -140,11 +143,11 @@ class VoltageSequence:
             inside QUA loops and switch/case blocks. Defaults to True.
             Set to False only if you need pure Python-mode tracking for
             a program with no QUA control flow around voltage operations.
-            limit_play_commands: When True, it will use the influence_map stored in the gate_set 
-            to suppress play commands from outputs where the desired output resolves to 
-            less than the resolution of the OPX output. This ensures that sparse virtual 
-            matrices don't produce a huge number of zero-amplitude play commands, 
-            saturating the OPX memory. 
+            limit_play_commands: When True, it will use the influence_map stored in the gate_set
+            to suppress play commands from outputs where the desired output resolves to
+            less than the resolution of the OPX output. This ensures that sparse virtual
+            matrices don't produce a huge number of zero-amplitude play commands,
+            saturating the OPX memory.
         """
         self.gate_set: GateSet = gate_set
         self._update_baseband_pulse_amplitude()
@@ -959,9 +962,7 @@ class VoltageSequence:
                 # few clock cycles and leaves that much area uncompensated.
                 amp_scale_in = self._get_temp_qua_var(f"{channel_obj.name}_comp_scale_in", fixed)
                 amp_scale_out = self._get_temp_qua_var(f"{channel_obj.name}_comp_scale_out", fixed)
-                self._assign_step_amplitude_scale(
-                    channel_obj, q_comp_amp - current_v, amp_scale_in
-                )
+                self._assign_step_amplitude_scale(channel_obj, q_comp_amp - current_v, amp_scale_in)
                 self._assign_step_amplitude_scale(channel_obj, -q_comp_amp, amp_scale_out)
 
                 min_duration_cycles = (
@@ -1016,9 +1017,7 @@ class VoltageSequence:
             return None
         sticky_durations = [
             int(sticky.duration)
-            for sticky in (
-                getattr(ch, "sticky", None) for ch in self.gate_set.channels.values()
-            )
+            for sticky in (getattr(ch, "sticky", None) for ch in self.gate_set.channels.values())
             if sticky is not None and getattr(sticky, "duration", None) is not None
         ]
         return max(sticky_durations) if sticky_durations else MIN_PULSE_DURATION_NS
