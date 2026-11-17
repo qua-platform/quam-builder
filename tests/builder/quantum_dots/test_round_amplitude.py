@@ -1,4 +1,3 @@
-
 import pytest
 
 from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence import (
@@ -12,8 +11,8 @@ from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence im
         (0.0, 0.0),
         (0.5, 0.5),
         (0.4, 0.399993896484375),
-        (-0.4, -0.399993896484375),
-        (0.1, 0.100006103515625),
+        (-0.4, -0.4000091552734375),
+        (0.1, 0.0999908447265625),
         (-0.1, -0.100006103515625),
     ],
 )

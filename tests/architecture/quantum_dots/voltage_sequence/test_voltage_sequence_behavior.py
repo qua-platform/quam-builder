@@ -4,6 +4,8 @@ Covers error paths, integrated-voltage bookkeeping, compensation parameter
 invariants, and channel voltage limits. These tests do not require qua-qsim.
 """
 
+import math
+
 import numpy as np
 import pytest
 from qm import qua
@@ -103,9 +105,7 @@ def test_python_compensation_params_are_zero_when_integral_is_zero(machine):
     """_calculate_python_compensation_params returns (0.0, 0) when the
     channel has accumulated no integrated voltage."""
     seq = VoltageSequence(machine.gate_set, track_integrated_voltage=True)
-    amp, dur = seq._calculate_python_compensation_params(
-        seq.state_trackers["ch1"], max_voltage=0.4
-    )
+    amp, dur = seq._calculate_python_compensation_params(seq.state_trackers["ch1"], max_voltage=0.4)
     assert amp == 0.0
     assert dur == 0
 
@@ -135,9 +135,7 @@ def test_apply_compensation_pulse_resets_python_integrated_voltage(machine):
     double-count)."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=True, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True, enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=1000)
         assert seq.state_trackers["ch1"].integrated_voltage != 0
         seq.apply_compensation_pulse(max_voltage=0.4)
@@ -150,9 +148,7 @@ def test_apply_compensation_pulse_return_to_zero_sets_current_level_to_zero(mach
     compensation pulse, so current_level is 0 on all trackers."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=True, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True, enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": -0.1}, duration=1000)
         seq.apply_compensation_pulse(max_voltage=0.4, return_to_zero=True)
         for tracker in seq.state_trackers.values():
@@ -167,13 +163,9 @@ def test_apply_compensation_pulse_without_return_to_zero_stays_at_compensation_a
     rather than being stepped back to 0 V."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=True, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True, enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=1000)
-        seq.apply_compensation_pulse(
-            max_voltage=0.4, go_to_zero=False, return_to_zero=False
-        )
+        seq.apply_compensation_pulse(max_voltage=0.4, go_to_zero=False, return_to_zero=False)
         ch1_level = seq.state_trackers["ch1"].current_level
         assert ch1_level < 0
         assert abs(ch1_level) <= 0.4
@@ -185,13 +177,9 @@ def test_apply_compensation_pulse_clips_max_voltage_to_channel_limit(machine):
     the caller-supplied value."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=True, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True, enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.1, "ch2": 0.1}, duration=5000)
-        seq.apply_compensation_pulse(
-            max_voltage=10.0, go_to_zero=False, return_to_zero=False
-        )
+        seq.apply_compensation_pulse(max_voltage=10.0, go_to_zero=False, return_to_zero=False)
         channel_limit = seq._channel_max_voltage["ch1"]
         assert channel_limit == pytest.approx(0.5)
         assert abs(seq.state_trackers["ch1"].current_level) <= channel_limit + 1e-9
@@ -203,9 +191,7 @@ def test_track_sticky_duration_adds_hold_time_at_current_level_to_the_integral(m
     outputs hold a DC level."""
     _add_default_pulses(machine)
     with qua.program() as _prog:
-        seq = machine.gate_set.new_sequence(
-            track_integrated_voltage=True, enforce_qua_calcs=False
-        )
+        seq = machine.gate_set.new_sequence(track_integrated_voltage=True, enforce_qua_calcs=False)
         seq.step_to_voltages(voltages={"ch1": 0.25, "ch2": 0.0}, duration=100)
         after_step = seq.state_trackers["ch1"].integrated_voltage
         seq.track_sticky_duration(200)
@@ -252,10 +238,10 @@ def test_reset_integrated_voltage_clears_all_channel_trackers(machine):
     assert seq.state_trackers["ch2"].integrated_voltage == 0
 
 
-def test_round_amplitude_python_value_uses_float16_precision():
-    """Python voltages are rounded to IEEE float16 so sticky accumulation does
-    not drift from 16-bit OPX amplitude resolution."""
-    assert round_amplitude(0.1) == float(np.float16(0.1))
+def test_round_amplitude_python_value_floors_to_the_sticky_grid():
+    """Python voltages use floor onto 2^-16, matching QUA's signed bit shift."""
+    assert round_amplitude(0.1) == math.floor(0.1 * 2**16) / 2**16
+    assert round_amplitude(-0.4) == math.floor(-0.4 * 2**16) / 2**16
     assert round_amplitude(0.25) == 0.25
 
 
