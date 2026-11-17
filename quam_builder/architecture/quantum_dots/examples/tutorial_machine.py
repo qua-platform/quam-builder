@@ -11,10 +11,8 @@ overrides to demonstrate the macro customization API.
 
 from __future__ import annotations
 
-import json
 import tempfile
-from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 from qualang_tools.wirer import Connectivity, Instruments, allocate_wiring
 
@@ -28,7 +26,8 @@ def build_tutorial_machine(
     *,
     mw_fem_slots: Optional[list[int]] = None,
     lf_fem_slots: Optional[list[int]] = None,
-    cluster_config_path: Optional[Union[Path, str]] = None,
+    host: str = "127.0.0.1",
+    cluster_name: str = "tutorial",
 ) -> LossDiVincenzoQuam:
     """Build a minimal machine using the combined wiring workflow.
 
@@ -37,12 +36,10 @@ def build_tutorial_machine(
     LossDiVincenzoQuam in a single stage.
 
     Args:
-        mw_fem_slots: MW FEM slot indices (OPX+), default ``[1]``.
-        lf_fem_slots: LF FEM slot indices, default ``[2]`` (single module).
-        cluster_config_path: If set, read ``host`` and ``cluster_name`` for
-            :func:`build_quam_wiring` from this JSON (same format as
-            ``tests_against_server/.qm_cluster_config.json.example``).
-            Otherwise use ``127.0.0.1`` and ``"tutorial"``.
+        mw_fem_slots: MW-FEM slots to use. Defaults to ``[1]``.
+        lf_fem_slots: LF-FEM slots to use. Defaults to ``[2]``(single module).
+        host: QOP host address. Defaults to "127.0.0.1".
+        cluster_name: QOP cluster name. Defaults to "tutorial".
 
     Returns a machine with:
 
@@ -56,14 +53,6 @@ def build_tutorial_machine(
     """
     mw = mw_fem_slots if mw_fem_slots is not None else [1]
     lf = lf_fem_slots if lf_fem_slots is not None else [2]
-    host, cluster = "127.0.0.1", "tutorial"
-    if cluster_config_path is not None:
-        cfg_path = Path(cluster_config_path)
-        if cfg_path.is_file():
-            with open(cfg_path, encoding="utf-8") as f:
-                cluster_json = json.load(f)
-            host = cluster_json.get("host", host)
-            cluster = cluster_json.get("cluster_name", cluster)
 
     connectivity = Connectivity()
     connectivity.add_sensor_dots(sensor_dots=[1], shared_resonator_line=False)
@@ -83,7 +72,7 @@ def build_tutorial_machine(
         machine = build_quam_wiring(
             connectivity,
             host,
-            cluster,
+            cluster_name,
             BaseQuamQD(),
             path=tmp,
         )
