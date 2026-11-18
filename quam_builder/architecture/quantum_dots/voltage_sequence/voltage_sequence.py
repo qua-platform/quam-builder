@@ -83,8 +83,8 @@ def round_amplitude(level):
     Quantize an amplitude to 16-bit fractional precision.
 
     Sticky elements accumulate amplitudes with 16-bit fractional resolution.
-    To avoid accumulating erros, desired voltage levels (QUA and Python) are
-    quantized to this precision.
+    To avoid accumulating errors, desired voltage levels (in QUA and Python)
+    are quantized to this precision.
     """
     if is_qua_type(level):
         level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
