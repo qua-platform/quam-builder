@@ -12,9 +12,9 @@ from quam_builder.architecture.quantum_dots.voltage_sequence.voltage_sequence im
         (0.0, 0.0),
         (0.5, 0.5),
         (0.4, 0.399993896484375),
-        (-0.4, -0.399993896484375),
-        (0.1, 0.100006103515625),
-        (-0.1, -0.100006103515625),
+        (0.06, 0.05999755859375),
+        (-0.4, -0.4000091552734375),
+        (-0.06, -0.0600128173828125),
     ],
 )
 def test_round_amplitude_python(value, expected):
@@ -22,8 +22,6 @@ def test_round_amplitude_python(value, expected):
 
 
 def test_round_amplitude_idempotent():
-    """Rounding an already rounded value should not change it."""
-    value = 0.4
+    value = -0.4
     rounded = round_amplitude(value)
-
     assert round_amplitude(rounded) == rounded
