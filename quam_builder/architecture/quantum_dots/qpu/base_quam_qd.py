@@ -266,6 +266,97 @@ class BaseQuamQD(QuamRoot):
             else:
                 virtual_dc_set.all_current_voltages
 
+    def bind_external_source(
+        self,
+        driver: Any,
+        dac_name: Optional[str] = None,
+        reset_voltages: bool = False,
+    ) -> None:
+        """
+        Bind an already-instantiated external DAC driver to the physical channels.
+
+        For a single DAC configuration, ``dac_name`` is inferred automatically.
+        If multiple DAC configurations are present, ``dac_name`` must be specified.
+
+        Args:
+            driver:
+                Existing external DAC driver instance, e.g. an already-connected
+                QCoDeS QDac2 instance.
+
+            dac_name:
+                Logical DAC name in ``self.dac_config``.
+                Automatically inferred when exactly one DAC configuration exists.
+
+            reset_voltages:
+                Whether to restore ``current_external_voltage`` after binding.
+        """
+
+        if not self.dac_config:
+            raise ValueError(
+                "No DAC configurations found. "
+                "Set them with set_dac_config(...) first."
+            )
+
+        # Infer the DAC name for the common single-DAC case.
+        if dac_name is None:
+            if len(self.dac_config) == 1:
+                dac_name = next(iter(self.dac_config))
+            else:
+                raise ValueError(
+                    "Multiple DAC configurations are available. "
+                    "Please specify dac_name."
+                )
+
+        if dac_name not in self.dac_config:
+            raise ValueError(
+                f"No DAC configuration found for {dac_name!r}. "
+                f"Available DACs: {list(self.dac_config)}"
+            )
+
+        config = self.dac_config[dac_name]
+
+        # Register the existing driver.
+        self.dacs[dac_name] = {
+            "driver": driver,
+            "channel_method": config["channel_method"],
+            "accessor": config["accessor"],
+            "is_qdac": config.get("is_qdac", False),
+        }
+
+        # Bind physical channels that belong to this DAC.
+        for channel in self.physical_channels.values():
+            dac_spec = getattr(channel, "dac_spec", None)
+
+            if dac_spec is None:
+                continue
+
+            channel_dac_name = getattr(dac_spec, "dac_name", "main")
+
+            if channel_dac_name != dac_name:
+                continue
+
+            dac_channel = getattr(driver, config["channel_method"])(dac_spec.output_port)
+
+            channel.offset_parameter = getattr(dac_channel, config["accessor"])
+
+            if reset_voltages and channel.current_external_voltage is not None:
+                channel.offset_parameter(channel.current_external_voltage)
+
+        # Create / refresh VirtualDCSets only when all channels
+        # in the corresponding VirtualGateSet are bound.
+        for gate_set_id, gate_set in self.virtual_gate_sets.items():
+            all_channels_bound = all(callable(channel.offset_parameter) for channel in gate_set.channels.values())
+
+            if not all_channels_bound:
+                continue
+
+            virtual_dc_set = self.virtual_dc_sets.get(gate_set_id)
+
+            if virtual_dc_set is None:
+                self.create_virtual_dc_set(gate_set_id=gate_set_id)
+            else:
+                virtual_dc_set.all_current_voltages
+
     def _get_virtual_gate_set(self, channel: Channel) -> VirtualGateSet:
         """Find the internal VirtualGateSet associated with a particular output channel"""
         virtual_gate_set = None
@@ -679,6 +770,7 @@ class BaseQuamQD(QuamRoot):
         compensation_matrix: List[List[float]] = None,
         allow_rectangular_matrices: bool = True,
         adjust_for_attenuation: bool = False,
+        layer_id: str = "compensation_layer"
     ) -> None:
         if gate_set_id is None:
             gate_set_id = f"virtual_gate_set_{len(self.virtual_gate_sets.keys())}"
@@ -717,7 +809,7 @@ class BaseQuamQD(QuamRoot):
             compensation_matrix = np.eye(len(virtual_gate_names)).tolist()
 
         vgs.add_to_layer(
-            layer_id="compensation_layer",
+            layer_id=layer_id,
             source_gates=virtual_gate_names,
             target_gates=physical_gate_names,
             matrix=compensation_matrix,
