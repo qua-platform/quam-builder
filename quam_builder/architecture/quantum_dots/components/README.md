@@ -99,20 +99,27 @@ A **`VoltageGate`** can carry both an OPX output and an external DC source, so a
 
 Each **`DacSpec`** carries a `limits` dict that **`VirtualDCSet.set_voltages`** checks for every physical channel before it writes anything:
 
-| Key | Default | Meaning |
-|-----|---------|---------|
-| `max_voltage` | `2.5` | Highest voltage the channel may be set to (V) |
-| `min_voltage` | `-2.5` | Lowest voltage the channel may be set to (V) |
-| `max_step_size` | `1` | Largest change allowed in one `set_voltages` call, in either direction (V) |
+| Key | Meaning |
+|-----|---------|
+| `max_voltage` | Highest voltage the channel may be set to (V) |
+| `min_voltage` | Lowest voltage the channel may be set to (V) |
+| `max_step_size` | Largest change allowed in one `set_voltages` call, in either direction (V) |
+
+Every key defaults to `None`, which turns that check off. A new `DacSpec` therefore has no limits until you set them.
 
 ```python
 gate.dac_spec = DacSpec(output_port=1, limits={"max_voltage": 0.5, "min_voltage": -0.5})
-# -> {"max_voltage": 0.5, "min_voltage": -0.5, "max_step_size": 1}
+# -> {"max_voltage": 0.5, "min_voltage": -0.5, "max_step_size": None}
+
+gate.dac_spec.update_limits(max_step_size=0.1)
+# -> {"max_voltage": 0.5, "min_voltage": -0.5, "max_step_size": 0.1}
+
+gate.dac_spec.update_limits(max_voltage=None)  # disables the upper limit
 ```
 
-- Pass only the keys you want to change. The rest keep their defaults, both when you build the spec in code and when a state file is loaded.
-- Set a key to `None` to turn that check off, for example `{"max_step_size": None}`.
-- To change one limit on an existing spec, edit the key (`gate.dac_spec.limits["max_voltage"] = 0.4`). Assigning a new dict replaces all three keys and skips the merge with the defaults.
+- At construction, pass only the keys you want. The rest are filled in as `None`, both when you build the spec in code and when a state file is loaded.
+- After construction, change limits with `update_limits(...)`. It changes only the arguments you pass and leaves the others alone. Passing `None` turns that check off.
+- `gate.dac_spec.limits = {...}` raises an `AttributeError`, because replacing the dict would silently drop the other limits.
 - The checks run on the resolved physical voltages, so a virtual-gate move is rejected if any physical gate it touches would leave its range or jump too far.
 - All channels are checked before any are set. If one channel fails, no voltages are written and a `ValueError` is raised.
 - Every physical channel in the set is checked on each call. A channel that is already outside its range blocks all moves until its limits are widened or it is brought back from outside the `VirtualDCSet`.

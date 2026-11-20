@@ -13,8 +13,9 @@ Key ideas:
   - ``offset_parameter``: a callable like a QCoDeS parameter (``param() -> float`` and ``param(v)`` sets)
   - ``dac_spec``: a :class:`~quam_builder.architecture.quantum_dots.components.dac_spec.DacSpec` (or ``QdacSpec``)
     whose ``limits`` dict (``max_voltage``, ``min_voltage``, ``max_step_size``) VirtualDCSet
-    enforces per channel. Pass only the keys you want to change; the rest keep their
-    defaults (±2.5 V range, 1 V maximum step).
+    enforces per channel. Every limit defaults to None (no check), so this example gives
+    each gate a ±2.5 V range and a 1 V maximum step, with tighter ranges on two gates.
+    After construction, change limits with ``dac_spec.update_limits(...)``.
 
 By default this file runs without QCoDeS (it uses a small in-memory fake parameter).
 Set ``QUAM_QDAC=1`` to use a real QDAC-II via QCoDeS if available.
@@ -34,6 +35,9 @@ from quam_builder.architecture.quantum_dots.components import (
     VirtualDCSet,
     VoltageGate,
 )
+
+
+BASE_DAC_LIMITS = {"max_voltage": 2.5, "min_voltage": -2.5, "max_step_size": 1.0}
 
 
 class FakeOffsetParameter:
@@ -65,17 +69,18 @@ def create_voltage_gate(
         sticky=StickyChannelAddon(duration=16, digital=False),
     )
     gate.offset_parameter = offset_parameter
+    limits = {**BASE_DAC_LIMITS, **(dac_limits or {})}
     gate.dac_spec = (
         QdacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            limits=dac_limits,
+            limits=limits,
         )
         if use_qdac_spec
         else DacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            limits=dac_limits,
+            limits=limits,
         )
     )
     return gate
@@ -276,6 +281,13 @@ def main() -> None:
         raise AssertionError(
             "Expected a ValueError due to max_step_size, but none was raised."
         )
+
+    # limits cannot be reassigned; update_limits changes only the keys you pass.
+    plunger_1_spec = virtual_dc_set.channels["plunger_1"].dac_spec
+    plunger_1_spec.update_limits(max_voltage=1.0)
+    virtual_dc_set.set_voltages({"plunger_1": 0.8}, requery=True, resync=True)
+    print(f"\nAfter update_limits(max_voltage=1.0): plunger_1 limits={dict(plunger_1_spec.limits)}")
+    print(f"  plunger_1 now at {virtual_dc_set.channels['plunger_1'].offset_parameter():.4f} V")
 
 
 if __name__ == "__main__":

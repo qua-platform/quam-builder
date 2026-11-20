@@ -7,6 +7,11 @@ from quam.components import Channel
 
 __all__ = ["DacSpec", "QdacSpec"]
 
+# A dummy object to flag whether the user has actually passed a value or not
+_NOT_GIVEN = object()
+
+LIMITS = ("max_voltage", "min_voltage", "max_step_size")
+
 
 @quam_dataclass
 class DacSpec(QuamComponent):
@@ -18,12 +23,13 @@ class DacSpec(QuamComponent):
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the DAC.
         - dac_name: The key of the driver in machine.dacs that this channel belongs to. Default "main".
         - limits: Safety limits enforced by VirtualDCSet.set_voltages on this physical channel. Keys:
-            - "max_voltage": Highest voltage the channel may be set to. Default 2.5 V.
-            - "min_voltage": Lowest voltage the channel may be set to. Default -2.5 V.
+            - "max_voltage": Highest voltage the channel may be set to.
+            - "min_voltage": Lowest voltage the channel may be set to.
             - "max_step_size": Largest change allowed in a single set_voltages call, in either
-                direction. Default 1 V.
-            A partial dict is merged over the defaults, so only the keys you pass are changed.
-            Setting a key to None disables that check.
+                direction.
+            All three default to None, which disables that check, so a new DacSpec has no limits.
+            A partial dict passed at construction is merged over the defaults. After construction,
+            limits cannot be reassigned; change them with update_limits.
     """
 
     output_port: int = None
@@ -38,17 +44,50 @@ class DacSpec(QuamComponent):
             raise ValueError("output_port is required for DacSpec")
 
         limits = {
-            "max_voltage": None,
-            "min_voltage": None, 
-            "max_step_size": None,
+            lim: None for lim in LIMITS
         }
         if not self.limits: 
             # Means that the user has not inputted a limit
             self.limits = limits
         else:
             # Means that there is a partial or whole limits dict. We COMBINE with the default. 
+            unrecognised = sorted(set(self.limits) - set(LIMITS))
+            if unrecognised:
+                raise ValueError(
+                    f"Unrecognised limit(s) {unrecognised}. Available limits: {list(LIMITS)}"
+                )
             limits.update(self.limits)
             self.limits = limits.copy()
+
+        # Stored in __dict__ directly so it is not a QUAM attribute and is never serialised.
+        self.__dict__["_limits_locked"] = True
+
+    def __setattr__(self, name, value):
+        if name == "limits" and self.__dict__.get("_limits_locked", False):
+            raise AttributeError(
+                "DacSpec.limits cannot be reassigned, as this would drop the other limit keys. "
+                "Use update_limits(...) instead."
+            )
+        super().__setattr__(name, value)
+
+    def update_limits(
+            self,
+            max_voltage: float | None = _NOT_GIVEN,
+            min_voltage: float | None = _NOT_GIVEN,
+            max_step_size: float | None = _NOT_GIVEN,
+        ) -> None:
+        """
+        Update one or more limits, leaving the others unchanged.
+
+        Pass None to disable a check, e.g. update_limits(max_step_size=None).
+        The arguments must match LIMITS.
+        """
+        updates = {
+            "max_voltage": max_voltage,
+            "min_voltage": min_voltage,
+            "max_step_size": max_step_size,
+        }
+        self.limits.update({key: value for key, value in updates.items() if value is not _NOT_GIVEN})
 
     @property
     def machine(self) -> "BaseQuamQD":
