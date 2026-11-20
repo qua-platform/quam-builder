@@ -72,7 +72,7 @@ A gate can carry an OPX pulse and a slow DC bias at the same time. The first two
 
 2. [`voltage_modes_example.py`](voltages/voltage_modes_example.py) is how a later call treats the gates you do not name, and how a ramp differs from a step. With `keep_levels=True` an omitted gate holds its last voltage. With `keep_levels=False` an omitted gate goes to 0 V. The last program ramps to a voltage, ramps to a named point, and closes with `ramp_to_zero`. Set `SIMULATE_ON_OPX = True` to plot a waveform report for each program.
 
-3. [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) is the DC half. A `VirtualDCSet` turns virtual voltages into offsets on an external DAC and checks each channel against its voltage limit. It does not play an OPX pulse. By default the DAC is an in-memory stand-in. Set `QUAM_QDAC=1` to talk to a QDAC-II through QCoDeS.
+3. [`virtual_dc_set_example.py`](voltages/virtual_dc_set_example.py) is the DC half. A `VirtualDCSet` turns virtual voltages into offsets on an external DAC and checks each channel against its `dac_spec.limits` (voltage range and maximum step size). It does not play an OPX pulse. By default the DAC is an in-memory stand-in. Set `QUAM_QDAC=1` to talk to a QDAC-II through QCoDeS.
 
 The connectivity scripts are where the two halves meet on one machine: each gate there has both an OPX output and a `QdacSpec`.
 

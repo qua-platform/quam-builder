@@ -91,9 +91,40 @@ All default pulse **`length`** values must be **multiples of 4 ns** (OPX sample 
 
 A **`VoltageGate`** can carry both an OPX output and an external DC source, so a QDAC and the OPX can take part in the same experiment. **`DacSpec`** and **`QdacSpec`** attach metadata for that DC channel (for example QDAC-II trigger routing). **`offset_parameter`** points at the instrument driver, and **`VirtualDCSet`** writes the slow bias through it while the OPX plays sticky pulses on the same gate.
 
-[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) is the DC half: it builds a **`VirtualDCSet`**, resolves virtual voltages onto DAC offsets, and checks the per-channel limit. It does not play an OPX pulse. The OPX virtual-layer path is [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py). Channel metadata lives in [`dac_spec.py`](dac_spec.py).
+[`virtual_dc_set_example.py`](../examples/voltages/virtual_dc_set_example.py) is the DC half: it builds a **`VirtualDCSet`**, resolves virtual voltages onto DAC offsets, and checks the per-channel limits. It does not play an OPX pulse. The OPX virtual-layer path is [`virtual_gate_set_example.py`](../examples/voltages/virtual_gate_set_example.py). Channel metadata lives in [`dac_spec.py`](dac_spec.py).
 
 **`QdacSpec`** exposes more of the Qdac-II specific functionality but is subclassing **`DacSpec`**
+
+### DAC voltage limits
+
+Each **`DacSpec`** carries a `limits` dict that **`VirtualDCSet.set_voltages`** checks for every physical channel before it writes anything:
+
+| Key | Meaning |
+|-----|---------|
+| `max_voltage` | Highest voltage the channel may be set to (V) |
+| `min_voltage` | Lowest voltage the channel may be set to (V) |
+| `max_step_size` | Largest change allowed in one `set_voltages` call, in either direction (V) |
+
+Every key defaults to `None`, which turns that check off. A new `DacSpec` therefore has no limits until you set them.
+
+```python
+gate.dac_spec = DacSpec(output_port=1, limits={"max_voltage": 0.5, "min_voltage": -0.5})
+# -> {"max_voltage": 0.5, "min_voltage": -0.5, "max_step_size": None}
+
+gate.dac_spec.update_limits(max_step_size=0.1)
+# -> {"max_voltage": 0.5, "min_voltage": -0.5, "max_step_size": 0.1}
+
+gate.dac_spec.update_limits(max_voltage=None)  # disables the upper limit
+```
+
+- At construction, pass only the keys you want. The rest are filled in as `None`, both when you build the spec in code and when a state file is loaded.
+- After construction, change limits with `update_limits(...)`. It changes only the arguments you pass and leaves the others alone. Passing `None` turns that check off.
+- `gate.dac_spec.limits = {...}` raises an `AttributeError`, because replacing the dict would silently drop the other limits.
+- The checks run on the resolved physical voltages, so a virtual-gate move is rejected if any physical gate it touches would leave its range or jump too far.
+- All channels are checked before any are set. If one channel fails, no voltages are written and a `ValueError` is raised.
+- Every physical channel in the set is checked on each call. A channel that is already outside its range blocks all moves until its limits are widened or it is brought back from outside the `VirtualDCSet`.
+- To move further than `max_step_size`, call `set_voltages` several times with smaller steps.
+- Channels with no `dac_spec` are skipped with a warning. `VirtualDCSet(check_max_voltage=False)` (or `machine.create_virtual_dc_set(..., check_max_voltage=False)`) turns all of these checks off.
 
 ## Related components (brief)
 

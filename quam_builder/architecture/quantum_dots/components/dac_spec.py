@@ -1,10 +1,16 @@
 import numpy as np
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict
+from dataclasses import field
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
 
 __all__ = ["DacSpec", "QdacSpec"]
+
+# A dummy object to flag whether the user has actually passed a value or not
+_NOT_GIVEN = object()
+
+LIMITS = ("max_voltage", "min_voltage", "max_step_size")
 
 
 @quam_dataclass
@@ -15,18 +21,79 @@ class DacSpec(QuamComponent):
         - output_port: An integer to indicate which channel you are outputting via. The driver structure
                         should look like driver.channel_method(output_port).
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the DAC.
+        - dac_name: The key of the driver in machine.dacs that this channel belongs to. Default "main".
+        - limits: Safety limits enforced by VirtualDCSet.set_voltages on this physical channel. Keys:
+            - "max_voltage": Highest voltage the channel may be set to in V. 
+            - "min_voltage": Lowest voltage the channel may be set to in V. 
+            - "max_step_size": Largest change allowed in a single set_voltages call, in either
+                direction in V. 
+            All three default to None, which disables that check, so a new DacSpec has no limits.
+            A partial dict passed at construction is merged over the defaults. After construction,
+            limits cannot be reassigned; change them with update_limits.
     """
 
     output_port: int = None
     opx_trigger_out: Channel = None
     dac_name: str = "main"
 
-    abs_dac_voltage_limit: Optional[float] = 2.5
+    limits: Dict[str, Optional[float]] = field(default_factory = dict)
 
     def __post_init__(self):
         super().__post_init__()
         if self.output_port is None and isinstance(self, DacSpec):
             raise ValueError("output_port is required for DacSpec")
+
+        limits = {
+            lim: None for lim in LIMITS
+        }
+        if not self.limits: 
+            # Means that the user has not inputted a limit
+            self.limits = limits
+        else:
+            # Means that there is a partial or whole limits dict. We COMBINE with the default. 
+            unrecognised = sorted(set(self.limits) - set(LIMITS))
+            if unrecognised:
+                raise ValueError(
+                    f"Unrecognised limit(s) {unrecognised}. Available limits: {list(LIMITS)}"
+                )
+            limits.update(self.limits)
+            self.limits = limits.copy()
+
+        # Stored in __dict__ directly so it is not a QUAM attribute and is never serialised.
+        self.__dict__["_limits_locked"] = True
+
+    def __setattr__(self, name, value):
+        if name == "limits" and self.__dict__.get("_limits_locked", False):
+            raise AttributeError(
+                "DacSpec.limits cannot be reassigned, as this would drop the other limit keys. "
+                "Use update_limits(...) instead."
+            )
+        super().__setattr__(name, value)
+
+    def update_limits(
+            self,
+            max_voltage: float | None = _NOT_GIVEN,
+            min_voltage: float | None = _NOT_GIVEN,
+            max_step_size: float | None = _NOT_GIVEN,
+        ) -> None:
+        """
+        Update one or more limits, leaving the others unchanged.
+
+        Args: 
+            - "max_voltage": Highest voltage the channel may be set to in V.
+            - "min_voltage": Lowest voltage the channel may be set to in V.
+            - "max_step_size": Largest change allowed in a single set_voltages call, in either
+                direction in V.
+
+        Pass None to disable a check, e.g. update_limits(max_step_size=None).
+        The arguments must match LIMITS.
+        """
+        updates = {
+            "max_voltage": max_voltage,
+            "min_voltage": min_voltage,
+            "max_step_size": max_step_size,
+        }
+        self.limits.update({key: value for key, value in updates.items() if value is not _NOT_GIVEN})
 
     @property
     def machine(self) -> "BaseQuamQD":
