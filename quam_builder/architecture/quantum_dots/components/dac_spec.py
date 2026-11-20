@@ -23,10 +23,10 @@ class DacSpec(QuamComponent):
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the DAC.
         - dac_name: The key of the driver in machine.dacs that this channel belongs to. Default "main".
         - limits: Safety limits enforced by VirtualDCSet.set_voltages on this physical channel. Keys:
-            - "max_voltage": Highest voltage the channel may be set to.
-            - "min_voltage": Lowest voltage the channel may be set to.
+            - "max_voltage": Highest voltage the channel may be set to in V. 
+            - "min_voltage": Lowest voltage the channel may be set to in V. 
             - "max_step_size": Largest change allowed in a single set_voltages call, in either
-                direction.
+                direction in V. 
             All three default to None, which disables that check, so a new DacSpec has no limits.
             A partial dict passed at construction is merged over the defaults. After construction,
             limits cannot be reassigned; change them with update_limits.
@@ -78,6 +78,12 @@ class DacSpec(QuamComponent):
         ) -> None:
         """
         Update one or more limits, leaving the others unchanged.
+
+        Args: 
+            - "max_voltage": Highest voltage the channel may be set to in V.
+            - "min_voltage": Lowest voltage the channel may be set to in V.
+            - "max_step_size": Largest change allowed in a single set_voltages call, in either
+                direction in V.
 
         Pass None to disable a check, e.g. update_limits(max_step_size=None).
         The arguments must match LIMITS.
