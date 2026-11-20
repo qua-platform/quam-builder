@@ -20,7 +20,8 @@ One shot of the sequence:
 By default, the script builds the machine, the QUA config and the program, then
 prints a summary and the serialized QUA program. Set ``SIMULATE_ON_OPX = True`` to
 simulate the start of the sweep on a real OPX and plot the waveform report. The
-OPX address comes from ``cluster_config_path`` in ``build_tutorial_machine()``.
+The OPX address is configured through the `host` and `cluster_name` parameters of
+`build_tutorial_machine()`.
 """
 
 from __future__ import annotations

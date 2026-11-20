@@ -61,8 +61,10 @@ def compatible_quam_config(tmp_path, monkeypatch):
     config_file = tmp_path / "config.toml"
     config_file.write_text(f"[quam]\nversion = {QuamConfig.version}\n")
     monkeypatch.setenv(CONFIG_PATH_ENV_NAME, str(config_file))
-    get_quam_config.cache_clear()
 
+    # Clear the config cache (QuAM < 0.6.0).
+    if hasattr(get_quam_config, "cache_clear"):
+        get_quam_config.cache_clear()
 
 @pytest.fixture
 def empty_ff_machine() -> FixedFrequencyQuam:
