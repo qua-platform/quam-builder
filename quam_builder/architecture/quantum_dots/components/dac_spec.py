@@ -38,9 +38,9 @@ class DacSpec(QuamComponent):
             raise ValueError("output_port is required for DacSpec")
 
         limits = {
-            "max_voltage": 2.5,
-            "min_voltage": -2.5, 
-            "max_step_size": 1,
+            "max_voltage": None,
+            "min_voltage": None, 
+            "max_step_size": None,
         }
         if not self.limits: 
             # Means that the user has not inputted a limit
