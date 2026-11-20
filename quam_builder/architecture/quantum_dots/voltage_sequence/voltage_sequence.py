@@ -1,6 +1,6 @@
 from typing import Dict, Optional, Tuple
 from contextlib import contextmanager
-
+import math
 import numpy as np
 from qm.qua import (
     declare,
@@ -80,15 +80,16 @@ def _bitshift_amplitude_scale(delta_v, log2_inv_wf, inv_wf_amplitude):
 
 def round_amplitude(level):
     """
-    Rounds an amplitude to 16-bit fractional precision.
+    Quantize an amplitude to 16-bit fractional precision.
 
-    With sticky elements, the amplitude is accumulated with 16-bit fractional resolution.
-    To avoid accumulating errors, desired voltage levels are rounded to this precision.
+    Sticky elements accumulate amplitudes with 16-bit fractional resolution.
+    To avoid accumulating errors, desired voltage levels (in QUA and Python)
+    are quantized to this precision.
     """
     if is_qua_type(level):
         level = (level >> VOLTAGE_BITSHIFT) << VOLTAGE_BITSHIFT
     else:
-        level = round(level * 2**16) / 2**16
+        level = math.floor(level * 2**16) / 2**16
     return level
 
 
