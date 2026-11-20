@@ -139,14 +139,16 @@ class TestLDQubitDriveFrequency:
         qubit.larmor_frequency = 5.3e9
         assert qubit.drive_IF == pytest.approx(0.3e9)
 
-    def test_if_validation_rejects_over_400mhz(self):
+    def test_if_validation_rejects_over_limit(self):
         _, qubit = _make_qubit_with_xy()
+        qubit.larmor_frequency = 6e9  # IF = 1 GHz, over the MW FEM 500 MHz limit
         with pytest.raises(ValueError, match="exceeds"):
-            qubit.larmor_frequency = 6e9  # IF = 1 GHz, over 400 MHz
+            qubit.xy.validate_intermediate_frequency()
 
     def test_if_validation_allows_within_limit(self):
         _, qubit = _make_qubit_with_xy()
         qubit.larmor_frequency = 5.3e9  # IF = 300 MHz, within limit
+        qubit.xy.validate_intermediate_frequency()
 
     def test_set_xy_frequency_removed(self):
         _, qubit = _make_qubit_with_xy()

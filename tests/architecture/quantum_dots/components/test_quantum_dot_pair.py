@@ -43,18 +43,14 @@ class TestQuantumDotPairProperties:
 
 
 class TestDetuningAxis:
-    def test_detuning_axis_name_set(self, qd_machine):
-        pair = qd_machine.quantum_dot_pairs["dot1_dot2_pair"]
-        assert pair.detuning_axis_name == "dot1_dot2_pair_epsilon"
-
     def test_detuning_axis_in_virtual_gate_set(self, qd_machine):
         vgs = qd_machine.virtual_gate_sets["main_qpu"]
-        assert "dot1_dot2_pair_epsilon" in vgs.valid_channel_names
+        assert "dot1_dot2_pair" in vgs.valid_channel_names
 
     def test_two_detuning_axes_coexist(self, qd_machine):
         vgs = qd_machine.virtual_gate_sets["main_qpu"]
-        assert "dot1_dot2_pair_epsilon" in vgs.valid_channel_names
-        assert "dot3_dot4_pair_epsilon" in vgs.valid_channel_names
+        assert "dot1_dot2_pair" in vgs.valid_channel_names
+        assert "dot3_dot4_pair" in vgs.valid_channel_names
 
 
 class TestDetuningControl:

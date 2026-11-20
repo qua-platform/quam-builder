@@ -21,10 +21,6 @@ class TestLDQubitPairProperties:
         pair = qd_machine.qubit_pairs["Q1_Q2"]
         assert isinstance(pair.quantum_dot_pair, QuantumDotPair)
 
-    def test_detuning_axis_name(self, qd_machine):
-        pair = qd_machine.qubit_pairs["Q1_Q2"]
-        assert pair.detuning_axis_name == "dot1_dot2_pair_epsilon"
-
     def test_voltage_sequence_accessible(self, qd_machine):
         pair = qd_machine.qubit_pairs["Q1_Q2"]
         assert pair.voltage_sequence is not None
@@ -41,15 +37,13 @@ class TestLDQubitPairProperties:
 class TestLDQubitPairVoltageOps:
     def test_add_point(self, qd_machine):
         pair = qd_machine.qubit_pairs["Q1_Q2"]
-        full_name = pair.add_point(
-            "exchange", {"dot1_dot2_pair_epsilon": 0.5}, duration=100
-        )
+        full_name = pair.add_point("exchange", {"dot1_dot2_pair": 0.5}, duration=100)
         macros = pair.voltage_sequence.gate_set.get_macros()
         assert full_name in macros
 
     def test_step_to_point_in_qua(self, qd_machine):
         pair = qd_machine.qubit_pairs["Q1_Q2"]
-        pair.add_point("exchange", {"dot1_dot2_pair_epsilon": 0.5}, duration=100)
+        pair.add_point("exchange", {"dot1_dot2_pair": 0.5}, duration=100)
 
         with qua.program() as prog:
             pair.step_to_point("exchange")
@@ -58,7 +52,7 @@ class TestLDQubitPairVoltageOps:
 
     def test_ramp_to_point_in_qua(self, qd_machine):
         pair = qd_machine.qubit_pairs["Q1_Q2"]
-        pair.add_point("ramp_target", {"dot1_dot2_pair_epsilon": 0.3}, duration=100)
+        pair.add_point("ramp_target", {"dot1_dot2_pair": 0.3}, duration=100)
 
         with qua.program() as prog:
             pair.ramp_to_point("ramp_target", ramp_duration=20)
@@ -71,5 +65,5 @@ class TestMultiplePairs:
         p1 = qd_machine.qubit_pairs["Q1_Q2"]
         p2 = qd_machine.qubit_pairs["Q3_Q4"]
 
-        assert p1.detuning_axis_name != p2.detuning_axis_name
+        assert p1.quantum_dot_pair.id != p2.quantum_dot_pair.id
         assert p1.quantum_dot_pair is not p2.quantum_dot_pair

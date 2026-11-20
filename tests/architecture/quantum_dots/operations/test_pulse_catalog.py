@@ -64,6 +64,8 @@ class TestMakeXYPulseFactories:
         assert isinstance(gaussian, ScalableGaussianPulse)
         assert gaussian.amplitude == DEFAULTS.xy_pulse.amplitude
         assert gaussian.sigma_ratio == pytest.approx(1 / 6)
+        # sigma is derived from length * sigma_ratio when the waveform is generated
+        gaussian.waveform_function()
         assert gaussian.sigma == pytest.approx(gaussian.length * gaussian.sigma_ratio)
 
     def test_all_families_present(self):

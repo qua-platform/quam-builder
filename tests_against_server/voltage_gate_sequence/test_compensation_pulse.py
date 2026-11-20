@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from typing import List, Dict
 from qm import SimulationConfig
-from qm.exceptions import QmServerDetectionError
 
 from quam.components import (
     StickyChannelAddon,
@@ -28,10 +27,8 @@ from qm.qua import *
 SIM_LENGTH = 40000
 HALF_MAX_HEIGHT = 0.5
 CLOCK_CYCLE = 4
-LFFEM = 6
-MWFEM = 1
-QOP = "172.16.33.115"
-CLUSTER = "CS_4"
+LFFEM = 5
+MWFEM = 2
 
 # Absolute tolerance (V·ns) for the discrepancy between the expected
 # compensation area and the measured compensation area from the waveform report.
@@ -192,7 +189,6 @@ def create_example_quam(
 
     machine = BaseQuamQD()
 
-    machine.network = {"host": QOP, "cluster_name": CLUSTER}
     plungers = {
         f"virtual_dot_{i+1}": create_voltage_gate(f"plunger_{i+1}", i + 1)
         for i in range(num_plungers)
@@ -358,11 +354,7 @@ def _create_program_qua(steps):
     return prog, machine
 
 
-def _simulate(machine, prog, simulation_duration: int):
-    try:
-        qmm = machine.connect()
-    except QmServerDetectionError as exc:
-        pytest.skip(f"QMM cluster not available: {exc}")
+def _simulate(qmm, machine, prog, simulation_duration: int):
     simulation_config = SimulationConfig(duration=simulation_duration // 4)
     job = qmm.simulate(machine.generate_config(), prog, simulation_config)
     job.wait_until("Done")
@@ -385,7 +377,7 @@ def _measure_compensation_areas(machine, waveform_dict):
 # ---------------------------------------------------------------------------
 
 
-def test_compensation_pulse_python_voltages():
+def test_compensation_pulse_python_voltages(qmm):
     """Compensation area from Python-valued voltages matches expected within PYTHON_ATOL."""
     prog, machine = _create_program_python(example_steps)
     _, expected_areas = expected_pulse_sequence(
@@ -393,7 +385,7 @@ def test_compensation_pulse_python_voltages():
         example_steps,
         num_samples_total=SIM_LENGTH,
     )
-    waveform_dict = _simulate(machine, prog, SIM_LENGTH)
+    waveform_dict = _simulate(qmm, machine, prog, SIM_LENGTH)
     measured_areas = _measure_compensation_areas(machine, waveform_dict)
 
     for ch_name, measured in measured_areas.items():
@@ -406,7 +398,7 @@ def test_compensation_pulse_python_voltages():
         )
 
 
-def test_compensation_pulse_qua_voltages():
+def test_compensation_pulse_qua_voltages(qmm):
     """Compensation area from QUA-variable voltages matches expected within QUA_ATOL."""
     prog, machine = _create_program_qua(example_steps)
     _, expected_areas = expected_pulse_sequence(
@@ -414,7 +406,7 @@ def test_compensation_pulse_qua_voltages():
         example_steps,
         num_samples_total=SIM_LENGTH,
     )
-    waveform_dict = _simulate(machine, prog, SIM_LENGTH)
+    waveform_dict = _simulate(qmm, machine, prog, SIM_LENGTH)
     measured_areas = _measure_compensation_areas(machine, waveform_dict)
 
     for ch_name, measured in measured_areas.items():

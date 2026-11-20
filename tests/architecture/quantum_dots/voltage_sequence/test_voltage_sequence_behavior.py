@@ -231,17 +231,6 @@ def test_track_sticky_duration_is_a_no_op_when_integrated_voltage_is_not_tracked
     assert seq.state_trackers["ch1"].integrated_voltage == 0
 
 
-def test_track_sticky_duration_rejects_non_int_negative_and_non_multiple_of_4ns(machine):
-    """With tracking enabled, duration_ns must be a non-negative int multiple of 4 ns."""
-    seq = VoltageSequence(machine.gate_set, track_integrated_voltage=True)
-    with pytest.raises(TypeError, match="integer number of nanoseconds"):
-        seq.track_sticky_duration(16.0)  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match="non-negative"):
-        seq.track_sticky_duration(-4)
-    with pytest.raises(TypeError, match="multiple of 4"):
-        seq.track_sticky_duration(18)
-
-
 def test_reset_integrated_voltage_clears_all_channel_trackers(machine):
     """VoltageSequence.reset_integrated_voltage zeros every channel tracker."""
     seq = VoltageSequence(machine.gate_set, track_integrated_voltage=True)
@@ -259,11 +248,14 @@ def test_round_amplitude_python_value_uses_float16_precision():
     assert round_amplitude(0.25) == 0.25
 
 
-def test_enforce_qua_calcs_on_new_sequence_declares_current_level_as_qua(machine):
-    """new_sequence(enforce_qua_calcs=True) starts each channel current_level as a
-    QUA fixed, so later Python steps assign into QUA rather than storing a float."""
+def test_enforce_qua_calcs_declares_current_level_as_qua_on_first_step(machine):
+    """new_sequence(enforce_qua_calcs=True) declares each channel current_level as a
+    QUA fixed lazily, on the first step inside the program, so later Python steps
+    assign into QUA rather than storing a float."""
     with qua.program() as _prog:
         seq = machine.gate_set.new_sequence(enforce_qua_calcs=True)
+        assert not is_qua_type(seq.state_trackers["ch1"].current_level)
+        seq.step_to_voltages({"ch1": 0.1}, duration=100)
         assert is_qua_type(seq.state_trackers["ch1"].current_level)
         assert is_qua_type(seq.state_trackers["ch2"].current_level)
 

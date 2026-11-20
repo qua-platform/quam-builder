@@ -7,11 +7,12 @@ They request the shared `qmm` fixture from [`conftest.py`](conftest.py). **Defau
 ## Switch backend
 
 ```bash
-# SaaS (default) — needs .qm_saas_credentials.json and ports 443 + 9510
-cp .qm_saas_credentials.json.example .qm_saas_credentials.json  # fill in
+# SaaS (default) — needs ports 443 + 9510
+cp tests_against_server/.qm_saas_credentials.json.example tests_against_server/.qm_saas_credentials.json  # fill in
 uv run pytest -m server tests_against_server/voltage_gate_sequence/
 
-# On-prem lab cluster — needs VPN/LAN
+# On-prem cluster — needs VPN/LAN
+cp tests_against_server/.qm_cluster_config.json.example tests_against_server/.qm_cluster_config.json  # fill in
 uv run pytest -m server --qm-backend=on_prem tests_against_server/voltage_gate_sequence/
 # or
 QM_TEST_BACKEND=on_prem uv run pytest -m server tests_against_server/voltage_gate_sequence/
