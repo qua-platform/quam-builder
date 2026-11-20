@@ -804,6 +804,9 @@ class BaseQuamQD(QuamRoot):
         Method to create a VirtualDCSet, using the same structure as the VirtualGateSet.
 
         The default matrix will be synced with the VirtualGateSet compensation layer. If a matrix is provided, it will overwrite.
+
+        If check_max_voltage is True, set_voltages enforces each channel's dac_spec.limits
+        (max_voltage, min_voltage, max_step_size) before writing any voltage.
         """
         if gate_set_id not in self.virtual_gate_sets:
             raise ValueError(

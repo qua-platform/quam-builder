@@ -1,5 +1,6 @@
 import numpy as np
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict
+from dataclasses import field
 
 from quam.core import quam_dataclass, QuamComponent
 from quam.components import Channel
@@ -15,18 +16,39 @@ class DacSpec(QuamComponent):
         - output_port: An integer to indicate which channel you are outputting via. The driver structure
                         should look like driver.channel_method(output_port).
         - opx_trigger_out: A digital channel associated to the VoltageGate, used for sending a digital trigger pulse to the DAC.
+        - dac_name: The key of the driver in machine.dacs that this channel belongs to. Default "main".
+        - limits: Safety limits enforced by VirtualDCSet.set_voltages on this physical channel. Keys:
+            - "max_voltage": Highest voltage the channel may be set to. Default 2.5 V.
+            - "min_voltage": Lowest voltage the channel may be set to. Default -2.5 V.
+            - "max_step_size": Largest change allowed in a single set_voltages call, in either
+                direction. Default 1 V.
+            A partial dict is merged over the defaults, so only the keys you pass are changed.
+            Setting a key to None disables that check.
     """
 
     output_port: int = None
     opx_trigger_out: Channel = None
     dac_name: str = "main"
 
-    abs_dac_voltage_limit: Optional[float] = 2.5
+    limits: Dict[str, Optional[float]] = field(default_factory = dict)
 
     def __post_init__(self):
         super().__post_init__()
         if self.output_port is None and isinstance(self, DacSpec):
             raise ValueError("output_port is required for DacSpec")
+
+        limits = {
+            "max_voltage": 2.5,
+            "min_voltage": -2.5, 
+            "max_step_size": 1,
+        }
+        if not self.limits: 
+            # Means that the user has not inputted a limit
+            self.limits = limits
+        else:
+            # Means that there is a partial or whole limits dict. We COMBINE with the default. 
+            limits.update(self.limits)
+            self.limits = limits.copy()
 
     @property
     def machine(self) -> "BaseQuamQD":

@@ -12,7 +12,9 @@ Key ideas:
 - Each physical gate should have:
   - ``offset_parameter``: a callable like a QCoDeS parameter (``param() -> float`` and ``param(v)`` sets)
   - ``dac_spec``: a :class:`~quam_builder.architecture.quantum_dots.components.dac_spec.DacSpec` (or ``QdacSpec``)
-    with ``abs_dac_voltage_limit`` set, so VirtualDCSet can enforce per-channel limits.
+    whose ``limits`` dict (``max_voltage``, ``min_voltage``, ``max_step_size``) VirtualDCSet
+    enforces per channel. Pass only the keys you want to change; the rest keep their
+    defaults (±2.5 V range, 1 V maximum step).
 
 By default this file runs without QCoDeS (it uses a small in-memory fake parameter).
 Set ``QUAM_QDAC=1`` to use a real QDAC-II via QCoDeS if available.
@@ -52,7 +54,7 @@ def create_voltage_gate(
     opx_port_id: int,
     dac_output_port: int,
     lf_fem: int = 5,
-    dac_voltage_limit: float = 2.5,
+    dac_limits: dict[str, float | None] | None = None,
     offset_parameter: Callable[[float | None], float],
     use_qdac_spec: bool = False,
 ) -> VoltageGate:
@@ -67,13 +69,13 @@ def create_voltage_gate(
         QdacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            abs_dac_voltage_limit=dac_voltage_limit,
+            limits=dac_limits,
         )
         if use_qdac_spec
         else DacSpec(
             output_port=dac_output_port,
             dac_name="main",
-            abs_dac_voltage_limit=dac_voltage_limit,
+            limits=dac_limits,
         )
     )
     return gate
@@ -117,7 +119,7 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         gate_id="plunger_1",
         opx_port_id=1,
         dac_output_port=1,
-        dac_voltage_limit=0.5,  # unique limit for this gate
+        dac_limits={"max_voltage": 0.5, "min_voltage": -0.5},  # unique range for this gate
         offset_parameter=make_param(1),
         use_qdac_spec=use_qdac_spec,
     )
@@ -153,7 +155,7 @@ def build_virtual_dc_set(*, use_qdac: bool = False) -> VirtualDCSet:
         gate_id="barrier_2",
         opx_port_id=6,
         dac_output_port=6,
-        dac_voltage_limit=0.05,  # unique limit for this gate
+        dac_limits={"max_voltage": 0.05, "min_voltage": -0.05},  # unique range for this gate
         offset_parameter=make_param(6),
         use_qdac_spec=use_qdac_spec,
     )
@@ -231,7 +233,7 @@ def main() -> None:
 
     # Names may be virtual or physical. With requery=True, VirtualDCSet reads the
     # current physical voltages, resolves the requested levels through the layers,
-    # enforces each gate's abs_dac_voltage_limit, and writes offset_parameter.
+    # checks each gate's dac_spec.limits (range and step size), and writes offset_parameter.
     virtual_dc_set.set_voltages(
         {"det_1": 0.10, "det_2": -0.05, "barrier_2": 0.02},
         requery=True,
@@ -242,7 +244,7 @@ def main() -> None:
     for ch_name, ch in virtual_dc_set.channels.items():
         print(
             f"  {ch_name}: {ch.offset_parameter(): .4f} V "
-            f"(limit={getattr(ch.dac_spec, 'abs_dac_voltage_limit', None)} V)"
+            f"(limits={dict(ch.dac_spec.limits)})"
         )
 
     print("\nAll current virtual+physical levels (computed):")
@@ -262,6 +264,17 @@ def main() -> None:
     else:
         raise AssertionError(
             "Expected a ValueError due to DAC voltage limits, but none was raised."
+        )
+
+    print("\nChecking that a jump larger than max_step_size raises...")
+    try:
+        virtual_dc_set.set_voltages({"plunger_2": 1.5}, requery=True, resync=False)
+    except ValueError as exc:
+        assert "step size" in str(exc), exc
+        print(f"OK: caught expected ValueError: {exc}")
+    else:
+        raise AssertionError(
+            "Expected a ValueError due to max_step_size, but none was raised."
         )
 
 

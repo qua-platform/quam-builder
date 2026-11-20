@@ -4,6 +4,7 @@ Covers error paths, integrated-voltage bookkeeping, compensation parameter
 invariants, and channel voltage limits. These tests do not require qua-qsim.
 """
 
+import math
 import numpy as np
 import pytest
 from qm import qua
@@ -241,10 +242,10 @@ def test_reset_integrated_voltage_clears_all_channel_trackers(machine):
     assert seq.state_trackers["ch2"].integrated_voltage == 0
 
 
-def test_round_amplitude_python_value_uses_float16_precision():
-    """Python voltages are rounded to IEEE float16 so sticky accumulation does
-    not drift from 16-bit OPX amplitude resolution."""
-    assert round_amplitude(0.1) == float(np.float16(0.1))
+def test_round_amplitude_python_value_floors_to_16_bit_grid():
+    """Python voltages are floored to a 2**-16 grid, matching the QUA bit-shift
+    truncation, so sticky accumulation does not drift from 16-bit OPX amplitude resolution."""
+    assert round_amplitude(0.1) == math.floor(0.1 * 2**16) / 2**16
     assert round_amplitude(0.25) == 0.25
 
 

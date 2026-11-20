@@ -35,8 +35,8 @@ class VirtualDCSet(QuantumComponent):
         channels: Physical channels are `VoltageGate` instances that the virtual
             gates ultimately resolve to.
         check_max_voltage: A bool option, whether to enforce a strict absolute voltage 
-            limit on the PHYSICAL outputs of the DAC. The absolute limits are defined in 
-            each VoltageGate's DacSpec object, default ±2.5V. 
+            limit on the PHYSICAL outputs of the DAC. The limits are defined as max_voltage, min_voltage, 
+            and max_step_size in the limits Dict of the dac_spec. 
 
     Example:
         >>> from quam.components.channels import SingleChannel
@@ -495,15 +495,30 @@ class VirtualDCSet(QuantumComponent):
         # an error to arise half-way, leading to incomplete DAC voltage application and potentially an unknown charge state. 
         if self.check_max_voltage: 
             for name, delta_v in physical_deltas.items(): 
-                # Extract the voltage limit, default to None
-                max_v = getattr(self.channels[name].dac_spec, "abs_dac_voltage_limit", None)
-                if max_v is None: 
+                # First ensure that dac_spec exists. 
+                dac_spec = getattr(self.channels[name], "dac_spec", None)
+                if dac_spec is None: 
+                    warnings.warn(f"dac_spec for channel {name} not found. Skipping.")
                     continue
+
+                # Extract the voltage limits
+                limits = getattr(dac_spec, "limits", None)
+                max_v = limits.get("max_voltage", np.inf)
+                min_v = limits.get("min_voltage", -np.inf)
+                max_step_size = limits.get("max_step_size", None)
+
+                if max_step_size is not None: 
+                    if abs(delta_v) > max_step_size: 
+                        raise ValueError(f"Resolved physical voltage change on channel {name} exceeds step size limit of ±{max_step_size}V. Tried to add {delta_v}V")
 
                 current_v = current_volts_dict[name]
                 applied_total = current_v + delta_v
-                if abs(applied_total) > max_v: 
-                    raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of ±{max_v}V. Tried to apply {applied_total}V")
+                if max_v is not None: 
+                    if applied_total > max_v: 
+                        raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of +{max_v}V. Tried to apply {applied_total}V")
+                if min_v is not None: 
+                    if applied_total < min_v: 
+                        raise ValueError(f"Resolved physical voltage on channel {name} exceeds limit of {min_v}V. Tried to apply {applied_total}V")
 
         # The setter loop
         for name, delta in physical_deltas.items():
