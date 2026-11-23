@@ -36,6 +36,15 @@ jobs:
       - name: Build sdist and wheel
         run: uv build
 
+      # Install the built wheel into a clean environment and import it, so a
+      # broken package fails here instead of becoming a permanent PyPI version.
+      # -I keeps the checkout off sys.path, so the import must come from the wheel.
+      - name: Smoke-test the wheel
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/smoke"
+          uv pip install --python "$RUNNER_TEMP/smoke" dist/*.whl
+          "$RUNNER_TEMP/smoke/bin/python" -I -c "import quam_builder, quam_builder.architecture, quam_builder.builder, quam_builder.tools; print('quam_builder imports OK')"
+
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
