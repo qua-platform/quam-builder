@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 - `CZGate.apply(..., align_elements: bool = True)` so two-qubit RB can drop the three explicit CZ aligns without changing the default for other nodes. `False` keeps flux pulses and phase compensation and requires the caller to establish timing.
 - BSD-3-Clause `LICENSE` file, and the license in the package metadata.
-- GitHub workflow `on-released.yml` that publishes the package to PyPI when a GitHub Release is published, using PyPI trusted publishing.
+- GitHub workflow `on-released.yml` that publishes the package to PyPI when a GitHub Release (not a pre-release) is released, using PyPI trusted publishing.
 - Project URLs and classifiers in the package metadata.
 
 ### Fixed
