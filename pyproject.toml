@@ -3,8 +3,21 @@ name = "quam-builder"
 version = "0.7.0"
 description = "A Python tool designed to programmatically construct QUAM (Quantum Abstract Machine) configurations for the Quantum Orchestration Platform (QOP)."
 readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "Theo Laudat", email = "theo@quantum-machines.co" }]
 requires-python = ">=3.10,<3.14"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
     "qualang-tools>=0.22.0",
     "quam>=0.4.0",
@@ -15,12 +28,13 @@ dependencies = [
     "scipy>=1.10",
 ]
 
+[project.urls]
+Homepage = "https://github.com/qua-platform/quam-builder"
+Changelog = "https://github.com/qua-platform/quam-builder/blob/main/CHANGELOG.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.sdist.sources]
-"src/quam_builder" = "quam_builder"
 
 [tool.hatch.metadata]
 allow-direct-references = true

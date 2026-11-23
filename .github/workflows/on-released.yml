@@ -1,0 +1,80 @@
+name: Publish to PyPI
+
+# Publishes quam-builder to PyPI when a GitHub Release is released.
+# Pre-releases do not trigger this workflow, so they never reach PyPI.
+# Uses PyPI trusted publishing (OIDC): no API token or secret is stored in this repo.
+# The trusted publisher on PyPI must be configured with:
+#   repository: qua-platform/quam-builder, workflow: on-released.yml, environment: pypi
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Check tag matches package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d '"' -f2)
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Release tag '$TAG' does not match pyproject.toml version '$VERSION'"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      # Install the built wheel into a clean environment and import it, so a
+      # broken package fails here instead of becoming a permanent PyPI version.
+      # -I keeps the checkout off sys.path, so the import must come from the wheel.
+      - name: Smoke-test the wheel
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/smoke"
+          uv pip install --python "$RUNNER_TEMP/smoke" dist/*.whl
+          "$RUNNER_TEMP/smoke/bin/python" -I -c "import quam_builder, quam_builder.architecture, quam_builder.builder, quam_builder.tools; print('quam_builder imports OK')"
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/quam-builder/
+    permissions:
+      id-token: write  # required for trusted publishing
+      contents: write  # required to attach the distributions to the release
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      # Runs only after the PyPI upload succeeded, so the release page never
+      # offers files that are not on PyPI. --clobber makes a re-run safe.
+      - name: Attach distributions to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"

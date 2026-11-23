@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### Added
 
 - `CZGate.apply(..., align_elements: bool = True)` so two-qubit RB can drop the three explicit CZ aligns without changing the default for other nodes. `False` keeps flux pulses and phase compensation and requires the caller to establish timing.
+- BSD-3-Clause `LICENSE` file, and the license in the package metadata.
+- GitHub workflow `on-released.yml` that publishes the package to PyPI when a GitHub Release (not a pre-release) is released, using PyPI trusted publishing, and attaches the wheel and sdist to the release.
+- Project URLs and classifiers in the package metadata.
+
+### Fixed
+
+- README links now point to GitHub, so they also work on PyPI. The broken link to a non-existent `nv_center` README is replaced by the `quantum_dots` README.
 
 ## [0.7.0] - 2026-11-09
 
