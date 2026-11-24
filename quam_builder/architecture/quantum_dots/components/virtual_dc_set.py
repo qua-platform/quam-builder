@@ -572,76 +572,71 @@ class VirtualDCSet(QuantumComponent):
         *,
         apply: bool = True,
         requery: bool = False,
-        resync: bool = True,
+        resync: bool = False,
+        use_parameter_cache: bool = True,
         report: bool = False,
     ) -> Dict:
+        """Increment virtual or physical DC coordinates without re-resolving targets.
+
+        The requested increment is resolved into physical voltage deltas only once.
+        With requery=False and use_parameter_cache=True, current physical values
+        are taken from QCoDeS parameter caches (with a hardware-get fallback
+        if a cache entry is missing).
         """
-        Increment physical or virtual DC coordinates by the requested deltas.
+        invalid = set(deltas) - set(self.valid_channel_names)
+        if invalid:
+            raise ValueError(f"Unknown voltage channels: {invalid}")
 
-        Parameters
-        ----------
-        deltas
-            Requested voltage increments in volts.
-            Example: {"vP1": 1e-3} moves vP1 by +1 mV.
-
-        apply
-            If True, apply the move.
-
-        requery
-            If True, query the current hardware state before calculating targets.
-
-        resync
-            If True, query the hardware again after applying the move
-            to synchronize the internal voltage cache.
-
-            If False, update the cache from the calculated target voltages
-            without an additional hardware query.
-
-        report
-            If True, print the requested virtual move and resolved physical deltas.
-
-        Returns
-        -------
-        dict
-            Information about the requested and resolved voltage move.
-        """
-
+        # Establish the initial state using the same priority as before.
         if requery:
             current = self.all_current_voltages.copy()
-            self._current_levels = current
+        elif use_parameter_cache:
+            current = self.sync_from_parameter_cache().copy()
         else:
             current = self._current_levels.copy()
 
-        invalid = set(deltas) - set(self.valid_channel_names)
-
-        if invalid:
-            raise ValueError(
-                f"Unknown voltage channels: {invalid}"
+        missing = [name for name in self.channels if name not in current]
+        if missing:
+            raise RuntimeError(
+                f"Missing current physical voltages for {missing}. "
+                "Synchronize from the QDAC or its QCoDeS parameter cache first."
             )
 
-        targets = {
-            name: current[name] + delta
-            for name, delta in deltas.items()
-        }
-
+        # Resolve exactly once. Values are increments, NOT absolute voltages.
         physical_deltas = self.resolve_voltages(deltas)
-
         result = {
             "virtual_move": dict(deltas),
             "physical_delta": physical_deltas,
             "applied": False,
         }
 
-        if apply:
-            self.set_voltages(
-                targets,
-                requery=False,
-                resync=resync,
-            )
+        # Preserve the original behavior of initializing our internal state
+        # even in dry-run mode.
+        self._current_levels = current.copy()
 
+        if apply:
+            physical_voltages = {
+                name: float(current[name]) for name in self.channels
+            }
+            try:
+                for name, delta in physical_deltas.items():
+                    delta = float(delta)
+                    if delta == 0.0:
+                        continue
+                    target = physical_voltages[name] + delta
+                    self.channels[name].offset_parameter(target)
+                    physical_voltages[name] = target
+            except Exception:
+                # Some DAC channels may already have been updated. Do not
+                # publish a full virtual state as though the move completed.
+                self._populate_virtual_gate_voltages(physical_voltages)
+                raise
+
+            if resync:
+                self._current_levels = self.all_current_voltages.copy()
+            else:
+                self._populate_virtual_gate_voltages(physical_voltages)
             result["applied"] = True
 
-        if report:
-            self._print_voltage_move(result)
-
-        return result
+            if report:
+                self._print_voltage_move(result)
