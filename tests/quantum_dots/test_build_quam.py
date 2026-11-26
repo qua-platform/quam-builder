@@ -2,6 +2,7 @@
 
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
+import importlib
 import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -24,6 +25,10 @@ from quam_builder.builder.quantum_dots.build_quam import (
     _resolve_calibration_db_path,
     _set_default_grid_location,
 )
+
+# Patch the module object directly: the package re-exports a ``build_quam``
+# function that shadows the submodule, which breaks dotted-path patching on 3.10.
+_build_quam_module = importlib.import_module("quam_builder.builder.quantum_dots.build_quam")
 
 
 class TestSetDefaultGridLocation:
@@ -239,10 +244,8 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
-            patch(
-                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
-            ) as mock_ld,
+            patch.object(_build_quam_module, "build_base_quam") as mock_base,
+            patch.object(_build_quam_module, "build_loss_divincenzo_quam") as mock_ld,
         ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
@@ -260,10 +263,8 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
-            patch(
-                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
-            ) as mock_ld,
+            patch.object(_build_quam_module, "build_base_quam") as mock_base,
+            patch.object(_build_quam_module, "build_loss_divincenzo_quam") as mock_ld,
         ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
@@ -280,10 +281,8 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
-            patch(
-                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
-            ) as mock_ld,
+            patch.object(_build_quam_module, "build_base_quam") as mock_base,
+            patch.object(_build_quam_module, "build_loss_divincenzo_quam") as mock_ld,
         ):
             mock_base.return_value = machine
             mock_ld.return_value = machine
@@ -299,10 +298,8 @@ class TestBuildQuam:
         machine.network = {"host": "127.0.0.1", "cluster_name": "test"}
 
         with (
-            patch("quam_builder.builder.quantum_dots.build_quam.build_base_quam") as mock_base,
-            patch(
-                "quam_builder.builder.quantum_dots.build_quam.build_loss_divincenzo_quam"
-            ) as mock_ld,
+            patch.object(_build_quam_module, "build_base_quam") as mock_base,
+            patch.object(_build_quam_module, "build_loss_divincenzo_quam") as mock_ld,
         ):
             mock_base.return_value = machine
             mock_ld.return_value = machine

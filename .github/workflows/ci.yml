@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
     - name: Checkout code
@@ -50,6 +50,13 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --group dev --prerelease=allow
+
+    - name: Add QUAM section to Qualibrate config
+      # quam >= 0.6 reads [quam] on save(); the version must match the installed quam.
+      run: |
+        QUAM_CONFIG_VERSION=$(uv run python -c "from quam.config.models.quam import QuamConfig; print(QuamConfig.version)" | tail -n 1)
+        printf '\n[quam]\nversion = %s\n' "$QUAM_CONFIG_VERSION" >> "$HOME/.qualibrate/config.toml"
+        cat "$HOME/.qualibrate/config.toml"
 
     - name: Run pre-commit on changed files
       run: |
