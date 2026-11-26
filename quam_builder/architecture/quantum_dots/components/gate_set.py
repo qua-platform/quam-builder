@@ -1,24 +1,13 @@
+from typing import TYPE_CHECKING
+
 from quam.components import QuantumComponent
-from quam.components.pulses import SquarePulse
 from quam.components.channels import SingleChannel
 from quam.core import quam_dataclass
 from quam.core.macro import QuamMacro
-
-
-from typing import Dict, TYPE_CHECKING
+from quam_builder.tools.qua_tools import VoltageLevelType
 
 if TYPE_CHECKING:
-    from quam_builder.tools.voltage_sequence import (
-        VoltageSequence,
-    )
-
-from quam_builder.tools.qua_tools import (
-    VoltageLevelType,
-    CLOCK_CYCLE_NS,
-    MIN_PULSE_DURATION_NS,
-)
-
-DEFAULT_PULSE_NAME = "half_max_square"
+    from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 
 __all__ = ["GateSet", "VoltageTuningPoint"]
 
@@ -41,7 +30,7 @@ class VoltageTuningPoint(QuamMacro):
             - Minimum duration is 16ns
     """
 
-    voltages: Dict[str, float]
+    voltages: dict[str, float]
     duration: int
 
     def apply(self, *args, **kwargs):
@@ -61,8 +50,6 @@ class GateSet(QuantumComponent):
       sequences
     - Resolve voltages for all channels with default fallbacks
     - Create voltage sequences with proper channel configuration
-    - Automatically configures DEFAULT_PULSE_NAME operations for all channels based on
-        their output mode (amplified vs direct) before creating the sequence.
 
     The GateSet acts as a logical grouping of related channels (e.g., gates
     controlling a specific quantum dot) and enables high-level voltage control
@@ -97,34 +84,16 @@ class GateSet(QuantumComponent):
         ...     seq.step_to_point("load")  # Uses the predefined voltage point
     """
 
-    channels: Dict[str, SingleChannel]
+    channels: dict[str, SingleChannel]
     adjust_for_attenuation: bool = False
-
-    def __post_init__(self):
-        for ch in self.channels.values():
-            if isinstance(ch, str):
-                continue
-            if hasattr(ch.opx_output, "output_mode"):
-                if ch.opx_output.output_mode == "amplified":
-                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                        amplitude=1.25, length=MIN_PULSE_DURATION_NS
-                    )
-                else:
-                    ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                        amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                    )
-            else:
-                ch.operations[DEFAULT_PULSE_NAME] = SquarePulse(
-                    amplitude=0.25, length=MIN_PULSE_DURATION_NS
-                )
 
     @property
     def name(self) -> str:
         return self.id
 
     def resolve_voltages(
-        self, voltages: Dict[str, VoltageLevelType], allow_extra_entries: bool = False
-    ) -> Dict[str, VoltageLevelType]:
+        self, voltages: dict[str, VoltageLevelType], allow_extra_entries: bool = False
+    ) -> dict[str, VoltageLevelType]:
         """
         Resolves voltages for all channels in the GateSet.
 
@@ -185,7 +154,7 @@ class GateSet(QuantumComponent):
     def valid_channel_names(self) -> list[str]:
         return list(self.channels.keys())
 
-    def add_point(self, name: str, voltages: Dict[str, float], duration: int):
+    def add_point(self, name: str, voltages: dict[str, float], duration: int):
         """
         Adds a named voltage tuning point (macro) to this GateSet.
 
@@ -212,7 +181,7 @@ class GateSet(QuantumComponent):
 
         # Ensure macros dict exists if not handled by Pydantic model of QuantumComponent
         if not hasattr(self, "macros") or self.macros is None:
-            self.macros: Dict[str, QuamMacro] = {}
+            self.macros: dict[str, QuamMacro] = {}
 
         self.macros[name] = VoltageTuningPoint(voltages=voltages, duration=duration)
 
@@ -220,7 +189,8 @@ class GateSet(QuantumComponent):
         self,
         track_integrated_voltage: bool = False,
         keep_levels: bool = True,
-        enforce_qua_calcs: bool = False,
+        enforce_qua_calcs: bool = True,
+        limit_play_commands: bool = False,
     ) -> "VoltageSequence":
         """
         Creates a new VoltageSequence instance associated with this GateSet.
@@ -232,16 +202,23 @@ class GateSet(QuantumComponent):
             keep_levels: without keep_levels, the default behaviour for resolving voltages
                 will be that any unspecified voltages will be treated as 0,
                 with keep_levels, unspecified voltages instead use the latest value
-            enforce_qua_calcs: Enforcing qua calcs can be required to correctly
-                track the current level for certain programs, defaults to False.
+            enforce_qua_calcs: When True, all voltage and integrated-voltage
+                tracking uses QUA variables, ensuring correct runtime behaviour
+                inside QUA loops and switch/case blocks. Defaults to True.
+                Set to False only if you need pure Python-mode tracking for
+                a program with no QUA control flow around voltage operations.
 
         Returns:
             VoltageSequence: A new voltage sequence instance configured with this GateSet
                 and the specified integrated voltage tracking setting.
         """
         # Avoid circular import
-        from quam_builder.tools.voltage_sequence import (
-            VoltageSequence,
-        )
+        from quam_builder.architecture.quantum_dots.voltage_sequence import VoltageSequence
 
-        return VoltageSequence(self, track_integrated_voltage, keep_levels, enforce_qua_calcs)
+        return VoltageSequence(
+            self,
+            track_integrated_voltage,
+            keep_levels,
+            enforce_qua_calcs,
+            limit_play_commands,
+        )

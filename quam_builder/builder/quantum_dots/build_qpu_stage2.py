@@ -13,8 +13,9 @@ from typing import Any, Dict, List, Mapping, Optional, Union, cast
 from qualang_tools.wirer.connectivity.wiring_spec import WiringLineType
 from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD, LossDiVincenzoQuam
 
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from quam_builder.builder.quantum_dots.build_utils import (
-    DEFAULT_INTERMEDIATE_FREQUENCY,
+    _FALLBACK_INTERMEDIATE_FREQUENCY,
     _create_xy_drive_from_wiring,
     _extract_qubit_number,
     _implicit_qubit_to_dot_mapping,
@@ -46,6 +47,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         xy_drive_wiring: Optional[Dict[str, Dict]] = None,
         qubit_pair_sensor_map: Optional[Dict[str, List[str]]] = None,
         implicit_mapping: bool = True,
+        target_quam_class: type[LossDiVincenzoQuam] = LossDiVincenzoQuam,
     ):
         """Initialize Stage 2 builder.
 
@@ -54,8 +56,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             xy_drive_wiring: Optional dict mapping qubit_id → XY drive configuration.
                             Format: {
                                 "q1": {
-                                    "type": "IQ" | "MW",  # Drive type
-                                    "wiring_path": "#/wiring/qubits/q1/xy",  # JSON path to ports
+                                    "type": "IQ" | "MW" | "Single",
+                                    "wiring_path": "#/wiring/qubits/q1/xy",
                                     "intermediate_frequency": 500e6  # Optional IF (Hz)
                                 },
                                 ...
@@ -65,15 +67,23 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             qubit_pair_sensor_map: Sensor mapping for qubit pairs.
                                   Format: {"q1_q2": ["sensor_1"], ...}
             implicit_mapping: If True, uses q1→virtual_dot_1 mapping.
+            target_quam_class: Root class to use after Stage 2 promotion.
         """
+        if not issubclass(target_quam_class, LossDiVincenzoQuam):
+            raise TypeError(
+                "target_quam_class must be a LossDiVincenzoQuam subclass, "
+                f"got {target_quam_class!r}."
+            )
+
         # Load machine if path provided
         if isinstance(machine, (str, Path)):
-            machine = LossDiVincenzoQuam.load(machine)
+            machine = BaseQuamQD.load(machine)
 
         self.machine = machine
         self.xy_drive_wiring = xy_drive_wiring
         self.qubit_pair_sensor_map = qubit_pair_sensor_map or {}
         self.implicit_mapping = implicit_mapping
+        self.target_quam_class = target_quam_class
 
     def build(self) -> LossDiVincenzoQuam:
         """Execute Stage 2 build process.
@@ -92,7 +102,7 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         if isinstance(self.machine, BaseQuamQD) and not isinstance(
             self.machine, LossDiVincenzoQuam
         ):
-            self.machine.__class__ = LossDiVincenzoQuam
+            self.machine.__class__ = self.target_quam_class
             # Initialize LDQuam-specific fields
             if not hasattr(self.machine, "qubits"):
                 self.machine.qubits = {}
@@ -106,7 +116,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         # Validate quantum dots exist
         if not self.machine.quantum_dots:
             raise ValueError(
-                "No quantum dots found in machine. " "Please run Stage 1 (build_base_quam) first."
+                "No quantum dots found in machine. "
+                "Please run Stage 1 (build_base_quam) first."
             )
 
         # Extract XY drive wiring if not provided
@@ -116,6 +127,8 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         # Register qubits and qubit pairs
         self._register_qubits()
         self._register_qubit_pairs()
+        self._wire_sensor_dots_to_pairs()
+        self._set_preferred_readout_quantum_dots()
 
         # Type cast: machine is guaranteed to be LossDiVincenzoQuam at this point
         return cast(LossDiVincenzoQuam, self.machine)
@@ -124,13 +137,13 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         """Extract XY drive wiring from machine.wiring if available.
 
         Scans machine.wiring for qubit drive lines and automatically determines
-        the drive type (IQ or MW) based on the port configuration.
+        the drive type (IQ, MW, or Single) based on the port configuration.
 
         Returns:
             Dict mapping qubit_id to XY drive configuration:
             {
                 "q1": {
-                    "type": "IQ" or "MW",
+                    "type": "IQ" | "MW" | "Single",
                     "wiring_path": "#/wiring/qubits/q1/xy",
                     "intermediate_frequency": 500e6
                 },
@@ -151,18 +164,19 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
         for qubit_id, line_types in qubits_wiring.items():
             drive_wiring = line_types.get(WiringLineType.DRIVE.value)
             if drive_wiring:
-                # Determine drive type (IQ or MW) by inspecting port configuration
-                # IQ drives have opx_output_I/Q + frequency_converter_up
-                # MW drives have single opx_output port
+                # Determine drive type by inspecting port configuration:
+                #   IQ     – opx_output_I/Q + frequency_converter_up
+                #   MW     – single opx_output pointing at mw_outputs
+                #   Single – single opx_output pointing at analog_outputs
                 drive_type = _validate_drive_ports(qubit_id, drive_wiring)
                 wiring_path = f"#/wiring/qubits/{qubit_id}/{WiringLineType.DRIVE.value}"
 
                 # Build XY drive configuration
                 xy_wiring[qubit_id] = {
-                    "type": drive_type,  # "IQ" or "MW"
+                    "type": drive_type,  # "IQ", "MW", or "Single"
                     "wiring_path": wiring_path,  # JSON reference to ports
                     "intermediate_frequency": drive_wiring.get(
-                        "intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY
+                        "intermediate_frequency", _FALLBACK_INTERMEDIATE_FREQUENCY
                     ),
                 }
 
@@ -213,9 +227,94 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             drive_type=xy_info["type"],
             wiring_path=xy_info["wiring_path"],
             intermediate_frequency=xy_info.get(
-                "intermediate_frequency", DEFAULT_INTERMEDIATE_FREQUENCY
+                "intermediate_frequency", _FALLBACK_INTERMEDIATE_FREQUENCY
             ),
         )
+
+    def _set_initial_larmor_frequency(self, qubit_name: str, qubit_id: str) -> None:
+        """Set larmor_frequency on a newly registered qubit.
+
+        Priority:
+        1. ``DEFAULTS.frequency.larmor_frequency`` if set.
+        2. ``LO + desired_IF`` derived from the wiring port's
+           upconverter_frequency (read directly from the port object
+           to avoid QuAM reference resolution on not-yet-attached
+           components).
+        """
+        qubit = self.machine.qubits[qubit_name]
+
+        if DEFAULTS.frequency.larmor_frequency is not None:
+            qubit.larmor_frequency = float(DEFAULTS.frequency.larmor_frequency)
+            return
+
+        xy_info = self.xy_drive_wiring.get(qubit_id, {})
+        desired_if = xy_info.get(
+            "intermediate_frequency", _FALLBACK_INTERMEDIATE_FREQUENCY
+        )
+
+        lo = self._resolve_lo_from_wiring(qubit_id)
+        if isinstance(lo, (int, float)):
+            qubit.larmor_frequency = float(lo + desired_if)
+        else:
+            logger.warning(
+                "Could not determine LO frequency for %s. "
+                "Set qubit.larmor_frequency manually.",
+                qubit_name,
+            )
+
+    def _resolve_lo_from_wiring(self, qubit_id: str):
+        """Read the LO/upconverter frequency directly from the wiring port.
+
+        Avoids going through the QuAM reference chain (which requires the
+        XYDriveMW to be fully attached to the component tree).
+
+        The wiring dict may store the port as either a direct object or a
+        QuAM reference string (e.g. ``#/ports/mw_outputs/con1/4/1``).  In
+        the latter case we traverse ``machine.ports`` manually.
+        """
+        try:
+            wiring_xy = (
+                self.machine.wiring.get("qubits", {}).get(qubit_id, {}).get("xy", {})
+            )
+            port = wiring_xy.get("opx_output")
+            default_lo = DEFAULTS.frequency.lo_frequency
+
+            if port is not None and hasattr(port, "upconverter_frequency"):
+                if default_lo is not None and port.upconverter_frequency is None:
+                    port.upconverter_frequency = float(default_lo)
+                return port.upconverter_frequency
+
+            # Port stored as a reference string — resolve via machine.ports
+            if isinstance(port, str) and port.startswith("#/ports/"):
+                port_obj = self._traverse_port_reference(port)
+                if port_obj is not None and hasattr(port_obj, "upconverter_frequency"):
+                    if (
+                        default_lo is not None
+                        and port_obj.upconverter_frequency is None
+                    ):
+                        port_obj.upconverter_frequency = float(default_lo)
+                    return port_obj.upconverter_frequency
+        except (AttributeError, KeyError, TypeError):
+            pass
+        return DEFAULTS.frequency.lo_frequency
+
+    def _traverse_port_reference(self, ref: str):
+        """Manually resolve a port reference like ``#/ports/mw_outputs/con1/4/1``."""
+        parts = ref.lstrip("#/").split("/")
+        obj = self.machine
+        for part in parts:
+            if isinstance(obj, Mapping):
+                if part in obj:
+                    obj = obj[part]
+                elif part.isdigit() and int(part) in obj:
+                    obj = obj[int(part)]
+                else:
+                    return None
+            elif hasattr(obj, part):
+                obj = getattr(obj, part)
+            else:
+                return None
+        return obj
 
     def _register_qubits(self):
         """Register qubits with the machine using implicit mapping."""
@@ -230,14 +329,18 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
 
         # If no qubit IDs found, infer from quantum dots
         if not qubit_ids:
-            logger.info("No qubit IDs found in wiring. Inferring from quantum dot names.")
+            logger.info(
+                "No qubit IDs found in wiring. Inferring from quantum dot names."
+            )
             # Extract numbers from virtual_dot_N to create qN
             for dot_id in self.machine.quantum_dots.keys():
                 try:
                     number = _extract_qubit_number(dot_id)
                     qubit_ids.add(f"q{number}")
                 except ValueError:
-                    logger.warning(f"Could not infer qubit ID from quantum dot: {dot_id}")
+                    logger.warning(
+                        f"Could not infer qubit ID from quantum dot: {dot_id}"
+                    )
 
         # Register each qubit
         for qubit_id in sorted(qubit_ids, key=_natural_sort_key):
@@ -256,6 +359,9 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
                 readout_quantum_dot=None,  # TODO: Add readout dot support
             )
 
+            if xy is not None:
+                self._set_initial_larmor_frequency(qubit_name, qubit_id)
+
             logger.info(
                 f"Registered qubit {qubit_name} → quantum_dot {quantum_dot_id} "
                 f"(XY drive: {xy is not None})"
@@ -270,7 +376,9 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
 
         # If no qubit pair IDs in wiring, infer from quantum dot pairs
         if not qubit_pair_ids:
-            logger.info("No qubit pair IDs found in wiring. Inferring from quantum dot pairs.")
+            logger.info(
+                "No qubit pair IDs found in wiring. Inferring from quantum dot pairs."
+            )
             for dot_pair_id in self.machine.quantum_dot_pairs.keys():
                 # Parse quantum dot pair ID to get qubit numbers
                 # e.g., "virtual_dot_1_virtual_dot_2_pair" → "q1_q2"
@@ -320,3 +428,42 @@ class _LDQubitBuilder:  # pylint: disable=too-few-public-methods
             except Exception as e:
                 logger.error(f"Failed to register qubit pair {pair_id}: {e}")
                 continue
+
+    def _wire_sensor_dots_to_pairs(self) -> None:
+        """Populate quantum_dot_pair.sensor_dots from qubit_pair_sensor_map.
+
+        Also initialises placeholder readout discrimination parameters
+        (threshold=0, identity projector) on each sensor dot for each
+        pair it is wired to, so the PSB measurement chain is compilable
+        before calibration.
+        """
+        for pair_id, sensor_names in self.qubit_pair_sensor_map.items():
+            qp = self.machine.qubit_pairs.get(pair_id)
+            if qp is None:
+                continue
+            qdp = qp.quantum_dot_pair
+            for sname in sensor_names:
+                for sid in self.machine.sensor_dots:
+                    if sid == sname or sid.endswith(f"_{sname.split('_')[-1]}"):
+                        ref = f"#/sensor_dots/{sid}"
+                        if ref not in qdp.sensor_dots:
+                            qdp.sensor_dots.append(ref)
+                        sd = self.machine.sensor_dots[sid]
+                        if qdp.id not in sd.readout_thresholds:
+                            sd._add_readout_params(
+                                qdp.id,
+                                threshold=0.0,
+                                projector={"wI": 1.0, "wQ": 0.0, "offset": 0.0},
+                            )
+
+    def _set_preferred_readout_quantum_dots(self):
+        """Set preferred_readout_quantum_dot using cross-pair topology.
+
+        For each qubit pair (control, target), the readout dot for the
+        control qubit is the target's quantum dot and vice-versa.
+        """
+        for qp in self.machine.qubit_pairs.values():
+            qc = qp.qubit_control
+            qt = qp.qubit_target
+            qc.preferred_readout_quantum_dot = qt.quantum_dot.id
+            qt.preferred_readout_quantum_dot = qc.quantum_dot.id

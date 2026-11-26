@@ -16,13 +16,21 @@ def get_digital_outputs(
         dict[str, DigitalOutputChannel]: A dictionary of digital output channels.
     """
     digital_outputs = dict()
-    for i, item in enumerate([port for port in ports if "digital_output" in port]):
+    digital_output_ports = [port for port in ports if "digital_output" in port]
+    num_digital_output_ports = len(digital_output_ports)
+
+    for i, item in enumerate(digital_output_ports):
+        key = (
+            digital_marker_name
+            if num_digital_output_ports == 1
+            else f"{digital_marker_name}_{i}"
+        )
         if digital_marker_name == "octave_switch":
             if isinstance(
                 DigitalOutputChannel(opx_output=f"{wiring_path}/{item}").opx_output,
                 FEMDigitalOutputPort,
             ):
-                digital_outputs[f"{digital_marker_name}_{i}"] = DigitalOutputChannel(
+                digital_outputs[key] = DigitalOutputChannel(
                     opx_output=f"{wiring_path}/{item}",
                     delay=14,  # 14ns for QOP333 and above
                     buffer=13,  # 13ns for QOP333 and above
@@ -31,13 +39,13 @@ def get_digital_outputs(
                 DigitalOutputChannel(opx_output=f"{wiring_path}/{item}").opx_output,
                 OPXPlusDigitalOutputPort,
             ):
-                digital_outputs[f"{digital_marker_name}_{i}"] = DigitalOutputChannel(
+                digital_outputs[key] = DigitalOutputChannel(
                     opx_output=f"{wiring_path}/{item}",
                     delay=57,  # 57ns for QOP222 and above
                     buffer=18,  # 18ns for QOP222 and above
                 )
         else:
-            digital_outputs[f"{digital_marker_name}_{i}"] = DigitalOutputChannel(
+            digital_outputs[key] = DigitalOutputChannel(
                 opx_output=f"{wiring_path}/{item}",
                 delay=0,
                 buffer=0,

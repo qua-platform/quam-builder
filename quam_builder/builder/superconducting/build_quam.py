@@ -33,12 +33,17 @@ from quam_builder.builder.superconducting.add_twpa_component import (
 )
 
 
-def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]] = None) -> AnyQuam:
+def build_quam(
+    machine: AnyQuam,
+    calibration_db_path: Optional[Union[Path, str]] = None,
+    save: bool = True,
+) -> AnyQuam:
     """Builds the QuAM by adding various components and saving the machine configuration.
 
     Args:
         machine (AnyQuam): The QuAM to be built.
         calibration_db_path (Optional[Union[Path, str]]): The path to the Octave calibration database.
+        save (bool): If True, saves the machine state after building.
 
     Returns:
         AnyQuam: The built QuAM.
@@ -48,7 +53,9 @@ def build_quam(machine: AnyQuam, calibration_db_path: Optional[Union[Path, str]]
     add_ports(machine)
     add_transmons(machine)
     add_pulses(machine)
-    machine.save()
+
+    if save:
+        machine.save()
 
     return machine
 

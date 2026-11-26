@@ -1,22 +1,23 @@
-from typing import Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional, Type, ClassVar
+# Quantum component inheritance depth is framework-driven for QuAM dataclasses.
+# pylint: disable=too-many-ancestors
+
+from typing import Any, Dict, Tuple, Union, Literal, TYPE_CHECKING, Optional
 from dataclasses import field
 import numpy as np
 
 from quam.components.quantum_components import Qubit
 from quam.components import Channel
 from quam.core import quam_dataclass
-from quam.core.macro import QuamMacro
-
 from quam_builder.architecture.quantum_dots.components.mixins import VoltageMacroMixin
-from quam_builder.architecture.quantum_dots.operations import SINGLE_QUBIT_MACROS
+from quam_builder.architecture.quantum_dots.defaults import DEFAULTS
 from qm.octave.octave_mixer_calibration import MixerCalibrationResults
 from qm import logger
 from qm import QuantumMachine
 from qm.qua import wait, frame_rotation_2pi
 
-from quam_builder.architecture.quantum_dots.components import XYDriveBase
+from quam_builder.architecture.quantum_dots.components import XYDriveIQ, XYDriveMW, XYDriveSingle
 
-from quam_builder.architecture.quantum_dots.components import QuantumDot, SensorDot
+from quam_builder.architecture.quantum_dots.components import QuantumDot
 
 if TYPE_CHECKING:
     from quam_builder.architecture.quantum_dots.qpu import BaseQuamQD
@@ -38,16 +39,17 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         T2ramsey (float): The qubit T2* in seconds.
         T2echo (float): The qubit T2 in seconds.
         thermalization_time_factor (int): Thermalization time in units of T1. Default is 5.
+        gate_fidelity (Dict[str, Any]): Collection of single qubit gate fidelity metrics.
         points (Dict[str, Dict[str, float]]): A dictionary of instantiated macro points.
 
     Methods:
         go_to_voltages: To be used in a sequence.simultaneous block for simultaneous stepping/ramping to a particular voltage.
         step_to_voltages: Enters a dictionary to the VoltageSequence to step to the particular voltage.
         ramp_to_voltages: Enters a dictionary to the VoltageSequence to ramp to the particular voltage.
-        calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this transmon.
+        calibrate_octave: Calibrates the Octave channels (xy and resonator) linked to this qubit.
         thermalization_time: Returns the Loss DiVincenzo Qubit thermalization time in ns.
         reset: Reset the qubit state with a specified reset type. Default is thermal (wait thermalization time).
-        add_point: Adds a point macro to the associated VirtualGateSet. Also registers said point in the internal points attribute. Can accept qubit names
+        add_point: Adds a named voltage point to the associated VirtualGateSet. Can accept qubit names
         step_to_point: Steps to a pre-defined point in the internal points dict.
         ramp_to_point: Ramps to a pre-defined point in the internal points dict.
     """
@@ -56,7 +58,8 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     grid_location: str = None
 
     quantum_dot: QuantumDot
-    xy: XYDriveBase = None
+    xy: Union[XYDriveIQ, XYDriveMW, XYDriveSingle] = None
+    preferred_readout_quantum_dot: Optional[str] = None
 
     larmor_frequency: float = None
 
@@ -64,18 +67,10 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     T1: float = None
     T2ramsey: float = None
     T2echo: float = None
-    thermalization_time_factor: int = 5
+    thermalization_time_factor: int = DEFAULTS.qubit.thermalization_time_factor
 
-    DEFAULT_MACROS: ClassVar[Dict[str, Type[QuamMacro]]] = SINGLE_QUBIT_MACROS
-
+    gate_fidelity: Dict[str, Any] = field(default_factory=dict)
     points: Dict[str, Dict[str, float]] = field(default_factory=dict)
-
-    def __post_init__(self):
-        super().__post_init__()
-        if isinstance(self.quantum_dot, str):
-            return
-        if self.id is None:
-            self.id = self.quantum_dot.id
 
     @property
     def physical_channel(self) -> Channel:
@@ -91,11 +86,21 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
         if self.T1 is not None:
             return int(self.thermalization_time_factor * self.T1 * 1e9 / 4) * 4
         else:
-            return int(self.thermalization_time_factor * 10e-6 * 1e9 / 4) * 4
+            return int(self.thermalization_time_factor * DEFAULTS.qubit.fallback_t1 * 1e9 / 4) * 4
 
     @property
     def voltage_sequence(self):
         return self.quantum_dot.voltage_sequence
+
+    @property
+    def drive_IF(self) -> float:
+        """Current intermediate frequency of the XY drive (derived, read-only)."""
+        return self.xy.intermediate_frequency
+
+    @property
+    def drive_LO(self) -> float:
+        """Current LO frequency of the XY drive."""
+        return self.xy.LO_frequency
 
     def _get_component_id_for_voltages(self) -> str:
         """Target the quantum_dot for voltage operations."""
@@ -167,71 +172,49 @@ class LDQubit(VoltageMacroMixin, Qubit):  # pylint: disable=too-many-ancestors
     def add_xy_pulse(self, pulse_name: str, pulse) -> None:
         self.xy.add_pulse(name=pulse_name, pulse=pulse)
 
-    def set_xy_frequency(self, frequency: float, recenter_LO: bool = True):
-        """
-        Configure the LO+IF of xy. Use this function to update the drive frequency to the calibrated Larmor frequency
-        """
-        if self.xy is None:
-            raise ValueError(f"No XY configured on Qubit {self.id}")
-
-        LO_frequency = self.xy.LO_frequency
-        intermediate_frequency = frequency - LO_frequency
-
-        if abs(intermediate_frequency) > 400e6:
-            if recenter_LO:
-                print(
-                    f"Intermediate Frequency exceeds ±400MHz ({intermediate_frequency/1e6 : .2f}MHz). Setting LO to {frequency/1e9: .4f}GHz"
-                )
-                self.xy.LO_frequency = frequency
-                self.xy.intermediate_frequency = 0
-            else:
-                raise ValueError(
-                    f"Intermediate Frequency ({intermediate_frequency/1e6 : .2f}MHz) exceeds ±400MHz"
-                )
-        else:
-            self.xy.intermediate_frequency = intermediate_frequency
-
-    def play_xy_pulse(
-        self,
-        pulse_name: str,
-        pulse_duration: Optional[int] = None,
-        amplitude_scale: float = None,
-        **kwargs,
-    ) -> None:
-        """Play a pulse from the XY associated with the Qubit"""
-        if self.xy is None:
-            raise ValueError(f"No XY configured on Qubit {self.id}")
-
-        if pulse_name not in self.xy.operations:
-            raise ValueError(f"Pulse {pulse_name} not in XY operations")
-
-        self.xy.play(
-            pulse_name=pulse_name,
-            amplitude_scale=amplitude_scale,
-            duration=pulse_duration,
-            **kwargs,
-        )
-
     def virtual_z(self, phase: float) -> None:
-        """Apply a virtual Z rotation"""
+        """Apply a virtual Z rotation using `qua.frame_rotation`.
+
+        Args:
+            phase: Rotation angle in radian.
+        """
         frame_rotation_2pi(phase / (2 * np.pi), self.xy.name)
+
+    def idle(self, duration: int) -> None:
+        """Wait on the plunger and the XY drive.
+
+        Args:
+            duration: Wait length in clock cycles (1 cycle = 4 ns), the same unit as QUA ``wait``.
+        """
+        wait(duration, self.physical_channel.name, self.xy.name)
 
     def _validate_readout_quantum_dot(self, qd_name):
         """Validate that the preferred quantum dot for readout actually exists in Quam, and forms a QuantumDotPair with the QuantumDot in this LDQubit."""
         if qd_name not in self.machine.quantum_dots:
             raise ValueError(f"Quantum Dot {qd_name} not a registered Quantum Dot in Quam. ")
-        qd_pair = self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name)
-        if qd_pair is None:
+        if self.machine.find_quantum_dot_pair(self.quantum_dot.id, qd_name) is None:
             raise ValueError(
                 f"Quantum dots {self.quantum_dot.id} and {qd_name} are not a registered Quantum Dot Pair. Please register first"
             )
 
-    @property
-    def preferred_readout_quantum_dot(self) -> str:
-        return self._preferred_readout_quantum_dot
-
-    @preferred_readout_quantum_dot.setter
-    def preferred_readout_quantum_dot(self, value: str):
-        if value is not None and not isinstance(self.quantum_dot, str):
+    def __setattr__(self, name, value):
+        # Until the qubit is attached to a machine (construction, loading), its
+        # quantum_dot reference cannot be resolved, so validation is skipped.
+        if name == "preferred_readout_quantum_dot" and value is not None and self.parent is not None:
             self._validate_readout_quantum_dot(value)
-        self._preferred_readout_quantum_dot = value
+        # if name == "larmor_frequency" and value is not None:
+        #     if hasattr(self, "xy") and self.xy is not None:
+        #         try:
+        #             lo = self.xy.LO_frequency
+        #             if isinstance(lo, (int, float)) and isinstance(value, (int, float)):
+        #                 if_freq = value - lo
+        #                 limit = self.xy.IF_LIMIT
+        #                 if abs(if_freq) > limit:
+        #                     raise ValueError(
+        #                         f"Intermediate frequency {if_freq / 1e6:.2f} MHz "
+        #                         f"exceeds \u00b1{limit / 1e6:.0f} MHz. Adjust "
+        #                         f"LO_frequency or larmor_frequency."
+        #                     )
+        #         except AttributeError:
+        #             pass
+        super().__setattr__(name, value)

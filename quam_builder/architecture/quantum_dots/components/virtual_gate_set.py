@@ -4,7 +4,7 @@
 # pylint: disable=unsubscriptable-object
 
 from dataclasses import field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 import warnings
 import numpy as np
 
@@ -38,6 +38,184 @@ class VirtualizationLayer(QuamComponent):
 
     def _as_matrix_array(self) -> np.ndarray:
         return np.asarray(self.matrix, dtype=float)
+
+    def _plot_labeled_matrix(
+        self,
+        matrix_array: np.ndarray,
+        row_labels: List[str],
+        column_labels: List[str],
+        row_axis_label: str,
+        column_axis_label: str,
+        colorbar_label: str,
+        default_title: str,
+        ax: Any,
+        annotate: bool,
+        colorbar: bool,
+        cmap: str,
+        value_format: str,
+        title: str | None,
+    ) -> tuple[Any, Any]:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as exc:
+            raise ImportError(
+                "VirtualizationLayer matrix plotting requires matplotlib to be installed."
+            ) from exc
+
+        if ax is None:
+            fig_width = max(4.0, 0.8 * len(column_labels) + 2.5)
+            fig_height = max(3.0, 0.55 * len(row_labels) + 1.8)
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        else:
+            fig = ax.figure
+
+        max_abs_value = float(np.max(np.abs(matrix_array))) if matrix_array.size else 0.0
+        color_limit = max_abs_value if max_abs_value > 0 else 1.0
+        image = ax.imshow(
+            matrix_array,
+            aspect="auto",
+            cmap=cmap,
+            vmin=-color_limit,
+            vmax=color_limit,
+        )
+
+        ax.set_xticks(np.arange(len(column_labels)))
+        ax.set_xticklabels(column_labels, rotation=45, ha="right")
+        ax.set_yticks(np.arange(len(row_labels)))
+        ax.set_yticklabels(row_labels)
+        ax.set_xlabel(column_axis_label)
+        ax.xaxis.set_label_position("top")
+        ax.xaxis.tick_top()
+        ax.set_ylabel(row_axis_label)
+        ax.set_title(title if title is not None else default_title)
+
+        ax.set_xticks(np.arange(len(column_labels) + 1) - 0.5, minor=True)
+        ax.set_yticks(np.arange(len(row_labels) + 1) - 0.5, minor=True)
+        ax.grid(which="minor", color="white", linestyle="-", linewidth=1.5)
+        ax.tick_params(which="minor", bottom=False, left=False)
+
+        if annotate:
+            for row_idx, row in enumerate(matrix_array):
+                for col_idx, value in enumerate(row):
+                    text_color = "white" if abs(value) > 0.5 * color_limit else "black"
+                    ax.text(
+                        col_idx,
+                        row_idx,
+                        format(value, value_format),
+                        ha="center",
+                        va="center",
+                        color=text_color,
+                    )
+
+        if colorbar:
+            cbar = fig.colorbar(image, ax=ax)
+            cbar.set_label(colorbar_label)
+
+        fig.tight_layout()
+        return fig, ax
+
+    def plot_matrix(
+        self,
+        ax: Any = None,
+        annotate: bool = True,
+        colorbar: bool = True,
+        cmap: str = "coolwarm",
+        value_format: str = ".3g",
+        title: str | None = None,
+    ) -> tuple[Any, Any]:
+        """
+        Plot the virtualization matrix as a labeled source-to-target heatmap.
+
+        Rows correspond to ``source_gates`` and columns correspond to
+        ``target_gates``. The matrix is shown with a zero-centered color scale so
+        users can quickly identify positive, negative, and weak couplings.
+
+        Args:
+            ax: Optional matplotlib axes to draw on.
+            annotate: If True, write the matrix value inside each cell.
+            colorbar: If True, add a colorbar showing the coefficient scale.
+            cmap: Matplotlib colormap used for the heatmap.
+            value_format: Format specifier used for cell annotations.
+            title: Optional plot title. Defaults to the layer id when available.
+
+        Returns:
+            A tuple of ``(figure, axes)``.
+        """
+        matrix_array = self._as_matrix_array()
+        expected_shape = (len(self.source_gates), len(self.target_gates))
+        if matrix_array.shape != expected_shape:
+            raise ValueError(
+                "Matrix dimensions do not match source/target gate counts. "
+                f"Expected {expected_shape}, got {matrix_array.shape}"
+            )
+
+        default_title = (
+            f"Virtualization matrix: {self.id}" if self.id is not None else "Virtualization matrix"
+        )
+        return self._plot_labeled_matrix(
+            matrix_array=matrix_array,
+            row_labels=self.source_gates,
+            column_labels=self.target_gates,
+            row_axis_label="Source gates",
+            column_axis_label="Target gates",
+            colorbar_label="Virtualization coefficient",
+            default_title=default_title,
+            ax=ax,
+            annotate=annotate,
+            colorbar=colorbar,
+            cmap=cmap,
+            value_format=value_format,
+            title=title,
+        )
+
+    def plot_inverse_matrix(
+        self,
+        ax: Any = None,
+        annotate: bool = True,
+        colorbar: bool = True,
+        cmap: str = "coolwarm",
+        value_format: str = ".3g",
+        title: str | None = None,
+    ) -> tuple[Any, Any]:
+        """
+        Plot the inverse virtualization matrix as a labeled target-to-source heatmap.
+
+        Rows correspond to ``target_gates`` and columns correspond to
+        ``source_gates`` because the inverse matrix maps source gate voltages back
+        onto target gate voltages.
+
+        Args:
+            ax: Optional matplotlib axes to draw on.
+            annotate: If True, write the matrix value inside each cell.
+            colorbar: If True, add a colorbar showing the coefficient scale.
+            cmap: Matplotlib colormap used for the heatmap.
+            value_format: Format specifier used for cell annotations.
+            title: Optional plot title. Defaults to the layer id when available.
+
+        Returns:
+            A tuple of ``(figure, axes)``.
+        """
+        inverse_matrix = self.calculate_inverse_matrix()
+        default_title = (
+            f"Inverse virtualization matrix: {self.id}"
+            if self.id is not None
+            else "Inverse virtualization matrix"
+        )
+        return self._plot_labeled_matrix(
+            matrix_array=inverse_matrix,
+            row_labels=self.target_gates,
+            column_labels=self.source_gates,
+            row_axis_label="Target gates",
+            column_axis_label="Source gates",
+            colorbar_label="Inverse virtualization coefficient",
+            default_title=default_title,
+            ax=ax,
+            annotate=annotate,
+            colorbar=colorbar,
+            cmap=cmap,
+            value_format=value_format,
+            title=title,
+        )
 
     def calculate_inverse_matrix(self) -> np.ndarray:
         """Calculates the inverse (or pseudo-inverse) of the virtualization matrix."""
@@ -91,9 +269,10 @@ class VirtualizationLayer(QuamComponent):
 
         for target_gate, inv_matrix_row in zip(self.target_gates, inverse_matrix):
             resolved_voltages.setdefault(target_gate, 0.0)
-            resolved_voltages[target_gate] = (
-                resolved_voltages[target_gate] + inv_matrix_row @ source_voltages
-            )
+            for elem, source in zip(inv_matrix_row, source_voltages):
+                if np.abs(elem) < 1e-8:
+                    continue
+                resolved_voltages[target_gate] = resolved_voltages[target_gate] + elem * source
 
         return resolved_voltages
 
@@ -180,6 +359,30 @@ class VirtualGateSet(GateSet):
     layers: List[VirtualizationLayer] = field(default_factory=list)
     allow_rectangular_matrices: bool = False
 
+    _influence_map: Dict[str, List[str]] = field(default_factory=dict)
+    play_threshold: float = 2 ** (-16)  # resolution of the QUA fixed type
+
+    @property
+    def influence_map(self) -> Dict[str, Set[str]]:
+        """A dictionary mapping each gate to the set of physical gates that it influences."""
+        return {k: set(v) for k, v in self._influence_map.items()}
+
+    def _calculate_influence_map(self) -> None:
+        """Calculates the influence map by probing each gate with a unit voltage."""
+        # Base physical gates do not influence any others, so they are mapped to itself
+        influence_map = {gate: [gate] for gate in self.channels.keys()}
+        for layer in self.layers:
+            for source_gate in layer.source_gates:
+                # TODO: This is an inefficient way to get the influence map. It should be replaced with a more efficient method.
+                dummy_dict = {
+                    source_gate: 2.5
+                }  # Maximum dummy input, so that the resulting map should represent the maximum possible output
+                resolved_voltages = self.resolve_voltages(dummy_dict)
+                influence_map[source_gate] = [
+                    pg for pg, v in resolved_voltages.items() if abs(v) > self.play_threshold
+                ]
+        self._influence_map = influence_map
+
     @property
     def valid_channel_names(self) -> list[str]:
         """
@@ -213,7 +416,10 @@ class VirtualGateSet(GateSet):
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualization matrix defining the transformation.
+            matrix: Map from target gates to source gates. Shape
+                ``(len(source_gates), len(target_gates))``, with
+                ``V_source = M @ V_target``. Rows follow ``source_gates`` and
+                columns follow ``target_gates``.
 
         Raises:
             ValueError: If any of the checks fail.
@@ -319,7 +525,10 @@ class VirtualGateSet(GateSet):
             source_gates: A list of names for the virtual gates in this layer.
             target_gates: A list of names for the physical (or underlying virtual)
                           gates that this layer maps to.
-            matrix: The virtualization matrix defining the transformation.
+            matrix: Map from target gates to source gates. Shape
+                ``(len(source_gates), len(target_gates))``, with
+                ``V_source = M @ V_target``. Rows follow ``source_gates`` and
+                columns follow ``target_gates``.
 
         Returns:
             The created VirtualizationLayer object.
@@ -337,6 +546,7 @@ class VirtualGateSet(GateSet):
             use_pseudoinverse=use_pseudoinverse,
         )
         self.layers.append(virtualization_layer)
+        self._calculate_influence_map()
         return virtualization_layer
 
     def add_to_layer(
@@ -450,7 +660,7 @@ class VirtualGateSet(GateSet):
         layer.target_gates = existing_targets
         layer.matrix = full_matrix.tolist()
         layer.use_pseudoinverse = True
-
+        self._calculate_influence_map()
         return layer
 
     def resolve_voltages(
