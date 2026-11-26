@@ -29,14 +29,14 @@ Defines the auxiliary hardware components and control elements associated with q
 - **`FluxLine`**: Defines the parameters for the flux bias line used to tune qubit frequency. Includes various attributes suc as the different flux bias offsets (`joint_offset`, `independent_offset`...), the corresponding flux points (`flux_point`), and the flux voltage settle time (`settle_time`) and methods to go to the specified bias points (`to_independent_idle`, `to_joint_idle`...) for instance.
 - **`Mixer`**: Defines mixer calibration parameters, typically including the correction matrix (`correction_matrix`) to compensate for IQ imbalance and skewness.
 - **`TunableCoupler`**: Models a tunable coupling element between qubits. Includes various attributes suc as the different flux bias offsets (`decouple_offset`, `interaction_offset`...), the corresponding flux points (`flux_point`), and the flux voltage settle time (`settle_time`) and methods to go to the specified bias points (`to_decouple_idle`, `to_interaction_idle`...) for instance.
-- **`CrossResonance`**: Defines parameters specific to cross-resonance (CR) based two-qubit gates.
+- **`CrossResonanceDrive`**: Defines parameters specific to cross-resonance (CR) based two-qubit gates.
 - **`ZZDrive`**: Represents drives used for dynamical decoupling or ZZ interaction cancellation.
 
 ## 4. Qubit Pair (`architecture/superconducting/qubit_pair/`)
 
 Defines structures representing pairs of interacting qubits, holding parameters relevant to their joint operations (e.g., two-qubit gates).
 
-- **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `ZZ_drive` or `cross_resonance`.
+- **`FixedFrequencyTransmonPair`**: Represents a pair of interacting fixed-frequency transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `zz` or `cross_resonance`.
 - **`FluxTunableTransmonPair`**: Represents a pair of interacting flux-tunable transmons. Contains the control and target qubit components, as well as parameters related to specific two-qubit gate implementations such as `coupler` or `mutual_flux_bias` for instance.
 
 ## 5. Custom Gate Macros (`architecture/superconducting/custom_gates/`)
@@ -52,7 +52,7 @@ All single-qubit macros operate on any `BaseTransmon` subtype (`FixedFrequencyTr
 | Macro | Default key | Description |
 |---|---|---|
 | `MeasureMacro` | `"measure"` | Plays a readout pulse and performs I/Q integration with threshold-based state discrimination. Default pulse: `"readout"`. |
-| `ResetMacro` | `"reset"` | Resets a qubit via thermalization, active (measure-and-pulse), or active GEF. Default: active reset using `"x180"` and `"readout"`. For active reset, `max_attempts` is a strictly positive integer that caps the total attempts; `max_attempts=1` is a single-shot measure-and-conditional-pi (no retry loop). |
+| `ResetMacro` | `"reset"` | Resets a qubit via thermalization, active (measure-and-pulse), or active GEF. Default: active reset using `"x180"` and `"readout"`. |
 | `VirtualZMacro` | `"rz"` | Applies a frame rotation on the XY drive channel (instantaneous, no hardware pulse). |
 | `DelayMacro` | `"delay"` | Inserts a wait across all qubit channels for the specified duration. |
 | `IdMacro` | `"id"` | Aligns all qubit channels (identity operation). |

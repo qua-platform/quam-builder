@@ -56,3 +56,32 @@ def test_reset_macro_inferred_duration_max_attempts_one():
 def test_reset_qubit_active_rejects_non_positive_or_non_integer_max_attempts(max_attempts):
     with pytest.raises(ValueError, match="strictly positive integer"):
         ResetMacro(max_attempts=max_attempts)
+
+
+def test_reset_macro_active_gef_forwards_max_attempts(monkeypatch):
+    """active_gef forwards max_attempts and the configured pulse names."""
+    transmon = _transmon_with_reset_pulses()
+    transmon.xy.operations["EF_x180"] = SquarePulse(amplitude=0.1, length=40)
+    received = {}
+    monkeypatch.setattr(
+        FixedFrequencyTransmon,
+        "reset_qubit_active_gef",
+        lambda self, **kwargs: received.update(kwargs),
+    )
+
+    reset = ResetMacro(
+        reset_type="active_gef",
+        pi_pulse="x180",
+        pi_12_pulse="EF_x180",
+        readout_pulse="readout",
+        max_attempts=3,
+    )
+    transmon.macros["reset_gef"] = reset
+    reset.apply()
+
+    assert received == {
+        "readout_pulse_name": "readout",
+        "pi_01_pulse_name": "x180",
+        "pi_12_pulse_name": "EF_x180",
+        "max_attempts": 3,
+    }

@@ -1,11 +1,10 @@
-import numpy as np
-
 from typing import Optional
 
-from quam.components import IQChannel
-from quam.components.channels import MWChannel
+import numpy as np
 
 from qualang_tools.units import unit
+from quam.components import IQChannel
+from quam.components.channels import MWChannel
 
 __all__ = [
     "set_output_power_mw_channel",
@@ -24,68 +23,76 @@ def set_output_power_mw_channel(
     max_amplitude: Optional[float] = 1,
 ):
     """
-    Sets the power level in dBm for a specified operation, increasing the full-scale power
-    in 3 dB steps if necessary until it covers the target power level, then scaling the
-    given operation’s amplitude to match exactly the target power level.
+    Set an MW-FEM operation to `power_in_dbm` by choosing a full-scale power and
+    scaling the operation amplitude.
+
+    The full-scale power is an integer in [-11, 18] dBm. The search starts at
+    `full_scale_power_dbm` when given, otherwise at the channel's current
+    `opx_output.full_scale_power_dbm`, and increases in 1 dB steps while the
+    voltage scaling factor `10 ** ((power_in_dbm - full_scale_power_dbm) / 20)`
+    is greater than `max_amplitude`. The chosen full-scale power is written to
+    `channel.opx_output.full_scale_power_dbm` and the scaling factor to
+    `channel.operations[operation].amplitude`.
 
     Parameters:
         channel: A MW-FEM channel.
-        power_in_dbm (float): The target power level in dBm for the operation.
-        operation (str): The operation for which the power setting is applied.
-        full_scale_power_dbm (Optional[int]): The full-scale power in dBm within [-41, 10] in 3 dB increments.
-        max_amplitude (Optional[float]):
+        power_in_dbm (float): Target output power in dBm.
+        operation (str): Operation whose amplitude is set.
+        full_scale_power_dbm (Optional[int]): Starting full-scale power in dBm.
+            When omitted, the search starts at the channel's current full-scale
+            power. When given, it must be at least `power_in_dbm`; the search
+            can still raise it if the resulting amplitude exceeds `max_amplitude`.
+        max_amplitude (Optional[float]): Maximum allowed operation amplitude.
+            Defaults to 1.
 
+    Returns:
+        dict: `full_scale_power_dbm` and `amplitude` written to the channel.
+
+    Raises:
+        ValueError: If a given `full_scale_power_dbm` is below `power_in_dbm`,
+            or if the required full-scale power is outside [-11, 18] dBm.
     """
-    allowed_full_scale_power_in_dbm_values = np.arange(-11, 17, 3)
+    min_full_scale_power_dbm = -11
+    max_full_scale_power_dbm = 18
+    allowed_full_scale_power_in_dbm_values = np.arange(
+        min_full_scale_power_dbm, max_full_scale_power_dbm + 1, 1
+    ).astype(int)
 
-    if full_scale_power_dbm is not None:
-        if (
-            full_scale_power_dbm < -20
-            or full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values
-        ):
-            raise ValueError(
-                f"Expected full_scale_power_dbm to be > -20 in QOP3.2.0, or "
-                f"in range [-41, 10] in steps of 3 dB, got {full_scale_power_dbm}."
-            )
-
-        if power_in_dbm > full_scale_power_dbm:
-            raise ValueError(
-                f"Can't fix full_scale_power_dbm to {full_scale_power_dbm} dBm since it is "
-                f"less than the target power {power_in_dbm} dBm."
-            )
-
-        channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
-
-    if power_in_dbm > 10:
-        raise ValueError(f"Expected `power_in_dbm` to be <10 dBm, got {power_in_dbm}")
-
-    # use a temporary variable for node.record_state_updates
-    temp_full_scale_power_dbm = channel.opx_output.full_scale_power_dbm
+    if full_scale_power_dbm is None:
+        full_scale_power_dbm = channel.opx_output.full_scale_power_dbm
+    elif power_in_dbm > full_scale_power_dbm:
+        raise ValueError(
+            f"Can't fix full_scale_power_dbm to {full_scale_power_dbm} dBm since it is "
+            f"less than the target power {power_in_dbm} dBm."
+        )
 
     while (
-        calculate_voltage_scaling_factor(
-            fixed_power_dBm=temp_full_scale_power_dbm,
+        current_amplitude := calculate_voltage_scaling_factor(
+            fixed_power_dBm=full_scale_power_dbm,
             target_power_dBm=power_in_dbm,
         )
-        > max_amplitude
-    ):
-        temp_full_scale_power_dbm = temp_full_scale_power_dbm + 3
+    ) > max_amplitude:
+        full_scale_power_dbm = full_scale_power_dbm + 1
 
-    if temp_full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
+    if full_scale_power_dbm not in allowed_full_scale_power_in_dbm_values:
         raise ValueError(
-            f"Expected full_scale_power_dbm to be in range [-41, 10] "
-            f"in steps of 3 dB, got {temp_full_scale_power_dbm}."
+            f"Expected full_scale_power_dbm to be in range [{min_full_scale_power_dbm}, {max_full_scale_power_dbm}] in steps of 1 dB, got {full_scale_power_dbm}."
         )
 
-    channel.operations[operation].amplitude = calculate_voltage_scaling_factor(
-        fixed_power_dBm=temp_full_scale_power_dbm, target_power_dBm=power_in_dbm
+    # Unwrap tracked objects (e.g. qualibration-libs `tracked_updates`) so the log shows plain values
+    raw_channel = getattr(channel, "_obj", channel)
+    opx_output = raw_channel.opx_output
+    port_id = (opx_output.controller_id, opx_output.fem_id, opx_output.port_id)
+    print(
+        f"Voltage scaling factor: {current_amplitude:.5f} @ {full_scale_power_dbm} dBm (target: {power_in_dbm} dBm) on {raw_channel.name} - {port_id}"
     )
 
-    channel.opx_output.full_scale_power_dbm = temp_full_scale_power_dbm
+    channel.operations[operation].amplitude = current_amplitude
+    channel.opx_output.full_scale_power_dbm = full_scale_power_dbm
 
     return {
-        "full_scale_power_dbm": temp_full_scale_power_dbm,
-        "amplitude": channel.operations[operation].amplitude,
+        "full_scale_power_dbm": full_scale_power_dbm,
+        "amplitude": current_amplitude,
     }
 
 

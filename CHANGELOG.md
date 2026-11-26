@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Added
 
+- `CZGate.apply(..., align_elements: bool = True)` so two-qubit RB can drop the three explicit CZ aligns without changing the default for other nodes. `False` keeps flux pulses and phase compensation and requires the caller to establish timing.
 - Optional ``close_method`` on quantum-dot ``dac_config`` entries so
   ``disconnect_from_external_source`` can tear down any driver API (not only ``.close()``).
 - Quantum Dots - macro catalog system (`MacroCatalog` protocol with `DefaultMacroCatalog`, `VoltageBalancedMacroCatalog`, `UtilityMacroCatalog`, `TypeOverrideCatalog`), replacing the old macro registry, plus `wire_machine_macros` / `MacroWirer` / `PulseWirer` in the new `macro_engine` for wiring macros and pulses onto a machine (#124, #126, #131).
@@ -27,6 +28,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 - Quantum Dots - fix for voltage_sequence with amplified and attenuated `VoltageGates` (#119).
 - Quantum Dots - restore amplified LF-FEM default pulse amplitude to 1.25 V (half of 2.5 V full scale) (#152).
+
+## [0.7.0] - 2026-11-09
+
+### Added
+
+- Macro class for the CR and CZ gate on fixed frequency transmons: `CRGate` and `StarkInducedCZGate` (#146).
+- QPU class `FixedFrequencyZZDriveQuam` and associated `FixedFrequencyZZDriveTransmon`, `ZZDriveIQ`, and `ZZDriveMW` (#146).
+- Architecture components for cross-resonance gates: `CrossResonanceDriveIQ`/`CrossResonanceDriveMW` channels, `XYDetunedDriveIQ`/`XYDetunedDriveMW`, CR gate macro parameters on `CRGate`, and builder wiring for default cross-resonance pulses on transmon pairs (#146).
+- Pulse classes `SmoothFlatTopPulse`, `DragFlatTopPulse`, and `MultiderivativeCRPulse` (#146).
+- `FlatTopGaussianPulse` and `FlatTopCosinePulse` accept either `flat_length` or `rise_fall_length`; the other is derived from `length` (#146).
+- `DrachmaReadoutPulse.padding` as `(value, length_ns)` (default `(0, 0)`, which leaves the waveform unchanged): appends `length_ns` of constant `value` to the end of the pulse. `length` stays the total length, so the DRACHMA core spans `length - length_ns` samples (#162).
+
+### Changed
+
+- **BREAKING:** Dropped support for Python 3.9; the minimum is now 3.10. `requires-python` is now `>=3.10,<3.14`, which also allows 3.13 patch releases (previously excluded by `<=3.13`).
+- **BREAKING:** `FixedFrequencyTransmonPair.zz_drive` is renamed to `zz`, and `FixedFrequencyTransmonPair.xy_detuned` is removed. Saved states that contain these keys must be updated before they load (#146).
+- **BREAKING:** `CrossResonanceIQ`/`CrossResonanceMW` (module `components/cross_resonance.py`) are replaced by `CrossResonanceDriveIQ`/`CrossResonanceDriveMW` (module `components/cross_resonance_drive.py`); the unused `bell_state_fidelity` field is dropped. The `components/zz_drive.py` module is renamed to `components/zz.py` (#146).
+- `set_output_power_mw_channel` now accepts full-scale powers in `[-11, 18]` dBm in 1 dB steps (previously 3 dB steps), and no longer needs the current value to compute the power (#146).
+- `BaseTransmon.thermalization_time` now has a floor of 100 µs, which is also the default when `T1` is not set (previously 10 µs × `thermalization_time_factor`) (#146).
+- **BREAKING:** `DrachmaReadoutPulse.amplitude` is now the peak of the no-Kerr waveform magnitude (previously the area divided by length). Existing saved states and calibration scripts still load but play a weaker waveform for the same stored value, so recalibrate the amplitude after upgrading. The amplitude is accepted in `[0, 0.99]` and validated at creation, so a stored value above 0.99 now fails at load time. The waveform raises if the I or Q peak goes above 1, which can happen with large self-Kerr, and the self-Kerr field estimate now uses the same scale as the played waveform (#162).
+
+### Fixed
+
+- `DrachmaReadoutPulse` self-Kerr correction now estimates the intracavity field with the complementary-state operator; the previous estimate was only correct for shared kappa and symmetric detunings (#162).
+- `BaseTransmon.reset_qubit_active_gef` no longer crashes with `AttributeError`: the extra wait that read the non-existent `rr.res_deplete_time` is removed, because `readout_state_gef` already waits for `resonator.depletion_time` (#166).
+- `BaseTransmon.reset_qubit_active_gef` now stops after `max_attempts` rounds (new argument, default 15) instead of looping forever, and its `readout_pulse_name` defaults to `"readout_GEF"` (#166).
+- `ResetMacro` now forwards `max_attempts` for `reset_type="active_gef"`, as it already did for `"active"` (#166).
 
 ## [0.6.0] - 2026-09-28
 
